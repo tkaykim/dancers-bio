@@ -12,6 +12,11 @@ const supabaseHost = (() => {
 
 const nextConfig: NextConfig = {
   images: {
+    // Disable Next.js / Vercel Image Optimization globally so we don't hit
+    // Vercel's per-deployment optimized-image quota (which was breaking
+    // remote images on the live site). Source images are served as-is.
+    // See: node_modules/next/dist/docs/01-app/03-api-reference/02-components/image.md
+    unoptimized: true,
     remotePatterns: [
       // Supabase Storage (current)
       {
