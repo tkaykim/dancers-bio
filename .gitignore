@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code local state (project agents/commands are kept; worktrees + local settings are not)
+.claude/worktrees/
+.claude/settings.local.json

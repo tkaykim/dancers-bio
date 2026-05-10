@@ -1,0 +1,73 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev*)",
+      "Bash(npm run build*)",
+      "Bash(npm run start*)",
+      "Bash(npm run typecheck*)",
+      "Bash(npm run lint*)",
+      "Bash(npm run db:types*)",
+      "Bash(npm install *)",
+      "Bash(npm i *)",
+      "Bash(npx tsc *)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git add *)",
+      "Bash(git commit -m *)",
+      "Bash(git branch*)",
+      "Bash(git checkout *)",
+      "Read(./**)",
+      "mcp__supabase-dancersbio__list_tables",
+      "mcp__supabase-dancersbio__list_migrations",
+      "mcp__supabase-dancersbio__list_extensions",
+      "mcp__supabase-dancersbio__list_branches",
+      "mcp__supabase-dancersbio__get_project_url",
+      "mcp__supabase-dancersbio__get_publishable_keys",
+      "mcp__supabase-dancersbio__execute_sql",
+      "mcp__supabase-dancersbio__search_docs",
+      "mcp__supabase-dancersbio__get_advisors",
+      "mcp__supabase-dancersbio__get_logs"
+    ],
+    "ask": [
+      "mcp__supabase-dancersbio__apply_migration",
+      "mcp__supabase-dancersbio__deploy_edge_function",
+      "Bash(git push*)",
+      "Bash(npm run deploy*)",
+      "Bash(vercel*)"
+    ],
+    "deny": [
+      "Bash(rm -rf*)",
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.production)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "mcp__supabase-dancersbio__apply_migration",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Migration applied. Remember to run npm run db:types to refresh TypeScript types.'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"${CLAUDE_BASH_COMMAND:-}\" | grep -qE 'rm -rf|DROP DATABASE|TRUNCATE'; then echo 'Destructive command blocked by hook'; exit 2; fi",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

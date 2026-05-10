@@ -1,26 +1,180 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Pretendard Variable is loaded via <link> in layout.tsx for proper CSS ordering */
+
+@custom-variant light (&:is(.light *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+
+  --color-role-dancer: var(--role-dancer);
+  --color-role-choreo: var(--role-choreo);
+  --color-role-client: var(--role-client);
+
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-info: var(--info);
+
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-hairline-2: var(--hairline-2);
+
+  /* Pretendard first; Inter as latin fallback. No serif anywhere. */
+  --font-sans: "Pretendard Variable", var(--font-inter), -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ─────────────────────────────────────────
+   Cue · Dark mode — modern, Toss-like
+   ───────────────────────────────────────── */
+:root {
+  --background: #0E0E0C;
+  --foreground: #F4F0E6;
+
+  --card: #161614;
+  --card-foreground: #F4F0E6;
+  --popover: #161614;
+  --popover-foreground: #F4F0E6;
+
+  --surface-2: #1E1E1B;
+  --surface-3: #272723;
+
+  --primary: #D9FF3C;
+  --primary-foreground: #0E0E0C;
+
+  --secondary: #1E1E1B;
+  --secondary-foreground: #F4F0E6;
+
+  --muted: #161614;
+  --muted-foreground: rgba(244, 240, 230, 0.55);
+
+  --accent: #1E1E1B;
+  --accent-foreground: #F4F0E6;
+
+  --destructive: #FF7A6E;
+
+  --border: rgba(255, 250, 235, 0.07);
+  --hairline-2: rgba(255, 250, 235, 0.12);
+  --input: rgba(255, 250, 235, 0.10);
+  --ring: #D9FF3C;
+
+  --ink-2: rgba(244, 240, 230, 0.72);
+  --ink-3: rgba(244, 240, 230, 0.48);
+  --ink-4: rgba(244, 240, 230, 0.28);
+
+  --role-dancer: #D9FF3C;
+  --role-choreo: #FFC061;
+  --role-client: #9BC8FF;
+
+  --ok: #7DE2A0;
+  --warn: #FFC061;
+  --info: #9BC8FF;
+
+  --radius: 16px;
+}
+
+.light {
+  --background: #FFFFFF;
+  --foreground: #14120C;
+
+  --card: #FFFFFF;
+  --card-foreground: #14120C;
+  --popover: #FFFFFF;
+  --popover-foreground: #14120C;
+
+  --surface-2: #F4F4F2;
+  --surface-3: #ECECE7;
+
+  --primary: #5BB80C;
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #F4F4F2;
+  --secondary-foreground: #14120C;
+
+  --muted: #F4F4F2;
+  --muted-foreground: rgba(20, 18, 12, 0.50);
+
+  --accent: #F4F4F2;
+  --accent-foreground: #14120C;
+
+  --destructive: #D64A3D;
+
+  --border: rgba(20, 18, 12, 0.07);
+  --hairline-2: rgba(20, 18, 12, 0.12);
+  --input: rgba(20, 18, 12, 0.10);
+  --ring: #5BB80C;
+
+  --ink-2: rgba(20, 18, 12, 0.72);
+  --ink-3: rgba(20, 18, 12, 0.48);
+  --ink-4: rgba(20, 18, 12, 0.28);
+
+  --role-dancer: #5BB80C;
+  --role-choreo: #C77A12;
+  --role-client: #3878C8;
+
+  --ok: #2E9D5C;
+  --warn: #C77A12;
+  --info: #3878C8;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
+  html {
+    @apply font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11";
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  h1, h2, h3 {
+    letter-spacing: -0.022em;
+  }
+
+  /* hide scrollbars where we don't want them (mobile feel) */
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .scrollbar-none { scrollbar-width: none; }
+
+  /* iOS safe-area helpers */
+  .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+  .mb-safe { margin-bottom: max(env(safe-area-inset-bottom), 0px); }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes cue-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
