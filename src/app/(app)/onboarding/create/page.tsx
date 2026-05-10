@@ -18,5 +18,5 @@ export default async function OnboardingCreatePage() {
     redirect("/me/portfolio");
   }
 
-  return <CreateProfileWizard />;
+  return <CreateProfileWizard userId={user.id} />;
 }

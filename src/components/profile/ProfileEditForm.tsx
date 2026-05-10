@@ -1,35 +1,53 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateProfileAction } from "@/app/actions/profile";
+import { uploadAvatarFromBrowser } from "@/lib/storage/upload-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type Props = {
+  userId: string;
   defaultValues: {
     display_name: string;
     bio: string | null;
   };
 };
 
-export function ProfileEditForm({ defaultValues }: Props) {
+export function ProfileEditForm({ userId, defaultValues }: Props) {
   const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  const [uploading, setUploading] = useState(false);
 
   return (
     <form
       action={(formData) => {
         setMessage(null);
         startTransition(async () => {
+          const file = fileRef.current?.files?.[0];
+          if (file && file.size > 0) {
+            setUploading(true);
+            const result = await uploadAvatarFromBrowser(file, userId, "avatar");
+            setUploading(false);
+            if (!result.ok) {
+              setMessage({ kind: "error", text: result.error });
+              return;
+            }
+            formData.set("avatar_url", result.url);
+          }
+          formData.delete("avatar");
+
           const result = await updateProfileAction(formData);
           if (!result.ok) {
             setMessage({ kind: "error", text: result.error });
             return;
           }
           setMessage({ kind: "ok", text: "저장됐습니다." });
+          if (fileRef.current) fileRef.current.value = "";
           router.refresh();
         });
       }}
@@ -62,12 +80,13 @@ export function ProfileEditForm({ defaultValues }: Props) {
       <div className="flex flex-col gap-2">
         <Label htmlFor="avatar">프로필 사진 (선택)</Label>
         <Input
+          ref={fileRef}
           id="avatar"
           name="avatar"
           type="file"
           accept="image/jpeg,image/png,image/webp,image/gif"
         />
-        <p className="text-xs text-muted-foreground">5MB 이하 JPG/PNG/WEBP/GIF</p>
+        <p className="text-xs text-muted-foreground">10MB 이하 JPG/PNG/WEBP/GIF</p>
       </div>
 
       {message ? (
@@ -84,7 +103,7 @@ export function ProfileEditForm({ defaultValues }: Props) {
       ) : null}
 
       <Button type="submit" disabled={pending} className="w-fit">
-        {pending ? "저장 중..." : "저장하기"}
+        {uploading ? "업로드 중..." : pending ? "저장 중..." : "저장하기"}
       </Button>
     </form>
   );

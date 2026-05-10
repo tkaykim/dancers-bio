@@ -77,6 +77,7 @@ export default async function MePage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-bold text-ink-2">기본 정보</h2>
         <ProfileEditForm
+          userId={user.id}
           defaultValues={{
             display_name: profile.display_name ?? "",
             bio: profile.bio,

@@ -3,14 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { isValidProfilePhotoUrl } from "@/lib/storage/profile-photos";
 import {
   dancerOnboardingSchema,
   dancerProfileSchema,
 } from "@/lib/validation/portfolio";
 import type { ActionResult } from "./auth";
-
-const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
-const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 function buildSocialLinksFromHandles(handles: {
   instagram?: string | null;
@@ -114,6 +112,7 @@ export async function upsertDancerProfileAction(
     social_instagram: strOrNull(formData, "social_instagram"),
     social_youtube: strOrNull(formData, "social_youtube"),
     social_tiktok: strOrNull(formData, "social_tiktok"),
+    profile_img_url: strOrNull(formData, "profile_img_url"),
   });
   if (!parsed.success) {
     return {
@@ -141,6 +140,7 @@ export async function upsertDancerProfileAction(
     specialties: parsed.data.specialties.length ? parsed.data.specialties : null,
     genres: parsed.data.genres.length ? parsed.data.genres : null,
     social_links,
+    ...(parsed.data.profile_img_url ? { profile_img: parsed.data.profile_img_url } : {}),
   };
 
   let dancerId: string;
@@ -160,31 +160,6 @@ export async function upsertDancerProfileAction(
       .single();
     if (error) return { ok: false, error: humanizeDancerError(error.message) };
     dancerId = data.id as string;
-  }
-
-  // Optional profile image upload
-  const profileImg = formData.get("profile_img");
-  if (profileImg instanceof File && profileImg.size > 0) {
-    if (profileImg.size > MAX_AVATAR_BYTES) {
-      return { ok: false, error: "이미지는 5MB 이하만 업로드할 수 있습니다." };
-    }
-    if (!ALLOWED_AVATAR_TYPES.includes(profileImg.type)) {
-      return { ok: false, error: "JPG, PNG, WEBP, GIF 형식만 업로드할 수 있습니다." };
-    }
-    const ext = profileImg.type.split("/")[1] ?? "jpg";
-    const path = `${dancerId}/profile_${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from("profile-photos")
-      .upload(path, profileImg, { upsert: true, contentType: profileImg.type });
-    if (uploadError) {
-      return { ok: false, error: `이미지 업로드 실패: ${uploadError.message}` };
-    }
-    const { data } = supabase.storage.from("profile-photos").getPublicUrl(path);
-    const { error } = await supabase
-      .from("dancers")
-      .update({ profile_img: data.publicUrl })
-      .eq("id", dancerId);
-    if (error) return { ok: false, error: error.message };
   }
 
   revalidatePath("/me/portfolio");
@@ -227,6 +202,12 @@ export async function createDancerProfileAction(
     };
   }
 
+  const profileImgUrlRaw = strOrNull(formData, "profile_img_url");
+  const profileImgUrl =
+    profileImgUrlRaw && isValidProfilePhotoUrl(profileImgUrlRaw)
+      ? profileImgUrlRaw
+      : null;
+
   const supabase = await createClient();
   const existing = await supabase
     .from("dancers")
@@ -253,6 +234,7 @@ export async function createDancerProfileAction(
     specialties: parsed.data.specialties.length ? parsed.data.specialties : null,
     genres: parsed.data.genres.length ? parsed.data.genres : null,
     social_links,
+    ...(profileImgUrl ? { profile_img: profileImgUrl } : {}),
   };
 
   const { data: inserted, error: insertError } = await supabase
@@ -264,30 +246,6 @@ export async function createDancerProfileAction(
     return { ok: false, error: humanizeDancerError(insertError.message) };
   }
   const dancerId = inserted.id as string;
-
-  const profileImg = formData.get("profile_img");
-  if (profileImg instanceof File && profileImg.size > 0) {
-    if (profileImg.size > MAX_AVATAR_BYTES) {
-      return { ok: true, data: { id: dancerId } };
-    }
-    if (!ALLOWED_AVATAR_TYPES.includes(profileImg.type)) {
-      return { ok: true, data: { id: dancerId } };
-    }
-    const ext = profileImg.type.split("/")[1] ?? "jpg";
-    const path = `${dancerId}/profile_${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from("profile-photos")
-      .upload(path, profileImg, { upsert: true, contentType: profileImg.type });
-    if (!uploadError) {
-      const { data: pub } = supabase.storage
-        .from("profile-photos")
-        .getPublicUrl(path);
-      await supabase
-        .from("dancers")
-        .update({ profile_img: pub.publicUrl })
-        .eq("id", dancerId);
-    }
-  }
 
   revalidatePath("/me/portfolio");
   revalidatePath("/me");

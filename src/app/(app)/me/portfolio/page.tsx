@@ -58,6 +58,7 @@ export default async function MyPortfolioPage() {
       ) : null}
 
       <DancerProfileForm
+        userId={user.id}
         isCreate={false}
         defaultValues={{
           stage_name: dancer.stage_name ?? "",

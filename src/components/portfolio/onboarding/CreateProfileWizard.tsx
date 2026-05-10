@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 
 import { createDancerProfileAction } from "@/app/actions/portfolio";
+import { uploadAvatarFromBrowser } from "@/lib/storage/upload-client";
 import { ProfilePhotoUpload } from "@/components/portfolio/ProfilePhotoUpload";
 import {
   SocialLinksInput,
@@ -65,12 +66,17 @@ const initialState: FormState = {
   profile_img: null,
 };
 
-export function CreateProfileWizard() {
+type CreateProfileWizardProps = {
+  userId: string;
+};
+
+export function CreateProfileWizard({ userId }: CreateProfileWizardProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [data, setData] = useState<FormState>(initialState);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [uploading, setUploading] = useState(false);
 
   const previewUrl = useMemo(
     () => (data.profile_img ? URL.createObjectURL(data.profile_img) : null),
@@ -86,23 +92,39 @@ export function CreateProfileWizard() {
 
   const handleSubmit = () => {
     setError(null);
-    const fd = new FormData();
-    fd.set("stage_name", data.stage_name);
-    if (data.korean_name) fd.set("korean_name", data.korean_name);
-    if (data.location) fd.set("location", data.location);
-    if (data.gender) fd.set("gender", data.gender);
-    if (data.bio) fd.set("bio", data.bio);
-    data.specialties.forEach((s) => fd.append("specialties", s));
-    data.genres.forEach((g) => fd.append("genres", g));
-    if (data.social.instagram)
-      fd.set("social_instagram_handle", data.social.instagram);
-    if (data.social.youtube)
-      fd.set("social_youtube_handle", data.social.youtube);
-    if (data.social.tiktok)
-      fd.set("social_tiktok_handle", data.social.tiktok);
-    if (data.profile_img) fd.set("profile_img", data.profile_img);
-
     startTransition(async () => {
+      let profileImgUrl: string | null = null;
+      if (data.profile_img) {
+        setUploading(true);
+        const upload = await uploadAvatarFromBrowser(
+          data.profile_img,
+          userId,
+          "profile",
+        );
+        setUploading(false);
+        if (!upload.ok) {
+          setError(upload.error);
+          return;
+        }
+        profileImgUrl = upload.url;
+      }
+
+      const fd = new FormData();
+      fd.set("stage_name", data.stage_name);
+      if (data.korean_name) fd.set("korean_name", data.korean_name);
+      if (data.location) fd.set("location", data.location);
+      if (data.gender) fd.set("gender", data.gender);
+      if (data.bio) fd.set("bio", data.bio);
+      data.specialties.forEach((s) => fd.append("specialties", s));
+      data.genres.forEach((g) => fd.append("genres", g));
+      if (data.social.instagram)
+        fd.set("social_instagram_handle", data.social.instagram);
+      if (data.social.youtube)
+        fd.set("social_youtube_handle", data.social.youtube);
+      if (data.social.tiktok)
+        fd.set("social_tiktok_handle", data.social.tiktok);
+      if (profileImgUrl) fd.set("profile_img_url", profileImgUrl);
+
       const result = await createDancerProfileAction(fd);
       if (!result.ok) {
         setError(result.error);
@@ -212,7 +234,7 @@ export function CreateProfileWizard() {
               "disabled:cursor-not-allowed disabled:opacity-50",
             )}
           >
-            {pending ? (
+            {pending || uploading ? (
               <Loader2 className="size-5 animate-spin" />
             ) : (
               <>

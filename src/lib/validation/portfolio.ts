@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isSupportedVideoUrl } from "@/lib/utils/video";
+import { isValidProfilePhotoUrl } from "@/lib/storage/profile-photos";
 
 const slugSchema = z
   .string()
@@ -48,6 +49,13 @@ export const dancerProfileSchema = z.object({
     .optional()
     .nullable()
     .or(z.literal("")),
+  profile_img_url: z
+    .string()
+    .trim()
+    .url()
+    .refine(isValidProfilePhotoUrl, "허용되지 않는 이미지 URL입니다.")
+    .optional()
+    .nullable(),
 });
 
 export type DancerProfileInput = z.infer<typeof dancerProfileSchema>;

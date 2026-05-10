@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { upsertDancerProfileAction } from "@/app/actions/portfolio";
+import { uploadAvatarFromBrowser } from "@/lib/storage/upload-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type Props = {
+  userId: string;
   defaultValues: {
     stage_name: string;
     korean_name: string;
@@ -24,22 +26,38 @@ type Props = {
   isCreate: boolean;
 };
 
-export function DancerProfileForm({ defaultValues, isCreate }: Props) {
+export function DancerProfileForm({ userId, defaultValues, isCreate }: Props) {
   const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  const [uploading, setUploading] = useState(false);
 
   return (
     <form
       action={(formData) => {
         setMessage(null);
         startTransition(async () => {
+          const file = fileRef.current?.files?.[0];
+          if (file && file.size > 0) {
+            setUploading(true);
+            const upload = await uploadAvatarFromBrowser(file, userId, "profile");
+            setUploading(false);
+            if (!upload.ok) {
+              setMessage({ kind: "error", text: upload.error });
+              return;
+            }
+            formData.set("profile_img_url", upload.url);
+          }
+          formData.delete("profile_img");
+
           const result = await upsertDancerProfileAction(formData);
           if (!result.ok) {
             setMessage({ kind: "error", text: result.error });
             return;
           }
           setMessage({ kind: "ok", text: isCreate ? "댄서 프로필이 생성됐습니다." : "저장됐습니다." });
+          if (fileRef.current) fileRef.current.value = "";
           router.refresh();
         });
       }}
@@ -123,8 +141,9 @@ export function DancerProfileForm({ defaultValues, isCreate }: Props) {
           placeholder="Hip Hop, K-Pop"
         />
       </Field>
-      <Field label="프로필 사진 (선택)" htmlFor="profile_img" hint="5MB 이하, JPG/PNG/WEBP/GIF">
+      <Field label="프로필 사진 (선택)" htmlFor="profile_img" hint="10MB 이하, JPG/PNG/WEBP/GIF">
         <Input
+          ref={fileRef}
           id="profile_img"
           name="profile_img"
           type="file"
@@ -177,7 +196,7 @@ export function DancerProfileForm({ defaultValues, isCreate }: Props) {
       ) : null}
 
       <Button type="submit" disabled={pending} className="w-fit">
-        {pending ? "저장 중..." : isCreate ? "댄서 프로필 만들기" : "저장하기"}
+        {uploading ? "업로드 중..." : pending ? "저장 중..." : isCreate ? "댄서 프로필 만들기" : "저장하기"}
       </Button>
     </form>
   );
