@@ -9,6 +9,12 @@ const slugSchema = z
   .max(40, "slug는 40자 이하로 입력해 주세요.")
   .regex(/^[a-z0-9-]+$/i, "영문 소문자, 숫자, 하이픈만 사용할 수 있습니다.");
 
+const handleSchema = z
+  .string()
+  .trim()
+  .max(60, "60자 이하로 입력해 주세요.")
+  .regex(/^[A-Za-z0-9._-]*$/, "영문/숫자/._- 만 사용할 수 있습니다.");
+
 export const dancerProfileSchema = z.object({
   stage_name: z.string().trim().min(1, "활동명을 입력해 주세요.").max(80),
   korean_name: z.string().trim().max(40).optional().nullable(),
@@ -46,26 +52,57 @@ export const dancerProfileSchema = z.object({
 
 export type DancerProfileInput = z.infer<typeof dancerProfileSchema>;
 
+export const dancerOnboardingSchema = z.object({
+  stage_name: z.string().trim().min(1, "활동명을 입력해 주세요.").max(80),
+  korean_name: z.string().trim().max(40).optional().nullable(),
+  location: z.string().trim().max(80).optional().nullable(),
+  gender: z.enum(["male", "female", "other"]).optional().nullable(),
+  bio: z.string().trim().max(1000).optional().nullable(),
+  specialties: z.array(z.string().trim().min(1).max(30)).max(10).default([]),
+  genres: z.array(z.string().trim().min(1).max(30)).max(10).default([]),
+  social_instagram_handle: handleSchema.optional().nullable().or(z.literal("")),
+  social_youtube_handle: handleSchema.optional().nullable().or(z.literal("")),
+  social_tiktok_handle: handleSchema.optional().nullable().or(z.literal("")),
+});
+
+export type DancerOnboardingInput = z.infer<typeof dancerOnboardingSchema>;
+
 export const careerCategoryEnum = z.enum([
-  "choreo", // 안무 제작
-  "broadcast", // 방송 출연
-  "performance", // 공연
-  "judge", // 심사
-  "award", // 수상
-  "workshop", // 워크샵
-  "battle", // 배틀
+  "choreo",
+  "performance",
+  "broadcast",
+  "award",
+  "judge",
+  "workshop",
+  "education",
+  "battle",
   "other",
 ]);
 
-export const CAREER_CATEGORY_LABELS: Record<z.infer<typeof careerCategoryEnum>, string> = {
-  choreo: "안무 제작",
-  broadcast: "방송 출연",
+export type CareerCategory = z.infer<typeof careerCategoryEnum>;
+
+export const CAREER_CATEGORY_LABELS: Record<CareerCategory, string> = {
+  choreo: "안무",
   performance: "공연",
-  judge: "심사",
+  broadcast: "방송",
   award: "수상",
+  judge: "심사",
   workshop: "워크샵",
+  education: "교육",
   battle: "배틀",
   other: "기타",
+};
+
+export const CAREER_CATEGORY_ROLES: Record<CareerCategory, string[]> = {
+  choreo: ["제작", "공동제작", "참여"],
+  performance: ["댄서", "게스트", "디렉터"],
+  broadcast: ["출연", "안무", "백업댄서"],
+  award: ["우승", "준우승", "베스트상", "참가"],
+  judge: [],
+  workshop: [],
+  education: [],
+  battle: [],
+  other: [],
 };
 
 export const careerSchema = z.object({
@@ -83,8 +120,9 @@ export const careerSchema = z.object({
     .refine((v) => !v || isSupportedVideoUrl(v), {
       message: "지원하지 않는 영상 URL입니다. (YouTube/Vimeo)",
     }),
-  is_public: z.boolean().default(true),
+  is_public: z.boolean().default(false),
   is_representative: z.boolean().default(false),
+  sort_order: z.number().int().min(0).max(999).default(0),
 });
 
 export type CareerInput = z.infer<typeof careerSchema>;

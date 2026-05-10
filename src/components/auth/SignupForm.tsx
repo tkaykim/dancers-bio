@@ -23,7 +23,7 @@ export function SignupForm() {
             setError(result.error);
             return;
           }
-          router.push("/me");
+          router.push("/onboarding/create");
           router.refresh();
         });
       }}

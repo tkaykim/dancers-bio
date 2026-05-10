@@ -1,21 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import {
-  CareerForm,
-  CareerListItem,
-} from "@/components/portfolio/CareerEditor";
-
-type CareerRow = {
-  id: number;
-  type: string;
-  title: string;
-  date: string;
-  details: { link?: string; role?: string; description?: string; thumbnail?: string } | null;
-  is_public: boolean;
-  is_representative: boolean;
-};
+  CareerHistoryManager,
+  type CareerRow,
+} from "@/components/portfolio/CareerHistoryManager";
 
 export default async function CareersPage() {
   const user = await requireUser();
@@ -27,16 +18,23 @@ export default async function CareersPage() {
     .eq("profile_id", user.id)
     .maybeSingle();
 
-  if (!dancer) redirect("/me/portfolio");
+  if (!dancer) redirect("/onboarding/create");
 
   const { data: careers } = await supabase
     .from("careers")
-    .select("id, type, title, date, details, is_public, is_representative")
+    .select(
+      "id, type, title, date, details, is_public, is_representative, sort_order",
+    )
     .eq("dancer_id", dancer.id)
-    .order("date", { ascending: false })
-    .order("sort_order", { ascending: true });
+    .order("sort_order", { ascending: false })
+    .order("date", { ascending: false });
 
-  const list = (careers ?? []) as CareerRow[];
+  const list = ((careers ?? []) as CareerRow[]).map((c) => ({
+    ...c,
+    sort_order: c.sort_order ?? 0,
+    is_public: c.is_public ?? false,
+    is_representative: c.is_representative ?? false,
+  }));
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-8">
@@ -45,9 +43,12 @@ export default async function CareersPage() {
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
             ↳ 경력 관리
           </p>
-          <h1 className="text-2xl font-bold tracking-tight leading-tight">
+          <h1 className="text-2xl font-bold leading-tight tracking-tight">
             {dancer.stage_name}
           </h1>
+          <p className="text-sm text-ink-2">
+            카테고리별로 경력을 추가하고 영상 링크를 첨부합니다.
+          </p>
         </div>
         <Link
           href="/me/portfolio"
@@ -57,34 +58,7 @@ export default async function CareersPage() {
         </Link>
       </header>
 
-      <section className="flex flex-col gap-3">
-        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-          ↳ 새 경력 추가
-        </p>
-        <CareerForm />
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between">
-          <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-            ↳ 경력 목록
-          </p>
-          <span className="font-mono text-[11px] text-ink-3">
-            {list.length}건
-          </span>
-        </div>
-        {list.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-hairline-2 p-6 text-center text-sm text-ink-3">
-            아직 등록된 경력이 없습니다. 위에서 추가해 주세요.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {list.map((career) => (
-              <CareerListItem key={career.id} career={career} />
-            ))}
-          </div>
-        )}
-      </section>
+      <CareerHistoryManager initialCareers={list} />
     </div>
   );
 }

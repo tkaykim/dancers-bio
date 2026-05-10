@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { DancerProfileForm } from "@/components/portfolio/DancerProfileForm";
@@ -15,9 +16,12 @@ export default async function MyPortfolioPage() {
     .eq("profile_id", user.id)
     .maybeSingle();
 
-  const isCreate = !dancer;
-  const social = (dancer?.social_links ?? {}) as Record<string, string>;
-  const publicHref = dancer ? `/d/${dancer.slug ?? dancer.id}` : null;
+  if (!dancer) {
+    redirect("/onboarding/create");
+  }
+
+  const social = (dancer.social_links ?? {}) as Record<string, string>;
+  const publicHref = `/d/${dancer.slug ?? dancer.id}`;
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-8">
@@ -27,28 +31,23 @@ export default async function MyPortfolioPage() {
             ↳ 댄서 포트폴리오
           </p>
           <h1 className="text-2xl font-bold tracking-tight leading-tight">
-            {isCreate ? "포트폴리오 만들기" : "프로필 편집"}
-            
+            프로필 편집
           </h1>
           <p className="text-sm text-ink-2">
-            {isCreate
-              ? "댄서로 활동하시려면 포트폴리오를 만들어 주세요."
-              : "공개 페이지에 노출되는 정보를 편집합니다."}
+            공개 페이지에 노출되는 정보를 편집합니다.
           </p>
         </div>
-        {publicHref ? (
-          <Link
-            href={publicHref}
-            className="shrink-0 rounded-full border border-hairline-2 px-3 py-1.5 text-xs uppercase tracking-[0.14em] text-ink-2 hover:text-foreground"
-          >
-            공개 보기 →
-          </Link>
-        ) : null}
+        <Link
+          href={publicHref}
+          className="shrink-0 rounded-full border border-hairline-2 px-3 py-1.5 text-xs uppercase tracking-[0.14em] text-ink-2 hover:text-foreground"
+        >
+          공개 보기 →
+        </Link>
       </header>
 
-      {dancer ? <ApprovalBanner dancer={dancer} /> : null}
+      <ApprovalBanner dancer={dancer} />
 
-      {dancer?.profile_img ? (
+      {dancer.profile_img ? (
         <Image
           src={dancer.profile_img}
           alt={dancer.stage_name}
@@ -59,43 +58,41 @@ export default async function MyPortfolioPage() {
       ) : null}
 
       <DancerProfileForm
-        isCreate={isCreate}
+        isCreate={false}
         defaultValues={{
-          stage_name: dancer?.stage_name ?? "",
-          korean_name: dancer?.korean_name ?? "",
-          slug: dancer?.slug ?? "",
-          gender: dancer?.gender ?? "",
-          bio: dancer?.bio ?? "",
-          location: dancer?.location ?? "",
-          specialties: (dancer?.specialties as string[] | null) ?? [],
-          genres: (dancer?.genres as string[] | null) ?? [],
+          stage_name: dancer.stage_name ?? "",
+          korean_name: dancer.korean_name ?? "",
+          slug: dancer.slug ?? "",
+          gender: dancer.gender ?? "",
+          bio: dancer.bio ?? "",
+          location: dancer.location ?? "",
+          specialties: (dancer.specialties as string[] | null) ?? [],
+          genres: (dancer.genres as string[] | null) ?? [],
           social_instagram: social.instagram ?? "",
           social_youtube: social.youtube ?? "",
           social_tiktok: social.tiktok ?? "",
         }}
       />
 
-      {dancer ? (
-        <Link
-          href="/me/portfolio/careers"
-          className="group flex flex-col gap-1.5 rounded-xl border border-border bg-card p-5 transition-colors hover:bg-secondary"
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-              ↳ 경력 관리
-            </p>
-            <span className="text-ink-3 transition-transform group-hover:translate-x-1">
-              →
-            </span>
-          </div>
-          <p className="text-lg font-bold leading-tight">
-            안무·출연·수상·공연.
+      <Link
+        href="/me/portfolio/careers"
+        className="group flex flex-col gap-1.5 rounded-xl border border-border bg-card p-5 transition-colors hover:bg-secondary"
+      >
+        <div className="flex items-center justify-between">
+          <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
+            ↳ 경력 관리
           </p>
-          <p className="text-sm text-ink-2">
-            카테고리별로 경력을 추가하고 영상 링크를 첨부합니다.
-          </p>
-        </Link>
-      ) : null}
+          <span className="text-ink-3 transition-transform group-hover:translate-x-1">
+            →
+          </span>
+        </div>
+        <p className="text-lg font-bold leading-tight">
+          안무·출연·수상·공연.
+        </p>
+        <p className="text-sm text-ink-2">
+          카테고리별로 경력을 추가하고 영상 링크를 첨부합니다.
+        </p>
+      </Link>
     </div>
   );
 }

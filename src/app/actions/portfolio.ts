@@ -3,11 +3,50 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
-import { dancerProfileSchema } from "@/lib/validation/portfolio";
+import {
+  dancerOnboardingSchema,
+  dancerProfileSchema,
+} from "@/lib/validation/portfolio";
 import type { ActionResult } from "./auth";
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+function buildSocialLinksFromHandles(handles: {
+  instagram?: string | null;
+  youtube?: string | null;
+  tiktok?: string | null;
+}) {
+  const links: Record<string, string> = {};
+  if (handles.instagram)
+    links.instagram = `https://www.instagram.com/${handles.instagram}`;
+  if (handles.youtube)
+    links.youtube = `https://www.youtube.com/@${handles.youtube}`;
+  if (handles.tiktok)
+    links.tiktok = `https://www.tiktok.com/@${handles.tiktok}`;
+  return Object.keys(links).length > 0 ? links : null;
+}
+
+function arrayFieldFromForm(formData: FormData, key: string): string[] {
+  const all = formData.getAll(key);
+  if (all.length > 1) {
+    return all.map((v) => v.toString().trim()).filter(Boolean);
+  }
+  const raw = (formData.get(key) ?? "").toString().trim();
+  if (!raw) return [];
+  if (raw.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+    } catch {
+      // fall through
+    }
+  }
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 type DancerRow = {
   id: string;
@@ -162,4 +201,95 @@ function humanizeDancerError(message: string): string {
     return "이미 댄서 프로필이 존재합니다.";
   }
   return message;
+}
+
+export async function createDancerProfileAction(
+  formData: FormData,
+): Promise<ActionResult<{ id: string }>> {
+  const user = await requireUser();
+
+  const parsed = dancerOnboardingSchema.safeParse({
+    stage_name: formData.get("stage_name"),
+    korean_name: strOrNull(formData, "korean_name"),
+    location: strOrNull(formData, "location"),
+    gender: strOrNull(formData, "gender"),
+    bio: strOrNull(formData, "bio"),
+    specialties: arrayFieldFromForm(formData, "specialties"),
+    genres: arrayFieldFromForm(formData, "genres"),
+    social_instagram_handle: strOrNull(formData, "social_instagram_handle"),
+    social_youtube_handle: strOrNull(formData, "social_youtube_handle"),
+    social_tiktok_handle: strOrNull(formData, "social_tiktok_handle"),
+  });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
+    };
+  }
+
+  const supabase = await createClient();
+  const existing = await supabase
+    .from("dancers")
+    .select("id")
+    .eq("profile_id", user.id)
+    .maybeSingle();
+  if (existing.data) {
+    return { ok: false, error: "이미 댄서 프로필이 존재합니다." };
+  }
+
+  const social_links = buildSocialLinksFromHandles({
+    instagram: parsed.data.social_instagram_handle ?? null,
+    youtube: parsed.data.social_youtube_handle ?? null,
+    tiktok: parsed.data.social_tiktok_handle ?? null,
+  });
+
+  const insertValues = {
+    profile_id: user.id,
+    stage_name: parsed.data.stage_name,
+    korean_name: parsed.data.korean_name ?? null,
+    gender: parsed.data.gender ?? null,
+    bio: parsed.data.bio ?? null,
+    location: parsed.data.location ?? null,
+    specialties: parsed.data.specialties.length ? parsed.data.specialties : null,
+    genres: parsed.data.genres.length ? parsed.data.genres : null,
+    social_links,
+  };
+
+  const { data: inserted, error: insertError } = await supabase
+    .from("dancers")
+    .insert(insertValues)
+    .select("id")
+    .single();
+  if (insertError) {
+    return { ok: false, error: humanizeDancerError(insertError.message) };
+  }
+  const dancerId = inserted.id as string;
+
+  const profileImg = formData.get("profile_img");
+  if (profileImg instanceof File && profileImg.size > 0) {
+    if (profileImg.size > MAX_AVATAR_BYTES) {
+      return { ok: true, data: { id: dancerId } };
+    }
+    if (!ALLOWED_AVATAR_TYPES.includes(profileImg.type)) {
+      return { ok: true, data: { id: dancerId } };
+    }
+    const ext = profileImg.type.split("/")[1] ?? "jpg";
+    const path = `${dancerId}/profile_${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("profile-photos")
+      .upload(path, profileImg, { upsert: true, contentType: profileImg.type });
+    if (!uploadError) {
+      const { data: pub } = supabase.storage
+        .from("profile-photos")
+        .getPublicUrl(path);
+      await supabase
+        .from("dancers")
+        .update({ profile_img: pub.publicUrl })
+        .eq("id", dancerId);
+    }
+  }
+
+  revalidatePath("/me/portfolio");
+  revalidatePath("/me");
+  return { ok: true, data: { id: dancerId } };
 }
