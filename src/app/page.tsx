@@ -52,7 +52,7 @@ export default async function HomePage() {
         </Link>
         <p className="mt-2 text-center text-xs text-ink-3">
           이미 등록된 댄서{" "}
-          <Link href="/d/babysleek" className="text-foreground underline">
+          <Link href="/dancers" className="text-foreground underline">
             포트폴리오 둘러보기
           </Link>
         </p>

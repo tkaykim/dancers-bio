@@ -128,7 +128,7 @@ export async function rejectInstagramVerificationAction(
   const { error } = await admin.rpc("reject_instagram_verification", {
     p_verification_id: id,
     p_reviewer_id: profile.id,
-    p_reason: reason,
+    p_reason: reason ?? undefined,
   });
   if (error) return { ok: false, error: error.message };
 

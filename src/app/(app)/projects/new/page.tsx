@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
-import { ProjectForm } from "@/components/project/ProjectForm";
+import { ProjectForm, type ActAsCandidate } from "@/components/project/ProjectForm";
 
 export default async function NewProjectPage() {
   const profile = await requireProfile();
@@ -36,22 +36,56 @@ export default async function NewProjectPage() {
     );
   }
 
-  // Provide lookups for genre select (region is a free-text field now).
   const supabase = await createClient();
   const { data: genres } = await supabase
     .from("genres")
     .select("id, label_ko")
     .order("sort_order");
 
-  // Hard fail if lookup missing — should never happen post-Phase 0a
   if (!genres) redirect("/me");
+
+  let candidates: ActAsCandidate[] = [];
+  if (profile.is_admin) {
+    const [{ data: dancers }, { data: teams }] = await Promise.all([
+      supabase
+        .from("dancers")
+        .select("profile_id, stage_name, korean_name")
+        .eq("approval_status", "approved")
+        .eq("is_active", true)
+        .not("profile_id", "is", null)
+        .limit(200),
+      supabase
+        .from("teams")
+        .select("lead_profile_id, team_name")
+        .eq("approval_status", "approved")
+        .eq("is_active", true)
+        .limit(200),
+    ]);
+    const dancerCandidates = (dancers ?? [])
+      .filter((d) => d.profile_id && d.profile_id !== profile.id)
+      .map((d) => ({
+        id: d.profile_id as string,
+        label: `[댄서] ${d.stage_name}${d.korean_name ? ` (${d.korean_name})` : ""}`,
+      }));
+    const teamCandidates = (teams ?? [])
+      .filter((t) => t.lead_profile_id && t.lead_profile_id !== profile.id)
+      .map((t) => ({
+        id: t.lead_profile_id as string,
+        label: `[팀] ${t.team_name}`,
+      }));
+    // de-duplicate by id, keep first
+    const seen = new Set<string>();
+    candidates = [...dancerCandidates, ...teamCandidates].filter((c) => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+  }
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
       <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-          ↳ 새 프로젝트
-        </p>
+        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 새 프로젝트</p>
         <h1 className="text-2xl font-bold tracking-tight leading-tight">
           캐스팅 공고 개설
         </h1>
@@ -59,7 +93,11 @@ export default async function NewProjectPage() {
           제목, 설명, 일정을 입력하고 공개하면 피드에 노출됩니다.
         </p>
       </header>
-      <ProjectForm genres={genres} />
+      <ProjectForm
+        genres={genres}
+        isAdmin={profile.is_admin}
+        candidates={candidates}
+      />
     </div>
   );
 }

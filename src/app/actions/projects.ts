@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
-import { projectSchema, sessionSchema } from "@/lib/validation/projects";
+import {
+  agreedPaySchema,
+  projectSchema,
+  sessionSchema,
+} from "@/lib/validation/projects";
 import type { ActionResult } from "./auth";
 
 function strOrNull(formData: FormData, key: string): string | null {
@@ -33,10 +37,15 @@ export async function createProjectAction(
     region_text: strOrNull(formData, "region_text"),
     pay_amount: strOrNull(formData, "pay_amount"),
     pay_type: strOrNull(formData, "pay_type"),
+    recruitment_count: strOrNull(formData, "recruitment_count") ?? "1",
+    allow_team_apply:
+      formData.get("allow_team_apply") === "on" ||
+      formData.get("allow_team_apply") === "true",
     application_deadline: localDateTimeToIso(strOrNull(formData, "application_deadline")),
     publish_now:
       formData.get("publish_now") === "on" ||
       formData.get("publish_now") === "true",
+    owner_id_override: strOrNull(formData, "owner_id_override"),
   });
   if (!parsed.success) {
     return {
@@ -48,7 +57,7 @@ export async function createProjectAction(
   // Parse sessions (form encodes count + indexed entries)
   const count = Number(formData.get("sessions_count") ?? 0);
   const sessions: Array<{
-    session_type: string;
+    session_type: "rehearsal" | "main" | "filming" | "fitting" | "meeting" | "other";
     starts_at: string;
     ends_at: string | null;
     location_name: string | null;
@@ -82,10 +91,32 @@ export async function createProjectAction(
 
   const supabase = await createClient();
 
+  // Resolve owner_id: admin can act-as another profile; regular users always own.
+  let resolvedOwnerId = user.id;
+  if (parsed.data.owner_id_override && parsed.data.owner_id_override !== user.id) {
+    const { data: actor } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (!actor?.is_admin) {
+      return { ok: false, error: "타 계정 명의 등록은 관리자만 가능합니다." };
+    }
+    const { data: target } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", parsed.data.owner_id_override)
+      .maybeSingle();
+    if (!target) {
+      return { ok: false, error: "지정한 명의자 프로필을 찾을 수 없습니다." };
+    }
+    resolvedOwnerId = parsed.data.owner_id_override;
+  }
+
   const { data: project, error } = await supabase
     .from("projects")
     .insert({
-      owner_id: user.id,
+      owner_id: resolvedOwnerId,
       title: parsed.data.title,
       description: parsed.data.description,
       visibility: parsed.data.visibility,
@@ -95,6 +126,8 @@ export async function createProjectAction(
       region_text: parsed.data.region_text ?? null,
       pay_amount: parsed.data.pay_amount ?? null,
       pay_type: parsed.data.pay_type ?? null,
+      recruitment_count: parsed.data.recruitment_count,
+      allow_team_apply: parsed.data.allow_team_apply,
       application_deadline: parsed.data.application_deadline ?? null,
     })
     .select("id")
@@ -153,4 +186,33 @@ export async function deleteProjectAction(
   revalidatePath("/feed");
   revalidatePath("/me");
   redirect("/me");
+}
+
+export async function setAgreedPayAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireUser();
+  const parsed = agreedPaySchema.safeParse({
+    project_id: formData.get("project_id"),
+    agreed_pay: strOrNull(formData, "agreed_pay") ?? null,
+  });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "잘못된 입력값입니다.",
+    };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ agreed_pay: parsed.data.agreed_pay ?? null })
+    .eq("id", parsed.data.project_id);
+  if (error) {
+    if (error.code === "42501") {
+      return { ok: false, error: "확정 비용 수정 권한이 없습니다." };
+    }
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`/projects/${parsed.data.project_id}`);
+  return { ok: true };
 }

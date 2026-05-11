@@ -14,9 +14,10 @@ type Application = {
   created_at: string;
   responded_at: string | null;
   applicant: { id: string; display_name: string; avatar_url: string | null } | null;
+  team: { id: string; team_name: string; slug: string | null; profile_img: string | null } | null;
 };
 
-type Project = { id: string; owner_id: string; title: string };
+type Project = { id: string; owner_id: string; title: string; recruitment_count: number };
 
 const STATUS_COLOR: Record<string, string> = {
   pending: "text-ink-2",
@@ -34,29 +35,39 @@ export default async function ApplicantsPage({
   const user = await requireUser();
   const supabase = await createClient();
 
+  const { data: viewerProfile } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .maybeSingle();
+  const isAdmin = !!viewerProfile?.is_admin;
+
   const { data: project } = await supabase
     .from("projects")
-    .select("id, owner_id, title")
+    .select("id, owner_id, title, recruitment_count")
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle();
   if (!project) notFound();
   const p = project as Project;
-  if (p.owner_id !== user.id) notFound();
+  if (p.owner_id !== user.id && !isAdmin) notFound();
 
   const { data: rows } = await supabase
     .from("applications")
     .select(
       `id, status, source, cover_message, created_at, responded_at,
-       applicant:profiles!applications_applicant_id_fkey ( id, display_name, avatar_url )`,
+       applicant:profiles!applications_applicant_id_fkey ( id, display_name, avatar_url ),
+       team:teams!applications_team_id_fkey ( id, team_name, slug, profile_img )`,
     )
     .eq("project_id", id)
+    .is("archived_at", null)
     .order("created_at", { ascending: false });
 
   const list = (rows ?? []) as unknown as Application[];
 
   const pending = list.filter((a) => a.status === "pending");
   const decided = list.filter((a) => a.status !== "pending");
+  const acceptedCount = list.filter((a) => a.status === "accepted").length;
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
@@ -68,13 +79,11 @@ export default async function ApplicantsPage({
       </Link>
 
       <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-          ↳ 지원자
+        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 지원자</p>
+        <h1 className="text-xl font-bold tracking-tight leading-tight">{p.title}</h1>
+        <p className="text-sm text-ink-2">
+          총 {list.length}명 · 수락 {acceptedCount} / {p.recruitment_count}
         </p>
-        <h1 className="text-xl font-bold tracking-tight leading-tight">
-          {p.title}
-        </h1>
-        <p className="text-sm text-ink-2">총 {list.length}명</p>
       </header>
 
       {pending.length > 0 ? (
@@ -119,29 +128,48 @@ function ApplicantRow({
   app: Application;
   showActions?: boolean;
 }) {
+  const isTeam = !!app.team;
+  const name = isTeam
+    ? app.team?.team_name ?? "(팀)"
+    : app.applicant?.display_name ?? "(알 수 없음)";
+  const avatar = isTeam ? app.team?.profile_img : app.applicant?.avatar_url ?? null;
+  const publicHref = isTeam
+    ? `/t/${app.team?.slug ?? app.team?.id}`
+    : app.applicant?.id
+      ? `/u/${app.applicant.id}`
+      : null;
+
   return (
     <li className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3">
       <div className="flex items-start gap-3">
-        {app.applicant?.avatar_url ? (
+        {avatar ? (
           <Image
-            src={app.applicant.avatar_url}
-            alt={app.applicant.display_name ?? "applicant"}
+            src={avatar}
+            alt={name}
             width={40}
             height={40}
             className="h-10 w-10 rounded-full object-cover"
           />
         ) : (
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-sm font-semibold">
-            {(app.applicant?.display_name ?? "?")[0]}
+            {name[0]}
           </div>
         )}
         <div className="flex-1">
           <p className="text-sm font-medium">
-            {app.applicant?.display_name ?? "(알 수 없음)"}
+            {publicHref ? (
+              <Link href={publicHref} className="hover:underline">
+                {name}
+              </Link>
+            ) : (
+              name
+            )}
+            {isTeam ? (
+              <span className="ml-1.5 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-semibold">팀</span>
+            ) : null}
           </p>
           <p className={`mt-0.5 text-[11px] ${STATUS_COLOR[app.status] ?? "text-ink-3"}`}>
-            {app.source === "direct_proposal" ? "제안" : "지원"} ·{" "}
-            {APPLICATION_STATUS_LABELS[app.status]}
+            {app.source === "direct_proposal" ? "제안" : "지원"} · {APPLICATION_STATUS_LABELS[app.status]}
           </p>
         </div>
       </div>

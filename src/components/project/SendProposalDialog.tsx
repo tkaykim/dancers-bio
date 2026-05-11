@@ -21,27 +21,28 @@ type ProposalProject = {
   title: string;
   visibility: "public" | "private";
   status: string;
+  allow_team_apply: boolean;
 };
 
 type Props = {
-  dancerProfileId: string;
-  dancerName: string;
+  target:
+    | { kind: "dancer"; profile_id: string; name: string }
+    | { kind: "team"; team_id: string; name: string };
   myProjects: ProposalProject[];
 };
 
-export function SendProposalDialog({
-  dancerProfileId,
-  dancerName,
-  myProjects,
-}: Props) {
+export function SendProposalDialog({ target, myProjects }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [pending, startTransition] = useTransition();
-  const eligible = myProjects.filter(
-    (p) => p.status === "open" || p.status === "draft",
-  );
+
+  const eligible = myProjects.filter((p) => {
+    if (p.status !== "open" && p.status !== "draft") return false;
+    if (target.kind === "team" && !p.allow_team_apply) return false;
+    return true;
+  });
 
   return (
     <Dialog
@@ -62,10 +63,11 @@ export function SendProposalDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-xl font-bold tracking-tight">
-            {dancerName}에게 제안
+            {target.name}에게 제안
           </DialogTitle>
           <DialogDescription>
             본인의 프로젝트 중 하나를 선택해 다이렉트 제안을 보냅니다.
+            {target.kind === "team" ? " (팀 지원 허용 공고만 노출)" : ""}
           </DialogDescription>
         </DialogHeader>
 
@@ -81,8 +83,9 @@ export function SendProposalDialog({
         ) : eligible.length === 0 ? (
           <div className="flex flex-col gap-3 py-2">
             <p className="text-sm text-ink-2">
-              제안 가능한 프로젝트가 없습니다.
-              먼저 프로젝트를 개설해 주세요.
+              {target.kind === "team"
+                ? "팀 제안 가능한 프로젝트가 없습니다. 공고에서 '팀 지원 허용'을 켜주세요."
+                : "제안 가능한 프로젝트가 없습니다. 먼저 프로젝트를 개설해 주세요."}
             </p>
             <Link
               href="/projects/new"
@@ -95,7 +98,13 @@ export function SendProposalDialog({
           <form
             action={(formData) => {
               setError(null);
-              formData.set("applicant_id", dancerProfileId);
+              if (target.kind === "dancer") {
+                formData.set("applicant_id", target.profile_id);
+                formData.delete("team_id");
+              } else {
+                formData.set("team_id", target.team_id);
+                formData.delete("applicant_id");
+              }
               startTransition(async () => {
                 const result = await sendDirectProposalAction(formData);
                 if (!result.ok) {
@@ -122,7 +131,9 @@ export function SendProposalDialog({
                 </option>
                 {eligible.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.title}{p.visibility === "private" ? " · 비공개" : ""}{p.status === "draft" ? " · 임시저장" : ""}
+                    {p.title}
+                    {p.visibility === "private" ? " · 비공개" : ""}
+                    {p.status === "draft" ? " · 임시저장" : ""}
                   </option>
                 ))}
               </select>

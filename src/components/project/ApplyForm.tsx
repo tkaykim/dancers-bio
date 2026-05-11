@@ -6,16 +6,38 @@ import { applyToProjectAction } from "@/app/actions/applications";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
-export function ApplyForm({ projectId }: { projectId: string }) {
+export type ApplyAsOption =
+  | { kind: "individual"; label: string }
+  | { kind: "team"; team_id: string; label: string };
+
+export function ApplyForm({
+  projectId,
+  applyOptions,
+}: {
+  projectId: string;
+  applyOptions: ApplyAsOption[];
+}) {
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  const [selected, setSelected] = useState<string>(
+    applyOptions[0] ? toValue(applyOptions[0]) : "",
+  );
+
+  if (applyOptions.length === 0) {
+    return (
+      <p className="rounded-xl border border-border bg-card p-4 text-sm text-ink-3">
+        지원하려면 댄서 포트폴리오가 필요합니다.
+      </p>
+    );
+  }
 
   return (
     <form
       action={(formData) => {
         setMessage(null);
         formData.set("project_id", projectId);
+        formData.set("apply_as", selected);
         startTransition(async () => {
           const result = await applyToProjectAction(formData);
           if (!result.ok) {
@@ -28,6 +50,26 @@ export function ApplyForm({ projectId }: { projectId: string }) {
       }}
       className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4"
     >
+      {applyOptions.length > 1 ? (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="apply_as">지원 자격</Label>
+          <select
+            id="apply_as"
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            {applyOptions.map((opt) => (
+              <option key={toValue(opt)} value={toValue(opt)}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        <p className="text-xs text-ink-3">{applyOptions[0].label}로 지원합니다.</p>
+      )}
+
       <Label htmlFor="cover_message" className="text-xs uppercase tracking-[0.14em] text-ink-3">
         ↳ 한 줄 자기소개 (선택)
       </Label>
@@ -56,6 +98,10 @@ export function ApplyForm({ projectId }: { projectId: string }) {
       </Button>
     </form>
   );
+}
+
+function toValue(opt: ApplyAsOption): string {
+  return opt.kind === "individual" ? "individual" : `team:${opt.team_id}`;
 }
 
 export function WithdrawButton({ applicationId }: { applicationId: string }) {

@@ -14,9 +14,13 @@ export async function sendDirectProposalAction(
 ): Promise<ActionResult> {
   const user = await requireUser();
 
+  const applicantRaw = (formData.get("applicant_id") ?? "").toString().trim();
+  const teamRaw = (formData.get("team_id") ?? "").toString().trim();
+
   const parsed = sendProposalSchema.safeParse({
     project_id: formData.get("project_id"),
-    applicant_id: formData.get("applicant_id"),
+    applicant_id: applicantRaw || null,
+    team_id: teamRaw || null,
     cover_message:
       (formData.get("cover_message") ?? "").toString().trim() || null,
   });
@@ -33,7 +37,7 @@ export async function sendDirectProposalAction(
   const supabase = await createClient();
   const { data: project } = await supabase
     .from("projects")
-    .select("owner_id, status, deleted_at")
+    .select("owner_id, status, deleted_at, allow_team_apply")
     .eq("id", parsed.data.project_id)
     .single();
   if (!project || project.deleted_at) {
@@ -45,22 +49,61 @@ export async function sendDirectProposalAction(
       error: "본인이 개설한 프로젝트만 제안을 보낼 수 있습니다.",
     };
   }
-  if (project.status === "closed" || project.status === "cancelled" || project.status === "completed") {
+  if (
+    project.status === "closed" ||
+    project.status === "cancelled" ||
+    project.status === "completed"
+  ) {
     return { ok: false, error: "마감된 프로젝트입니다." };
   }
+  if (parsed.data.team_id && !project.allow_team_apply) {
+    return { ok: false, error: "이 공고는 팀 제안을 받지 않습니다." };
+  }
+  if (parsed.data.team_id) {
+    const { data: team } = await supabase
+      .from("teams")
+      .select("lead_profile_id, is_active")
+      .eq("id", parsed.data.team_id)
+      .maybeSingle();
+    if (!team || !team.is_active) {
+      return { ok: false, error: "비활성이거나 존재하지 않는 팀입니다." };
+    }
+    if (team.lead_profile_id === user.id) {
+      return { ok: false, error: "본인이 팀장인 팀에는 제안할 수 없습니다." };
+    }
+  }
 
-  const { error } = await supabase.from("applications").insert({
-    project_id: parsed.data.project_id,
-    applicant_id: parsed.data.applicant_id,
-    source: "direct_proposal",
-    status: "pending",
-    cover_message: parsed.data.cover_message,
-  });
+  const insertPayload: {
+    project_id: string;
+    applicant_id: string | null;
+    team_id: string | null;
+    source: "direct_proposal";
+    status: "pending";
+    cover_message: string | null;
+  } = parsed.data.team_id
+    ? {
+        project_id: parsed.data.project_id,
+        applicant_id: null,
+        team_id: parsed.data.team_id,
+        source: "direct_proposal",
+        status: "pending",
+        cover_message: parsed.data.cover_message ?? null,
+      }
+    : {
+        project_id: parsed.data.project_id,
+        applicant_id: parsed.data.applicant_id!,
+        team_id: null,
+        source: "direct_proposal",
+        status: "pending",
+        cover_message: parsed.data.cover_message ?? null,
+      };
+
+  const { error } = await supabase.from("applications").insert(insertPayload);
   if (error) {
     if (error.code === "23505") {
       return {
         ok: false,
-        error: "이미 제안을 보냈거나 해당 댄서가 지원한 프로젝트입니다.",
+        error: "이미 제안을 보냈거나 해당 대상이 이미 지원한 프로젝트입니다.",
       };
     }
     return { ok: false, error: error.message };
@@ -87,13 +130,28 @@ export async function respondToProposalAction(
   const supabase = await createClient();
   const { data: app } = await supabase
     .from("applications")
-    .select("id, applicant_id, project_id, source, status")
+    .select("id, applicant_id, team_id, project_id, source, status")
     .eq("id", parsed.data.application_id)
     .single();
   if (!app) return { ok: false, error: "제안을 찾을 수 없습니다." };
-  if (app.applicant_id !== user.id) {
-    return { ok: false, error: "권한이 없습니다." };
+
+  if (app.applicant_id) {
+    if (app.applicant_id !== user.id) {
+      return { ok: false, error: "권한이 없습니다." };
+    }
+  } else if (app.team_id) {
+    const { data: team } = await supabase
+      .from("teams")
+      .select("lead_profile_id")
+      .eq("id", app.team_id)
+      .maybeSingle();
+    if (!team || team.lead_profile_id !== user.id) {
+      return { ok: false, error: "팀장만 팀 제안에 응답할 수 있습니다." };
+    }
+  } else {
+    return { ok: false, error: "잘못된 제안입니다." };
   }
+
   if (app.source !== "direct_proposal") {
     return { ok: false, error: "다이렉트 제안에만 응답할 수 있습니다." };
   }

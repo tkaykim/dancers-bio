@@ -27,6 +27,19 @@ export default async function MePage() {
     .eq("profile_id", user.id)
     .maybeSingle();
 
+  // Count teams the user leads or is a member of
+  const [{ count: ledTeamsCount }, { count: memberTeamsCount }] = await Promise.all([
+    supabase
+      .from("teams")
+      .select("id", { count: "exact", head: true })
+      .eq("lead_profile_id", user.id),
+    supabase
+      .from("team_members")
+      .select("id", { count: "exact", head: true })
+      .eq("profile_id", user.id),
+  ]);
+  const teamsTotal = (ledTeamsCount ?? 0) + Math.max((memberTeamsCount ?? 0) - (ledTeamsCount ?? 0), 0);
+
   return (
     <div className="flex flex-col gap-6 px-6 pb-10 pt-8">
       <header className="flex items-center gap-4">
@@ -93,6 +106,13 @@ export default async function MePage() {
             title="댄서 포트폴리오"
             desc={ownDancer ? "활동명·경력·영상 편집" : "포트폴리오 만들기"}
           />
+          {ownDancer ? (
+            <SettingsRow
+              href="/me/teams"
+              title="내 팀"
+              desc={teamsTotal > 0 ? `${teamsTotal}개 팀` : "팀 만들기·소속 관리"}
+            />
+          ) : null}
           {(profile.can_create_project || profile.is_admin) ? (
             <SettingsRow
               href="/projects/new"

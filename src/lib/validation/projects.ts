@@ -61,9 +61,25 @@ export const projectSchema = z.object({
     .enum(["per_session", "total", "negotiable"])
     .nullable()
     .optional(),
+  recruitment_count: z.coerce.number().int().min(1).max(999).default(1),
+  allow_team_apply: z.boolean().default(false),
   application_deadline: z.string().datetime().nullable().optional(),
   publish_now: z.boolean().default(true),
+  // Admin act-as: optional override of owner_id (server checks is_admin)
+  owner_id_override: z.string().uuid().nullable().optional(),
 });
+
+export const agreedPaySchema = z.object({
+  project_id: z.string().uuid(),
+  agreed_pay: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(1_000_000_000)
+    .nullable()
+    .optional(),
+});
+export type AgreedPayInput = z.infer<typeof agreedPaySchema>;
 
 export type ProjectInput = z.infer<typeof projectSchema>;
 

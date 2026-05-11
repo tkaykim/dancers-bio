@@ -11,6 +11,7 @@ const supabaseHost = (() => {
 })();
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["172.30.1.58", "localhost", "127.0.0.1"],
   images: {
     // Disable Next.js / Vercel Image Optimization globally so we don't hit
     // Vercel's per-deployment optimized-image quota (which was breaking

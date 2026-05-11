@@ -15,6 +15,8 @@ export default async function AdminHomePage() {
     { count: applicationsCount },
     { count: dancersCount },
     { count: pendingDancers },
+    { count: teamsCount },
+    { count: pendingTeams },
   ] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase
@@ -28,10 +30,16 @@ export default async function AdminHomePage() {
       .from("dancers")
       .select("id", { count: "exact", head: true })
       .eq("approval_status", "pending"),
+    supabase.from("teams").select("id", { count: "exact", head: true }).eq("is_active", true),
+    supabase
+      .from("teams")
+      .select("id", { count: "exact", head: true })
+      .eq("approval_status", "pending")
+      .eq("is_active", true),
   ]);
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-8">
+    <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
           ↳ 관리자
@@ -44,6 +52,7 @@ export default async function AdminHomePage() {
       <section className="grid grid-cols-2 gap-3">
         <Stat label="사용자" value={usersCount ?? 0} />
         <Stat label="댄서 프로필" value={dancersCount ?? 0} />
+        <Stat label="팀" value={teamsCount ?? 0} />
         <Stat label="프로젝트 (활성)" value={projectsCount ?? 0} />
         <Stat label="지원/제안" value={applicationsCount ?? 0} />
       </section>
@@ -55,6 +64,13 @@ export default async function AdminHomePage() {
           desc="신규 프로필 승인/거부 + 노출 순서 조정"
           badge={pendingDancers ? `${pendingDancers} 대기` : undefined}
           accent={Boolean(pendingDancers)}
+        />
+        <Tile
+          href="/admin/teams"
+          title="팀 승인 큐"
+          desc="신규 팀 승인/거부"
+          badge={pendingTeams ? `${pendingTeams} 대기` : undefined}
+          accent={Boolean(pendingTeams)}
         />
         <Tile
           href="/admin/verifications"
