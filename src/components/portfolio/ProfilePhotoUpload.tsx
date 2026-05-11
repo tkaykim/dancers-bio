@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ImageIcon, Upload, X } from "lucide-react";
 
+import { MAX_AVATAR_BYTES } from "@/lib/storage/profile-photos";
 import { cn } from "@/lib/utils";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_BYTES = MAX_AVATAR_BYTES; // 10MB (서버 검증과 일치)
+const MAX_MB = Math.round(MAX_BYTES / (1024 * 1024));
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 type Props = {
@@ -36,7 +38,7 @@ export function ProfilePhotoUpload({ file, onChange }: Props) {
       return;
     }
     if (next.size > MAX_BYTES) {
-      setError("이미지는 5MB 이하만 업로드할 수 있습니다.");
+      setError(`이미지는 ${MAX_MB}MB 이하만 업로드할 수 있습니다.`);
       return;
     }
     onChange(next);
@@ -93,7 +95,7 @@ export function ProfilePhotoUpload({ file, onChange }: Props) {
               제거
             </button>
           ) : null}
-          <p className="text-xs text-ink-3">JPG, PNG, WEBP, GIF · 최대 5MB</p>
+          <p className="text-xs text-ink-3">JPG, PNG, WEBP, GIF · 최대 {MAX_MB}MB</p>
         </div>
       </div>
       {error ? (

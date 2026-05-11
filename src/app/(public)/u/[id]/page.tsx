@@ -25,10 +25,10 @@ export default async function PublicProfilePage({
           alt={profile.display_name ?? "프로필 사진"}
           width={120}
           height={120}
-          className="h-30 w-30 rounded-full object-cover"
+          className="h-[120px] w-[120px] rounded-full object-cover"
         />
       ) : (
-        <div className="flex h-30 w-30 items-center justify-center rounded-full bg-muted text-3xl font-semibold">
+        <div className="flex h-[120px] w-[120px] items-center justify-center rounded-full bg-muted text-3xl font-semibold">
           {(profile.display_name ?? "U")[0]}
         </div>
       )}

@@ -138,7 +138,9 @@ export function CareerHistoryManager({
 
   const openCreate = (category?: CareerCategory) => {
     setEditingId(null);
-    setForm(makeInitialForm(category ?? (openCategory || "choreo")));
+    // 카테고리 인자가 명시되면 그것을 우선. 없으면 현재 펼친 카테고리, 둘 다 없으면 choreo.
+    const resolved: CareerCategory = category ?? (openCategory || "choreo");
+    setForm(makeInitialForm(resolved));
     setError(null);
     setDrawerOpen(true);
   };

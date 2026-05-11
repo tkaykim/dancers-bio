@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, ChevronRight, Loader2, Shield, Sparkles } from "lucide-react";
 
 import { createDancerProfileAction } from "@/app/actions/portfolio";
 import { uploadAvatarFromBrowser } from "@/lib/storage/upload-client";
@@ -80,9 +80,10 @@ const initialState: FormState = {
 
 type CreateProfileWizardProps = {
   userId: string;
+  role: "self" | "manager";
 };
 
-export function CreateProfileWizard({ userId }: CreateProfileWizardProps) {
+export function CreateProfileWizard({ userId, role }: CreateProfileWizardProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [data, setData] = useState<FormState>(initialState);
@@ -122,6 +123,7 @@ export function CreateProfileWizard({ userId }: CreateProfileWizardProps) {
       }
 
       const fd = new FormData();
+      fd.set("role", role);
       fd.set("stage_name", data.stage_name);
       if (data.korean_name) fd.set("korean_name", data.korean_name);
       if (data.location) fd.set("location", data.location);
@@ -143,8 +145,9 @@ export function CreateProfileWizard({ userId }: CreateProfileWizardProps) {
         return;
       }
 
-      // Save any pending AI-extracted careers
+      // AI로 가져온 경력 일괄 저장. 실패 건수를 추적해 사용자에게 알림.
       const dancerId = result.data?.id;
+      let careerFailedCount = 0;
       if (dancerId && data.pendingCareers.length > 0) {
         const { addCareerAction } = await import("@/app/actions/careers");
         for (const c of data.pendingCareers) {
@@ -157,11 +160,23 @@ export function CreateProfileWizard({ userId }: CreateProfileWizardProps) {
           if (c.description) cfd.set("description", c.description);
           if (c.link) cfd.set("link", c.link);
           cfd.set("is_public", "true");
-          await addCareerAction(cfd).catch(() => undefined);
+          try {
+            const r = await addCareerAction(cfd);
+            if (!r.ok) careerFailedCount += 1;
+          } catch {
+            careerFailedCount += 1;
+          }
         }
       }
 
-      router.push("/me/portfolio/careers");
+      if (careerFailedCount > 0) {
+        // 프로필은 만들어졌으니 경력 페이지로 보내되 안내.
+        setError(
+          `프로필은 생성됐지만 경력 ${careerFailedCount}건은 저장에 실패했습니다. 경력 페이지에서 직접 추가해 주세요.`,
+        );
+      }
+
+      router.push(dancerId ? `/me/portfolio/${dancerId}/careers` : "/me/portfolio");
       router.refresh();
     });
   };
@@ -182,7 +197,7 @@ export function CreateProfileWizard({ userId }: CreateProfileWizardProps) {
             <ArrowLeft className="size-5" />
           </button>
           <span className="text-base font-bold tracking-tight">
-            프로필 생성
+            {role === "manager" ? "매니저 프로필 생성" : "프로필 생성"}
             <span className="ml-2 font-mono text-xs text-ink-3">
               {step}/{TOTAL_STEPS}
             </span>
@@ -244,6 +259,7 @@ export function CreateProfileWizard({ userId }: CreateProfileWizardProps) {
             data={data}
             previewUrl={previewUrl}
             error={error}
+            role={role}
             onChangeBio={(bio) => setData({ ...data, bio })}
           />
         ) : null}
@@ -516,11 +532,13 @@ function StepReview({
   data,
   previewUrl,
   error,
+  role,
   onChangeBio,
 }: {
   data: FormState;
   previewUrl: string | null;
   error: string | null;
+  role: "self" | "manager";
   onChangeBio: (bio: string) => void;
 }) {
   return (
@@ -541,6 +559,13 @@ function StepReview({
           onChange={(e) => onChangeBio(e.target.value)}
         />
       </Field>
+
+      {role === "manager" ? (
+        <div className="flex items-center gap-1.5 rounded-full border border-hairline-2 bg-card px-3 py-1.5 text-[11px] font-medium text-ink-2 w-fit">
+          <Shield size={10} />
+          매니저로 등록 — 프로필 소유자가 나중에 클레임 가능
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-4 rounded-xl border border-hairline-2 bg-card p-5">
         <div className="flex items-center gap-4">

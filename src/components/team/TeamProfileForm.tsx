@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { CheckCircle2, Loader2, Save } from "lucide-react";
 import { createTeamAction, updateTeamAction } from "@/app/actions/teams";
+import { AvatarUpload } from "@/components/portfolio/AvatarUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +12,7 @@ import { Label } from "@/components/ui/label";
 type Props = {
   isCreate: boolean;
   teamId?: string;
+  currentProfileImg?: string | null;
   defaultValues: {
     team_name: string;
     korean_name: string;
@@ -24,10 +27,26 @@ type Props = {
   };
 };
 
-export function TeamProfileForm({ isCreate, teamId, defaultValues }: Props) {
+export function TeamProfileForm({
+  isCreate,
+  teamId,
+  currentProfileImg = null,
+  defaultValues,
+}: Props) {
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
 
   return (
     <form
@@ -42,6 +61,7 @@ export function TeamProfileForm({ isCreate, teamId, defaultValues }: Props) {
             setMessage({ kind: "error", text: result.error });
             return;
           }
+          setDirty(false);
           setMessage({
             kind: "ok",
             text: isCreate ? "팀이 생성됐습니다 (관리자 승인 대기)." : "저장됐습니다.",
@@ -53,8 +73,24 @@ export function TeamProfileForm({ isCreate, teamId, defaultValues }: Props) {
           }
         });
       }}
-      className="flex flex-col gap-5"
+      onChange={() => {
+        if (!dirty) setDirty(true);
+        if (message?.kind === "ok") setMessage(null);
+      }}
+      className="flex flex-col gap-5 pb-24"
     >
+      {/* 팀 로고 — 아바타 클릭으로 직접 변경 */}
+      <AvatarUpload
+        currentUrl={currentProfileImg}
+        name="profile_img"
+        shape="rounded"
+        alt={defaultValues.team_name || "팀 로고"}
+        size={120}
+        onChange={(file) => {
+          if (file) setDirty(true);
+        }}
+      />
+
       <Field label="팀명" htmlFor="team_name">
         <Input
           id="team_name"
@@ -74,14 +110,18 @@ export function TeamProfileForm({ isCreate, teamId, defaultValues }: Props) {
           placeholder="예: 캐스퍼"
         />
       </Field>
-      <Field label="공개 URL slug (선택)" htmlFor="slug" hint="영문 소문자/숫자/하이픈. 예: kasper → /t/kasper">
+      <Field
+        label="공개 URL slug (선택)"
+        htmlFor="slug"
+        hint="영문 소문자/숫자/하이픈만 가능 · 비워두면 자동 ID로 표시됩니다."
+      >
         <Input
           id="slug"
           name="slug"
           maxLength={40}
           pattern="[a-z0-9-]+"
           defaultValue={defaultValues.slug}
-          placeholder="kasper"
+          placeholder="예) kasper (비워둘 수 있음)"
         />
       </Field>
       <Field label="팀 소개" htmlFor="bio">
@@ -118,14 +158,6 @@ export function TeamProfileForm({ isCreate, teamId, defaultValues }: Props) {
           name="genres"
           defaultValue={defaultValues.genres.join(", ")}
           placeholder="Hip Hop, K-Pop"
-        />
-      </Field>
-      <Field label="팀 프로필 사진" htmlFor="profile_img" hint="5MB 이하, JPG/PNG/WEBP/GIF">
-        <Input
-          id="profile_img"
-          name="profile_img"
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
         />
       </Field>
 
@@ -173,9 +205,33 @@ export function TeamProfileForm({ isCreate, teamId, defaultValues }: Props) {
         </p>
       ) : null}
 
-      <Button type="submit" disabled={pending} className="w-fit">
-        {pending ? "저장 중..." : isCreate ? "팀 만들기" : "저장하기"}
-      </Button>
+      {/* 하단 고정 저장 바 (글로벌 네비 57px 위에) */}
+      <div
+        data-testid="team-form-save-bar"
+        className="fixed inset-x-0 bottom-16 z-40 border-t border-hairline-2 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/85"
+      >
+        <div className="mx-auto flex max-w-md items-center gap-2 px-6 py-3">
+          {dirty ? (
+            <span className="flex items-center gap-1.5 rounded-full bg-warn/10 px-2.5 py-1 text-[11px] font-medium text-warn">
+              <span className="size-1.5 rounded-full bg-warn" />
+              변경사항 있음
+            </span>
+          ) : message?.kind === "ok" ? (
+            <span className="flex items-center gap-1.5 rounded-full bg-ok/10 px-2.5 py-1 text-[11px] font-medium text-ok">
+              <CheckCircle2 size={11} />
+              저장됨
+            </span>
+          ) : null}
+          <Button
+            type="submit"
+            disabled={pending || (!isCreate && !dirty)}
+            className="ml-auto flex items-center gap-1.5"
+          >
+            {pending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            {pending ? "저장 중..." : isCreate ? "팀 만들기" : "저장하기"}
+          </Button>
+        </div>
+      </div>
     </form>
   );
 }

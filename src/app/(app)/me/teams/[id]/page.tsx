@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/guard";
@@ -32,7 +31,7 @@ export default async function EditTeamPage({
   const publicHref = `/t/${team.slug ?? team.id}`;
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-8">
+    <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-8 pb-40">
       <header className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 팀 편집</p>
@@ -51,19 +50,10 @@ export default async function EditTeamPage({
 
       <ApprovalBanner team={team} />
 
-      {team.profile_img ? (
-        <Image
-          src={team.profile_img}
-          alt={team.team_name}
-          width={120}
-          height={120}
-          className="h-30 w-30 self-start rounded-2xl object-cover"
-        />
-      ) : null}
-
       <TeamProfileForm
         isCreate={false}
         teamId={team.id}
+        currentProfileImg={team.profile_img ?? null}
         defaultValues={{
           team_name: team.team_name ?? "",
           korean_name: team.korean_name ?? "",

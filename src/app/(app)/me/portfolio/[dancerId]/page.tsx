@@ -1,9 +1,9 @@
 import Link from "next/link";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { DancerProfileForm } from "@/components/portfolio/DancerProfileForm";
+import { CareersNavLink } from "@/components/portfolio/CareersNavLink";
 import { extractSocialHandle } from "@/lib/utils/social";
 
 export default async function MyPortfolioEditPage({
@@ -48,7 +48,7 @@ export default async function MyPortfolioEditPage({
   const publicHref = `/d/${dancer.slug ?? dancer.id}`;
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-8">
+    <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-8 pb-40">
       <header className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
@@ -71,18 +71,10 @@ export default async function MyPortfolioEditPage({
 
       <ApprovalBanner dancer={dancer} />
 
-      {dancer.profile_img ? (
-        <Image
-          src={dancer.profile_img}
-          alt={dancer.stage_name}
-          width={120}
-          height={120}
-          className="h-30 w-30 self-start rounded-2xl object-cover"
-        />
-      ) : null}
-
       <DancerProfileForm
         userId={user.id}
+        dancerId={dancer.id}
+        currentProfileImg={dancer.profile_img ?? null}
         isCreate={false}
         defaultValues={{
           stage_name: dancer.stage_name ?? "",
@@ -99,25 +91,7 @@ export default async function MyPortfolioEditPage({
         }}
       />
 
-      <Link
-        href={`/me/portfolio/${dancer.id}/careers`}
-        className="group flex flex-col gap-1.5 rounded-xl border border-border bg-card p-5 transition-colors hover:bg-secondary"
-      >
-        <div className="flex items-center justify-between">
-          <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-            ↳ 경력 관리
-          </p>
-          <span className="text-ink-3 transition-transform group-hover:translate-x-1">
-            →
-          </span>
-        </div>
-        <p className="text-lg font-bold leading-tight">
-          안무·출연·수상·공연.
-        </p>
-        <p className="text-sm text-ink-2">
-          카테고리별로 경력을 추가하고 영상 링크를 첨부합니다.
-        </p>
-      </Link>
+      <CareersNavLink href={`/me/portfolio/${dancer.id}/careers`} />
     </div>
   );
 }
