@@ -48,16 +48,25 @@ export default async function MyPortfolioListPage() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
-      <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-          ↳ 댄서 포트폴리오
-        </p>
-        <h1 className="text-2xl font-bold tracking-tight leading-tight">
-          관리중인 댄서프로필
-        </h1>
-        <p className="text-sm text-ink-2">
-          내 프로필과 매니저 권한이 부여된 프로필을 관리합니다.
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-2">
+          <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
+            ↳ 댄서 포트폴리오
+          </p>
+          <h1 className="text-2xl font-bold tracking-tight leading-tight">
+            관리중인 댄서프로필
+          </h1>
+          <p className="text-sm text-ink-2">
+            내 프로필과 매니저 권한이 부여된 프로필을 관리합니다.
+          </p>
+        </div>
+        <Link
+          href="/me/portfolio/add"
+          className="shrink-0 flex items-center gap-1.5 rounded-full border border-hairline-2 px-3 py-1.5 text-xs font-medium text-ink-2 transition-colors hover:text-foreground hover:bg-secondary"
+        >
+          <Plus size={12} />
+          프로필 추가
+        </Link>
       </header>
 
       {total > 0 ? (
@@ -77,7 +86,7 @@ export default async function MyPortfolioListPage() {
 
       {total === 0 ? (
         <Link
-          href="/onboarding/create"
+          href="/me/portfolio/add"
           className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-hairline-2 p-8 text-center transition-colors hover:bg-secondary"
         >
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -104,15 +113,6 @@ export default async function MyPortfolioListPage() {
           ))}
         </ul>
       )}
-
-      {owned.length === 0 && total > 0 ? (
-        <Link
-          href="/onboarding/create"
-          className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-hairline-2 p-4 text-center text-sm text-ink-2 transition-colors hover:bg-secondary"
-        >
-          <Plus size={14} /> 내 프로필 만들기
-        </Link>
-      ) : null}
     </div>
   );
 }

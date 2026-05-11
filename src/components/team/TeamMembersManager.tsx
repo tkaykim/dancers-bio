@@ -64,6 +64,7 @@ export function TeamMembersManager({ teamId, leadProfileId, members }: Props) {
                     size="sm"
                     disabled={removingId === m.id}
                     onClick={async () => {
+                      if (!confirm(`${label} 님을 팀에서 제거할까요?`)) return;
                       setRemovingId(m.id);
                       setMessage(null);
                       const fd = new FormData();

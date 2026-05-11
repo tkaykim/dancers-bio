@@ -126,12 +126,6 @@ export async function upsertDancerProfileAction(
   }
 
   const supabase = await createClient();
-  const existing = await supabase
-    .from("dancers")
-    .select("id, profile_id")
-    .eq("profile_id", user.id)
-    .maybeSingle();
-
   const social_links = buildSocialLinks(parsed.data);
 
   const baseValues = {
@@ -149,21 +143,62 @@ export async function upsertDancerProfileAction(
 
   let dancerId: string;
 
-  if (existing.data) {
-    dancerId = existing.data.id;
+  const explicitDancerId = strOrNull(formData, "dancer_id");
+
+  if (explicitDancerId) {
+    // 편집 경로: 명시적 dancer_id로 소유자 또는 매니저 권한 확인 후 업데이트
+    const { data: dancer } = await supabase
+      .from("dancers")
+      .select("id, profile_id")
+      .eq("id", explicitDancerId)
+      .maybeSingle();
+    if (!dancer) return { ok: false, error: "댄서 프로필을 찾을 수 없습니다." };
+
+    const isOwner = dancer.profile_id === user.id;
+    let isManager = false;
+    if (!isOwner) {
+      const { data: mgr } = await supabase
+        .from("dancer_managers")
+        .select("dancer_id")
+        .eq("dancer_id", dancer.id)
+        .eq("manager_id", user.id)
+        .maybeSingle();
+      isManager = Boolean(mgr);
+    }
+    if (!isOwner && !isManager) {
+      return { ok: false, error: "수정 권한이 없습니다." };
+    }
+
+    dancerId = explicitDancerId;
     const { error } = await supabase
       .from("dancers")
       .update(baseValues)
       .eq("id", dancerId);
     if (error) return { ok: false, error: humanizeDancerError(error.message) };
   } else {
-    const { data, error } = await supabase
+    // 하위 호환 경로: profile_id로 기존 댄서 찾아 업데이트, 없으면 생성
+    const existing = await supabase
       .from("dancers")
-      .insert({ ...baseValues, profile_id: user.id })
-      .select("id")
-      .single();
-    if (error) return { ok: false, error: humanizeDancerError(error.message) };
-    dancerId = data.id as string;
+      .select("id, profile_id")
+      .eq("profile_id", user.id)
+      .maybeSingle();
+
+    if (existing.data) {
+      dancerId = existing.data.id;
+      const { error } = await supabase
+        .from("dancers")
+        .update(baseValues)
+        .eq("id", dancerId);
+      if (error) return { ok: false, error: humanizeDancerError(error.message) };
+    } else {
+      const { data, error } = await supabase
+        .from("dancers")
+        .insert({ ...baseValues, profile_id: user.id })
+        .select("id")
+        .single();
+      if (error) return { ok: false, error: humanizeDancerError(error.message) };
+      dancerId = data.id as string;
+    }
   }
 
   revalidatePath("/me/portfolio");
@@ -187,6 +222,9 @@ export async function createDancerProfileAction(
 ): Promise<ActionResult<{ id: string }>> {
   const user = await requireUser();
 
+  const roleRaw = (formData.get("role") ?? "self").toString();
+  const role: "self" | "manager" = roleRaw === "manager" ? "manager" : "self";
+
   const parsed = dancerOnboardingSchema.safeParse({
     stage_name: formData.get("stage_name"),
     korean_name: strOrNull(formData, "korean_name"),
@@ -207,20 +245,17 @@ export async function createDancerProfileAction(
   }
 
   const profileImgUrlRaw = strOrNull(formData, "profile_img_url");
-  const profileImgUrl =
-    profileImgUrlRaw && isValidProfilePhotoUrl(profileImgUrlRaw)
-      ? profileImgUrlRaw
-      : null;
+  // 업로드 후 받은 URL이 우리 Supabase storage 버킷과 다르면 에러.
+  // (이전엔 silently null이어서 사진이 사라지는 버그 발생)
+  if (profileImgUrlRaw && !isValidProfilePhotoUrl(profileImgUrlRaw)) {
+    return {
+      ok: false,
+      error: "프로필 사진 업로드에 문제가 있습니다. 다시 시도해 주세요.",
+    };
+  }
+  const profileImgUrl = profileImgUrlRaw ?? null;
 
   const supabase = await createClient();
-  const existing = await supabase
-    .from("dancers")
-    .select("id")
-    .eq("profile_id", user.id)
-    .maybeSingle();
-  if (existing.data) {
-    return { ok: false, error: "이미 댄서 프로필이 존재합니다." };
-  }
 
   const social_links = buildSocialLinksFromHandles({
     instagram: parsed.data.social_instagram_handle ?? null,
@@ -229,7 +264,8 @@ export async function createDancerProfileAction(
   });
 
   const insertValues = {
-    profile_id: user.id,
+    // self: 본인 계정과 연결. manager: profile_id 없음(댄서 본인 계정 미보유)
+    profile_id: role === "self" ? user.id : null,
     stage_name: parsed.data.stage_name,
     korean_name: parsed.data.korean_name ?? null,
     gender: parsed.data.gender ?? null,
@@ -250,6 +286,18 @@ export async function createDancerProfileAction(
     return { ok: false, error: humanizeDancerError(insertError.message) };
   }
   const dancerId = inserted.id as string;
+
+  // 매니저 플로우: 본인을 dancer_managers에 자가 삽입
+  if (role === "manager") {
+    const { error: mgrError } = await supabase
+      .from("dancer_managers")
+      .insert({ dancer_id: dancerId, manager_id: user.id });
+    if (mgrError) {
+      // 댄서 row 정리 (best-effort)
+      await supabase.from("dancers").delete().eq("id", dancerId);
+      return { ok: false, error: "매니저 등록에 실패했습니다: " + mgrError.message };
+    }
+  }
 
   revalidatePath("/me/portfolio");
   revalidatePath("/me");

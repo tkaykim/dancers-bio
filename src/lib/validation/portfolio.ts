@@ -25,30 +25,11 @@ export const dancerProfileSchema = z.object({
   location: z.string().trim().max(80).optional().nullable(),
   specialties: z.array(z.string().trim().min(1).max(30)).max(10).default([]),
   genres: z.array(z.string().trim().min(1).max(30)).max(10).default([]),
-  social_instagram: z
-    .string()
-    .trim()
-    .max(200)
-    .url("올바른 URL을 입력해 주세요.")
-    .optional()
-    .nullable()
-    .or(z.literal("")),
-  social_youtube: z
-    .string()
-    .trim()
-    .max(200)
-    .url("올바른 URL을 입력해 주세요.")
-    .optional()
-    .nullable()
-    .or(z.literal("")),
-  social_tiktok: z
-    .string()
-    .trim()
-    .max(200)
-    .url("올바른 URL을 입력해 주세요.")
-    .optional()
-    .nullable()
-    .or(z.literal("")),
+  // SNS 입력은 핸들(username) 또는 전체 URL 둘 다 허용.
+  // 서버에서 buildSocialUrl() 이 정규화하므로 형식 검증은 느슨하게.
+  social_instagram: z.string().trim().max(200).optional().nullable().or(z.literal("")),
+  social_youtube: z.string().trim().max(200).optional().nullable().or(z.literal("")),
+  social_tiktok: z.string().trim().max(200).optional().nullable().or(z.literal("")),
   profile_img_url: z
     .string()
     .trim()

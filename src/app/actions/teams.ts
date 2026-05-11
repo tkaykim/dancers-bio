@@ -4,19 +4,20 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import {
+  ALLOWED_AVATAR_TYPES as SHARED_AVATAR_TYPES,
+  MAX_AVATAR_BYTES as SHARED_MAX_AVATAR_BYTES,
+} from "@/lib/storage/profile-photos";
+import {
   addMemberSchema,
   teamProfileSchema,
   transferLeadSchema,
 } from "@/lib/validation/teams";
 import type { ActionResult } from "./auth";
 
-const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
-const ALLOWED_AVATAR_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-];
+// 댄서 프로필 사진과 동일한 제약 사용 (이전엔 5MB로 불일치)
+const MAX_AVATAR_BYTES = SHARED_MAX_AVATAR_BYTES;
+const ALLOWED_AVATAR_TYPES = SHARED_AVATAR_TYPES;
+const MAX_AVATAR_MB = Math.round(MAX_AVATAR_BYTES / (1024 * 1024));
 
 function strOrNull(formData: FormData, key: string): string | null {
   const v = (formData.get(key) ?? "").toString().trim();
@@ -92,6 +93,33 @@ export async function createTeamAction(
 
   const social_links = buildSocialLinks(parsed.data);
 
+  // slug 사전 체크: 팀 만들기 전에 중복 확인
+  // (이전엔 insert 시점에 fail되어 빈 팀이 만들어진 후 에러 표시되는 버그)
+  if (parsed.data.slug) {
+    const { data: dup } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("slug", parsed.data.slug)
+      .maybeSingle();
+    if (dup) {
+      return {
+        ok: false,
+        error: "이미 사용 중인 slug입니다. 다른 값을 입력해 주세요.",
+      };
+    }
+  }
+
+  // 사진 파일 사전 검증 (insert 전에 잡아서 팀 row가 만들어진 뒤 실패하는 일 방지)
+  const profileImg = formData.get("profile_img");
+  if (profileImg instanceof File && profileImg.size > 0) {
+    if (profileImg.size > MAX_AVATAR_BYTES) {
+      return { ok: false, error: `팀 로고는 ${MAX_AVATAR_MB}MB 이하만 업로드할 수 있습니다.` };
+    }
+    if (!ALLOWED_AVATAR_TYPES.includes(profileImg.type as (typeof ALLOWED_AVATAR_TYPES)[number])) {
+      return { ok: false, error: "JPG, PNG, WEBP, GIF 형식만 업로드할 수 있습니다." };
+    }
+  }
+
   const insertValues = {
     team_name: parsed.data.team_name,
     korean_name: parsed.data.korean_name ?? null,
@@ -112,27 +140,27 @@ export async function createTeamAction(
   if (error) return { ok: false, error: humanizeTeamError(error.message) };
   const teamId = created.id as string;
 
-  const profileImg = formData.get("profile_img");
   if (profileImg instanceof File && profileImg.size > 0) {
-    if (
-      profileImg.size <= MAX_AVATAR_BYTES &&
-      ALLOWED_AVATAR_TYPES.includes(profileImg.type)
-    ) {
-      const ext = profileImg.type.split("/")[1] ?? "jpg";
-      const path = `${teamId}/profile_${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("profile-photos")
-        .upload(path, profileImg, { upsert: true, contentType: profileImg.type });
-      if (!uploadError) {
-        const { data: pub } = supabase.storage
-          .from("profile-photos")
-          .getPublicUrl(path);
-        await supabase
-          .from("teams")
-          .update({ profile_img: pub.publicUrl })
-          .eq("id", teamId);
-      }
+    const ext = profileImg.type.split("/")[1] ?? "jpg";
+    const path = `${teamId}/profile_${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("profile-photos")
+      .upload(path, profileImg, { upsert: true, contentType: profileImg.type });
+    if (uploadError) {
+      // 팀은 만들어졌지만 로고 업로드 실패 — 사용자에게 알려서 편집 페이지에서 재시도 유도
+      revalidatePath("/me/teams");
+      return {
+        ok: false,
+        error: `팀은 생성됐지만 로고 업로드 실패: ${uploadError.message}. 편집 페이지에서 다시 시도해 주세요.`,
+      };
     }
+    const { data: pub } = supabase.storage
+      .from("profile-photos")
+      .getPublicUrl(path);
+    await supabase
+      .from("teams")
+      .update({ profile_img: pub.publicUrl })
+      .eq("id", teamId);
   }
 
   revalidatePath("/me/teams");
@@ -170,6 +198,22 @@ export async function updateTeamAction(
 
   const social_links = buildSocialLinks(parsed.data);
 
+  // slug 사전 체크 (자기 자신 제외)
+  if (parsed.data.slug) {
+    const { data: dup } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("slug", parsed.data.slug)
+      .neq("id", teamId)
+      .maybeSingle();
+    if (dup) {
+      return {
+        ok: false,
+        error: "이미 사용 중인 slug입니다. 다른 값을 입력해 주세요.",
+      };
+    }
+  }
+
   const baseValues = {
     team_name: parsed.data.team_name,
     korean_name: parsed.data.korean_name ?? null,
@@ -190,9 +234,9 @@ export async function updateTeamAction(
   const profileImg = formData.get("profile_img");
   if (profileImg instanceof File && profileImg.size > 0) {
     if (profileImg.size > MAX_AVATAR_BYTES) {
-      return { ok: false, error: "이미지는 5MB 이하만 업로드할 수 있습니다." };
+      return { ok: false, error: `팀 로고는 ${MAX_AVATAR_MB}MB 이하만 업로드할 수 있습니다.` };
     }
-    if (!ALLOWED_AVATAR_TYPES.includes(profileImg.type)) {
+    if (!ALLOWED_AVATAR_TYPES.includes(profileImg.type as (typeof ALLOWED_AVATAR_TYPES)[number])) {
       return { ok: false, error: "JPG, PNG, WEBP, GIF 형식만 업로드할 수 있습니다." };
     }
     const ext = profileImg.type.split("/")[1] ?? "jpg";

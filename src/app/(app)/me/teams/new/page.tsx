@@ -14,11 +14,12 @@ export default async function NewTeamPage() {
     .eq("profile_id", user.id)
     .maybeSingle();
   if (!dancer) {
-    redirect("/onboarding/create");
+    // 팀을 만들려면 본인 댄서 프로필이 필요. 역할 선택 페이지로 안내.
+    redirect("/me/portfolio/add");
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-8">
+    <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-8 pb-40">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 팀 만들기</p>
         <h1 className="text-2xl font-bold tracking-tight">새 팀 프로필</h1>
