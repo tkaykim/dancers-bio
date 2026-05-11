@@ -86,7 +86,7 @@ export default async function CareersPage({
 
       <ImportEntryButton profileId={user.id} dancerId={dancer.id} />
 
-      <CareerHistoryManager initialCareers={list} />
+      <CareerHistoryManager initialCareers={list} dancerId={dancer.id} />
     </div>
   );
 }

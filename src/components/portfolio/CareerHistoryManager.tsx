@@ -121,8 +121,10 @@ function formToFormData(form: FormState): FormData {
 
 export function CareerHistoryManager({
   initialCareers,
+  dancerId,
 }: {
   initialCareers: CareerRow[];
+  dancerId: string;
 }) {
   const router = useRouter();
   const [openCategory, setOpenCategory] = useState<CareerCategory | "">(
@@ -159,6 +161,7 @@ export function CareerHistoryManager({
     }
     setError(null);
     const fd = formToFormData(form);
+    fd.set("dancer_id", dancerId);
     if (editingId != null) fd.set("id", String(editingId));
 
     startTransition(async () => {
@@ -184,6 +187,7 @@ export function CareerHistoryManager({
     if (!confirm("정말 삭제하시겠습니까?")) return;
     const fd = new FormData();
     fd.set("id", String(id));
+    fd.set("dancer_id", dancerId);
     startTransition(async () => {
       const result = await deleteCareerAction(fd);
       if (!result.ok) {
@@ -211,6 +215,7 @@ export function CareerHistoryManager({
     setTogglingId(id);
     const fd = new FormData();
     fd.set("id", String(id));
+    fd.set("dancer_id", dancerId);
     fd.set("is_public", isPublic ? "true" : "false");
     startTransition(async () => {
       const result = await setCareerVisibilityAction(fd);
