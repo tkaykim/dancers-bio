@@ -1,11 +1,10 @@
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronRight, LogOut } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
-import { ProfileEditForm } from "@/components/profile/ProfileEditForm";
+import { ProfileCard } from "@/components/profile/ProfileCard";
 
 export default async function MePage() {
   const user = await requireUser();
@@ -42,32 +41,12 @@ export default async function MePage() {
 
   return (
     <div className="flex flex-col gap-6 px-6 pb-10 pt-8">
-      <header className="flex items-center gap-4">
-        {profile.avatar_url ? (
-          <Image
-            src={profile.avatar_url}
-            alt={profile.display_name ?? "프로필 사진"}
-            width={64}
-            height={64}
-            className="h-16 w-16 rounded-full object-cover"
-          />
-        ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-xl font-bold">
-            {(profile.display_name ?? "U")[0]}
-          </div>
-        )}
-        <div className="flex flex-col">
-          <h1 className="text-2xl font-extrabold tracking-tight">
-            {profile.display_name}
-          </h1>
-          <Link
-            href={`/u/${profile.id}`}
-            className="text-xs text-ink-3 hover:text-foreground"
-          >
-            공개 프로필 보기 →
-          </Link>
-        </div>
-      </header>
+      <ProfileCard
+        userId={user.id}
+        displayName={profile.display_name ?? ""}
+        bio={profile.bio}
+        avatarUrl={profile.avatar_url}
+      />
 
       {!profile.can_create_project && !profile.is_admin ? (
         <Link
@@ -86,17 +65,6 @@ export default async function MePage() {
           <ChevronRight size={18} className="text-warn" aria-hidden />
         </Link>
       ) : null}
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-ink-2">기본 정보</h2>
-        <ProfileEditForm
-          userId={user.id}
-          defaultValues={{
-            display_name: profile.display_name ?? "",
-            bio: profile.bio,
-          }}
-        />
-      </section>
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-bold text-ink-2">활동</h2>

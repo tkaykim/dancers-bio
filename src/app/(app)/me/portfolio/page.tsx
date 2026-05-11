@@ -1,142 +1,180 @@
 import Link from "next/link";
 import Image from "next/image";
-import { redirect } from "next/navigation";
+import { ChevronRight, Crown, Plus, Shield } from "lucide-react";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
-import { DancerProfileForm } from "@/components/portfolio/DancerProfileForm";
-import { extractSocialHandle } from "@/lib/utils/social";
 
-export default async function MyPortfolioPage() {
+type DancerRow = {
+  id: string;
+  stage_name: string;
+  korean_name: string | null;
+  slug: string | null;
+  profile_img: string | null;
+  approval_status: string;
+};
+
+export default async function MyPortfolioListPage() {
   const user = await requireUser();
   const supabase = await createClient();
-  const { data: dancer } = await supabase
+
+  // Owned dancers (profile_id == me)
+  const ownedPromise = supabase
     .from("dancers")
-    .select(
-      "id, profile_id, stage_name, korean_name, slug, gender, bio, location, specialties, genres, profile_img, social_links, approval_status, approval_reject_reason",
-    )
+    .select("id, stage_name, korean_name, slug, profile_img, approval_status")
     .eq("profile_id", user.id)
-    .maybeSingle();
+    .order("created_at", { ascending: false });
 
-  if (!dancer) {
-    redirect("/onboarding/create");
-  }
+  // Managed dancers via dancer_managers join
+  const managedPromise = supabase
+    .from("dancer_managers")
+    .select(
+      "dancer_id, dancer:dancers!inner(id, stage_name, korean_name, slug, profile_img, approval_status, profile_id)",
+    )
+    .eq("manager_id", user.id);
 
-  const social = (dancer.social_links ?? {}) as Record<string, string>;
-  const publicHref = `/d/${dancer.slug ?? dancer.id}`;
+  const [{ data: ownedRows }, { data: managedRows }] = await Promise.all([
+    ownedPromise,
+    managedPromise,
+  ]);
+
+  const owned = (ownedRows ?? []) as DancerRow[];
+  const managed = (((managedRows ?? []) as unknown) as Array<{
+    dancer: DancerRow & { profile_id: string | null };
+  }>)
+    .map((r) => r.dancer)
+    .filter((d) => d && d.profile_id !== user.id); // de-dupe
+
+  const total = owned.length + managed.length;
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-8">
-      <header className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-2">
-          <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-            ↳ 댄서 포트폴리오
-          </p>
-          <h1 className="text-2xl font-bold tracking-tight leading-tight">
-            프로필 편집
-          </h1>
-          <p className="text-sm text-ink-2">
-            공개 페이지에 노출되는 정보를 편집합니다.
-          </p>
-        </div>
-        <Link
-          href={publicHref}
-          className="shrink-0 rounded-full border border-hairline-2 px-3 py-1.5 text-xs uppercase tracking-[0.14em] text-ink-2 hover:text-foreground"
-        >
-          공개 보기 →
-        </Link>
+    <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
+      <header className="flex flex-col gap-2">
+        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
+          ↳ 댄서 포트폴리오
+        </p>
+        <h1 className="text-2xl font-bold tracking-tight leading-tight">
+          관리중인 댄서프로필
+        </h1>
+        <p className="text-sm text-ink-2">
+          내 프로필과 매니저 권한이 부여된 프로필을 관리합니다.
+        </p>
       </header>
 
-      <ApprovalBanner dancer={dancer} />
-
-      {dancer.profile_img ? (
-        <Image
-          src={dancer.profile_img}
-          alt={dancer.stage_name}
-          width={120}
-          height={120}
-          className="h-30 w-30 self-start rounded-2xl object-cover"
-        />
+      {total > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {owned.length > 0 ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary">
+              <Crown size={12} />내 프로필 {owned.length}
+            </span>
+          ) : null}
+          {managed.length > 0 ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline-2 bg-card px-3 py-1 text-[11px] font-semibold text-ink-2">
+              <Shield size={12} />매니저 {managed.length}
+            </span>
+          ) : null}
+        </div>
       ) : null}
 
-      <DancerProfileForm
-        userId={user.id}
-        isCreate={false}
-        defaultValues={{
-          stage_name: dancer.stage_name ?? "",
-          korean_name: dancer.korean_name ?? "",
-          slug: dancer.slug ?? "",
-          gender: dancer.gender ?? "",
-          bio: dancer.bio ?? "",
-          location: dancer.location ?? "",
-          specialties: (dancer.specialties as string[] | null) ?? [],
-          genres: (dancer.genres as string[] | null) ?? [],
-          social_instagram: extractSocialHandle(social.instagram),
-          social_youtube: extractSocialHandle(social.youtube),
-          social_tiktok: extractSocialHandle(social.tiktok),
-        }}
-      />
-
-      <Link
-        href="/me/portfolio/careers"
-        className="group flex flex-col gap-1.5 rounded-xl border border-border bg-card p-5 transition-colors hover:bg-secondary"
-      >
-        <div className="flex items-center justify-between">
-          <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-            ↳ 경력 관리
-          </p>
-          <span className="text-ink-3 transition-transform group-hover:translate-x-1">
-            →
+      {total === 0 ? (
+        <Link
+          href="/onboarding/create"
+          className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-hairline-2 p-8 text-center transition-colors hover:bg-secondary"
+        >
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Plus size={20} />
           </span>
-        </div>
-        <p className="text-lg font-bold leading-tight">
-          안무·출연·수상·공연.
-        </p>
-        <p className="text-sm text-ink-2">
-          카테고리별로 경력을 추가하고 영상 링크를 첨부합니다.
-        </p>
-      </Link>
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-semibold">댄서 프로필 만들기</p>
+            <p className="text-xs text-ink-3">
+              30초만에 포트폴리오를 시작할 수 있어요
+            </p>
+          </div>
+        </Link>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {owned.map((d) => (
+            <li key={d.id}>
+              <DancerCard dancer={d} role="owner" />
+            </li>
+          ))}
+          {managed.map((d) => (
+            <li key={d.id}>
+              <DancerCard dancer={d} role="manager" />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {owned.length === 0 && total > 0 ? (
+        <Link
+          href="/onboarding/create"
+          className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-hairline-2 p-4 text-center text-sm text-ink-2 transition-colors hover:bg-secondary"
+        >
+          <Plus size={14} /> 내 프로필 만들기
+        </Link>
+      ) : null}
     </div>
   );
 }
 
-function ApprovalBanner({
+function DancerCard({
   dancer,
+  role,
 }: {
-  dancer: {
-    approval_status: "pending" | "approved" | "rejected" | null;
-    approval_reject_reason: string | null;
-  };
+  dancer: DancerRow;
+  role: "owner" | "manager";
 }) {
-  const status = dancer.approval_status ?? "pending";
-  if (status === "approved") {
-    return (
-      <div className="flex items-center gap-2 rounded-xl border border-ok/30 bg-ok/5 px-4 py-3 text-sm text-ok">
-        <span className="text-base">●</span>
-        <span>공개 중 — 디렉토리에 노출되고 있습니다.</span>
-      </div>
-    );
-  }
-  if (status === "rejected") {
-    return (
-      <div className="flex flex-col gap-1 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-        <p className="font-semibold">거부됨 — 디렉토리에 노출되지 않습니다.</p>
-        {dancer.approval_reject_reason ? (
-          <p className="text-xs text-destructive/80">
-            사유: {dancer.approval_reject_reason}
+  const approvalLabel =
+    dancer.approval_status === "approved"
+      ? null
+      : dancer.approval_status === "rejected"
+        ? "거절됨"
+        : "승인 대기";
+
+  return (
+    <Link
+      href={`/me/portfolio/${dancer.id}`}
+      className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-secondary"
+    >
+      {dancer.profile_img ? (
+        <Image
+          src={dancer.profile_img}
+          alt={dancer.stage_name}
+          width={56}
+          height={56}
+          className="h-14 w-14 shrink-0 rounded-full object-cover"
+        />
+      ) : (
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-secondary text-base font-bold">
+          {dancer.stage_name?.[0] ?? "?"}
+        </div>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex items-center gap-1.5">
+          {role === "owner" ? (
+            <Crown size={12} className="text-primary" aria-hidden />
+          ) : (
+            <Shield size={12} className="text-ink-2" aria-hidden />
+          )}
+          <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-ink-3">
+            {role === "owner" ? "내 프로필" : "매니저"}
+          </span>
+          {approvalLabel ? (
+            <span className="rounded-full bg-warn/10 px-1.5 py-0.5 text-[10px] font-medium text-warn">
+              {approvalLabel}
+            </span>
+          ) : null}
+        </div>
+        <p className="truncate text-sm font-semibold leading-snug">
+          {dancer.stage_name}
+        </p>
+        {dancer.korean_name ? (
+          <p className="truncate text-[11px] text-ink-3">
+            {dancer.korean_name}
           </p>
         ) : null}
-        <p className="text-xs text-destructive/80">
-          내용을 수정해도 재노출은 관리자가 다시 검토해야 합니다.
-        </p>
       </div>
-    );
-  }
-  return (
-    <div className="flex flex-col gap-1 rounded-xl border border-warn/30 bg-warn/5 px-4 py-3 text-sm text-warn">
-      <p className="font-semibold">심사 중</p>
-      <p className="text-xs text-warn/80">
-        관리자 승인 후 공개 디렉토리에 노출됩니다.
-      </p>
-    </div>
+      <ChevronRight size={16} className="shrink-0 text-ink-3" aria-hidden />
+    </Link>
   );
 }

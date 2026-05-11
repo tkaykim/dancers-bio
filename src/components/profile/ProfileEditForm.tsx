@@ -14,9 +14,10 @@ type Props = {
     display_name: string;
     bio: string | null;
   };
+  onSaved?: () => void;
 };
 
-export function ProfileEditForm({ userId, defaultValues }: Props) {
+export function ProfileEditForm({ userId, defaultValues, onSaved }: Props) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
@@ -49,6 +50,7 @@ export function ProfileEditForm({ userId, defaultValues }: Props) {
           setMessage({ kind: "ok", text: "저장됐습니다." });
           if (fileRef.current) fileRef.current.value = "";
           router.refresh();
+          onSaved?.();
         });
       }}
       className="flex flex-col gap-4"
