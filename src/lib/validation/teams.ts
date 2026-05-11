@@ -16,30 +16,10 @@ export const teamProfileSchema = z.object({
   location: z.string().trim().max(80).optional().nullable(),
   specialties: z.array(z.string().trim().min(1).max(30)).max(10).default([]),
   genres: z.array(z.string().trim().min(1).max(30)).max(10).default([]),
-  social_instagram: z
-    .string()
-    .trim()
-    .max(200)
-    .url("올바른 URL을 입력해 주세요.")
-    .optional()
-    .nullable()
-    .or(z.literal("")),
-  social_youtube: z
-    .string()
-    .trim()
-    .max(200)
-    .url("올바른 URL을 입력해 주세요.")
-    .optional()
-    .nullable()
-    .or(z.literal("")),
-  social_tiktok: z
-    .string()
-    .trim()
-    .max(200)
-    .url("올바른 URL을 입력해 주세요.")
-    .optional()
-    .nullable()
-    .or(z.literal("")),
+  // 댄서 폼과 동일하게 핸들 또는 URL 둘 다 허용 (서버에서 buildSocialUrl로 정규화)
+  social_instagram: z.string().trim().max(200).optional().nullable().or(z.literal("")),
+  social_youtube: z.string().trim().max(200).optional().nullable().or(z.literal("")),
+  social_tiktok: z.string().trim().max(200).optional().nullable().or(z.literal("")),
 });
 export type TeamProfileInput = z.infer<typeof teamProfileSchema>;
 
