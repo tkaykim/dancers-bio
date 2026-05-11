@@ -85,7 +85,7 @@ export async function parsePortfolioAction(
 
   let pages: number | null = null;
   let extractInput:
-    | { kind: "pdf"; base64: string }
+    | { kind: "pdf"; buffer: Buffer; filename: string }
     | { kind: "text"; text: string };
 
   try {
@@ -103,7 +103,8 @@ export async function parsePortfolioAction(
       if (buf.byteLength > MAX_PORTFOLIO_PDF_BYTES) {
         return { ok: false, error: "PDF는 10MB 이하만 업로드할 수 있습니다." };
       }
-      extractInput = { kind: "pdf", base64: buf.toString("base64") };
+      const filename = input.storagePath.split("/").pop() ?? "portfolio.pdf";
+      extractInput = { kind: "pdf", buffer: buf, filename };
       // Rough page estimate (PDFs vary; not critical for logging)
       pages = (buf.toString("latin1").match(/\/Type\s*\/Page[^s]/g) || []).length || null;
     } else {
