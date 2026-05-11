@@ -7,6 +7,7 @@ import {
   ALLOWED_AVATAR_TYPES as SHARED_AVATAR_TYPES,
   MAX_AVATAR_BYTES as SHARED_MAX_AVATAR_BYTES,
 } from "@/lib/storage/profile-photos";
+import { buildSocialUrl } from "@/lib/utils/social";
 import {
   addMemberSchema,
   teamProfileSchema,
@@ -37,10 +38,14 @@ function buildSocialLinks(parsed: {
   social_youtube?: string | null;
   social_tiktok?: string | null;
 }) {
+  // 댄서 폼과 동일하게 핸들/URL 둘 다 받아 정규화된 URL로 저장
   const links: Record<string, string> = {};
-  if (parsed.social_instagram) links.instagram = parsed.social_instagram;
-  if (parsed.social_youtube) links.youtube = parsed.social_youtube;
-  if (parsed.social_tiktok) links.tiktok = parsed.social_tiktok;
+  const ig = buildSocialUrl("instagram", parsed.social_instagram);
+  const yt = buildSocialUrl("youtube", parsed.social_youtube);
+  const tt = buildSocialUrl("tiktok", parsed.social_tiktok);
+  if (ig) links.instagram = ig;
+  if (yt) links.youtube = yt;
+  if (tt) links.tiktok = tt;
   return Object.keys(links).length > 0 ? links : null;
 }
 

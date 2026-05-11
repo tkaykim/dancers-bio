@@ -162,32 +162,44 @@ export function TeamProfileForm({
       </Field>
 
       <fieldset className="flex flex-col gap-3 rounded-md border border-input p-4">
-        <legend className="px-1 text-sm font-medium">SNS 링크</legend>
+        <legend className="px-1 text-sm font-medium">SNS 핸들</legend>
+        <p className="text-xs text-ink-3">
+          @ 뒤의 사용자명만 입력하세요. URL을 붙여넣어도 자동 정리됩니다.
+        </p>
         <Field label="Instagram" htmlFor="social_instagram">
           <Input
             id="social_instagram"
             name="social_instagram"
-            type="url"
+            type="text"
+            autoCapitalize="none"
+            autoComplete="off"
+            spellCheck={false}
             defaultValue={defaultValues.social_instagram}
-            placeholder="https://www.instagram.com/..."
+            placeholder="username"
           />
         </Field>
         <Field label="YouTube" htmlFor="social_youtube">
           <Input
             id="social_youtube"
             name="social_youtube"
-            type="url"
+            type="text"
+            autoCapitalize="none"
+            autoComplete="off"
+            spellCheck={false}
             defaultValue={defaultValues.social_youtube}
-            placeholder="https://www.youtube.com/@..."
+            placeholder="channel"
           />
         </Field>
         <Field label="TikTok" htmlFor="social_tiktok">
           <Input
             id="social_tiktok"
             name="social_tiktok"
-            type="url"
+            type="text"
+            autoCapitalize="none"
+            autoComplete="off"
+            spellCheck={false}
             defaultValue={defaultValues.social_tiktok}
-            placeholder="https://www.tiktok.com/@..."
+            placeholder="username"
           />
         </Field>
       </fieldset>
