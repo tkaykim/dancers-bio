@@ -125,7 +125,7 @@ export function PortfolioImportSheet({
                   <Upload size={20} className="text-ink-3" />
                   <span className="font-medium">PDF 파일 선택</span>
                   <span className="text-[11px] text-ink-3">
-                    10MB 이하 · application/pdf
+                    32MB 이하 · application/pdf
                   </span>
                   <input
                     ref={fileRef}

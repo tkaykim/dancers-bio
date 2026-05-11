@@ -101,7 +101,7 @@ export async function parsePortfolioAction(
       }
       const buf = Buffer.from(await data.arrayBuffer());
       if (buf.byteLength > MAX_PORTFOLIO_PDF_BYTES) {
-        return { ok: false, error: "PDF는 10MB 이하만 업로드할 수 있습니다." };
+        return { ok: false, error: "PDF는 32MB 이하만 업로드할 수 있습니다." };
       }
       const filename = input.storagePath.split("/").pop() ?? "portfolio.pdf";
       extractInput = { kind: "pdf", buffer: buf, filename };
