@@ -4,7 +4,9 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, Save } from "lucide-react";
 import { createTeamAction, updateTeamAction } from "@/app/actions/teams";
+import { checkSlugAvailability } from "@/app/actions/slug";
 import { AvatarUpload } from "@/components/portfolio/AvatarUpload";
+import { slugify } from "@/lib/utils/slug";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +39,41 @@ export function TeamProfileForm({
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
   const [dirty, setDirty] = useState(false);
+
+  // 슬러그 자동 채움
+  const [teamName, setTeamName] = useState(defaultValues.team_name);
+  const [slug, setSlug] = useState(defaultValues.slug);
+  const [slugTouched, setSlugTouched] = useState(Boolean(defaultValues.slug));
+  const [slugStatus, setSlugStatus] = useState<
+    | { kind: "idle" }
+    | { kind: "checking" }
+    | { kind: "ok"; text: string }
+    | { kind: "warn"; text: string; suggestion: string }
+    | { kind: "error"; text: string }
+  >({ kind: "idle" });
+
+  useEffect(() => {
+    if (slugTouched) return;
+    setSlug(slugify(teamName));
+  }, [teamName, slugTouched]);
+
+  useEffect(() => {
+    const s = slug.trim();
+    if (!s) { setSlugStatus({ kind: "idle" }); return; }
+    if (s.length < 2) { setSlugStatus({ kind: "error", text: "2자 이상이어야 합니다." }); return; }
+    if (!/^[a-z0-9-]+$/.test(s)) {
+      setSlugStatus({ kind: "error", text: "영문 소문자/숫자/하이픈만." });
+      return;
+    }
+    setSlugStatus({ kind: "checking" });
+    const t = setTimeout(async () => {
+      const r = await checkSlugAvailability(s, "teams", teamId ?? null);
+      if (!r.ok) { setSlugStatus({ kind: "error", text: r.error }); return; }
+      if (r.available) setSlugStatus({ kind: "ok", text: "사용 가능" });
+      else setSlugStatus({ kind: "warn", text: "이미 사용 중", suggestion: r.suggestion });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [slug, teamId]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -97,7 +134,8 @@ export function TeamProfileForm({
           name="team_name"
           required
           maxLength={80}
-          defaultValue={defaultValues.team_name}
+          value={teamName}
+          onChange={(e) => setTeamName(e.target.value)}
           placeholder="예: KASPER"
         />
       </Field>
@@ -113,16 +151,35 @@ export function TeamProfileForm({
       <Field
         label="공개 URL slug (선택)"
         htmlFor="slug"
-        hint="영문 소문자/숫자/하이픈만 가능 · 비워두면 자동 ID로 표시됩니다."
+        hint="팀명 기반으로 자동 채워집니다 · 영문 소문자/숫자/하이픈만"
       >
         <Input
           id="slug"
           name="slug"
           maxLength={40}
           pattern="[a-z0-9-]+"
-          defaultValue={defaultValues.slug}
-          placeholder="예) kasper (비워둘 수 있음)"
+          value={slug}
+          onChange={(e) => { setSlug(e.target.value); setSlugTouched(true); }}
+          placeholder="자동 생성됨"
         />
+        {slugStatus.kind === "checking" ? (
+          <p className="text-xs text-ink-3">확인 중...</p>
+        ) : slugStatus.kind === "ok" ? (
+          <p className="text-xs text-ok">✓ {slugStatus.text}</p>
+        ) : slugStatus.kind === "warn" ? (
+          <p className="text-xs text-warn">
+            {slugStatus.text}.{" "}
+            <button
+              type="button"
+              onClick={() => { setSlug(slugStatus.suggestion); setSlugTouched(true); }}
+              className="underline"
+            >
+              대안: {slugStatus.suggestion} 사용
+            </button>
+          </p>
+        ) : slugStatus.kind === "error" ? (
+          <p className="text-xs text-destructive">{slugStatus.text}</p>
+        ) : null}
       </Field>
       <Field label="팀 소개" htmlFor="bio">
         <textarea

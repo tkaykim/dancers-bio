@@ -4,7 +4,9 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, Save } from "lucide-react";
 import { upsertDancerProfileAction } from "@/app/actions/portfolio";
+import { checkSlugAvailability } from "@/app/actions/slug";
 import { uploadAvatarFromBrowser } from "@/lib/storage/upload-client";
+import { slugify } from "@/lib/utils/slug";
 import { AvatarUpload } from "@/components/portfolio/AvatarUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +44,42 @@ export function DancerProfileForm({
   const [pending, startTransition] = useTransition();
   const [uploading, setUploading] = useState(false);
   const [dirty, setDirty] = useState(false);
+
+  // 슬러그 자동 채움 — stage_name 입력 시 사용자가 수동 편집한 적 없으면 동기화
+  const [stageName, setStageName] = useState(defaultValues.stage_name);
+  const [slug, setSlug] = useState(defaultValues.slug);
+  const [slugTouched, setSlugTouched] = useState(Boolean(defaultValues.slug));
+  const [slugStatus, setSlugStatus] = useState<
+    | { kind: "idle" }
+    | { kind: "checking" }
+    | { kind: "ok"; text: string }
+    | { kind: "warn"; text: string; suggestion: string }
+    | { kind: "error"; text: string }
+  >({ kind: "idle" });
+
+  useEffect(() => {
+    if (slugTouched) return;
+    setSlug(slugify(stageName));
+  }, [stageName, slugTouched]);
+
+  // 슬러그 가용성 디바운스 체크
+  useEffect(() => {
+    const s = slug.trim();
+    if (!s) { setSlugStatus({ kind: "idle" }); return; }
+    if (s.length < 2) { setSlugStatus({ kind: "error", text: "2자 이상이어야 합니다." }); return; }
+    if (!/^[a-z0-9-]+$/.test(s)) {
+      setSlugStatus({ kind: "error", text: "영문 소문자/숫자/하이픈만." });
+      return;
+    }
+    setSlugStatus({ kind: "checking" });
+    const t = setTimeout(async () => {
+      const r = await checkSlugAvailability(s, "dancers", dancerId ?? null);
+      if (!r.ok) { setSlugStatus({ kind: "error", text: r.error }); return; }
+      if (r.available) setSlugStatus({ kind: "ok", text: "사용 가능" });
+      else setSlugStatus({ kind: "warn", text: "이미 사용 중", suggestion: r.suggestion });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [slug, dancerId]);
 
   // 미저장 변경사항 있을 때 페이지 떠나기 경고
   useEffect(() => {
@@ -120,7 +158,8 @@ export function DancerProfileForm({
           name="stage_name"
           required
           maxLength={80}
-          defaultValue={defaultValues.stage_name}
+          value={stageName}
+          onChange={(e) => setStageName(e.target.value)}
           placeholder="예: HIYORI"
         />
       </Field>
@@ -136,16 +175,35 @@ export function DancerProfileForm({
       <Field
         label="공개 URL slug (선택)"
         htmlFor="slug"
-        hint="영문 소문자/숫자/하이픈만 가능 · 비워두면 자동 ID로 표시됩니다."
+        hint="활동명 기반으로 자동 채워집니다 · 영문 소문자/숫자/하이픈만"
       >
         <Input
           id="slug"
           name="slug"
           maxLength={40}
           pattern="[a-z0-9-]+"
-          defaultValue={defaultValues.slug}
-          placeholder="예) hiyori (비워둘 수 있음)"
+          value={slug}
+          onChange={(e) => { setSlug(e.target.value); setSlugTouched(true); }}
+          placeholder="자동 생성됨"
         />
+        {slugStatus.kind === "checking" ? (
+          <p className="text-xs text-ink-3">확인 중...</p>
+        ) : slugStatus.kind === "ok" ? (
+          <p className="text-xs text-ok">✓ {slugStatus.text}</p>
+        ) : slugStatus.kind === "warn" ? (
+          <p className="text-xs text-warn">
+            {slugStatus.text}.{" "}
+            <button
+              type="button"
+              onClick={() => { setSlug(slugStatus.suggestion); setSlugTouched(true); }}
+              className="underline"
+            >
+              대안: {slugStatus.suggestion} 사용
+            </button>
+          </p>
+        ) : slugStatus.kind === "error" ? (
+          <p className="text-xs text-destructive">{slugStatus.text}</p>
+        ) : null}
       </Field>
       <Field label="성별 (선택)" htmlFor="gender">
         <select
