@@ -820,3 +820,59 @@ modified:   src/components/portfolio/CareerGroup.tsx
 - `/u/[id]` 페이지 부실 + 뒤로가기 부재
 - 보낸 제안 통합 뷰 (`/proposals/sent`)
 
+---
+
+# ✅ 10차 — `/me/portfolio` SNS 입력을 handle UX로 통일
+
+> 사용자 지적: "마이페이지 - 댄스 포트폴리오 가면 나오는 SNS 입력창들에는 왜 여전히 url을 다 입력하라고 뜨는거야??"
+
+## 진단
+
+- 온보딩 위저드(`SocialLinksInput`): `@username` handle UX ✓
+- `/me/portfolio` 편집 폼(`DancerProfileForm`): placeholder가 `https://www.instagram.com/...` 형태, `type="url"`, 저장 시 입력값 그대로 → **일관성 깨짐**
+- 8차에서 추가한 `/d/[slug]`의 정규화(`normalizeSocialUrl`)는 표시 단에서만 작동 → 저장 단도 동일 규칙으로 맞춰야 함
+
+## FIX-L — handle-only 입력 UX + URL/handle 양쪽 정규화
+
+### 공통 헬퍼 `src/lib/utils/social.ts`
+
+- `extractSocialHandle(raw)` — URL이든 raw든 handle만 추출. youtube `channel/UC...`는 `channel/<id>` 유지
+- `buildSocialUrl(platform, raw)` — URL이든 handle이든 받아 표준 URL로 정규화
+
+### Form 변경 (`DancerProfileForm.tsx`)
+
+- legend: `SNS 링크` → **`SNS 핸들`**
+- 안내문: "@ 뒤의 사용자명만 입력하세요. URL을 붙여넣어도 자동 정리됩니다."
+- `type="url"` → `type="text"`, `autoCapitalize="none"`, `autoComplete="off"`, `spellCheck={false}`
+- placeholder: `https://www.instagram.com/...` → **`username`** / **`channel`** / **`username`**
+
+### 페이지 (`/me/portfolio/page.tsx`)
+- 저장된 `social_links` 값을 `extractSocialHandle()`로 통과시켜 defaultValue 전달 → 기존 URL 저장값이 handle로 자동 변환되어 노출
+
+### 액션 (`upsertDancerProfileAction`, `createDancerProfileAction`)
+- 두 액션 모두 `buildSocialUrl(platform, raw)`로 통일 → URL/handle 어떻게 입력해도 동일한 표준 URL로 저장
+
+## 검증 (스크린샷 ss_8034suf5k)
+
+| 항목 | 결과 |
+|---|---|
+| 섹션 라벨 "SNS 핸들" | ✅ |
+| 안내문 노출 | ✅ |
+| Instagram defaultValue: 기존 `https://www.instagram.com/deukie______` → `deukie______` 자동 추출 | ✅ |
+| YouTube placeholder `channel` / TikTok `username` | ✅ |
+| `npm run typecheck` | ✅ PASS |
+
+## 변경 파일
+
+```
+created:    src/lib/utils/social.ts                          (extractSocialHandle + buildSocialUrl)
+modified:   src/components/portfolio/DancerProfileForm.tsx   (placeholder/legend/type)
+modified:   src/app/(app)/me/portfolio/page.tsx              (defaultValue 핸들 추출)
+modified:   src/app/actions/portfolio.ts                     (양쪽 액션 buildSocialUrl 통일)
+```
+
+## 부수 효과
+
+- 8차 `/d/[slug]`의 표시-시 정규화와 이번 저장-시 정규화가 같은 표준을 공유 → 한 곳만 수정하면 양쪽 동기화
+- 기존 데이터(Back Kooyoung raw `mihawkback`, BABYSLEEK full URL 등) 모두 handle 추출 후 표시되므로 호환
+

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { DancerProfileForm } from "@/components/portfolio/DancerProfileForm";
+import { extractSocialHandle } from "@/lib/utils/social";
 
 export default async function MyPortfolioPage() {
   const user = await requireUser();
@@ -69,9 +70,9 @@ export default async function MyPortfolioPage() {
           location: dancer.location ?? "",
           specialties: (dancer.specialties as string[] | null) ?? [],
           genres: (dancer.genres as string[] | null) ?? [],
-          social_instagram: social.instagram ?? "",
-          social_youtube: social.youtube ?? "",
-          social_tiktok: social.tiktok ?? "",
+          social_instagram: extractSocialHandle(social.instagram),
+          social_youtube: extractSocialHandle(social.youtube),
+          social_tiktok: extractSocialHandle(social.tiktok),
         }}
       />
 

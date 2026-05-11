@@ -8,7 +8,7 @@ import { CAREER_CATEGORY_LABELS } from "@/lib/validation/portfolio";
 import { VideoThumbnail } from "@/components/portfolio/VideoEmbed";
 import { CareerGroup } from "@/components/portfolio/CareerGroup";
 import { ProfileFooterCTA } from "@/components/portfolio/ProfileFooterCTA";
-import { parseVideoUrl } from "@/lib/utils/video";
+// parseVideoUrl is now used inside CareerGroup's dialog
 import { SendProposalDialog } from "@/components/project/SendProposalDialog";
 
 type Career = {

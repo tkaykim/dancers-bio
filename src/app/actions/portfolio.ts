@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { isValidProfilePhotoUrl } from "@/lib/storage/profile-photos";
+import { buildSocialUrl } from "@/lib/utils/social";
 import {
   dancerOnboardingSchema,
   dancerProfileSchema,
@@ -16,12 +17,12 @@ function buildSocialLinksFromHandles(handles: {
   tiktok?: string | null;
 }) {
   const links: Record<string, string> = {};
-  if (handles.instagram)
-    links.instagram = `https://www.instagram.com/${handles.instagram}`;
-  if (handles.youtube)
-    links.youtube = `https://www.youtube.com/@${handles.youtube}`;
-  if (handles.tiktok)
-    links.tiktok = `https://www.tiktok.com/@${handles.tiktok}`;
+  const ig = buildSocialUrl("instagram", handles.instagram);
+  const yt = buildSocialUrl("youtube", handles.youtube);
+  const tt = buildSocialUrl("tiktok", handles.tiktok);
+  if (ig) links.instagram = ig;
+  if (yt) links.youtube = yt;
+  if (tt) links.tiktok = tt;
   return Object.keys(links).length > 0 ? links : null;
 }
 
@@ -89,9 +90,12 @@ function strOrNull(formData: FormData, key: string): string | null {
 
 function buildSocialLinks(parsed: { social_instagram?: string | null; social_youtube?: string | null; social_tiktok?: string | null }) {
   const links: Record<string, string> = {};
-  if (parsed.social_instagram) links.instagram = parsed.social_instagram;
-  if (parsed.social_youtube) links.youtube = parsed.social_youtube;
-  if (parsed.social_tiktok) links.tiktok = parsed.social_tiktok;
+  const ig = buildSocialUrl("instagram", parsed.social_instagram);
+  const yt = buildSocialUrl("youtube", parsed.social_youtube);
+  const tt = buildSocialUrl("tiktok", parsed.social_tiktok);
+  if (ig) links.instagram = ig;
+  if (yt) links.youtube = yt;
+  if (tt) links.tiktok = tt;
   return Object.keys(links).length > 0 ? links : null;
 }
 
