@@ -4,12 +4,33 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { isValidProfilePhotoUrl } from "@/lib/storage/profile-photos";
+import { slugify } from "@/lib/utils/slug";
 import { buildSocialUrl } from "@/lib/utils/social";
 import {
   dancerOnboardingSchema,
   dancerProfileSchema,
 } from "@/lib/validation/portfolio";
 import type { ActionResult } from "./auth";
+
+/**
+ * 사용자 입력 슬러그가 비어있으면 stage_name 기반 자동 생성, 충돌 시 -2,-3.. 접미사.
+ * DB의 next_available_slug() 함수가 충돌 회피를 처리.
+ */
+async function resolveSlug(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userInputSlug: string | null,
+  stageName: string,
+  excludeDancerId: string | null,
+): Promise<string | null> {
+  const base = userInputSlug?.trim() || slugify(stageName);
+  if (!base) return null;
+  const { data } = await supabase.rpc("next_available_slug", {
+    base,
+    target_table: "dancers",
+    exclude_id: excludeDancerId ?? null,
+  });
+  return (data as string | null) ?? null;
+}
 
 function buildSocialLinksFromHandles(handles: {
   instagram?: string | null;
@@ -128,10 +149,21 @@ export async function upsertDancerProfileAction(
   const supabase = await createClient();
   const social_links = buildSocialLinks(parsed.data);
 
+  let dancerId: string;
+  const explicitDancerId = strOrNull(formData, "dancer_id");
+
+  // slug 자동 생성/충돌 회피
+  const resolvedSlug = await resolveSlug(
+    supabase,
+    parsed.data.slug ?? null,
+    parsed.data.stage_name,
+    explicitDancerId,
+  );
+
   const baseValues = {
     stage_name: parsed.data.stage_name,
     korean_name: parsed.data.korean_name ?? null,
-    slug: parsed.data.slug ?? null,
+    slug: resolvedSlug,
     gender: parsed.data.gender ?? null,
     bio: parsed.data.bio ?? null,
     location: parsed.data.location ?? null,
@@ -140,10 +172,6 @@ export async function upsertDancerProfileAction(
     social_links,
     ...(parsed.data.profile_img_url ? { profile_img: parsed.data.profile_img_url } : {}),
   };
-
-  let dancerId: string;
-
-  const explicitDancerId = strOrNull(formData, "dancer_id");
 
   if (explicitDancerId) {
     // 편집 경로: 명시적 dancer_id로 소유자 또는 매니저 권한 확인 후 업데이트
@@ -202,7 +230,7 @@ export async function upsertDancerProfileAction(
   }
 
   revalidatePath("/me/portfolio");
-  if (parsed.data.slug) revalidatePath(`/d/${parsed.data.slug}`);
+  if (resolvedSlug) revalidatePath(`/d/${resolvedSlug}`);
   revalidatePath(`/d/${dancerId}`);
   return { ok: true, data: { id: dancerId } };
 }
@@ -263,11 +291,15 @@ export async function createDancerProfileAction(
     tiktok: parsed.data.social_tiktok_handle ?? null,
   });
 
+  // 자동 슬러그 (stage_name 기반, 충돌 시 -2,-3 ...)
+  const autoSlug = await resolveSlug(supabase, null, parsed.data.stage_name, null);
+
   const insertValues = {
     // self: 본인 계정과 연결. manager: profile_id 없음(댄서 본인 계정 미보유)
     profile_id: role === "self" ? user.id : null,
     stage_name: parsed.data.stage_name,
     korean_name: parsed.data.korean_name ?? null,
+    slug: autoSlug,
     gender: parsed.data.gender ?? null,
     bio: parsed.data.bio ?? null,
     location: parsed.data.location ?? null,

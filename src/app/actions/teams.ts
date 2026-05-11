@@ -7,6 +7,7 @@ import {
   ALLOWED_AVATAR_TYPES as SHARED_AVATAR_TYPES,
   MAX_AVATAR_BYTES as SHARED_MAX_AVATAR_BYTES,
 } from "@/lib/storage/profile-photos";
+import { slugify } from "@/lib/utils/slug";
 import { buildSocialUrl } from "@/lib/utils/social";
 import {
   addMemberSchema,
@@ -31,6 +32,22 @@ function arrayFromForm(formData: FormData, key: string): string[] {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+async function resolveTeamSlug(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userInputSlug: string | null,
+  teamName: string,
+  excludeTeamId: string | null,
+): Promise<string | null> {
+  const base = userInputSlug?.trim() || slugify(teamName);
+  if (!base) return null;
+  const { data } = await supabase.rpc("next_available_slug", {
+    base,
+    target_table: "teams",
+    exclude_id: excludeTeamId ?? null,
+  });
+  return (data as string | null) ?? null;
 }
 
 function buildSocialLinks(parsed: {
@@ -98,21 +115,13 @@ export async function createTeamAction(
 
   const social_links = buildSocialLinks(parsed.data);
 
-  // slug 사전 체크: 팀 만들기 전에 중복 확인
-  // (이전엔 insert 시점에 fail되어 빈 팀이 만들어진 후 에러 표시되는 버그)
-  if (parsed.data.slug) {
-    const { data: dup } = await supabase
-      .from("teams")
-      .select("id")
-      .eq("slug", parsed.data.slug)
-      .maybeSingle();
-    if (dup) {
-      return {
-        ok: false,
-        error: "이미 사용 중인 slug입니다. 다른 값을 입력해 주세요.",
-      };
-    }
-  }
+  // 슬러그 자동 생성/충돌 회피 (사용자 입력 우선, 비어있으면 team_name 기반)
+  const resolvedSlug = await resolveTeamSlug(
+    supabase,
+    parsed.data.slug ?? null,
+    parsed.data.team_name,
+    null,
+  );
 
   // 사진 파일 사전 검증 (insert 전에 잡아서 팀 row가 만들어진 뒤 실패하는 일 방지)
   const profileImg = formData.get("profile_img");
@@ -128,7 +137,7 @@ export async function createTeamAction(
   const insertValues = {
     team_name: parsed.data.team_name,
     korean_name: parsed.data.korean_name ?? null,
-    slug: parsed.data.slug ?? null,
+    slug: resolvedSlug,
     bio: parsed.data.bio ?? null,
     location: parsed.data.location ?? null,
     specialties: parsed.data.specialties.length ? parsed.data.specialties : null,
@@ -203,26 +212,18 @@ export async function updateTeamAction(
 
   const social_links = buildSocialLinks(parsed.data);
 
-  // slug 사전 체크 (자기 자신 제외)
-  if (parsed.data.slug) {
-    const { data: dup } = await supabase
-      .from("teams")
-      .select("id")
-      .eq("slug", parsed.data.slug)
-      .neq("id", teamId)
-      .maybeSingle();
-    if (dup) {
-      return {
-        ok: false,
-        error: "이미 사용 중인 slug입니다. 다른 값을 입력해 주세요.",
-      };
-    }
-  }
+  // 슬러그 자동 정규화 + 충돌 회피 (자기 자신 제외)
+  const resolvedSlug = await resolveTeamSlug(
+    supabase,
+    parsed.data.slug ?? null,
+    parsed.data.team_name,
+    teamId,
+  );
 
   const baseValues = {
     team_name: parsed.data.team_name,
     korean_name: parsed.data.korean_name ?? null,
-    slug: parsed.data.slug ?? null,
+    slug: resolvedSlug,
     bio: parsed.data.bio ?? null,
     location: parsed.data.location ?? null,
     specialties: parsed.data.specialties.length ? parsed.data.specialties : null,
