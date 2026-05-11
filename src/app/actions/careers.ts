@@ -42,18 +42,6 @@ function buildCareerDetails(parsed: {
   return details;
 }
 
-async function ensureOwnDancer(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-) {
-  const { data } = await supabase
-    .from("dancers")
-    .select("id, slug")
-    .eq("profile_id", userId)
-    .maybeSingle();
-  return data ?? null;
-}
-
 function intFromForm(formData: FormData, key: string, fallback = 0): number {
   const raw = formData.get(key);
   if (raw == null) return fallback;
@@ -77,13 +65,86 @@ function parseFormToCareerInput(formData: FormData) {
   });
 }
 
+/**
+ * 경력 작업의 대상 댄서를 결정.
+ * 1) form에 dancer_id가 있으면 그것을 사용 — 권한(owner/manager/admin) 확인 후 사용
+ * 2) 없으면 (구버전 호환) 본인 첫 댄서로 fallback
+ *
+ * 반환: { ok: true, dancer } | { ok: false, error }
+ */
+async function resolveTargetDancer(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  formData: FormData,
+): Promise<
+  | { ok: true; dancer: { id: string; slug: string | null; profile_id: string | null } }
+  | { ok: false; error: string }
+> {
+  const explicit = (formData.get("dancer_id") ?? "").toString().trim();
+
+  if (explicit) {
+    const { data: dancer } = await supabase
+      .from("dancers")
+      .select("id, slug, profile_id")
+      .eq("id", explicit)
+      .maybeSingle();
+    if (!dancer) return { ok: false, error: "댄서 프로필을 찾을 수 없습니다." };
+
+    const isOwner = dancer.profile_id === userId;
+    let isManager = false;
+    let isAdmin = false;
+    if (!isOwner) {
+      const { data: mgr } = await supabase
+        .from("dancer_managers")
+        .select("dancer_id")
+        .eq("dancer_id", dancer.id)
+        .eq("manager_id", userId)
+        .maybeSingle();
+      isManager = Boolean(mgr);
+      if (!isManager) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", userId)
+          .maybeSingle();
+        isAdmin = Boolean(profile?.is_admin);
+      }
+    }
+    if (!isOwner && !isManager && !isAdmin) {
+      return { ok: false, error: "이 댄서 프로필의 경력을 수정할 권한이 없습니다." };
+    }
+    return { ok: true, dancer };
+  }
+
+  // Fallback (구버전 호환): 본인의 첫 댄서
+  const { data: dancer } = await supabase
+    .from("dancers")
+    .select("id, slug, profile_id")
+    .eq("profile_id", userId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (!dancer) return { ok: false, error: "먼저 댄서 프로필을 만들어 주세요." };
+  return { ok: true, dancer };
+}
+
+function revalidateForDancer(dancer: { id: string; slug: string | null }) {
+  // 경력 페이지/포트폴리오 페이지 재검증
+  revalidatePath(`/me/portfolio/${dancer.id}/careers`);
+  revalidatePath(`/me/portfolio/${dancer.id}`);
+  revalidatePath("/me/portfolio");
+  if (dancer.slug) revalidatePath(`/d/${dancer.slug}`);
+  revalidatePath(`/d/${dancer.id}`);
+}
+
 export async function addCareerAction(
   formData: FormData,
 ): Promise<ActionResult<{ id: number }>> {
   const user = await requireUser();
   const supabase = await createClient();
-  const dancer = await ensureOwnDancer(supabase, user.id);
-  if (!dancer) return { ok: false, error: "먼저 댄서 프로필을 만들어 주세요." };
+
+  const target = await resolveTargetDancer(supabase, user.id, formData);
+  if (!target.ok) return target;
 
   const parsed = parseFormToCareerInput(formData);
   if (!parsed.success) {
@@ -95,7 +156,7 @@ export async function addCareerAction(
   const { data, error } = await supabase
     .from("careers")
     .insert({
-      dancer_id: dancer.id,
+      dancer_id: target.dancer.id,
       type: parsed.data.type,
       title: parsed.data.title,
       date: parsed.data.date,
@@ -109,10 +170,7 @@ export async function addCareerAction(
 
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath("/me/portfolio/careers");
-  revalidatePath("/me/portfolio");
-  if (dancer.slug) revalidatePath(`/d/${dancer.slug}`);
-  revalidatePath(`/d/${dancer.id}`);
+  revalidateForDancer(target.dancer);
   return { ok: true, data: { id: data.id as number } };
 }
 
@@ -121,8 +179,9 @@ export async function updateCareerAction(
 ): Promise<ActionResult> {
   const user = await requireUser();
   const supabase = await createClient();
-  const dancer = await ensureOwnDancer(supabase, user.id);
-  if (!dancer) return { ok: false, error: "댄서 프로필이 없습니다." };
+
+  const target = await resolveTargetDancer(supabase, user.id, formData);
+  if (!target.ok) return target;
 
   const idRaw = formData.get("id");
   const id = idRaw ? Number(idRaw) : NaN;
@@ -145,14 +204,11 @@ export async function updateCareerAction(
       sort_order: parsed.data.sort_order,
     })
     .eq("id", id)
-    .eq("dancer_id", dancer.id);
+    .eq("dancer_id", target.dancer.id);
 
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath("/me/portfolio/careers");
-  revalidatePath("/me/portfolio");
-  if (dancer.slug) revalidatePath(`/d/${dancer.slug}`);
-  revalidatePath(`/d/${dancer.id}`);
+  revalidateForDancer(target.dancer);
   return { ok: true };
 }
 
@@ -161,8 +217,9 @@ export async function setCareerVisibilityAction(
 ): Promise<ActionResult> {
   const user = await requireUser();
   const supabase = await createClient();
-  const dancer = await ensureOwnDancer(supabase, user.id);
-  if (!dancer) return { ok: false, error: "댄서 프로필이 없습니다." };
+
+  const target = await resolveTargetDancer(supabase, user.id, formData);
+  if (!target.ok) return target;
 
   const idRaw = formData.get("id");
   const id = idRaw ? Number(idRaw) : NaN;
@@ -175,14 +232,11 @@ export async function setCareerVisibilityAction(
     .from("careers")
     .update({ is_public: isPublic })
     .eq("id", id)
-    .eq("dancer_id", dancer.id);
+    .eq("dancer_id", target.dancer.id);
 
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath("/me/portfolio/careers");
-  revalidatePath("/me/portfolio");
-  if (dancer.slug) revalidatePath(`/d/${dancer.slug}`);
-  revalidatePath(`/d/${dancer.id}`);
+  revalidateForDancer(target.dancer);
   return { ok: true };
 }
 
@@ -191,8 +245,9 @@ export async function deleteCareerAction(
 ): Promise<ActionResult> {
   const user = await requireUser();
   const supabase = await createClient();
-  const dancer = await ensureOwnDancer(supabase, user.id);
-  if (!dancer) return { ok: false, error: "댄서 프로필이 없습니다." };
+
+  const target = await resolveTargetDancer(supabase, user.id, formData);
+  if (!target.ok) return target;
 
   const idRaw = formData.get("id");
   const id = idRaw ? Number(idRaw) : NaN;
@@ -202,13 +257,10 @@ export async function deleteCareerAction(
     .from("careers")
     .delete()
     .eq("id", id)
-    .eq("dancer_id", dancer.id);
+    .eq("dancer_id", target.dancer.id);
 
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath("/me/portfolio/careers");
-  revalidatePath("/me/portfolio");
-  if (dancer.slug) revalidatePath(`/d/${dancer.slug}`);
-  revalidatePath(`/d/${dancer.id}`);
+  revalidateForDancer(target.dancer);
   return { ok: true };
 }
