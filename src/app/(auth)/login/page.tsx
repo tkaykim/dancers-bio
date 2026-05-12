@@ -18,6 +18,12 @@ export default function LoginPage() {
       </div>
 
       <LoginForm />
+      <p className="text-center text-xs text-ink-3">
+        계정 없이도{" "}
+        <Link href="/dancers" className="text-foreground underline">
+          둘러보기
+        </Link>
+      </p>
     </div>
   );
 }

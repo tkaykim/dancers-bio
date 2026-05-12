@@ -28,3 +28,18 @@ export const loginSchema = z.object({
 
 export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+
+export const newPasswordSchema = z
+  .string()
+  .min(8, "비밀번호는 8자 이상이어야 합니다.")
+  .max(72, "비밀번호는 72자 이하여야 합니다.");
+
+export const displayNameLookupSchema = z.object({
+  display_name: z
+    .string()
+    .trim()
+    .min(1, "이름을 입력해 주세요.")
+    .max(50, "이름은 50자 이내로 입력해 주세요."),
+});
+
+export type DisplayNameLookupInput = z.infer<typeof displayNameLookupSchema>;

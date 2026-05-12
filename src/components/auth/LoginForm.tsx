@@ -59,6 +59,14 @@ export function LoginForm() {
         {pending ? "로그인 중..." : "로그인"}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
+        <Link
+          href="/forgot-password"
+          className="font-medium text-foreground underline"
+        >
+          아이디 / 비밀번호 찾기
+        </Link>
+      </p>
+      <p className="text-center text-sm text-muted-foreground">
         아직 계정이 없으신가요?{" "}
         <Link href="/signup" className="font-medium text-foreground underline">
           회원가입
