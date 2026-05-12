@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, ImageIcon, X } from "lucide-react";
-import { MAX_AVATAR_BYTES } from "@/lib/storage/profile-photos";
 import { cn } from "@/lib/utils";
 
-const MAX_BYTES = MAX_AVATAR_BYTES;
-const MAX_MB = Math.round(MAX_BYTES / (1024 * 1024));
+// 원본 입력 한도(50MB). 큰 사진은 업로드 직전에 자동 압축돼서 Storage 에는 작게 들어감.
+const MAX_INPUT_BYTES = 50 * 1024 * 1024;
+const MAX_INPUT_MB = 50;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const ACCEPT = ACCEPTED_TYPES.join(",");
 
@@ -68,8 +68,8 @@ export function AvatarUpload({
       setError("JPG, PNG, WEBP, GIF 형식만 업로드할 수 있습니다.");
       return;
     }
-    if (f.size > MAX_BYTES) {
-      setError(`이미지는 ${MAX_MB}MB 이하만 업로드할 수 있습니다.`);
+    if (f.size > MAX_INPUT_BYTES) {
+      setError(`이미지는 ${MAX_INPUT_MB}MB 이하만 업로드할 수 있습니다.`);
       return;
     }
     setPickedFile(f);
@@ -161,7 +161,7 @@ export function AvatarUpload({
         ) : (
           <p className="text-xs text-ink-3">
             사진을 클릭해 변경하세요. <br />
-            JPG, PNG, WEBP, GIF · 최대 {MAX_MB}MB
+            JPG, PNG, WEBP, GIF · 최대 {MAX_INPUT_MB}MB · 큰 사진은 자동 압축됩니다
           </p>
         )}
         {error ? (
