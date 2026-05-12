@@ -155,23 +155,38 @@ export default async function ProjectDetailPage({
       if (!seen.has(a.id)) allMine = allMine.concat(a);
     }
   }
+  // 최신 지원 row (created_at desc로 정렬된 첫번째)
   const mineIndividual = allMine.find((a) => a.applicant_id === user.id) ?? null;
   const mineTeams = allMine.filter((a) => a.team_id);
+
+  // 활성 지원만 "이미 지원 중"으로 간주.
+  // withdrawn / rejected 는 새 지원 가능.
+  const isActiveStatus = (s: string) => s === "pending" || s === "accepted";
+  const mineIndividualActive =
+    mineIndividual && isActiveStatus(mineIndividual.status) ? mineIndividual : null;
 
   const dDay = daysUntil(p.application_deadline);
 
   const applyOptions: ApplyAsOption[] = [];
-  if (ownDancer && !mineIndividual) {
-    applyOptions.push({ kind: "individual", label: "개인으로 지원" });
+  if (ownDancer && !mineIndividualActive) {
+    applyOptions.push({
+      kind: "individual",
+      label: mineIndividual ? "개인으로 다시 지원" : "개인으로 지원",
+    });
   }
   if (p.allow_team_apply) {
     for (const t of ledTeamRows ?? []) {
-      const alreadyApplied = mineTeams.some((a) => a.team_id === t.id);
-      if (!alreadyApplied && t.lead_profile_id !== p.owner_id) {
+      const activeTeamApp = mineTeams.find(
+        (a) => a.team_id === t.id && isActiveStatus(a.status),
+      );
+      const hadAnyTeamApp = mineTeams.some((a) => a.team_id === t.id);
+      if (!activeTeamApp && t.lead_profile_id !== p.owner_id) {
         applyOptions.push({
           kind: "team",
           team_id: t.id as string,
-          label: `팀 [${t.team_name}]으로 지원`,
+          label: hadAnyTeamApp
+            ? `팀 [${t.team_name}]으로 다시 지원`
+            : `팀 [${t.team_name}]으로 지원`,
         });
       }
     }
@@ -310,7 +325,13 @@ export default async function ProjectDetailPage({
               {mineIndividual ? (
                 <p className="font-mono text-sm">개인: {labelStatus(mineIndividual.status)}</p>
               ) : null}
-              {mineTeams.map((a) => (
+              {/* 팀별 최신 지원 한 건만 표시 (재지원 시 옛 row 노이즈 제거) */}
+              {Array.from(
+                mineTeams.reduce((acc, a) => {
+                  if (a.team_id && !acc.has(a.team_id)) acc.set(a.team_id, a);
+                  return acc;
+                }, new Map<string, ApplicationRow>()).values(),
+              ).map((a) => (
                 <p key={a.id} className="font-mono text-sm">
                   팀: {labelStatus(a.status)}
                 </p>
