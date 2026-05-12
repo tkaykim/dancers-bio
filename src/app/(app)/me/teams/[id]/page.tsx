@@ -53,6 +53,7 @@ export default async function EditTeamPage({
 
       <TeamProfileForm
         isCreate={false}
+        userId={user.id}
         teamId={team.id}
         currentProfileImg={team.profile_img ?? null}
         defaultValues={{

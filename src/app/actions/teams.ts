@@ -3,10 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
-import {
-  ALLOWED_AVATAR_TYPES as SHARED_AVATAR_TYPES,
-  MAX_AVATAR_BYTES as SHARED_MAX_AVATAR_BYTES,
-} from "@/lib/storage/profile-photos";
+import { isValidProfilePhotoUrl } from "@/lib/storage/profile-photos";
 import { slugify } from "@/lib/utils/slug";
 import { buildSocialUrl } from "@/lib/utils/social";
 import {
@@ -16,10 +13,17 @@ import {
 } from "@/lib/validation/teams";
 import type { ActionResult } from "./auth";
 
-// 댄서 프로필 사진과 동일한 제약 사용 (이전엔 5MB로 불일치)
-const MAX_AVATAR_BYTES = SHARED_MAX_AVATAR_BYTES;
-const ALLOWED_AVATAR_TYPES = SHARED_AVATAR_TYPES;
-const MAX_AVATAR_MB = Math.round(MAX_AVATAR_BYTES / (1024 * 1024));
+/**
+ * 브라우저에서 Supabase Storage 로 직접 업로드된 URL 만 받습니다.
+ * Server Action body 한계(Vercel 4.5MB) 우회 + storage RLS 가 path[0] 으로 권한 검증.
+ */
+function validateProfileImgUrl(url: string | null): { ok: true; url: string | null } | { ok: false; error: string } {
+  if (!url) return { ok: true, url: null };
+  if (!isValidProfilePhotoUrl(url)) {
+    return { ok: false, error: "팀 로고 URL 검증에 실패했습니다. 다시 시도해 주세요." };
+  }
+  return { ok: true, url };
+}
 
 function strOrNull(formData: FormData, key: string): string | null {
   const v = (formData.get(key) ?? "").toString().trim();
@@ -123,16 +127,9 @@ export async function createTeamAction(
     null,
   );
 
-  // 사진 파일 사전 검증 (insert 전에 잡아서 팀 row가 만들어진 뒤 실패하는 일 방지)
-  const profileImg = formData.get("profile_img");
-  if (profileImg instanceof File && profileImg.size > 0) {
-    if (profileImg.size > MAX_AVATAR_BYTES) {
-      return { ok: false, error: `팀 로고는 ${MAX_AVATAR_MB}MB 이하만 업로드할 수 있습니다.` };
-    }
-    if (!ALLOWED_AVATAR_TYPES.includes(profileImg.type as (typeof ALLOWED_AVATAR_TYPES)[number])) {
-      return { ok: false, error: "JPG, PNG, WEBP, GIF 형식만 업로드할 수 있습니다." };
-    }
-  }
+  // 로고는 브라우저에서 Storage 로 직접 업로드 후 URL 만 들어옴.
+  const profileImgCheck = validateProfileImgUrl(strOrNull(formData, "profile_img_url"));
+  if (!profileImgCheck.ok) return profileImgCheck;
 
   const insertValues = {
     team_name: parsed.data.team_name,
@@ -144,6 +141,7 @@ export async function createTeamAction(
     genres: parsed.data.genres.length ? parsed.data.genres : null,
     social_links,
     lead_profile_id: user.id,
+    ...(profileImgCheck.url ? { profile_img: profileImgCheck.url } : {}),
   };
 
   const { data: created, error } = await supabase
@@ -153,29 +151,6 @@ export async function createTeamAction(
     .single();
   if (error) return { ok: false, error: humanizeTeamError(error.message) };
   const teamId = created.id as string;
-
-  if (profileImg instanceof File && profileImg.size > 0) {
-    const ext = profileImg.type.split("/")[1] ?? "jpg";
-    const path = `${teamId}/profile_${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from("profile-photos")
-      .upload(path, profileImg, { upsert: true, contentType: profileImg.type });
-    if (uploadError) {
-      // 팀은 만들어졌지만 로고 업로드 실패 — 사용자에게 알려서 편집 페이지에서 재시도 유도
-      revalidatePath("/me/teams");
-      return {
-        ok: false,
-        error: `팀은 생성됐지만 로고 업로드 실패: ${uploadError.message}. 편집 페이지에서 다시 시도해 주세요.`,
-      };
-    }
-    const { data: pub } = supabase.storage
-      .from("profile-photos")
-      .getPublicUrl(path);
-    await supabase
-      .from("teams")
-      .update({ profile_img: pub.publicUrl })
-      .eq("id", teamId);
-  }
 
   revalidatePath("/me/teams");
   revalidatePath("/me");
@@ -220,6 +195,10 @@ export async function updateTeamAction(
     teamId,
   );
 
+  // 로고는 브라우저에서 Storage 로 직접 업로드 후 URL 만 들어옴.
+  const profileImgCheck = validateProfileImgUrl(strOrNull(formData, "profile_img_url"));
+  if (!profileImgCheck.ok) return profileImgCheck;
+
   const baseValues = {
     team_name: parsed.data.team_name,
     korean_name: parsed.data.korean_name ?? null,
@@ -229,6 +208,7 @@ export async function updateTeamAction(
     specialties: parsed.data.specialties.length ? parsed.data.specialties : null,
     genres: parsed.data.genres.length ? parsed.data.genres : null,
     social_links,
+    ...(profileImgCheck.url ? { profile_img: profileImgCheck.url } : {}),
   };
 
   const { error } = await supabase
@@ -237,34 +217,9 @@ export async function updateTeamAction(
     .eq("id", teamId);
   if (error) return { ok: false, error: humanizeTeamError(error.message) };
 
-  const profileImg = formData.get("profile_img");
-  if (profileImg instanceof File && profileImg.size > 0) {
-    if (profileImg.size > MAX_AVATAR_BYTES) {
-      return { ok: false, error: `팀 로고는 ${MAX_AVATAR_MB}MB 이하만 업로드할 수 있습니다.` };
-    }
-    if (!ALLOWED_AVATAR_TYPES.includes(profileImg.type as (typeof ALLOWED_AVATAR_TYPES)[number])) {
-      return { ok: false, error: "JPG, PNG, WEBP, GIF 형식만 업로드할 수 있습니다." };
-    }
-    const ext = profileImg.type.split("/")[1] ?? "jpg";
-    const path = `${teamId}/profile_${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from("profile-photos")
-      .upload(path, profileImg, { upsert: true, contentType: profileImg.type });
-    if (uploadError) {
-      return { ok: false, error: `이미지 업로드 실패: ${uploadError.message}` };
-    }
-    const { data: pub } = supabase.storage
-      .from("profile-photos")
-      .getPublicUrl(path);
-    await supabase
-      .from("teams")
-      .update({ profile_img: pub.publicUrl })
-      .eq("id", teamId);
-  }
-
   revalidatePath(`/me/teams/${teamId}`);
   revalidatePath("/me/teams");
-  if (parsed.data.slug) revalidatePath(`/t/${parsed.data.slug}`);
+  if (resolvedSlug) revalidatePath(`/t/${resolvedSlug}`);
   revalidatePath(`/t/${teamId}`);
   return { ok: true, data: { id: teamId } };
 }

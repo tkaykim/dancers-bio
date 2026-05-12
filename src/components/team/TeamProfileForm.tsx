@@ -6,6 +6,7 @@ import { CheckCircle2, Loader2, Save } from "lucide-react";
 import { createTeamAction, updateTeamAction } from "@/app/actions/teams";
 import { checkSlugAvailability } from "@/app/actions/slug";
 import { AvatarUpload } from "@/components/portfolio/AvatarUpload";
+import { uploadAvatarFromBrowser } from "@/lib/storage/upload-client";
 import { slugify } from "@/lib/utils/slug";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,8 @@ import { Label } from "@/components/ui/label";
 
 type Props = {
   isCreate: boolean;
+  /** 현재 로그인 유저의 profile id — 브라우저 파일 업로드 경로용 (RLS: storage path[0] = auth.uid) */
+  userId: string;
   teamId?: string;
   currentProfileImg?: string | null;
   defaultValues: {
@@ -31,6 +34,7 @@ type Props = {
 
 export function TeamProfileForm({
   isCreate,
+  userId,
   teamId,
   currentProfileImg = null,
   defaultValues,
@@ -38,6 +42,7 @@ export function TeamProfileForm({
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  const [uploading, setUploading] = useState(false);
   const [dirty, setDirty] = useState(false);
 
   // 슬러그 자동 채움
@@ -91,6 +96,21 @@ export function TeamProfileForm({
         if (!isCreate && teamId) formData.set("team_id", teamId);
         setMessage(null);
         startTransition(async () => {
+          // 큰 사진을 Server Action body(Vercel 4.5MB)로 보내면 413 → 페이지 not found.
+          // 댄서 폼과 동일: 브라우저에서 Supabase Storage 로 직접 업로드 후 URL 만 액션에 전달.
+          const file = formData.get("profile_img");
+          if (file instanceof File && file.size > 0) {
+            setUploading(true);
+            const upload = await uploadAvatarFromBrowser(file, userId, "profile");
+            setUploading(false);
+            if (!upload.ok) {
+              setMessage({ kind: "error", text: upload.error });
+              return;
+            }
+            formData.set("profile_img_url", upload.url);
+          }
+          formData.delete("profile_img");
+
           const result = isCreate
             ? await createTeamAction(formData)
             : await updateTeamAction(formData);
@@ -293,11 +313,11 @@ export function TeamProfileForm({
           ) : null}
           <Button
             type="submit"
-            disabled={pending || (!isCreate && !dirty)}
+            disabled={pending || uploading || (!isCreate && !dirty)}
             className="ml-auto flex items-center gap-1.5"
           >
-            {pending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            {pending ? "저장 중..." : isCreate ? "팀 만들기" : "저장하기"}
+            {pending || uploading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            {uploading ? "업로드 중..." : pending ? "저장 중..." : isCreate ? "팀 만들기" : "저장하기"}
           </Button>
         </div>
       </div>

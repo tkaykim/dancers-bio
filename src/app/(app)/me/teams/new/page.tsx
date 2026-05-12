@@ -33,6 +33,7 @@ export default async function NewTeamPage() {
 
       <TeamProfileForm
         isCreate
+        userId={user.id}
         defaultValues={{
           team_name: "",
           korean_name: "",
