@@ -74,7 +74,10 @@ function humanizeTeamError(message: string): string {
   if (message.includes("teams_slug_key") || (message.toLowerCase().includes("duplicate") && message.includes("slug"))) {
     return "이미 사용 중인 slug입니다. 다른 값을 입력해 주세요.";
   }
-  if (message.includes("team_members_team_profile_unique")) {
+  if (
+    message.includes("team_members_team_profile_unique") ||
+    message.includes("team_members_team_dancer_unique")
+  ) {
     return "이미 등록된 멤버입니다.";
   }
   if (message.includes("Cannot remove team lead")) {
@@ -230,6 +233,10 @@ export async function addTeamMemberAction(
   await requireUser();
   const supabase = await createClient();
 
+  // 폼 필드 이름은 호환을 위해 그대로 'profile_id' 를 사용. 의미는
+  // "댄서 프로필 소유자의 platform profile UUID 또는 dancer.id UUID".
+  // DB(team_members) 는 dancer_id 컬럼만 가지므로 둘 중 어느 입력이든
+  // dancer.id 로 환산해서 저장한다.
   const parsed = addMemberSchema.safeParse({
     team_id: formData.get("team_id"),
     profile_id: strOrNull(formData, "profile_id"),
@@ -242,12 +249,45 @@ export async function addTeamMemberAction(
     };
   }
 
+  let dancerId: string | null = null;
+  if (parsed.data.profile_id) {
+    // 우선 profile UUID 로 dancer 조회 (가장 흔한 입력)
+    const { data: byProfile } = await supabase
+      .from("dancers")
+      .select("id")
+      .eq("profile_id", parsed.data.profile_id)
+      .limit(1)
+      .maybeSingle();
+    if (byProfile) {
+      dancerId = byProfile.id as string;
+    } else {
+      // dancer.id 직접 입력일 수도 — 폴백
+      const { data: byId } = await supabase
+        .from("dancers")
+        .select("id")
+        .eq("id", parsed.data.profile_id)
+        .maybeSingle();
+      if (byId) dancerId = byId.id as string;
+    }
+    if (!dancerId) {
+      return {
+        ok: false,
+        error:
+          "해당 UUID에 연결된 댄서 프로필을 찾지 못했습니다. UUID 없이 이름만 등록하려면 ID 칸을 비워두세요.",
+      };
+    }
+  }
+
+  if (!dancerId && !parsed.data.display_name) {
+    return { ok: false, error: "플랫폼 계정 또는 이름 중 하나는 필수입니다." };
+  }
+
   const { data, error } = await supabase
     .from("team_members")
     .insert({
       team_id: parsed.data.team_id,
-      profile_id: parsed.data.profile_id ?? null,
-      display_name: parsed.data.display_name ?? null,
+      dancer_id: dancerId,
+      display_name: dancerId ? null : parsed.data.display_name,
     })
     .select("id")
     .single();
@@ -299,17 +339,31 @@ export async function transferTeamLeadAction(
     };
   }
 
-  // Ensure the new lead is already a member of this team
+  // Ensure the new lead is already a member of this team.
+  // team_members.dancer_id 만 존재하므로 후임 profile → 그 profile 의 dancer 들 →
+  // team_members.dancer_id IN (…) 로 검증한다.
+  const { data: newLeadDancers } = await supabase
+    .from("dancers")
+    .select("id")
+    .eq("profile_id", parsed.data.new_lead_profile_id);
+  const newLeadDancerIds = (newLeadDancers ?? []).map((d) => d.id as string);
+  if (newLeadDancerIds.length === 0) {
+    return {
+      ok: false,
+      error: "후임은 댄서 프로필이 필요합니다.",
+    };
+  }
   const { data: member } = await supabase
     .from("team_members")
     .select("id")
     .eq("team_id", parsed.data.team_id)
-    .eq("profile_id", parsed.data.new_lead_profile_id)
+    .in("dancer_id", newLeadDancerIds)
+    .limit(1)
     .maybeSingle();
   if (!member) {
     return {
       ok: false,
-      error: "후임은 팀의 기존 멤버여야 합니다 (플랫폼 계정 연결 필요).",
+      error: "후임은 팀의 기존 멤버여야 합니다 (댄서 프로필 연결 필요).",
     };
   }
 

@@ -8,12 +8,12 @@ export default async function MyTeamsPage() {
   const user = await requireUser();
   const supabase = await createClient();
 
-  const { data: dancer } = await supabase
+  const { data: ownDancers } = await supabase
     .from("dancers")
     .select("id")
-    .eq("profile_id", user.id)
-    .maybeSingle();
-  if (!dancer) {
+    .eq("profile_id", user.id);
+  const ownDancerIds = (ownDancers ?? []).map((d) => d.id as string);
+  if (ownDancerIds.length === 0) {
     redirect("/onboarding/create");
   }
 
@@ -24,11 +24,12 @@ export default async function MyTeamsPage() {
     .eq("lead_profile_id", user.id)
     .order("created_at", { ascending: false });
 
-  // Teams I'm a member of (but not leading)
+  // Teams I'm a member of (but not leading).
+  // team_members 는 dancer_id 컬럼만 가지므로 본인 소유 dancers 로 조회.
   const { data: memberRows } = await supabase
     .from("team_members")
     .select("team_id, teams!inner(id, team_name, slug, approval_status, is_active, profile_img, lead_profile_id)")
-    .eq("profile_id", user.id);
+    .in("dancer_id", ownDancerIds);
 
   type TeamShape = {
     id: string;

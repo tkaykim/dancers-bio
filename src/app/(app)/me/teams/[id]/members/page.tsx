@@ -27,20 +27,28 @@ export default async function TeamMembersPage({
   const { data: rows } = await supabase
     .from("team_members")
     .select(
-      "id, profile_id, display_name, joined_at, profiles:profile_id(display_name)",
+      "id, dancer_id, display_name, joined_at, dancers:dancer_id(id, stage_name, profile_id, profiles:profile_id(display_name))",
     )
     .eq("team_id", team.id)
     .order("sort_order", { ascending: true })
     .order("joined_at", { ascending: true });
 
+  type DancerJoin = {
+    id: string;
+    stage_name: string | null;
+    profile_id: string | null;
+    profiles?: { display_name: string | null } | null;
+  } | null;
+
   const members: TeamMemberRow[] = (rows ?? []).map((r) => {
-    const profile = (r as unknown as { profiles?: { display_name: string } | null }).profiles ?? null;
+    const dancer = (r as unknown as { dancers?: DancerJoin }).dancers ?? null;
     return {
       id: r.id as string,
-      profile_id: (r.profile_id as string | null) ?? null,
+      dancer_id: (r.dancer_id as string | null) ?? null,
+      dancer_profile_id: dancer?.profile_id ?? null,
       display_name: (r.display_name as string | null) ?? null,
       joined_at: r.joined_at as string,
-      profile_display_name: profile?.display_name ?? null,
+      dancer_label: dancer?.profiles?.display_name ?? dancer?.stage_name ?? null,
     };
   });
 

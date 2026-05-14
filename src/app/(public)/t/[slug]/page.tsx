@@ -85,7 +85,9 @@ export default async function PublicTeamPage({
       .order("date", { ascending: false }),
     supabase
       .from("team_members")
-      .select("id, profile_id, display_name, sort_order, profiles:profile_id(display_name, avatar_url)")
+      .select(
+        "id, dancer_id, display_name, sort_order, dancers:dancer_id(id, stage_name, profile_img, profile_id, profiles:profile_id(display_name, avatar_url))",
+      )
       .eq("team_id", team.id)
       .order("sort_order", { ascending: true }),
     getUser(),
@@ -120,13 +122,24 @@ export default async function PublicTeamPage({
     url: string;
     thumbnail?: string;
   }>;
+  type PublicDancerJoin = {
+    id: string;
+    stage_name: string | null;
+    profile_img: string | null;
+    profile_id: string | null;
+    profiles?: { display_name: string | null; avatar_url: string | null } | null;
+  } | null;
   const members = (memberRows ?? []).map((r) => {
-    const p = (r as unknown as { profiles?: { display_name: string; avatar_url: string | null } | null }).profiles ?? null;
+    const d = (r as unknown as { dancers?: PublicDancerJoin }).dancers ?? null;
     return {
       id: r.id as string,
-      profile_id: (r.profile_id as string | null) ?? null,
-      label: p?.display_name ?? (r.display_name as string | null) ?? "(이름 없음)",
-      avatar_url: p?.avatar_url ?? null,
+      profile_id: d?.profile_id ?? null,
+      label:
+        d?.profiles?.display_name ??
+        d?.stage_name ??
+        (r.display_name as string | null) ??
+        "(이름 없음)",
+      avatar_url: d?.profiles?.avatar_url ?? d?.profile_img ?? null,
     };
   });
 

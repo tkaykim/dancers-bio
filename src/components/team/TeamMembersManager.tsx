@@ -14,10 +14,11 @@ import { Label } from "@/components/ui/label";
 
 export type TeamMemberRow = {
   id: string;
-  profile_id: string | null;
+  dancer_id: string | null;
+  dancer_profile_id: string | null;
   display_name: string | null;
   joined_at: string;
-  profile_display_name: string | null;
+  dancer_label: string | null;
 };
 
 type Props = {
@@ -34,7 +35,9 @@ export function TeamMembersManager({ teamId, leadProfileId, members }: Props) {
   const [showTransfer, setShowTransfer] = useState(false);
   const [showDisband, setShowDisband] = useState(false);
 
-  const linkedMembers = members.filter((m) => m.profile_id && m.profile_id !== leadProfileId);
+  const linkedMembers = members.filter(
+    (m) => m.dancer_profile_id && m.dancer_profile_id !== leadProfileId,
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -42,9 +45,8 @@ export function TeamMembersManager({ teamId, leadProfileId, members }: Props) {
         <h2 className="text-sm font-semibold">현재 멤버</h2>
         <ul className="flex flex-col gap-2">
           {members.map((m) => {
-            const isLead = m.profile_id === leadProfileId;
-            const label =
-              m.profile_display_name ?? m.display_name ?? "(이름 없음)";
+            const isLead = m.dancer_profile_id === leadProfileId;
+            const label = m.dancer_label ?? m.display_name ?? "(이름 없음)";
             return (
               <li
                 key={m.id}
@@ -53,7 +55,7 @@ export function TeamMembersManager({ teamId, leadProfileId, members }: Props) {
                 <div className="flex flex-col">
                   <span className="text-sm font-medium">{label}</span>
                   <span className="text-xs text-muted-foreground">
-                    {m.profile_id ? "플랫폼 계정 연결됨" : "이름만 등록"}
+                    {m.dancer_id ? "댄서 프로필 연결됨" : "이름만 등록"}
                     {isLead ? " · 팀장" : ""}
                   </span>
                 </div>
@@ -190,14 +192,14 @@ export function TeamMembersManager({ teamId, leadProfileId, members }: Props) {
             >
               <option value="">— 후임 선택 —</option>
               {linkedMembers.map((m) => (
-                <option key={m.id} value={m.profile_id ?? ""}>
-                  {m.profile_display_name ?? m.display_name ?? "(이름 없음)"}
+                <option key={m.id} value={m.dancer_profile_id ?? ""}>
+                  {m.dancer_label ?? m.display_name ?? "(이름 없음)"}
                 </option>
               ))}
             </select>
             {linkedMembers.length === 0 ? (
               <p className="text-xs text-destructive">
-                플랫폼 계정이 연결된 다른 멤버가 없습니다. 먼저 계정 연결된 멤버를 추가하세요.
+                댄서 프로필이 연결된 다른 멤버가 없습니다. 먼저 댄서 프로필이 있는 멤버를 추가하세요.
               </p>
             ) : null}
             <div className="flex gap-2">

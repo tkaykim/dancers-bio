@@ -44,6 +44,7 @@ export async function applyToProjectAction(
     return { ok: false, error: "이 공고는 팀 지원을 받지 않습니다." };
   }
 
+  let individualDancerId: string | null = null;
   if (applyAsTeamId) {
     // Verify the user actually leads this team
     const { data: team } = await supabase
@@ -60,7 +61,10 @@ export async function applyToProjectAction(
       return { ok: false, error: "본인 팀이 개설한 프로젝트에는 지원할 수 없습니다." };
     }
   } else {
-    // Individual: must have dancer profile
+    // Individual: must have dancer profile. applications.dancer_id ↔ team_id 는
+    // XOR 제약(applications_dancer_team_xor)이라 individual 지원은 반드시 dancer_id가 들어가야 한다.
+    // RLS WITH CHECK (applications_insert) 도 dancer_id 또는 team_id 분기만 인정하므로
+    // applicant_id 만 채워 보내던 기존 페이로드는 RLS·제약 둘 다 위반했음.
     const { data: dancer } = await supabase
       .from("dancers")
       .select("id")
@@ -69,11 +73,13 @@ export async function applyToProjectAction(
     if (!dancer) {
       return { ok: false, error: "개인 지원은 댄서 포트폴리오가 필요합니다." };
     }
+    individualDancerId = dancer.id as string;
   }
 
   const insertPayload: {
     project_id: string;
     applicant_id: string | null;
+    dancer_id: string | null;
     team_id: string | null;
     source: "apply";
     status: "pending";
@@ -82,6 +88,7 @@ export async function applyToProjectAction(
     ? {
         project_id,
         team_id: applyAsTeamId,
+        dancer_id: null,
         applicant_id: null,
         source: "apply",
         status: "pending",
@@ -90,6 +97,7 @@ export async function applyToProjectAction(
     : {
         project_id,
         applicant_id: user.id,
+        dancer_id: individualDancerId,
         team_id: null,
         source: "apply",
         status: "pending",

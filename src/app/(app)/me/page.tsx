@@ -20,22 +20,28 @@ export default async function MePage() {
   if (!profile) redirect("/login");
 
   // Quick lookup: do they already have a dancer profile?
-  const { data: ownDancer } = await supabase
+  // 사용자가 여러 dancer (own + managed) 를 가질 수 있으므로 첫 번째 own dancer 만 가져옴 (slug 노출용).
+  const { data: ownDancers } = await supabase
     .from("dancers")
     .select("id, slug")
     .eq("profile_id", user.id)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
+  const ownDancer = (ownDancers ?? [])[0] ?? null;
+  const ownDancerIds = (ownDancers ?? []).map((d) => d.id as string);
 
-  // Count teams the user leads or is a member of
+  // Count teams the user leads or is a member of.
+  // team_members 는 dancer_id 컬럼만 가지므로 본인 소유 dancers 의 id 들로 조회한다.
   const [{ count: ledTeamsCount }, { count: memberTeamsCount }] = await Promise.all([
     supabase
       .from("teams")
       .select("id", { count: "exact", head: true })
       .eq("lead_profile_id", user.id),
-    supabase
-      .from("team_members")
-      .select("id", { count: "exact", head: true })
-      .eq("profile_id", user.id),
+    ownDancerIds.length === 0
+      ? Promise.resolve({ count: 0 })
+      : supabase
+          .from("team_members")
+          .select("id", { count: "exact", head: true })
+          .in("dancer_id", ownDancerIds),
   ]);
   const teamsTotal = (ledTeamsCount ?? 0) + Math.max((memberTeamsCount ?? 0) - (ledTeamsCount ?? 0), 0);
 
