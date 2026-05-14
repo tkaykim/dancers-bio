@@ -61,19 +61,67 @@ export async function applyToProjectAction(
       return { ok: false, error: "본인 팀이 개설한 프로젝트에는 지원할 수 없습니다." };
     }
   } else {
-    // Individual: must have dancer profile. applications.dancer_id ↔ team_id 는
-    // XOR 제약(applications_dancer_team_xor)이라 individual 지원은 반드시 dancer_id가 들어가야 한다.
-    // RLS WITH CHECK (applications_insert) 도 dancer_id 또는 team_id 분기만 인정하므로
-    // applicant_id 만 채워 보내던 기존 페이로드는 RLS·제약 둘 다 위반했음.
-    const { data: dancer } = await supabase
-      .from("dancers")
-      .select("id")
-      .eq("profile_id", user.id)
-      .maybeSingle();
-    if (!dancer) {
-      return { ok: false, error: "개인 지원은 댄서 포트폴리오가 필요합니다." };
+    // Individual: 댄서가 있어야 한다. applications.dancer_id ↔ team_id 는
+    // XOR 제약(applications_dancer_team_xor) + RLS WITH CHECK 가 dancer/team
+    // 분기만 인정하므로, 반드시 dancer_id 가 채워져야 한다.
+    //
+    // 폼에서 specific dancer 를 골라 보냈으면(`dancer_id` 필드) 그걸 우선 사용.
+    // 없으면 본인 own dancer 중 첫 번째, 그것도 없으면 본인이 매니저로 가공하는
+    // dancer 중 첫 번째를 사용한다 (can_act_as_dancer = owns OR manages).
+    const preselectedDancerId = (formData.get("dancer_id") ?? "").toString().trim();
+    if (preselectedDancerId) {
+      const { data: chosen } = await supabase
+        .from("dancers")
+        .select("id, profile_id")
+        .eq("id", preselectedDancerId)
+        .maybeSingle();
+      if (!chosen) {
+        return { ok: false, error: "선택한 댄서 프로필을 찾을 수 없습니다." };
+      }
+      // 본인 소유 또는 매니저 권한 확인
+      const isOwn = chosen.profile_id === user.id;
+      let isManager = false;
+      if (!isOwn) {
+        const { data: mgr } = await supabase
+          .from("dancer_managers")
+          .select("dancer_id")
+          .eq("dancer_id", chosen.id)
+          .eq("manager_id", user.id)
+          .maybeSingle();
+        isManager = !!mgr;
+      }
+      if (!isOwn && !isManager) {
+        return { ok: false, error: "선택한 댄서로 지원할 권한이 없습니다." };
+      }
+      individualDancerId = chosen.id as string;
+    } else {
+      // own dancer 우선
+      const { data: ownDancers } = await supabase
+        .from("dancers")
+        .select("id")
+        .eq("profile_id", user.id)
+        .order("created_at", { ascending: true })
+        .limit(1);
+      if (ownDancers && ownDancers.length > 0) {
+        individualDancerId = ownDancers[0].id as string;
+      } else {
+        // managed dancer 폴백
+        const { data: managed } = await supabase
+          .from("dancer_managers")
+          .select("dancer_id")
+          .eq("manager_id", user.id)
+          .limit(1);
+        if (managed && managed.length > 0) {
+          individualDancerId = managed[0].dancer_id as string;
+        }
+      }
+      if (!individualDancerId) {
+        return {
+          ok: false,
+          error: "개인 지원은 댄서 포트폴리오가 필요합니다.",
+        };
+      }
     }
-    individualDancerId = dancer.id as string;
   }
 
   const insertPayload: {
@@ -112,6 +160,20 @@ export async function applyToProjectAction(
     }
     if (error.code === "42501") {
       return { ok: false, error: "지원 권한이 없습니다." };
+    }
+    // DB 트리거 `applications_prevent_self` 의 영문 RAISE 메시지를 한국어로 변환
+    const m = error.message ?? "";
+    if (m.includes("apply with your own dancer to your own project")) {
+      return { ok: false, error: "본인이 만든 프로젝트에 본인 댄서로는 지원할 수 없습니다." };
+    }
+    if (m.includes("same dancer that owns this project")) {
+      return { ok: false, error: "프로젝트 소유 댄서로는 같은 프로젝트에 지원할 수 없습니다." };
+    }
+    if (m.includes("team led by the project owner")) {
+      return { ok: false, error: "본인 팀(팀장 본인)이 만든 프로젝트에는 지원할 수 없습니다." };
+    }
+    if (m.includes("same team that owns this project")) {
+      return { ok: false, error: "프로젝트 소유 팀으로는 같은 프로젝트에 지원할 수 없습니다." };
     }
     return { ok: false, error: error.message };
   }
