@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
 export type ApplyAsOption =
-  | { kind: "individual"; label: string }
+  | { kind: "individual"; dancer_id: string; label: string }
   | { kind: "team"; team_id: string; label: string };
 
 export function ApplyForm({
@@ -38,6 +38,12 @@ export function ApplyForm({
         setMessage(null);
         formData.set("project_id", projectId);
         formData.set("apply_as", selected);
+        // 시나리오 2: 어떤 dancer 로 지원하는지 명시적으로 전달.
+        // applyToProjectAction(v2) 의 dancer_id 폴백 분기가 본인/매니저 권한 검증 후 수용.
+        const sel = applyOptions.find((o) => toValue(o) === selected);
+        if (sel?.kind === "individual") {
+          formData.set("dancer_id", sel.dancer_id);
+        }
         startTransition(async () => {
           const result = await applyToProjectAction(formData);
           if (!result.ok) {
@@ -101,7 +107,9 @@ export function ApplyForm({
 }
 
 function toValue(opt: ApplyAsOption): string {
-  return opt.kind === "individual" ? "individual" : `team:${opt.team_id}`;
+  return opt.kind === "individual"
+    ? `individual:${opt.dancer_id}`
+    : `team:${opt.team_id}`;
 }
 
 export function WithdrawButton({ applicationId }: { applicationId: string }) {

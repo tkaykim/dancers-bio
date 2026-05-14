@@ -46,6 +46,7 @@ type ApplicationRow = {
   id: string;
   status: string;
   applicant_id: string | null;
+  dancer_id: string | null;
   team_id: string | null;
 };
 
@@ -103,7 +104,7 @@ export default async function ProjectDetailPage({
     { data: sessionsData },
     { data: ownerProfile },
     { data: viewerProfile },
-    { data: ownDancer },
+    { data: ownDancers },
     { data: ledTeamRows },
     { data: myApplications },
     { count: acceptedCount },
@@ -116,7 +117,13 @@ export default async function ProjectDetailPage({
       .order("starts_at"),
     supabase.from("profiles").select("display_name, id").eq("id", p.owner_id).single(),
     supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle(),
-    supabase.from("dancers").select("id").eq("profile_id", user.id).maybeSingle(),
+    // 시나리오 2: 본인이 보유한 dancer 가 N 개일 수 있으므로 배열로 가져와
+    // 각 dancer 별 지원 옵션을 노출한다 (multi-dancer 명시적 선택 UX).
+    supabase
+      .from("dancers")
+      .select("id, stage_name, korean_name")
+      .eq("profile_id", user.id)
+      .order("created_at", { ascending: true }),
     supabase
       .from("teams")
       .select("id, team_name, is_active, approval_status, lead_profile_id")
@@ -124,7 +131,7 @@ export default async function ProjectDetailPage({
       .eq("is_active", true),
     supabase
       .from("applications")
-      .select("id, status, applicant_id, team_id")
+      .select("id, status, applicant_id, dancer_id, team_id")
       .eq("project_id", id)
       .or(`applicant_id.eq.${user.id},team_id.in.(${"00000000-0000-0000-0000-000000000000"})`)
       .order("created_at", { ascending: false }),
@@ -147,7 +154,7 @@ export default async function ProjectDetailPage({
   if (ledTeamIds.length > 0) {
     const { data: teamApps } = await supabase
       .from("applications")
-      .select("id, status, applicant_id, team_id")
+      .select("id, status, applicant_id, dancer_id, team_id")
       .eq("project_id", id)
       .in("team_id", ledTeamIds);
     const seen = new Set(allMine.map((a) => a.id));
@@ -155,24 +162,32 @@ export default async function ProjectDetailPage({
       if (!seen.has(a.id)) allMine = allMine.concat(a);
     }
   }
-  // 최신 지원 row (created_at desc로 정렬된 첫번째)
-  const mineIndividual = allMine.find((a) => a.applicant_id === user.id) ?? null;
   const mineTeams = allMine.filter((a) => a.team_id);
+  // 본인이 한 개인 지원(현재 라인업 노출용). applicant_id 본인 또는 본인 dancer
+  // 둘 중 하나에 매칭되는 가장 최신 row.
+  const mineIndividual =
+    allMine.find(
+      (a) =>
+        a.applicant_id === user.id ||
+        (a.dancer_id !== null &&
+          (ownDancers ?? []).some((d) => (d as { id: string }).id === a.dancer_id)),
+    ) ?? null;
 
-  // 활성 지원만 "이미 지원 중"으로 간주.
-  // withdrawn / rejected 는 새 지원 가능.
+  // 활성 지원만 "이미 지원 중"으로 간주. withdrawn / rejected 는 새 지원 가능.
   const isActiveStatus = (s: string) => s === "pending" || s === "accepted";
-  const mineIndividualActive =
-    mineIndividual && isActiveStatus(mineIndividual.status) ? mineIndividual : null;
 
   const dDay = daysUntil(p.application_deadline);
 
   const applyOptions: ApplyAsOption[] = [];
-  if (ownDancer && !mineIndividualActive) {
-    applyOptions.push({
-      kind: "individual",
-      label: mineIndividual ? "개인으로 다시 지원" : "개인으로 지원",
-    });
+  // 시나리오 2: 본인의 각 dancer 별로 옵션 생성. 같은 dancer 로 이미 활성 지원 중이면
+  // 그 dancer 옵션 제외 (재지원 불가). 비활성(withdrawn/rejected) 이면 라벨에 "다시 지원" 표기.
+  type OwnDancer = { id: string; stage_name: string; korean_name: string | null };
+  const ownDancerList = (ownDancers ?? []) as OwnDancer[];
+  for (const d of ownDancerList) {
+    const mineForDancer = allMine.find((a) => a.dancer_id === d.id);
+    if (mineForDancer && isActiveStatus(mineForDancer.status)) continue;
+    const label = `${d.stage_name}${d.korean_name ? ` (${d.korean_name})` : ""}${mineForDancer ? "으로 다시 지원" : "으로 지원"}`;
+    applyOptions.push({ kind: "individual", dancer_id: d.id, label });
   }
   if (p.allow_team_apply) {
     for (const t of ledTeamRows ?? []) {

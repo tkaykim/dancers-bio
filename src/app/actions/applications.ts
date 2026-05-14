@@ -233,17 +233,29 @@ export async function decideApplicationAction(
   const supabase = await createClient();
   const { data: app, error: fetchErr } = await supabase
     .from("applications")
-    .select("project_id")
+    .select("project_id, status")
     .eq("id", application_id)
     .single();
   if (fetchErr || !app) return { ok: false, error: "지원 정보를 찾을 수 없습니다." };
 
+  // 시나리오 5: 수락↔거절 양방향 전이 허용. 단 사용자가 본인이 취소한 지원
+  // (withdrawn, cancelled_*) 이나 만료(expired) 는 owner 가 임의로 수락/거절 못 함.
+  const transitionable = new Set(["pending", "accepted", "rejected", "declined"]);
+  if (!transitionable.has(app.status)) {
+    return {
+      ok: false,
+      error: "취소·만료된 지원은 수락/거절할 수 없습니다.",
+    };
+  }
+  if (app.status === decision) {
+    return { ok: true }; // no-op
+  }
+
   const { error } = await supabase
     .from("applications")
     .update({ status: decision, responded_at: new Date().toISOString() })
-    .eq("id", application_id)
-    .eq("status", "pending");
-  if (error) return { ok: false, error: error.message };
+    .eq("id", application_id);
+  if (error) return { ok: false, error: humanizeDbError(error.message) };
 
   revalidatePath(`/projects/${app.project_id}/applicants`);
   revalidatePath(`/projects/${app.project_id}`);

@@ -14,6 +14,15 @@ type Application = {
   created_at: string;
   responded_at: string | null;
   applicant: { id: string; display_name: string; avatar_url: string | null } | null;
+  dancer:
+    | {
+        id: string;
+        stage_name: string;
+        korean_name: string | null;
+        slug: string | null;
+        profile_img: string | null;
+      }
+    | null;
   team: { id: string; team_name: string; slug: string | null; profile_img: string | null } | null;
 };
 
@@ -57,6 +66,7 @@ export default async function ApplicantsPage({
     .select(
       `id, status, source, cover_message, created_at, responded_at,
        applicant:profiles!applications_applicant_id_fkey ( id, display_name, avatar_url ),
+       dancer:dancers!applications_dancer_id_fkey ( id, stage_name, korean_name, slug, profile_img ),
        team:teams!applications_team_id_fkey ( id, team_name, slug, profile_img )`,
     )
     .eq("project_id", id)
@@ -106,7 +116,13 @@ export default async function ApplicantsPage({
           </p>
           <ul className="flex flex-col gap-2">
             {decided.map((a) => (
-              <ApplicantRow key={a.id} app={a} />
+              // 시나리오 5: 결정 후에도 수락↔거절 재전이 가능하므로 actions 유지.
+              // 단 사용자가 취소한 지원(withdrawn) 등은 액션 숨김.
+              <ApplicantRow
+                key={a.id}
+                app={a}
+                showActions={a.status === "accepted" || a.status === "rejected" || a.status === "declined"}
+              />
             ))}
           </ul>
         </section>
@@ -129,15 +145,26 @@ function ApplicantRow({
   showActions?: boolean;
 }) {
   const isTeam = !!app.team;
+  // 시나리오 3: 지원자 목록은 user(profiles) 가 아니라 **dancer 기준**으로 표시.
+  // 같은 user 가 여러 dancer 중 어느 dancer 로 지원했는지, 매니저가 가공한 dancer 로
+  // 지원한 케이스 등을 정확히 식별하기 위함. dancer 가 없는 옛 데이터는 applicant
+  // profile 로 폴백.
   const name = isTeam
     ? app.team?.team_name ?? "(팀)"
-    : app.applicant?.display_name ?? "(알 수 없음)";
-  const avatar = isTeam ? app.team?.profile_img : app.applicant?.avatar_url ?? null;
+    : app.dancer
+      ? app.dancer.stage_name
+      : app.applicant?.display_name ?? "(알 수 없음)";
+  const subtitle = !isTeam && app.dancer?.korean_name ? app.dancer.korean_name : null;
+  const avatar = isTeam
+    ? app.team?.profile_img
+    : app.dancer?.profile_img ?? app.applicant?.avatar_url ?? null;
   const publicHref = isTeam
     ? `/t/${app.team?.slug ?? app.team?.id}`
-    : app.applicant?.id
-      ? `/u/${app.applicant.id}`
-      : null;
+    : app.dancer
+      ? `/d/${app.dancer.slug ?? app.dancer.id}`
+      : app.applicant?.id
+        ? `/u/${app.applicant.id}`
+        : null;
 
   return (
     <li className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3">
@@ -168,6 +195,14 @@ function ApplicantRow({
               <span className="ml-1.5 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-semibold">팀</span>
             ) : null}
           </p>
+          {subtitle ? (
+            <p className="mt-0.5 text-[11px] text-ink-3">{subtitle}</p>
+          ) : null}
+          {!isTeam && app.dancer && app.applicant ? (
+            <p className="mt-0.5 text-[10px] text-ink-3">
+              계정: {app.applicant.display_name}
+            </p>
+          ) : null}
           <p className={`mt-0.5 text-[11px] ${STATUS_COLOR[app.status] ?? "text-ink-3"}`}>
             {app.source === "direct_proposal" ? "제안" : "지원"} · {APPLICATION_STATUS_LABELS[app.status]}
           </p>
