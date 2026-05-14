@@ -8,6 +8,7 @@ import {
   removeTeamMemberAction,
   transferTeamLeadAction,
 } from "@/app/actions/teams";
+import { AddMemberSearch } from "@/components/team/AddMemberSearch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,8 +93,12 @@ export function TeamMembersManager({ teamId, leadProfileId, members }: Props) {
         </ul>
       </section>
 
-      <section className="flex flex-col gap-3 rounded-md border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold">멤버 추가</h2>
+      <AddMemberSearch teamId={teamId} />
+
+      <details className="rounded-md border border-border bg-card p-4">
+        <summary className="cursor-pointer text-sm font-semibold">
+          가상 멤버 추가 (댄서 프로필 없이 이름만 등록)
+        </summary>
         <form
           action={(formData) => {
             formData.set("team_id", teamId);
@@ -108,33 +113,26 @@ export function TeamMembersManager({ teamId, leadProfileId, members }: Props) {
               router.refresh();
             });
           }}
-          className="flex flex-col gap-3"
+          className="mt-3 flex flex-col gap-3"
         >
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="profile_id">플랫폼 계정 ID (선택)</Label>
-            <Input
-              id="profile_id"
-              name="profile_id"
-              placeholder="UUID — 계정이 있는 멤버 연결 (선택)"
-            />
-            <p className="text-xs text-muted-foreground">
-              UUID를 비워두면 아래 이름만 등록됩니다.
-            </p>
-          </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="display_name">표시 이름</Label>
             <Input
               id="display_name"
               name="display_name"
               maxLength={80}
-              placeholder="멤버 이름 (계정 없을 때 필수)"
+              placeholder="멤버 이름"
+              required
             />
+            <p className="text-xs text-muted-foreground">
+              플랫폼 계정·댄서 프로필이 없는 멤버를 이름만 등록할 때 사용합니다.
+            </p>
           </div>
           <Button type="submit" disabled={adding} className="w-fit">
-            {adding ? "추가 중..." : "멤버 추가"}
+            {adding ? "추가 중..." : "이름만 등록"}
           </Button>
         </form>
-      </section>
+      </details>
 
       <section className="flex flex-col gap-3 rounded-md border border-warn/30 bg-warn/5 p-4">
         <h2 className="text-sm font-semibold">팀장 이양 / 팀 해체</h2>
