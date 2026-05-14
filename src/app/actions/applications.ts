@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { humanizeDbError } from "@/lib/db-errors";
 import type { ActionResult } from "./auth";
 
 function strOrNull(formData: FormData, key: string): string | null {
@@ -161,21 +162,7 @@ export async function applyToProjectAction(
     if (error.code === "42501") {
       return { ok: false, error: "지원 권한이 없습니다." };
     }
-    // DB 트리거 `applications_prevent_self` 의 영문 RAISE 메시지를 한국어로 변환
-    const m = error.message ?? "";
-    if (m.includes("apply with your own dancer to your own project")) {
-      return { ok: false, error: "본인이 만든 프로젝트에 본인 댄서로는 지원할 수 없습니다." };
-    }
-    if (m.includes("same dancer that owns this project")) {
-      return { ok: false, error: "프로젝트 소유 댄서로는 같은 프로젝트에 지원할 수 없습니다." };
-    }
-    if (m.includes("team led by the project owner")) {
-      return { ok: false, error: "본인 팀(팀장 본인)이 만든 프로젝트에는 지원할 수 없습니다." };
-    }
-    if (m.includes("same team that owns this project")) {
-      return { ok: false, error: "프로젝트 소유 팀으로는 같은 프로젝트에 지원할 수 없습니다." };
-    }
-    return { ok: false, error: error.message };
+    return { ok: false, error: humanizeDbError(error.message) };
   }
 
   revalidatePath(`/projects/${project_id}`);

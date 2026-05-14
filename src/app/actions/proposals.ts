@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { humanizeDbError } from "@/lib/db-errors";
 import {
   respondProposalSchema,
   sendProposalSchema,
@@ -73,9 +74,42 @@ export async function sendDirectProposalAction(
     }
   }
 
+  // direct_proposal individual 분기에서는 applications.dancer_id 가 채워져야 한다
+  // (applications_dancer_team_xor 제약 + RLS WITH CHECK 의 direct_proposal 분기 모두
+  // dancer_id 또는 team_id 를 요구). 폼은 대상 사용자의 profile UUID (applicant_id) 를
+  // 보내므로, 여기서 그 profile 의 dancer 1개를 lookup 해서 dancer_id 로 변환한다.
+  let dancerIdForInsert: string | null = null;
+  if (!parsed.data.team_id) {
+    const { data: approved } = await supabase
+      .from("dancers")
+      .select("id")
+      .eq("profile_id", parsed.data.applicant_id!)
+      .eq("approval_status", "approved")
+      .order("created_at", { ascending: true })
+      .limit(1);
+    if (approved && approved.length > 0) {
+      dancerIdForInsert = approved[0].id as string;
+    } else {
+      const { data: any_d } = await supabase
+        .from("dancers")
+        .select("id")
+        .eq("profile_id", parsed.data.applicant_id!)
+        .order("created_at", { ascending: true })
+        .limit(1);
+      if (!any_d || any_d.length === 0) {
+        return {
+          ok: false,
+          error: "해당 사용자에게 댄서 프로필이 없어 제안을 보낼 수 없습니다.",
+        };
+      }
+      dancerIdForInsert = any_d[0].id as string;
+    }
+  }
+
   const insertPayload: {
     project_id: string;
     applicant_id: string | null;
+    dancer_id: string | null;
     team_id: string | null;
     source: "direct_proposal";
     status: "pending";
@@ -84,6 +118,7 @@ export async function sendDirectProposalAction(
     ? {
         project_id: parsed.data.project_id,
         applicant_id: null,
+        dancer_id: null,
         team_id: parsed.data.team_id,
         source: "direct_proposal",
         status: "pending",
@@ -92,6 +127,7 @@ export async function sendDirectProposalAction(
     : {
         project_id: parsed.data.project_id,
         applicant_id: parsed.data.applicant_id!,
+        dancer_id: dancerIdForInsert,
         team_id: null,
         source: "direct_proposal",
         status: "pending",
@@ -106,7 +142,10 @@ export async function sendDirectProposalAction(
         error: "이미 제안을 보냈거나 해당 대상이 이미 지원한 프로젝트입니다.",
       };
     }
-    return { ok: false, error: error.message };
+    if (error.code === "42501") {
+      return { ok: false, error: "제안 권한이 없습니다." };
+    }
+    return { ok: false, error: humanizeDbError(error.message) };
   }
 
   revalidatePath(`/projects/${parsed.data.project_id}/applicants`);
@@ -171,7 +210,7 @@ export async function respondToProposalAction(
       ...(accepted ? { contact_revealed_at: now } : {}),
     })
     .eq("id", app.id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: humanizeDbError(error.message) };
 
   revalidatePath("/proposals");
   revalidatePath(`/projects/${app.project_id}/applicants`);
