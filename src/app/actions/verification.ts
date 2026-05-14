@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { requireProfile, requireUser } from "@/lib/auth/guard";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "./auth";
 
@@ -102,12 +101,22 @@ export async function approveInstagramVerificationAction(
   const id = (formData.get("id") ?? "").toString();
   if (!id) return { ok: false, error: "잘못된 요청입니다." };
 
-  const admin = createAdminClient();
-  const { error } = await admin.rpc("approve_instagram_verification", {
+  // RPC `approve_instagram_verification` 는 SECURITY DEFINER 라 권한이 충분하고,
+  // 본문 첫 줄에서 `is_admin()` 으로 호출자 검증을 한다. service_role 클라이언트로
+  // 호출하면 auth.uid() = NULL 이 되어 is_admin() 이 항상 false 를 반환 → 함수가
+  // 'admin only' 로 거부한다. user session 클라이언트로 호출해 auth.uid() 가
+  // 호출 admin 의 id 를 가리키도록 해야 한다.
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("approve_instagram_verification", {
     p_verification_id: id,
     p_reviewer_id: profile.id,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    if (error.message === "admin only") {
+      return { ok: false, error: "관리자 권한 확인에 실패했습니다. 다시 로그인해 주세요." };
+    }
+    return { ok: false, error: error.message };
+  }
 
   revalidatePath("/admin/verifications");
   return { ok: true };
@@ -124,13 +133,19 @@ export async function rejectInstagramVerificationAction(
   const reason = (formData.get("reason") ?? "").toString().trim() || null;
   if (!id) return { ok: false, error: "잘못된 요청입니다." };
 
-  const admin = createAdminClient();
-  const { error } = await admin.rpc("reject_instagram_verification", {
+  // 위 approve 와 동일한 이유로 user session 클라이언트 사용.
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reject_instagram_verification", {
     p_verification_id: id,
     p_reviewer_id: profile.id,
     p_reason: reason ?? undefined,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    if (error.message === "admin only") {
+      return { ok: false, error: "관리자 권한 확인에 실패했습니다. 다시 로그인해 주세요." };
+    }
+    return { ok: false, error: error.message };
+  }
 
   revalidatePath("/admin/verifications");
   return { ok: true };
