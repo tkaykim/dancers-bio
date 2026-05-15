@@ -19,7 +19,13 @@ const OFFICIAL_INSTAGRAM_USERNAME = "dancers.bio";
 // Instagram DM 딥링크. ig.me/m/<username> 는 모바일·PC 모두에서 DM 창으로 이동.
 const OFFICIAL_DM_URL = `https://ig.me/m/${OFFICIAL_INSTAGRAM_USERNAME}`;
 
-export function InstagramVerifyForm({ initial }: { initial: Initial }) {
+export function InstagramVerifyForm({
+  initial,
+  claimRequestId = null,
+}: {
+  initial: Initial;
+  claimRequestId?: string | null;
+}) {
   const router = useRouter();
   const [data, setData] = useState<Initial>(initial);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +102,7 @@ export function InstagramVerifyForm({ initial }: { initial: Initial }) {
         <form
           action={(formData) => {
             setError(null);
+            if (claimRequestId) formData.set("claim_request_id", claimRequestId);
             startTransition(async () => {
               const result = await requestInstagramVerification(formData);
               if (!result.ok) {

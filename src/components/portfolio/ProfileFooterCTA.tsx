@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { claimDancerProfileAction } from "@/app/actions/claim";
 
@@ -21,6 +22,7 @@ export function ProfileFooterCTA({
   isOwner: boolean;
   mode: Mode;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [relation, setRelation] = useState<"self" | "manager" | "other">(
     "self",
@@ -41,6 +43,11 @@ export function ProfileFooterCTA({
     fd.set("message", message);
     startTransition(async () => {
       const r = await claimDancerProfileAction(fd);
+      if (r.ok && r.data?.claim_request_id) {
+        // Lite: claim 생성 후 즉시 IG 본인 인증으로 이동.
+        router.push(`/verify-instagram?claim=${r.data.claim_request_id}`);
+        return;
+      }
       setResult(r);
     });
   }

@@ -134,6 +134,13 @@ export function SearchSection({
         setClaimError(result.error);
         return;
       }
+      // Lite: claim 생성 후 즉시 IG 본인 인증 단계로 이동.
+      const claimId = result.data?.claim_request_id;
+      if (claimId) {
+        router.push(`/verify-instagram?claim=${claimId}`);
+        return;
+      }
+      // 보조 fallback (이론적으로 발생 X)
       setClaimedIds((prev) => new Set([...prev, dancer.id]));
       setClaimingId(null);
       setClaimError(null);
