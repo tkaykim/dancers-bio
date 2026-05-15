@@ -173,37 +173,62 @@ export function DancerProfileForm({
         />
       </Field>
       <Field
-        label="공개 URL slug (선택)"
+        label="공개 페이지 주소"
         htmlFor="slug"
-        hint="활동명 기반으로 자동 채워집니다 · 영문 소문자/숫자/하이픈만"
+        hint={
+          slugTouched
+            ? "영문 소문자/숫자/하이픈만 가능. 중복 시 자동으로 -2, -3 등이 붙어요."
+            : "활동명에서 자동으로 만들어집니다. 직접 정하고 싶으면 '직접 설정'을 누르세요."
+        }
       >
-        <Input
-          id="slug"
-          name="slug"
-          maxLength={40}
-          pattern="[a-z0-9-]+"
-          value={slug}
-          onChange={(e) => { setSlug(e.target.value); setSlugTouched(true); }}
-          placeholder="자동 생성됨"
-        />
-        {slugStatus.kind === "checking" ? (
-          <p className="text-xs text-ink-3">확인 중...</p>
-        ) : slugStatus.kind === "ok" ? (
-          <p className="text-xs text-ok">✓ {slugStatus.text}</p>
-        ) : slugStatus.kind === "warn" ? (
-          <p className="text-xs text-warn">
-            {slugStatus.text}.{" "}
+        {slugTouched ? (
+          <>
+            <Input
+              id="slug"
+              name="slug"
+              maxLength={40}
+              pattern="[a-z0-9-]+"
+              value={slug}
+              onChange={(e) => { setSlug(e.target.value); }}
+              placeholder="my-stage-name"
+            />
+            {slugStatus.kind === "checking" ? (
+              <p className="text-xs text-ink-3">확인 중...</p>
+            ) : slugStatus.kind === "ok" ? (
+              <p className="text-xs text-ok">✓ {slugStatus.text} · /d/{slug}</p>
+            ) : slugStatus.kind === "warn" ? (
+              <p className="text-xs text-warn">
+                이미 사용 중. 저장하면 자동으로{" "}
+                <span className="font-mono text-foreground">{slugStatus.suggestion}</span>{" "}
+                같이 뒤에 숫자가 붙어요.
+              </p>
+            ) : slugStatus.kind === "error" ? (
+              <p className="text-xs text-destructive">{slugStatus.text}</p>
+            ) : null}
             <button
               type="button"
-              onClick={() => { setSlug(slugStatus.suggestion); setSlugTouched(true); }}
-              className="underline"
+              onClick={() => { setSlugTouched(false); setSlug(slugify(stageName)); }}
+              className="self-start text-xs text-ink-3 underline-offset-4 hover:underline"
             >
-              대안: {slugStatus.suggestion} 사용
+              ← 자동 생성으로 되돌리기
             </button>
-          </p>
-        ) : slugStatus.kind === "error" ? (
-          <p className="text-xs text-destructive">{slugStatus.text}</p>
-        ) : null}
+            {/* slug hidden input ensures formData captures even if visible input is unmounted */}
+          </>
+        ) : (
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2 text-sm">
+            <span className="truncate font-mono text-ink-2">
+              /d/<span className="text-foreground">{slug || "자동 생성됩니다"}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setSlugTouched(true)}
+              className="shrink-0 text-xs text-primary underline-offset-4 hover:underline"
+            >
+              직접 설정
+            </button>
+            <input type="hidden" name="slug" value={slug} />
+          </div>
+        )}
       </Field>
       <Field label="성별 (선택)" htmlFor="gender">
         <select

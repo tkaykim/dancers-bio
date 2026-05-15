@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Image as ImageIcon, Trash2, Upload, Video } from "lucide-react";
+import { CheckCircle2, FileText, Image as ImageIcon, Trash2, Upload, Video } from "lucide-react";
 import {
   removeDancerPortfolioFileAction,
   setDancerPortfolioFileAction,
@@ -43,6 +43,7 @@ export function PortfolioFileUploader({
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [removing, startRemove] = useTransition();
+  const [justSaved, setJustSaved] = useState<"uploaded" | "removed" | null>(null);
 
   function pick() {
     inputRef.current?.click();
@@ -78,6 +79,7 @@ export function PortfolioFileUploader({
         mime: upload.mime,
         uploadedAt: new Date().toISOString(),
       });
+      setJustSaved("uploaded");
       router.refresh();
     } finally {
       setUploading(false);
@@ -98,6 +100,7 @@ export function PortfolioFileUploader({
         return;
       }
       setCurrent(null);
+      setJustSaved("removed");
       router.refresh();
     });
   }
@@ -111,9 +114,15 @@ export function PortfolioFileUploader({
           <p className="text-sm font-semibold leading-snug">포트폴리오 파일</p>
           <p className="text-xs text-ink-3">
             PDF · JPG · PNG · MP4 · 최대 {formatBytes(MAX_PORTFOLIO_FILE_BYTES)}.
-            공개 프로필에서 누구나 다운받을 수 있어요.
+            공개 프로필에서 누구나 다운받을 수 있어요. 업로드하면 즉시 저장됩니다.
           </p>
         </div>
+        {justSaved ? (
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-ok/10 px-2.5 py-1 text-[11px] font-medium text-ok">
+            <CheckCircle2 size={11} aria-hidden />
+            {justSaved === "uploaded" ? "저장됨" : "삭제됨"}
+          </span>
+        ) : null}
       </div>
 
       {current ? (
