@@ -96,11 +96,9 @@ export default async function PublicTeamPage({
   ]);
 
   const teamLeadId = teamLead?.lead_profile_id as string | undefined;
-  const canPropose =
-    Boolean(viewer) &&
-    Boolean(viewerProfile?.can_create_project || viewerProfile?.is_admin) &&
-    Boolean(teamLeadId) &&
-    teamLeadId !== viewer?.id;
+  void teamLeadId;
+  // Lite MVP: direct_proposal OFF.
+  const canPropose = false;
 
   let myProjects: Array<{ id: string; title: string; visibility: "public" | "private"; status: string; allow_team_apply: boolean }> = [];
   if (canPropose) {

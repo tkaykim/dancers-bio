@@ -6,44 +6,25 @@ import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileCard } from "@/components/profile/ProfileCard";
 
+// Lite: 팀·받은 제안·creator 권한 신청 CTA 모두 제거. 관리자만 프로젝트 개설.
 export default async function MePage() {
   const user = await requireUser();
   const supabase = await createClient();
   const { data: profile } = await supabase
     .from("profiles")
-    .select(
-      "id, display_name, avatar_url, bio, can_create_project, is_admin",
-    )
+    .select("id, display_name, avatar_url, bio, is_admin")
     .eq("id", user.id)
     .single();
 
   if (!profile) redirect("/login");
 
-  // Quick lookup: do they already have a dancer profile?
-  // 사용자가 여러 dancer (own + managed) 를 가질 수 있으므로 첫 번째 own dancer 만 가져옴 (slug 노출용).
   const { data: ownDancers } = await supabase
     .from("dancers")
     .select("id, slug")
     .eq("profile_id", user.id)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(1);
   const ownDancer = (ownDancers ?? [])[0] ?? null;
-  const ownDancerIds = (ownDancers ?? []).map((d) => d.id as string);
-
-  // Count teams the user leads or is a member of.
-  // team_members 는 dancer_id 컬럼만 가지므로 본인 소유 dancers 의 id 들로 조회한다.
-  const [{ count: ledTeamsCount }, { count: memberTeamsCount }] = await Promise.all([
-    supabase
-      .from("teams")
-      .select("id", { count: "exact", head: true })
-      .eq("lead_profile_id", user.id),
-    ownDancerIds.length === 0
-      ? Promise.resolve({ count: 0 })
-      : supabase
-          .from("team_members")
-          .select("id", { count: "exact", head: true })
-          .in("dancer_id", ownDancerIds),
-  ]);
-  const teamsTotal = (ledTeamsCount ?? 0) + Math.max((memberTeamsCount ?? 0) - (ledTeamsCount ?? 0), 0);
 
   return (
     <div className="flex flex-col gap-6 px-6 pb-10 pt-8">
@@ -54,40 +35,15 @@ export default async function MePage() {
         avatarUrl={profile.avatar_url}
       />
 
-      {!profile.can_create_project && !profile.is_admin ? (
-        <Link
-          href="/verify-instagram"
-          className="flex items-center gap-3 rounded-2xl border border-warn/25 bg-warn/10 p-4 transition-colors active:bg-warn/15"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warn/20 text-warn">
-            !
-          </span>
-          <div className="flex-1">
-            <p className="text-sm font-bold text-warn">본인인증이 필요해요</p>
-            <p className="mt-0.5 text-xs text-ink-2">
-              인스타그램 DM 1회로 프로젝트 개설 권한을 받으세요.
-            </p>
-          </div>
-          <ChevronRight size={18} className="text-warn" aria-hidden />
-        </Link>
-      ) : null}
-
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-bold text-ink-2">활동</h2>
         <ul className="overflow-hidden rounded-2xl border border-border bg-card">
           <SettingsRow
-            href={ownDancer ? "/me/portfolio" : "/me/portfolio"}
+            href="/me/portfolio"
             title="댄서 포트폴리오"
             desc={ownDancer ? "활동명·경력·영상 편집" : "포트폴리오 만들기"}
           />
-          {ownDancer ? (
-            <SettingsRow
-              href="/me/teams"
-              title="내 팀"
-              desc={teamsTotal > 0 ? `${teamsTotal}개 팀` : "팀 만들기·소속 관리"}
-            />
-          ) : null}
-          {(profile.can_create_project || profile.is_admin) ? (
+          {profile.is_admin ? (
             <SettingsRow
               href="/projects/new"
               title="프로젝트 개설"

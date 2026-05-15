@@ -91,12 +91,8 @@ export default async function PublicDancerPage({
     getProfile(),
   ]);
 
-  // For "send proposal" CTA: viewer must be authed, can_create_project, dancer must have a profile_id, not self.
-  const canPropose =
-    Boolean(viewer) &&
-    Boolean(viewerProfile?.can_create_project || viewerProfile?.is_admin) &&
-    Boolean(dancer.profile_id) &&
-    dancer.profile_id !== viewer?.id;
+  // Lite MVP: direct_proposal 흐름 OFF. SendProposalDialog 노출하지 않음.
+  const canPropose = false;
 
   let myProjects: Array<{ id: string; title: string; visibility: "public" | "private"; status: string; allow_team_apply: boolean }> = [];
   if (canPropose) {

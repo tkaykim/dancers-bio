@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/auth/guard";
+import { requireAdmin, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import {
   agreedPaySchema,
@@ -26,7 +26,8 @@ function localDateTimeToIso(value: string | null): string | null {
 export async function createProjectAction(
   formData: FormData,
 ): Promise<ActionResult<{ id: string }>> {
-  const user = await requireUser();
+  // Lite: admin only.
+  const admin = await requireAdmin();
 
   const parsed = projectSchema.safeParse({
     title: formData.get("title"),
@@ -38,14 +39,11 @@ export async function createProjectAction(
     pay_amount: strOrNull(formData, "pay_amount"),
     pay_type: strOrNull(formData, "pay_type"),
     recruitment_count: strOrNull(formData, "recruitment_count") ?? "1",
-    allow_team_apply:
-      formData.get("allow_team_apply") === "on" ||
-      formData.get("allow_team_apply") === "true",
     application_deadline: localDateTimeToIso(strOrNull(formData, "application_deadline")),
     publish_now:
       formData.get("publish_now") === "on" ||
       formData.get("publish_now") === "true",
-    owner_id_override: strOrNull(formData, "owner_id_override"),
+    posted_by_label: strOrNull(formData, "posted_by_label"),
   });
   if (!parsed.success) {
     return {
@@ -91,32 +89,11 @@ export async function createProjectAction(
 
   const supabase = await createClient();
 
-  // Resolve owner_id: admin can act-as another profile; regular users always own.
-  let resolvedOwnerId = user.id;
-  if (parsed.data.owner_id_override && parsed.data.owner_id_override !== user.id) {
-    const { data: actor } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (!actor?.is_admin) {
-      return { ok: false, error: "타 계정 명의 등록은 관리자만 가능합니다." };
-    }
-    const { data: target } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("id", parsed.data.owner_id_override)
-      .maybeSingle();
-    if (!target) {
-      return { ok: false, error: "지정한 명의자 프로필을 찾을 수 없습니다." };
-    }
-    resolvedOwnerId = parsed.data.owner_id_override;
-  }
-
+  // Lite: owner = admin 본인. allow_team_apply는 항상 false.
   const { data: project, error } = await supabase
     .from("projects")
     .insert({
-      owner_id: resolvedOwnerId,
+      owner_id: admin.id,
       title: parsed.data.title,
       description: parsed.data.description,
       visibility: parsed.data.visibility,
@@ -127,8 +104,9 @@ export async function createProjectAction(
       pay_amount: parsed.data.pay_amount ?? null,
       pay_type: parsed.data.pay_type ?? null,
       recruitment_count: parsed.data.recruitment_count,
-      allow_team_apply: parsed.data.allow_team_apply,
+      allow_team_apply: false,
       application_deadline: parsed.data.application_deadline ?? null,
+      posted_by_label: parsed.data.posted_by_label ?? null,
     })
     .select("id")
     .single();

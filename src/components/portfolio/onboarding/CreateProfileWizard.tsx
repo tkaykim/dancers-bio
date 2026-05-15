@@ -81,9 +81,11 @@ const initialState: FormState = {
 type CreateProfileWizardProps = {
   userId: string;
   role: "self" | "manager";
+  /** Lite: 프로필 생성 완료 후 돌아갈 안전 경로 (same-origin pathname). */
+  returnTo?: string | null;
 };
 
-export function CreateProfileWizard({ userId, role }: CreateProfileWizardProps) {
+export function CreateProfileWizard({ userId, role, returnTo = null }: CreateProfileWizardProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [data, setData] = useState<FormState>(initialState);
@@ -176,7 +178,13 @@ export function CreateProfileWizard({ userId, role }: CreateProfileWizardProps) 
         );
       }
 
-      router.push(dancerId ? `/me/portfolio/${dancerId}/careers` : "/me/portfolio");
+      // Lite: returnTo가 있으면 우선 (지원 흐름 자동 복귀). 경력 일부 실패 시에는
+      // 우선 경력 페이지로 보내 사용자가 직접 보정하도록 한다.
+      const next =
+        careerFailedCount > 0
+          ? (dancerId ? `/me/portfolio/${dancerId}/careers` : "/me/portfolio")
+          : (returnTo ?? (dancerId ? `/me/portfolio/${dancerId}/careers` : "/me/portfolio"));
+      router.push(next);
       router.refresh();
     });
   };

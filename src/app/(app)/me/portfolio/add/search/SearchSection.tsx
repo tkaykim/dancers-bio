@@ -19,9 +19,10 @@ type Props = {
   role: "self" | "manager";
   q: string;
   results: DancerResult[];
+  returnTo?: string | null;
 };
 
-export function SearchSection({ role, q, results }: Props) {
+export function SearchSection({ role, q, results, returnTo = null }: Props) {
   const router = useRouter();
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [claimedIds, setClaimedIds] = useState<Set<string>>(new Set());
@@ -41,7 +42,8 @@ export function SearchSection({ role, q, results }: Props) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const q = (fd.get("q") ?? "").toString().trim();
-    router.push(`/me/portfolio/add/search?role=${role}&q=${encodeURIComponent(q)}`);
+    const rt = returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : "";
+    router.push(`/me/portfolio/add/search?role=${role}&q=${encodeURIComponent(q)}${rt}`);
   }
 
   function handleClaim(dancer: DancerResult) {
@@ -167,9 +169,10 @@ export function SearchSection({ role, q, results }: Props) {
       <div className="flex flex-col gap-2 pt-2">
         <button
           type="button"
-          onClick={() =>
-            router.push(`/onboarding/create?role=${role}`)
-          }
+          onClick={() => {
+            const rt = returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : "";
+            router.push(`/onboarding/create?role=${role}${rt}`);
+          }}
           className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-hairline-2 p-4 text-sm font-medium text-ink-2 transition-colors hover:bg-secondary"
         >
           {q

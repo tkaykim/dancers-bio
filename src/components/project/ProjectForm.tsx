@@ -24,16 +24,10 @@ const emptySession: SessionRow = {
   role_notes: "",
 };
 
-export type ActAsCandidate = { id: string; label: string };
-
 export function ProjectForm({
   genres,
-  isAdmin = false,
-  candidates = [],
 }: {
   genres: Lookup;
-  isAdmin?: boolean;
-  candidates?: ActAsCandidate[];
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -72,11 +66,6 @@ export function ProjectForm({
         // strip thousand separators from pay before submit
         const payRaw = (formData.get("pay_amount") ?? "").toString();
         formData.set("pay_amount", payRaw.replace(/[^\d]/g, ""));
-        // ensure boolean checkboxes are submitted predictably
-        formData.set(
-          "allow_team_apply",
-          formData.get("allow_team_apply") === "on" ? "true" : "false",
-        );
         // attach sessions
         formData.set("sessions_count", String(sessions.length));
         sessions.forEach((s, i) => {
@@ -206,19 +195,20 @@ export function ProjectForm({
         </div>
       </div>
 
-      <label className="flex items-start gap-3 rounded-md border border-border bg-card p-3 text-sm">
-        <input
-          type="checkbox"
-          name="allow_team_apply"
-          className="mt-0.5 h-4 w-4"
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="posted_by_label">등록자 표시명 (선택)</Label>
+        <Input
+          id="posted_by_label"
+          name="posted_by_label"
+          type="text"
+          maxLength={80}
+          placeholder="예: ABC 엔터테인먼트 / 김OO 안무가"
+          autoComplete="off"
         />
-        <span>
-          <span className="font-semibold">팀 지원 허용</span>
-          <span className="block text-xs text-muted-foreground">
-            체크 시 댄스팀이 팀 명의로 지원하거나 제안받을 수 있습니다.
-          </span>
-        </span>
-      </label>
+        <p className="text-xs text-muted-foreground">
+          공고 카드·상세에 노출되는 등록자 이름입니다. 비워두면 관리자 표시명으로 노출됩니다.
+        </p>
+      </div>
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="visibility">공개 범위</Label>
@@ -232,28 +222,6 @@ export function ProjectForm({
           <option value="private">비공개 — 다이렉트 제안받은 사람만</option>
         </select>
       </div>
-
-      {isAdmin && candidates.length > 0 ? (
-        <div className="flex flex-col gap-2 rounded-xl border border-warn/30 bg-warn/5 p-3">
-          <Label htmlFor="owner_id_override">[관리자] 명의 (act-as)</Label>
-          <select
-            id="owner_id_override"
-            name="owner_id_override"
-            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-            defaultValue=""
-          >
-            <option value="">내 계정으로 등록</option>
-            {candidates.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-muted-foreground">
-            선택 시 그 계정 명의로 공고가 등록되고, 감사 로그에 본인 ID가 기록됩니다.
-          </p>
-        </div>
-      ) : null}
 
       <fieldset className="flex flex-col gap-3 rounded-xl border border-border p-4">
         <div className="flex items-center justify-between">

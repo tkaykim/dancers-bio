@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { safeReturnTo } from "@/lib/safeRedirect";
 import { SearchSection } from "./SearchSection";
 
 type DancerResult = {
@@ -14,11 +15,12 @@ type DancerResult = {
 export default async function AddDancerSearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ role?: string; q?: string }>;
+  searchParams: Promise<{ role?: string; q?: string; returnTo?: string }>;
 }) {
   await requireUser();
-  const { role = "self", q = "" } = await searchParams;
+  const { role = "self", q = "", returnTo } = await searchParams;
   const resolvedRole: "self" | "manager" = role === "manager" ? "manager" : "self";
+  const safeReturn = returnTo ? safeReturnTo(returnTo, "") : "";
 
   let results: DancerResult[] = [];
   const trimmedQ = q.trim();
@@ -40,6 +42,7 @@ export default async function AddDancerSearchPage({
       role={resolvedRole}
       q={trimmedQ}
       results={results}
+      returnTo={safeReturn || null}
     />
   );
 }
