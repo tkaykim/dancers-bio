@@ -80,6 +80,12 @@ export default async function AdminHomePage() {
           accent={Boolean(pendingVerifs)}
         />
         <Tile
+          href="/admin/projects"
+          title="공고 관리"
+          desc="등록한 캐스팅 공고 수정·삭제"
+          badge={projectsCount ? `${projectsCount}` : undefined}
+        />
+        <Tile
           href="/admin/users"
           title="사용자 / 권한"
           desc="사용자 검색 + can_create_project 토글"

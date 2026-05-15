@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ApplyForm } from "@/components/project/ApplyForm";
 import { AgreedPayEditor } from "@/components/project/AgreedPayEditor";
+import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 import {
   PAY_TYPE_LABELS,
@@ -268,7 +269,7 @@ export default async function ProjectDetailPage({
       ) : null}
 
       {/* Action area */}
-      {isOwner ? (
+      {isOwner || isAdmin ? (
         <section className="flex flex-col gap-3">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 운영</p>
           <Link href={`/projects/${p.short_code}/applicants`}>
@@ -276,6 +277,16 @@ export default async function ProjectDetailPage({
               지원자 보기 →
             </Button>
           </Link>
+          {isAdmin ? (
+            <>
+              <Link href={`/projects/${p.short_code}/edit`}>
+                <Button variant="outline" className="w-full" size="lg">
+                  공고 수정
+                </Button>
+              </Link>
+              <DeleteProjectButton projectId={p.id} variant="ghost" />
+            </>
+          ) : null}
         </section>
       ) : (
         <>

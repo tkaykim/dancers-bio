@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requireAdmin, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import {
   agreedPaySchema,
   projectSchema,
+  projectUpdateSchema,
   sessionSchema,
 } from "@/lib/validation/projects";
 import type { ActionResult } from "./auth";
@@ -142,7 +142,8 @@ export async function createProjectAction(
 export async function closeProjectAction(
   formData: FormData,
 ): Promise<ActionResult> {
-  await requireUser();
+  // Lite: admin only.
+  await requireAdmin();
   const id = formData.get("id");
   if (typeof id !== "string") return { ok: false, error: "잘못된 요청입니다." };
   const supabase = await createClient();
@@ -152,24 +153,161 @@ export async function closeProjectAction(
     .eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/projects/${id}`);
+  revalidatePath("/admin/projects");
   revalidatePath("/feed");
   return { ok: true };
 }
 
 export async function deleteProjectAction(
   formData: FormData,
-): Promise<void> {
-  await requireUser();
+): Promise<ActionResult> {
+  // Lite: admin only.
+  await requireAdmin();
   const id = formData.get("id");
-  if (typeof id !== "string") return;
+  if (typeof id !== "string") return { ok: false, error: "잘못된 요청입니다." };
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("projects")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/projects/${id}`);
+  revalidatePath("/admin/projects");
   revalidatePath("/feed");
-  revalidatePath("/me");
-  redirect("/me");
+  return { ok: true };
+}
+
+export async function updateProjectAction(
+  formData: FormData,
+): Promise<ActionResult<{ id: string }>> {
+  // Lite: admin only.
+  await requireAdmin();
+
+  const parsed = projectUpdateSchema.safeParse({
+    id: formData.get("id"),
+    title: formData.get("title"),
+    description: formData.get("description"),
+    visibility: (formData.get("visibility") ?? "public").toString(),
+    genre_id: strOrNull(formData, "genre_id"),
+    region_id: strOrNull(formData, "region_id"),
+    region_text: strOrNull(formData, "region_text"),
+    pay_amount: strOrNull(formData, "pay_amount"),
+    pay_type: strOrNull(formData, "pay_type"),
+    recruitment_count: strOrNull(formData, "recruitment_count") ?? "1",
+    application_deadline: localDateTimeToIso(
+      strOrNull(formData, "application_deadline"),
+    ),
+    posted_by_label: strOrNull(formData, "posted_by_label"),
+    status: strOrNull(formData, "status") ?? undefined,
+  });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
+    };
+  }
+
+  const supabase = await createClient();
+
+  // Confirm exists & not soft-deleted.
+  const { data: existing, error: selErr } = await supabase
+    .from("projects")
+    .select("id, deleted_at")
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+  if (selErr) return { ok: false, error: selErr.message };
+  if (!existing || existing.deleted_at)
+    return { ok: false, error: "공고를 찾을 수 없습니다." };
+
+  const updatePayload: Record<string, unknown> = {
+    title: parsed.data.title,
+    description: parsed.data.description,
+    visibility: parsed.data.visibility,
+    genre_id: parsed.data.genre_id ?? null,
+    region_id: parsed.data.region_id ?? null,
+    region_text: parsed.data.region_text ?? null,
+    pay_amount: parsed.data.pay_amount ?? null,
+    pay_type: parsed.data.pay_type ?? null,
+    recruitment_count: parsed.data.recruitment_count,
+    application_deadline: parsed.data.application_deadline ?? null,
+    posted_by_label: parsed.data.posted_by_label ?? null,
+  };
+  if (parsed.data.status) updatePayload.status = parsed.data.status;
+
+  const { error: updErr } = await supabase
+    .from("projects")
+    .update(updatePayload)
+    .eq("id", parsed.data.id);
+  if (updErr) {
+    if (updErr.code === "42501")
+      return { ok: false, error: "수정 권한이 없습니다." };
+    return { ok: false, error: updErr.message };
+  }
+
+  // Sync sessions via full delete + re-insert (no FK refs to project_sessions.id).
+  const count = Number(formData.get("sessions_count") ?? 0);
+  type SessionInsert = {
+    project_id: string;
+    session_type:
+      | "rehearsal"
+      | "main"
+      | "filming"
+      | "fitting"
+      | "meeting"
+      | "other";
+    starts_at: string;
+    ends_at: string | null;
+    location_name: string | null;
+    role_notes: string | null;
+    sort_order: number;
+  };
+  const sessions: SessionInsert[] = [];
+  for (let i = 0; i < count; i++) {
+    const startsRaw = strOrNull(formData, `sessions[${i}][starts_at]`);
+    const startsIso = localDateTimeToIso(startsRaw);
+    if (!startsIso) continue;
+    const endsIso = localDateTimeToIso(
+      strOrNull(formData, `sessions[${i}][ends_at]`),
+    );
+    const sParsed = sessionSchema.safeParse({
+      session_type: (formData.get(`sessions[${i}][type]`) ?? "main").toString(),
+      starts_at: startsIso,
+      ends_at: endsIso,
+      location_name: strOrNull(formData, `sessions[${i}][location_name]`),
+      role_notes: strOrNull(formData, `sessions[${i}][role_notes]`),
+      sort_order: i,
+    });
+    if (sParsed.success) {
+      sessions.push({
+        project_id: parsed.data.id,
+        session_type: sParsed.data.session_type,
+        starts_at: sParsed.data.starts_at,
+        ends_at: sParsed.data.ends_at ?? null,
+        location_name: sParsed.data.location_name ?? null,
+        role_notes: sParsed.data.role_notes ?? null,
+        sort_order: sParsed.data.sort_order,
+      });
+    }
+  }
+
+  const { error: delErr } = await supabase
+    .from("project_sessions")
+    .delete()
+    .eq("project_id", parsed.data.id);
+  if (delErr) return { ok: false, error: `세션 갱신 실패: ${delErr.message}` };
+
+  if (sessions.length > 0) {
+    const { error: insErr } = await supabase
+      .from("project_sessions")
+      .insert(sessions);
+    if (insErr)
+      return { ok: false, error: `세션 저장 실패: ${insErr.message}` };
+  }
+
+  revalidatePath(`/projects/${parsed.data.id}`);
+  revalidatePath("/admin/projects");
+  revalidatePath("/feed");
+  return { ok: true, data: { id: parsed.data.id } };
 }
 
 export async function setAgreedPayAction(
