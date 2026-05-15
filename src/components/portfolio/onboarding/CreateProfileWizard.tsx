@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronRight, Loader2, Shield, Sparkles } from "lucide-react";
+import { ArrowLeft, ChevronRight, Loader2, Shield } from "lucide-react";
 
 import { createDancerProfileAction } from "@/app/actions/portfolio";
 import { uploadAvatarFromBrowser } from "@/lib/storage/upload-client";
@@ -12,7 +12,6 @@ import {
   type SocialHandles,
 } from "@/components/portfolio/SocialLinksInput";
 import { PriorityMultiSelect } from "@/components/ui/priority-multi-select";
-import { PortfolioImportSheet } from "@/components/portfolio/import/PortfolioImportSheet";
 import { cn } from "@/lib/utils";
 
 const TOTAL_STEPS = 6;
@@ -224,11 +223,7 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
         className="mx-auto max-w-md animate-in slide-in-from-right-4 fade-in px-6 py-8 duration-300"
       >
         {step === 1 ? (
-          <StepBasic
-            data={data}
-            setData={setData}
-            userId={userId}
-          />
+          <StepBasic data={data} setData={setData} />
         ) : null}
         {step === 2 ? (
           <StepPriority
@@ -313,11 +308,9 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
 function StepBasic({
   data,
   setData,
-  userId,
 }: {
   data: FormState;
   setData: (next: FormState) => void;
-  userId: string;
 }) {
   return (
     <div className="flex flex-col gap-6">
@@ -325,9 +318,6 @@ function StepBasic({
         <h2 className="text-2xl font-bold tracking-tight">기본 정보</h2>
         <p className="text-sm text-ink-2">활동명과 기본 정보를 입력하세요.</p>
       </div>
-
-      {/* Lite: AI 포트폴리오 추출 카드 비활성. */}
-
 
       <div className="flex flex-col gap-4">
         <Field label="활동명 (Stage Name)" required>
@@ -421,80 +411,6 @@ function StepPriority({
         variant={variant}
       />
     </div>
-  );
-}
-
-function OnboardingImportCard({
-  data,
-  setData,
-  userId,
-}: {
-  data: FormState;
-  setData: (next: FormState) => void;
-  userId: string;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex items-start gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-4 text-left transition-colors hover:bg-primary/10"
-      >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-          <Sparkles size={16} />
-        </span>
-        <div className="flex flex-1 flex-col gap-0.5">
-          <p className="text-sm font-semibold">
-            AI로 포트폴리오에서 가져오기 (선택)
-          </p>
-          <p className="text-xs text-ink-3">
-            PDF나 텍스트를 첨부하면 기본 정보와 경력이 자동 입력돼요.
-            {data.pendingCareers.length > 0 ? (
-              <span className="ml-1 text-primary">
-                · 경력 {data.pendingCareers.length}건 준비됨
-              </span>
-            ) : null}
-          </p>
-        </div>
-      </button>
-      <PortfolioImportSheet
-        open={open}
-        onOpenChange={setOpen}
-        profileId={userId}
-        dancerId={null}
-        showProfileReview={false}
-        onParsed={(parsed) => {
-          const p = parsed.profile;
-          setData({
-            ...data,
-            stage_name: p.stage_name || data.stage_name,
-            korean_name: p.korean_name ?? data.korean_name,
-            location: p.location ?? data.location,
-            gender: ((p.gender ?? "") as Gender) || data.gender,
-            bio: p.bio ?? data.bio,
-            specialties: p.specialties?.length
-              ? p.specialties
-              : data.specialties,
-            genres: p.genres?.length ? p.genres : data.genres,
-            social: {
-              instagram: p.social_instagram_handle ?? data.social.instagram,
-              youtube: p.social_youtube_handle ?? data.social.youtube,
-              tiktok: p.social_tiktok_handle ?? data.social.tiktok,
-            },
-            pendingCareers: parsed.careers.map((c) => ({
-              type: c.type,
-              title: c.title,
-              date: c.date,
-              role: c.role ?? null,
-              description: c.description ?? null,
-              link: c.link ?? null,
-            })),
-          });
-        }}
-      />
-    </>
   );
 }
 

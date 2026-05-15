@@ -182,7 +182,7 @@ export function ProjectForm({
             required
           />
           <p className="text-xs text-muted-foreground">
-            인원이 모두 수락되면 자동으로 마감됩니다.
+            인원이 모두 수락되면 마감 여부를 묻는 안내가 뜹니다.
           </p>
         </div>
         <div className="flex flex-col gap-2">
