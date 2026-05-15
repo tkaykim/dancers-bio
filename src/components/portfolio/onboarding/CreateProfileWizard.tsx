@@ -326,7 +326,7 @@ function StepBasic({
         <p className="text-sm text-ink-2">활동명과 기본 정보를 입력하세요.</p>
       </div>
 
-      <OnboardingImportCard data={data} setData={setData} userId={userId} />
+      {/* Lite: AI 포트폴리오 추출 카드 비활성. */}
 
 
       <div className="flex flex-col gap-4">

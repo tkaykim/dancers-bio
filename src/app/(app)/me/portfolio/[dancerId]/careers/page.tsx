@@ -7,7 +7,6 @@ import {
   CareerHistoryManager,
   type CareerRow,
 } from "@/components/portfolio/CareerHistoryManager";
-import { ImportEntryButton } from "@/components/portfolio/import/ImportEntryButton";
 
 export default async function CareersPage({
   params,
@@ -84,8 +83,7 @@ export default async function CareersPage({
         </Link>
       </header>
 
-      <ImportEntryButton profileId={user.id} dancerId={dancer.id} />
-
+      {/* Lite: AI 경력 추출 UI 비활성. */}
       <CareerHistoryManager initialCareers={list} dancerId={dancer.id} />
     </div>
   );

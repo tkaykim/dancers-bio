@@ -64,6 +64,12 @@ export default async function MePage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-bold text-ink-2">계정</h2>
         <p className="px-1 text-xs text-ink-3">{user.email}</p>
+        <Link
+          href="/me/password"
+          className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-ink-2 hover:bg-secondary"
+        >
+          비밀번호 변경 →
+        </Link>
         <form action={logoutAction}>
           <button
             type="submit"

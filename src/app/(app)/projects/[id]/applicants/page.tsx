@@ -221,7 +221,9 @@ function ApplicantRow({
           {app.cover_message}
         </p>
       ) : null}
-      {showActions ? <DecideButtons applicationId={app.id} /> : null}
+      {showActions ? (
+        <DecideButtons applicationId={app.id} currentStatus={app.status} />
+      ) : null}
     </li>
   );
 }

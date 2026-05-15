@@ -109,15 +109,18 @@ export async function withdrawApplicationAction(
   return { ok: true };
 }
 
+// Lite: 수락 시 acceptedCount가 recruitment_count에 도달하면 quotaReached 신호를
+// 반환해 클라이언트가 "마감할까요?" 확인 후 closeProjectAction을 직접 호출.
+// 자동 마감 트리거는 마이그레이션 20260516_004에서 제거됨.
 export async function decideApplicationAction(
   formData: FormData,
-): Promise<ActionResult> {
+): Promise<ActionResult<{ quotaReached?: true; projectId?: string }>> {
   await requireUser();
   const application_id = formData.get("application_id");
   const decision = formData.get("decision");
   if (
     typeof application_id !== "string" ||
-    (decision !== "accepted" && decision !== "rejected")
+    (decision !== "accepted" && decision !== "rejected" && decision !== "pending")
   ) {
     return { ok: false, error: "잘못된 요청입니다." };
   }
@@ -130,24 +133,59 @@ export async function decideApplicationAction(
     .single();
   if (fetchErr || !app) return { ok: false, error: "지원 정보를 찾을 수 없습니다." };
 
+  // pending 으로 되돌리기는 accepted/rejected/declined 에서만 허용.
   const transitionable = new Set(["pending", "accepted", "rejected", "declined"]);
   if (!transitionable.has(app.status)) {
     return {
       ok: false,
-      error: "취소·만료된 지원은 수락/거절할 수 없습니다.",
+      error: "취소·만료된 지원은 상태 변경할 수 없습니다.",
     };
   }
   if (app.status === decision) {
     return { ok: true };
   }
 
+  const update: { status: "accepted" | "rejected" | "pending"; responded_at: string | null } =
+    decision === "pending"
+      ? { status: "pending", responded_at: null }
+      : { status: decision, responded_at: new Date().toISOString() };
+
   const { error } = await supabase
     .from("applications")
-    .update({ status: decision, responded_at: new Date().toISOString() })
+    .update(update)
     .eq("id", application_id);
   if (error) return { ok: false, error: humanizeDbError(error.message) };
 
+  let quotaReached = false;
+  if (decision === "accepted") {
+    const [{ data: project }, { count: acceptedNow }] = await Promise.all([
+      supabase
+        .from("projects")
+        .select("recruitment_count, status")
+        .eq("id", app.project_id)
+        .maybeSingle(),
+      supabase
+        .from("applications")
+        .select("id", { count: "exact", head: true })
+        .eq("project_id", app.project_id)
+        .eq("status", "accepted")
+        .is("archived_at", null),
+    ]);
+    if (
+      project &&
+      project.status === "open" &&
+      (acceptedNow ?? 0) >= (project.recruitment_count ?? 1)
+    ) {
+      quotaReached = true;
+    }
+  }
+
   revalidatePath(`/projects/${app.project_id}/applicants`);
   revalidatePath(`/projects/${app.project_id}`);
-  return { ok: true };
+  return {
+    ok: true,
+    data: quotaReached
+      ? { quotaReached: true, projectId: app.project_id as string }
+      : undefined,
+  };
 }

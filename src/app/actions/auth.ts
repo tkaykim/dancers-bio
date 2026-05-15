@@ -63,6 +63,35 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
   return { ok: true };
 }
 
+export async function forgotPasswordAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  const email = (formData.get("email") ?? "").toString().trim().toLowerCase();
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { ok: false, error: "올바른 이메일 주소를 입력해 주세요." };
+  }
+  const supabase = await createClient();
+  const origin =
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://dancers-bio-lite.vercel.app";
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/reset-password`,
+  });
+  return { ok: true };
+}
+
+export async function changePasswordAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  const password = (formData.get("password") ?? "").toString();
+  if (password.length < 8 || password.length > 72) {
+    return { ok: false, error: "비밀번호는 8~72자여야 합니다." };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 export async function logoutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();
