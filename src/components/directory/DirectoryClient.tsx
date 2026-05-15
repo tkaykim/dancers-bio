@@ -167,12 +167,12 @@ export function DirectoryClient({
         <TabBtn
           active={tab === "dancers"}
           onClick={() => setTab("dancers")}
-          label={`개인${tab === "dancers" ? ` ${dancers.length}` : ""}`}
+          label="개인"
         />
         <TabBtn
           active={tab === "teams"}
           onClick={() => setTab("teams")}
-          label={`팀${tab === "teams" ? ` ${teams.length}` : ""}`}
+          label="팀"
         />
       </div>
 
