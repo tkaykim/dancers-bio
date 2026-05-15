@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { DancerProfileForm } from "@/components/portfolio/DancerProfileForm";
 import { CareersNavLink } from "@/components/portfolio/CareersNavLink";
+import { PortfolioFileUploader } from "@/components/portfolio/PortfolioFileUploader";
 import { extractSocialHandle } from "@/lib/utils/social";
 
 export default async function MyPortfolioEditPage({
@@ -17,7 +18,7 @@ export default async function MyPortfolioEditPage({
   const { data: dancer } = await supabase
     .from("dancers")
     .select(
-      "id, profile_id, stage_name, korean_name, slug, gender, bio, location, specialties, genres, profile_img, social_links, approval_status, approval_reject_reason",
+      "id, profile_id, stage_name, korean_name, slug, gender, bio, location, specialties, genres, profile_img, social_links, approval_status, approval_reject_reason, portfolio_file_url, portfolio_file_name, portfolio_file_size_bytes, portfolio_file_mime, portfolio_file_uploaded_at",
     )
     .eq("id", dancerId)
     .maybeSingle();
@@ -90,6 +91,25 @@ export default async function MyPortfolioEditPage({
           social_tiktok: extractSocialHandle(social.tiktok),
         }}
       />
+
+      {isOwner || isAdmin ? (
+        <PortfolioFileUploader
+          dancerId={dancer.id}
+          initialFile={
+            dancer.portfolio_file_url
+              ? {
+                  url: dancer.portfolio_file_url as string,
+                  name: (dancer.portfolio_file_name as string | null) ?? null,
+                  sizeBytes:
+                    (dancer.portfolio_file_size_bytes as number | null) ?? null,
+                  mime: (dancer.portfolio_file_mime as string | null) ?? null,
+                  uploadedAt:
+                    (dancer.portfolio_file_uploaded_at as string | null) ?? null,
+                }
+              : null
+          }
+        />
+      ) : null}
 
       <CareersNavLink href={`/me/portfolio/${dancer.id}/careers`} />
     </div>

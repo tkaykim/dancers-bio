@@ -42,6 +42,10 @@ type DancerRow = {
     | { url?: string; thumbnail?: string; type?: string; id?: string }[]
     | null;
   profile_id: string | null;
+  portfolio_file_url: string | null;
+  portfolio_file_name: string | null;
+  portfolio_file_size_bytes: number | null;
+  portfolio_file_mime: string | null;
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -261,6 +265,41 @@ export default async function PublicDancerPage({
         </section>
       ) : null}
 
+      {/* Portfolio file — downloadable PDF/JPG/PNG/MP4 */}
+      {dancer.portfolio_file_url ? (
+        <section className="px-6 pt-8">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">
+            ↳ 포트폴리오 다운로드
+          </h2>
+          <a
+            href={dancer.portfolio_file_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            download={dancer.portfolio_file_name ?? undefined}
+            className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-secondary"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              ↓
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="truncate text-sm font-semibold">
+                {dancer.portfolio_file_name ?? "포트폴리오 파일"}
+              </span>
+              <span className="text-[11px] text-ink-3">
+                {dancer.portfolio_file_size_bytes
+                  ? formatFileSize(dancer.portfolio_file_size_bytes)
+                  : ""}
+                {dancer.portfolio_file_size_bytes && dancer.portfolio_file_mime
+                  ? " · "
+                  : ""}
+                {prettyMime(dancer.portfolio_file_mime)}
+              </span>
+            </div>
+            <span className="text-ink-3">→</span>
+          </a>
+        </section>
+      ) : null}
+
       {/* Reel — uses dancer.portfolio jsonb */}
       {portfolio.length > 0 ? (
         <section className="pt-8">
@@ -428,4 +467,19 @@ function SocialPill({
       {label} ↗
     </Link>
   );
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function prettyMime(mime: string | null): string {
+  if (!mime) return "";
+  if (mime === "application/pdf") return "PDF";
+  if (mime === "image/jpeg") return "JPG";
+  if (mime === "image/png") return "PNG";
+  if (mime === "video/mp4") return "MP4";
+  return mime;
 }
