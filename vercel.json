@@ -3,5 +3,5 @@
   "framework": "nextjs",
   "buildCommand": "next build",
   "installCommand": "npm install",
-  "regions": ["icn1"]
+  "regions": ["hnd1"]
 }
