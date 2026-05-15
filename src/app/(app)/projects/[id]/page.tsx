@@ -5,7 +5,6 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ApplyForm, type ApplyAsOption } from "@/components/project/ApplyForm";
 import { AgreedPayEditor } from "@/components/project/AgreedPayEditor";
-import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
 import {
   PAY_TYPE_LABELS,
   SESSION_TYPE_LABELS,
@@ -332,12 +331,6 @@ export default async function ProjectDetailPage({
               지원자 보기 →
             </Button>
           </Link>
-          <Link href={`/projects/${id}/edit`}>
-            <Button variant="outline" className="w-full" size="lg">
-              공고 수정
-            </Button>
-          </Link>
-          <DeleteProjectButton projectId={id} variant="ghost" />
         </section>
       ) : (
         <>

@@ -69,38 +69,6 @@ export const projectSchema = z.object({
   owner_id_override: z.string().uuid().nullable().optional(),
 });
 
-export const projectUpdateSchema = z.object({
-  id: z.string().uuid(),
-  title: z.string().trim().min(1, "제목을 입력해 주세요.").max(120),
-  description: z
-    .string()
-    .trim()
-    .min(10, "10자 이상 설명을 입력해 주세요.")
-    .max(2000),
-  visibility: z.enum(["public", "private"]).default("public"),
-  genre_id: z.string().uuid().nullable().optional(),
-  region_id: z.string().uuid().nullable().optional(),
-  region_text: z.string().trim().max(100).nullable().optional(),
-  pay_amount: z.coerce
-    .number()
-    .int()
-    .min(0)
-    .max(1_000_000_000)
-    .nullable()
-    .optional(),
-  pay_type: z
-    .enum(["per_session", "total", "negotiable"])
-    .nullable()
-    .optional(),
-  recruitment_count: z.coerce.number().int().min(1).max(999).default(1),
-  allow_team_apply: z.boolean().default(false),
-  application_deadline: z.string().datetime().nullable().optional(),
-  status: z
-    .enum(["draft", "open", "closed", "cancelled", "completed"])
-    .optional(),
-});
-export type ProjectUpdateInput = z.infer<typeof projectUpdateSchema>;
-
 export const agreedPaySchema = z.object({
   project_id: z.string().uuid(),
   agreed_pay: z.coerce

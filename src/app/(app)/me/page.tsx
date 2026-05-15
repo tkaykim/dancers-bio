@@ -88,19 +88,12 @@ export default async function MePage() {
             />
           ) : null}
           {(profile.can_create_project || profile.is_admin) ? (
-            <>
-              <SettingsRow
-                href="/me/projects"
-                title="내 공고"
-                desc="등록한 공고 수정·삭제"
-              />
-              <SettingsRow
-                href="/projects/new"
-                title="프로젝트 개설"
-                desc="캐스팅 공고 등록"
-                accent
-              />
-            </>
+            <SettingsRow
+              href="/projects/new"
+              title="프로젝트 개설"
+              desc="캐스팅 공고 등록"
+              accent
+            />
           ) : null}
           {profile.is_admin ? (
             <SettingsRow
