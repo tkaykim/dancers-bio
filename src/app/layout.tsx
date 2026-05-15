@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { SessionRefresher } from "@/components/auth/SessionRefresher";
+import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -18,6 +20,11 @@ export const metadata: Metadata = {
   title: "Cue — Dancers Platform",
   description:
     "K-pop 댄스 신을 위한 캐스팅·포트폴리오·프로젝트 매니지먼트 플랫폼",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/icon-192.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -45,6 +52,8 @@ export default function RootLayout({
         />
       </head>
       <body className="flex min-h-full flex-col bg-background text-foreground">
+        <SessionRefresher />
+        <ServiceWorkerRegister />
         {children}
       </body>
     </html>
