@@ -25,7 +25,7 @@ function localDateTimeToIso(value: string | null): string | null {
 
 export async function createProjectAction(
   formData: FormData,
-): Promise<ActionResult<{ id: string }>> {
+): Promise<ActionResult<{ id: string; short_code: string }>> {
   // Lite: admin only.
   const admin = await requireAdmin();
 
@@ -108,7 +108,7 @@ export async function createProjectAction(
       application_deadline: parsed.data.application_deadline ?? null,
       posted_by_label: parsed.data.posted_by_label ?? null,
     })
-    .select("id")
+    .select("id, short_code")
     .single();
 
   if (error) {
@@ -130,7 +130,13 @@ export async function createProjectAction(
 
   revalidatePath("/feed");
   revalidatePath("/me");
-  return { ok: true, data: { id: project.id as string } };
+  return {
+    ok: true,
+    data: {
+      id: project.id as string,
+      short_code: project.short_code as string,
+    },
+  };
 }
 
 export async function closeProjectAction(

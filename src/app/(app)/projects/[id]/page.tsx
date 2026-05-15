@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ApplyForm } from "@/components/project/ApplyForm";
 import { AgreedPayEditor } from "@/components/project/AgreedPayEditor";
+import { classifyProjectIdentifier } from "@/lib/projectId";
 import {
   PAY_TYPE_LABELS,
   SESSION_TYPE_LABELS,
@@ -14,6 +15,7 @@ import {
 
 type ProjectRow = {
   id: string;
+  short_code: string;
   owner_id: string;
   title: string;
   description: string;
@@ -78,25 +80,34 @@ export default async function ProjectDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id: idParam } = await params;
+  const identifier = classifyProjectIdentifier(idParam);
+  if (!identifier) notFound();
+
   const user = await requireUser();
   const supabase = await createClient();
 
-  const { data: project } = await supabase
+  const baseQuery = supabase
     .from("projects")
     .select(
-      `id, owner_id, title, description, visibility, status, pay_amount, pay_type,
+      `id, short_code, owner_id, title, description, visibility, status, pay_amount, pay_type,
        agreed_pay, recruitment_count, posted_by_label,
        application_deadline, created_at, region_text,
        genre:genres ( label_ko ),
        region:regions ( label_ko )`,
     )
-    .eq("id", id)
-    .is("deleted_at", null)
-    .maybeSingle();
+    .is("deleted_at", null);
+
+  const { data: project } = await (
+    identifier.kind === "uuid"
+      ? baseQuery.eq("id", identifier.value)
+      : baseQuery.eq("short_code", identifier.value)
+  ).maybeSingle();
 
   if (!project) notFound();
   const p = project as unknown as ProjectRow;
+  // Internal route segment: canonical UUID. Outbound links prefer short_code.
+  const id = p.id;
 
   const [
     { data: sessionsData },
@@ -260,7 +271,7 @@ export default async function ProjectDetailPage({
       {isOwner ? (
         <section className="flex flex-col gap-3">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 운영</p>
-          <Link href={`/projects/${id}/applicants`}>
+          <Link href={`/projects/${p.short_code}/applicants`}>
             <Button className="w-full" size="lg">
               지원자 보기 →
             </Button>
@@ -278,7 +289,11 @@ export default async function ProjectDetailPage({
             </section>
           ) : null}
           {p.status === "open" && !mineActive ? (
-            <ApplyForm projectId={id} hasDancer={hasDancer} />
+            <ApplyForm
+              projectId={p.id}
+              projectShortCode={p.short_code}
+              hasDancer={hasDancer}
+            />
           ) : p.status !== "open" ? (
             <p className="rounded-xl border border-border bg-card p-4 text-sm text-ink-3">
               현재 모집이 닫혀 있습니다.

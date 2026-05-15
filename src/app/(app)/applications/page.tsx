@@ -13,6 +13,7 @@ type Row = {
   responded_at: string | null;
   project: {
     id: string;
+    short_code: string | null;
     title: string;
     pay_amount: number | null;
     pay_type: string | null;
@@ -38,7 +39,7 @@ export default async function ApplicationsPage() {
     .from("applications")
     .select(
       `id, status, source, cover_message, created_at, responded_at,
-       project:projects ( id, title, pay_amount, pay_type, application_deadline, status )`,
+       project:projects ( id, short_code, title, pay_amount, pay_type, application_deadline, status )`,
     )
     .eq("applicant_id", user.id)
     .order("created_at", { ascending: false });
@@ -111,7 +112,7 @@ export default async function ApplicationsPage() {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <Link
-                              href={r.project ? `/projects/${r.project.id}` : "/feed"}
+                              href={r.project ? `/projects/${r.project.short_code ?? r.project.id}` : "/feed"}
                               className="flex-1"
                             >
                               <p className="font-medium leading-snug text-foreground">

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { DecideButtons } from "@/components/project/DecideButtons";
+import { classifyProjectIdentifier } from "@/lib/projectId";
 import { APPLICATION_STATUS_LABELS } from "@/lib/validation/projects";
 
 type Application = {
@@ -26,7 +27,7 @@ type Application = {
   team: { id: string; team_name: string; slug: string | null; profile_img: string | null } | null;
 };
 
-type Project = { id: string; owner_id: string; title: string; recruitment_count: number };
+type Project = { id: string; short_code: string; owner_id: string; title: string; recruitment_count: number };
 
 const STATUS_COLOR: Record<string, string> = {
   pending: "text-ink-2",
@@ -40,7 +41,10 @@ export default async function ApplicantsPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id: idParam } = await params;
+  const identifier = classifyProjectIdentifier(idParam);
+  if (!identifier) notFound();
+
   const user = await requireUser();
   const supabase = await createClient();
 
@@ -51,12 +55,16 @@ export default async function ApplicantsPage({
     .maybeSingle();
   const isAdmin = !!viewerProfile?.is_admin;
 
-  const { data: project } = await supabase
+  const projectQuery = supabase
     .from("projects")
-    .select("id, owner_id, title, recruitment_count")
-    .eq("id", id)
-    .is("deleted_at", null)
-    .maybeSingle();
+    .select("id, short_code, owner_id, title, recruitment_count")
+    .is("deleted_at", null);
+
+  const { data: project } = await (
+    identifier.kind === "uuid"
+      ? projectQuery.eq("id", identifier.value)
+      : projectQuery.eq("short_code", identifier.value)
+  ).maybeSingle();
   if (!project) notFound();
   const p = project as Project;
   if (p.owner_id !== user.id && !isAdmin) notFound();
@@ -69,7 +77,7 @@ export default async function ApplicantsPage({
        dancer:dancers!applications_dancer_id_fkey ( id, stage_name, korean_name, slug, profile_img ),
        team:teams!applications_team_id_fkey ( id, team_name, slug, profile_img )`,
     )
-    .eq("project_id", id)
+    .eq("project_id", p.id)
     .is("archived_at", null)
     .order("created_at", { ascending: false });
 
@@ -82,7 +90,7 @@ export default async function ApplicantsPage({
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
       <Link
-        href={`/projects/${id}`}
+        href={`/projects/${p.short_code}`}
         className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
       >
         ← 프로젝트

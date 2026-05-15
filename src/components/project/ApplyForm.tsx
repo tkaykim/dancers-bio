@@ -10,9 +10,13 @@ import { Label } from "@/components/ui/label";
 // Lite: 본인 own dancer 1개로만 지원. dancer 없으면 onboarding 유도.
 export function ApplyForm({
   projectId,
+  projectShortCode,
   hasDancer,
 }: {
+  /** UUID — server action에 전달되는 canonical id. */
   projectId: string;
+  /** 6자 short_code — returnTo URL 등 외부 노출용. */
+  projectShortCode: string;
   hasDancer: boolean;
 }) {
   const router = useRouter();
@@ -21,7 +25,7 @@ export function ApplyForm({
   const [pending, startTransition] = useTransition();
 
   if (needsDancer) {
-    const returnTo = encodeURIComponent(`/projects/${projectId}?apply=1`);
+    const returnTo = encodeURIComponent(`/projects/${projectShortCode}?apply=1`);
     return (
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
         <p className="text-sm text-ink-2">

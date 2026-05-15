@@ -80,7 +80,7 @@ export function ProjectForm({
             setError(result.error);
             return;
           }
-          router.push(`/projects/${result.data!.id}`);
+          router.push(`/projects/${result.data!.short_code}`);
           router.refresh();
         });
       }}

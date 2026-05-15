@@ -2,6 +2,8 @@ import Link from "next/link";
 
 type Project = {
   id: string;
+  /** 6자 short_code. URL 노출용 (UUID 대체). */
+  short_code?: string | null;
   title: string;
   description: string;
   visibility: "public" | "private";
@@ -38,7 +40,7 @@ export function ProjectCard({ project }: { project: Project }) {
   const dDay = daysUntil(project.application_deadline);
   return (
     <Link
-      href={`/projects/${project.id}`}
+      href={`/projects/${project.short_code ?? project.id}`}
       className="block rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-secondary"
     >
       <div className="mb-2.5 flex items-center justify-between">
@@ -87,7 +89,7 @@ export function FeaturedCard({ project }: { project: Project }) {
   const dDay = daysUntil(project.application_deadline);
   return (
     <Link
-      href={`/projects/${project.id}`}
+      href={`/projects/${project.short_code ?? project.id}`}
       className="block rounded-2xl bg-primary p-5 text-primary-foreground transition-opacity hover:opacity-90"
     >
       <div className="flex items-start justify-between">
