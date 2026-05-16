@@ -19,6 +19,14 @@ export function anthropicConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
+function sanitizeError(msg: string): string {
+  const trimmed = msg.length > 240 ? msg.slice(0, 240) + " …" : msg;
+  return trimmed
+    .replace(/sk-ant-[A-Za-z0-9\-_]{20,}/g, "sk-ant-***[redacted]")
+    .replace(/AIza[0-9A-Za-z\-_]{20,}/g, "AIza***[redacted]")
+    .replace(/api_key[=:][^\s,"}]+/gi, "api_key=[redacted]");
+}
+
 export async function anthropicHealth(): Promise<{
   ok: boolean;
   error?: string;
@@ -37,7 +45,7 @@ export async function anthropicHealth(): Promise<{
       resp.content.find((c) => c.type === "text")?.text?.trim() ?? "";
     return { ok: text.length > 0, latency_ms: Date.now() - t0 };
   } catch (err) {
-    return { ok: false, error: (err as Error).message };
+    return { ok: false, error: sanitizeError((err as Error).message) };
   }
 }
 
@@ -105,7 +113,7 @@ export async function anthropicParseProject(rawText: string): Promise<{
   } catch (err) {
     return {
       ok: false,
-      error: (err as Error).message,
+      error: sanitizeError((err as Error).message),
       model: ANTHROPIC_MODEL,
     };
   }

@@ -20,6 +20,15 @@ export function geminiConfigured(): boolean {
   return !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
 }
 
+// 에러 메시지에서 API 키 값 같은 민감 정보를 제거.
+function sanitizeError(msg: string): string {
+  const trimmed = msg.length > 240 ? msg.slice(0, 240) + " …" : msg;
+  return trimmed
+    .replace(/AIza[0-9A-Za-z\-_]{20,}/g, "AIza***[redacted]")
+    .replace(/sk-[A-Za-z0-9\-_]{20,}/g, "sk-***[redacted]")
+    .replace(/api_key[=:][^\s,"}]+/gi, "api_key=[redacted]");
+}
+
 export async function geminiHealth(): Promise<{
   ok: boolean;
   error?: string;
@@ -37,7 +46,7 @@ export async function geminiHealth(): Promise<{
     const text = (resp.text ?? "").trim();
     return { ok: text.length > 0, latency_ms: Date.now() - t0 };
   } catch (err) {
-    return { ok: false, error: (err as Error).message };
+    return { ok: false, error: sanitizeError((err as Error).message) };
   }
 }
 
@@ -143,7 +152,7 @@ export async function geminiParseProject(rawText: string): Promise<{
   } catch (err) {
     return {
       ok: false,
-      error: (err as Error).message,
+      error: sanitizeError((err as Error).message),
       model: GEMINI_MODEL,
     };
   }
