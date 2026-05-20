@@ -4,6 +4,7 @@ import "./globals.css";
 import { SessionRefresher } from "@/components/auth/SessionRefresher";
 import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
 import { BugReportFab } from "@/components/feedback/BugReportFab";
+import { ErrorReporter } from "@/components/feedback/ErrorReporter";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -55,6 +56,7 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <SessionRefresher />
         <ServiceWorkerRegister />
+        <ErrorReporter />
         {children}
         <BugReportFab />
       </body>
