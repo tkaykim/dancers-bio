@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { ClaimForm } from "@/components/auth/ClaimForm";
 
 interface SearchParams {
@@ -9,7 +9,7 @@ interface SearchParams {
 
 async function fetchDancerPreview(slug: string | undefined) {
   if (!slug) return null;
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("dancers")
     .select("id, stage_name, korean_name, profile_img, slug, location, genres, specialties")
