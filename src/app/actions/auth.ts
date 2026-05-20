@@ -59,6 +59,14 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
     return { ok: false, error: "이메일 또는 비밀번호가 올바르지 않습니다." };
   }
 
+  // Auto-claim any pre-curated dancer rows that were provisioned for this
+  // email (e.g. via grigoent agency-pool migration). Safe no-op when none.
+  try {
+    await supabase.rpc("auto_claim_dancers_for_email");
+  } catch {
+    // Non-fatal — the user still logs in; backup cron will retry.
+  }
+
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -89,6 +97,15 @@ export async function changePasswordAction(
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { ok: false, error: error.message };
+
+  // After password set (e.g. invite-flow recovery), auto-claim any
+  // pre-curated dancer rows provisioned for this email.
+  try {
+    await supabase.rpc("auto_claim_dancers_for_email");
+  } catch {
+    // Non-fatal.
+  }
+
   return { ok: true };
 }
 
