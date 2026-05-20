@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionRefresher } from "@/components/auth/SessionRefresher";
 import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
+import { BugReportFab } from "@/components/feedback/BugReportFab";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -55,6 +56,7 @@ export default function RootLayout({
         <SessionRefresher />
         <ServiceWorkerRegister />
         {children}
+        <BugReportFab />
       </body>
     </html>
   );
