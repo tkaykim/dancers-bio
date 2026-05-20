@@ -87,7 +87,7 @@ export default async function ClaimPage({
               {dancerPreview.location ? ` · ${dancerPreview.location}` : ""}
             </p>
           </div>
-          <span className="text-xs font-medium text-primary">미리보기 →</span>
+          <span className="text-xs font-medium text-primary whitespace-nowrap">새 탭 ↗</span>
         </Link>
       ) : null}
 
