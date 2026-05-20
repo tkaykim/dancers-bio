@@ -28,7 +28,7 @@ export async function POST() {
 
   try {
     const result = await sendPushToSubscriptions(subs, {
-      title: "Cue 테스트 알림",
+      title: "dancers.bio 테스트 알림",
       body: "Hello — 푸시 알림이 정상 동작합니다 🎉",
       url: "/me",
     });

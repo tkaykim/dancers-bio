@@ -66,9 +66,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const dancer = await loadDancer(slug);
-  if (!dancer) return { title: "Cue" };
+  if (!dancer) return { title: "dancers.bio" };
   return {
-    title: `${dancer.stage_name} · Cue`,
+    title: `${dancer.stage_name} · dancers.bio`,
     description: dancer.bio ?? `${dancer.stage_name}의 댄서 포트폴리오`,
   };
 }

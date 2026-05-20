@@ -1,15 +1,29 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { loginAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+// Open-redirect 방지: 내부 경로(/...)만 허용. //protocol-relative 차단.
+function safeRedirect(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
+
 export function LoginForm({ nextPath }: { nextPath?: string } = {}) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Server-component 로그인 페이지에서 ?next= → nextPath prop 으로 전달. 그 외
+  // 프로젝트 상세 등에서 직접 LoginForm 페이지로 보낼 땐 ?redirect= 또는 ?next= 둘 다 수용.
+  const queryRedirect =
+    safeRedirect(searchParams.get("redirect")) ??
+    safeRedirect(searchParams.get("next"));
+  const dest = nextPath ?? queryRedirect ?? "/me";
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -23,7 +37,7 @@ export function LoginForm({ nextPath }: { nextPath?: string } = {}) {
             setError(result.error);
             return;
           }
-          router.push(nextPath ?? "/me");
+          router.push(dest);
           router.refresh();
         });
       }}
@@ -69,7 +83,7 @@ export function LoginForm({ nextPath }: { nextPath?: string } = {}) {
       <p className="text-center text-sm text-muted-foreground">
         아직 계정이 없으신가요?{" "}
         <Link
-          href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"}
+          href={dest !== "/me" ? `/signup?next=${encodeURIComponent(dest)}` : "/signup"}
           className="font-medium text-foreground underline"
         >
           회원가입

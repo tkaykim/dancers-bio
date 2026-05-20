@@ -35,7 +35,7 @@ export default async function ClaimPage({
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-6 px-6 pb-12 pt-10">
       <Link href="/" className="flex items-baseline gap-1.5 self-start">
         <span className="text-2xl font-extrabold tracking-tight leading-none">
-          Cue
+          dancers.bio
         </span>
         <span className="h-2 w-2 rounded-full bg-primary" aria-hidden />
       </Link>

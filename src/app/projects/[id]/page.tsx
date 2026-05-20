@@ -1,6 +1,7 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser } from "@/lib/auth/guard";
+import { getUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ApplyForm } from "@/components/project/ApplyForm";
@@ -13,6 +14,42 @@ import {
   STATUS_LABELS,
   VISIBILITY_LABELS,
 } from "@/lib/validation/projects";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id: idParam } = await params;
+  const identifier = classifyProjectIdentifier(idParam);
+  if (!identifier) return { title: "프로젝트를 찾을 수 없습니다" };
+  const supabase = await createClient();
+  const baseQ = supabase
+    .from("projects")
+    .select("title, description, status")
+    .is("deleted_at", null);
+  const { data: p } = await (
+    identifier.kind === "uuid"
+      ? baseQ.eq("id", identifier.value)
+      : baseQ.eq("short_code", identifier.value)
+  ).maybeSingle();
+  if (!p) return { title: "프로젝트를 찾을 수 없습니다" };
+  const firstLine =
+    ((p.description as string | null) ?? "")
+      .split("\n")
+      .find((l: string) => l.trim()) ?? "";
+  const desc = firstLine.length > 0 ? firstLine.slice(0, 140) : "댄서 캐스팅 공고";
+  return {
+    title: p.title as string,
+    description: desc,
+    openGraph: {
+      title: `${p.title} · dancers.bio`,
+      description: desc,
+      siteName: "dancers.bio",
+      type: "article",
+    },
+  };
+}
 
 type ProjectRow = {
   id: string;
@@ -85,7 +122,8 @@ export default async function ProjectDetailPage({
   const identifier = classifyProjectIdentifier(idParam);
   if (!identifier) notFound();
 
-  const user = await requireUser();
+  // 익명도 비공개 프로젝트 상세를 열람할 수 있도록 getUser. 지원 시점에만 로그인 유도.
+  const user = await getUser();
   const supabase = await createClient();
 
   const baseQuery = supabase
@@ -113,9 +151,6 @@ export default async function ProjectDetailPage({
   const [
     { data: sessionsData },
     { data: ownerProfile },
-    { data: viewerProfile },
-    { data: ownDancers },
-    { data: myApplications },
     { count: acceptedCount },
   ] = await Promise.all([
     supabase
@@ -125,20 +160,6 @@ export default async function ProjectDetailPage({
       .order("sort_order")
       .order("starts_at"),
     supabase.from("profiles").select("display_name, id").eq("id", p.owner_id).single(),
-    supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle(),
-    // Lite: 본인 own dancer 1개만 사용 (가장 오래된 것). multi-dancer 미지원.
-    supabase
-      .from("dancers")
-      .select("id")
-      .eq("profile_id", user.id)
-      .order("created_at", { ascending: true })
-      .limit(1),
-    supabase
-      .from("applications")
-      .select("id, status, applicant_id, dancer_id")
-      .eq("project_id", id)
-      .eq("applicant_id", user.id)
-      .order("created_at", { ascending: false }),
     supabase
       .from("applications")
       .select("id", { count: "exact", head: true })
@@ -147,15 +168,46 @@ export default async function ProjectDetailPage({
       .is("archived_at", null),
   ]);
 
+  // 익명 방문자는 본인 관련 쿼리 스킵.
+  type ViewerProfile = { is_admin: boolean | null };
+  type OwnDancerLite = { id: string };
+  let viewerProfile: ViewerProfile | null = null;
+  let ownDancers: OwnDancerLite[] = [];
+  let myApplications: ApplicationRow[] = [];
+  if (user) {
+    const [
+      { data: vp },
+      { data: od },
+      { data: ma },
+    ] = await Promise.all([
+      supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle(),
+      supabase
+        .from("dancers")
+        .select("id")
+        .eq("profile_id", user.id)
+        .order("created_at", { ascending: true })
+        .limit(1),
+      supabase
+        .from("applications")
+        .select("id, status, applicant_id, dancer_id")
+        .eq("project_id", id)
+        .eq("applicant_id", user.id)
+        .order("created_at", { ascending: false }),
+    ]);
+    viewerProfile = (vp ?? null) as ViewerProfile | null;
+    ownDancers = (od ?? []) as OwnDancerLite[];
+    myApplications = (ma ?? []) as ApplicationRow[];
+  }
+
   const sessions = (sessionsData ?? []) as SessionRow[];
   const isAdmin = !!viewerProfile?.is_admin;
-  const isOwner = p.owner_id === user.id;
+  const isOwner = !!user && p.owner_id === user.id;
   const canEditAgreedPay = isOwner || isAdmin;
-  const hasDancer = !!ownDancers && ownDancers.length > 0;
+  const hasDancer = ownDancers.length > 0;
 
   // Lite: 활성 지원만 "이미 지원 중"으로 간주. withdrawn / rejected 는 새 지원 가능.
   const isActiveStatus = (s: string) => s === "pending" || s === "accepted";
-  const allMine = (myApplications ?? []) as ApplicationRow[];
+  const allMine = myApplications;
   const mineActive = allMine.find((a) => isActiveStatus(a.status)) ?? null;
   const mineMostRecent = allMine[0] ?? null;
 
@@ -166,10 +218,10 @@ export default async function ProjectDetailPage({
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
       <Link
-        href="/feed"
+        href={user ? "/feed" : "/"}
         className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
       >
-        ← 캐스팅 피드
+        ← {user ? "캐스팅 피드" : "dancers.bio"}
       </Link>
 
       <header className="flex flex-col gap-3">
@@ -288,6 +340,32 @@ export default async function ProjectDetailPage({
             </>
           ) : null}
         </section>
+      ) : !user ? (
+        p.status === "open" ? (
+          <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+            <p className="text-sm text-ink-2">
+              지원하려면 로그인 또는 회원가입이 필요해요.
+            </p>
+            <Link
+              href={`/login?redirect=${encodeURIComponent(`/projects/${p.short_code}?apply=1`)}`}
+            >
+              <Button className="w-full" size="lg">
+                로그인하고 지원하기 →
+              </Button>
+            </Link>
+            <Link
+              href={`/signup?redirect=${encodeURIComponent(`/projects/${p.short_code}?apply=1`)}`}
+            >
+              <Button variant="outline" className="w-full" size="lg">
+                회원가입
+              </Button>
+            </Link>
+          </section>
+        ) : (
+          <p className="rounded-xl border border-border bg-card p-4 text-sm text-ink-3">
+            현재 모집이 닫혀 있습니다.
+          </p>
+        )
       ) : (
         <>
           {mineMostRecent ? (

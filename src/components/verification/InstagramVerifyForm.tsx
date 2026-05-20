@@ -34,7 +34,7 @@ export function InstagramVerifyForm({
 
   function copyMessage() {
     if (!data) return;
-    const msg = `Cue 본인인증\n@${data.handle}\n코드: ${data.code}`;
+    const msg = `dancers.bio 본인인증\n@${data.handle}\n코드: ${data.code}`;
     void navigator.clipboard.writeText(msg).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -59,7 +59,7 @@ export function InstagramVerifyForm({
             로 DM 보내주세요. 관리자가 매칭되는 코드를 확인하고 승인합니다 (보통 1영업일 이내).
           </p>
           <pre className="overflow-x-auto whitespace-pre-wrap rounded-md bg-card p-3 text-xs">
-{`Cue 본인인증
+{`dancers.bio 본인인증
 @${data.handle}
 코드: ${data.code}`}
           </pre>

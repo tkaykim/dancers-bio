@@ -19,13 +19,21 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cue — Dancers Platform",
-  description:
-    "K-pop 댄스 신을 위한 캐스팅·포트폴리오·프로젝트 매니지먼트 플랫폼",
+  title: {
+    default: "dancers.bio — 댄서 캐스팅 플랫폼",
+    template: "%s · dancers.bio",
+  },
+  description: "댄서들을 위한 캐스팅 플랫폼. 본인의 포트폴리오를 관리하고, 프로젝트에 지원하세요.",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon-192.png",
     apple: "/icon-192.png",
+  },
+  openGraph: {
+    title: "dancers.bio — 댄서 캐스팅 플랫폼",
+    description: "댄서들을 위한 캐스팅 플랫폼. 본인의 포트폴리오를 관리하고, 프로젝트에 지원하세요.",
+    siteName: "dancers.bio",
+    type: "website",
   },
 };
 

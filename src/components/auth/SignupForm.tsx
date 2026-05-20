@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signupAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,12 @@ import { Label } from "@/components/ui/label";
 
 export function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectRaw = searchParams.get("redirect");
+  const redirectParam =
+    redirectRaw && redirectRaw.startsWith("/") && !redirectRaw.startsWith("//")
+      ? redirectRaw
+      : null;
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -23,7 +29,13 @@ export function SignupForm() {
             setError(result.error);
             return;
           }
-          router.push("/onboarding/create");
+          // 회원가입 직후엔 /onboarding/create 로 가서 댄서 프로필 생성. redirect 가
+          // 있으면 onboarding 의 기존 returnTo 메커니즘으로 보존해서 그 페이지로 복귀.
+          router.push(
+            redirectParam
+              ? `/onboarding/create?returnTo=${encodeURIComponent(redirectParam)}`
+              : "/onboarding/create",
+          );
           router.refresh();
         });
       }}
@@ -73,7 +85,14 @@ export function SignupForm() {
       </Button>
       <p className="text-center text-sm text-muted-foreground">
         이미 계정이 있으신가요?{" "}
-        <Link href="/login" className="font-medium text-foreground underline">
+        <Link
+          href={
+            redirectParam
+              ? `/login?redirect=${encodeURIComponent(redirectParam)}`
+              : "/login"
+          }
+          className="font-medium text-foreground underline"
+        >
           로그인
         </Link>
       </p>
