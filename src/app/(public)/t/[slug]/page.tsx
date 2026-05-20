@@ -57,9 +57,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const team = await loadTeam(slug);
-  if (!team) return { title: "Cue" };
+  if (!team) return { title: "dancers.bio" };
   return {
-    title: `${team.team_name} · Cue`,
+    title: `${team.team_name} · dancers.bio`,
     description: team.bio ?? `${team.team_name} 댄스팀 포트폴리오`,
   };
 }

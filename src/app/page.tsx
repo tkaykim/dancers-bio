@@ -19,21 +19,21 @@ export default async function HomePage() {
 
       <div className="flex items-baseline gap-2">
         <h1 className="text-5xl font-extrabold tracking-tighter leading-none">
-          Cue
+          dancers.bio
         </h1>
         <span className="h-3 w-3 rounded-full bg-primary" aria-hidden />
       </div>
 
       <p className="mt-6 text-2xl font-bold tracking-tight leading-tight">
-        K-pop 댄스 신의
+        댄서들을 위한
         <br />
         캐스팅 플랫폼.
       </p>
 
       <p className="mt-4 text-base leading-relaxed text-ink-2">
-        포트폴리오를 만들고, 캐스팅에 지원하고,
+        본인의 포트폴리오를 관리하고,
         <br />
-        팀원을 모집하세요.
+        프로젝트에 지원하세요.
       </p>
 
       <div className="mt-auto flex flex-col gap-3 pt-12">
