@@ -51,3 +51,11 @@ export async function requireCreator() {
   }
   return profile;
 }
+
+export async function requireAdmin() {
+  const profile = await requireProfile();
+  if (!profile.is_admin) {
+    redirect("/me?admin_required=1");
+  }
+  return profile;
+}

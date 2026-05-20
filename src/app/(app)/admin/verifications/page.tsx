@@ -14,6 +14,15 @@ type VerifRow = {
   reviewed_at: string | null;
   created_at: string;
   expires_at: string;
+  claim_request_id: string | null;
+};
+
+type ClaimContext = {
+  claim_request_id: string;
+  dancer_id: string;
+  dancer_stage_name: string;
+  dancer_slug: string | null;
+  relation: string;
 };
 
 type ProfileLite = {
@@ -30,7 +39,7 @@ export default async function AdminVerificationsPage() {
   const { data: rows } = await supabase
     .from("instagram_verifications")
     .select(
-      "id, profile_id, code, instagram_handle, status, reject_reason, reviewed_at, created_at, expires_at",
+      "id, profile_id, code, instagram_handle, status, reject_reason, reviewed_at, created_at, expires_at, claim_request_id",
     )
     .order("status", { ascending: true })
     .order("created_at", { ascending: false })
@@ -45,6 +54,32 @@ export default async function AdminVerificationsPage() {
       .select("id, display_name, avatar_url")
       .in("id", profileIds);
     for (const p of profiles ?? []) profileMap.set(p.id, p);
+  }
+
+  // claim 컨텍스트 일괄 조회.
+  const claimIds = Array.from(
+    new Set(list.map((r) => r.claim_request_id).filter((v): v is string => !!v)),
+  );
+  const claimMap = new Map<string, ClaimContext>();
+  if (claimIds.length > 0) {
+    const { data: claims } = await supabase
+      .from("dancer_claim_requests")
+      .select("id, dancer_id, relation, dancers:dancer_id(stage_name, slug)")
+      .in("id", claimIds);
+    for (const c of (claims ?? []) as unknown as Array<{
+      id: string;
+      dancer_id: string;
+      relation: string;
+      dancers: { stage_name: string; slug: string | null } | null;
+    }>) {
+      claimMap.set(c.id, {
+        claim_request_id: c.id,
+        dancer_id: c.dancer_id,
+        dancer_stage_name: c.dancers?.stage_name ?? "(이름 없음)",
+        dancer_slug: c.dancers?.slug ?? null,
+        relation: c.relation,
+      });
+    }
   }
 
   const pending = list.filter((r) => r.status === "pending");
@@ -79,6 +114,7 @@ export default async function AdminVerificationsPage() {
                 key={r.id}
                 row={r}
                 user={profileMap.get(r.profile_id)}
+                claim={r.claim_request_id ? claimMap.get(r.claim_request_id) : undefined}
                 actionable
               />
             ))}
@@ -97,6 +133,7 @@ export default async function AdminVerificationsPage() {
                 key={r.id}
                 row={r}
                 user={profileMap.get(r.profile_id)}
+                claim={r.claim_request_id ? claimMap.get(r.claim_request_id) : undefined}
               />
             ))}
           </ul>
@@ -116,10 +153,12 @@ export default async function AdminVerificationsPage() {
 function VerifRowCard({
   row,
   user,
+  claim,
   actionable,
 }: {
   row: VerifRow;
   user?: ProfileLite;
+  claim?: ClaimContext;
   actionable?: boolean;
 }) {
   const statusColor = {
@@ -162,6 +201,28 @@ function VerifRowCard({
           ) : null}
         </div>
       </div>
+      {claim ? (
+        <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs">
+          <p className="font-semibold text-primary">
+            🔗 댄서 프로필 claim 본인 인증
+          </p>
+          <p className="mt-1 text-ink-2">
+            대상 댄서:{" "}
+            <Link
+              href={`/d/${claim.dancer_slug ?? claim.dancer_id}`}
+              className="font-semibold text-foreground underline-offset-4 hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {claim.dancer_stage_name}
+            </Link>
+            {" "}({claim.relation === "manager" ? "매니저" : claim.relation === "self" ? "본인" : "기타"})
+          </p>
+          <p className="mt-1 text-[10px] text-ink-3">
+            승인 시 dancer.profile_id가 이 사용자로 자동 설정되고 claim도 함께 승인됩니다.
+          </p>
+        </div>
+      ) : null}
       {row.reject_reason ? (
         <p className="rounded-md bg-secondary/40 px-3 py-2 text-xs text-ink-2">
           반려 사유: {row.reject_reason}

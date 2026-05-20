@@ -59,7 +59,53 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
     return { ok: false, error: "이메일 또는 비밀번호가 올바르지 않습니다." };
   }
 
+  // Auto-claim any pre-curated dancer rows that were provisioned for this
+  // email (e.g. via grigoent agency-pool migration). Safe no-op when none.
+  try {
+    await supabase.rpc("auto_claim_dancers_for_email");
+  } catch {
+    // Non-fatal — the user still logs in; backup cron will retry.
+  }
+
   revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function forgotPasswordAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  const email = (formData.get("email") ?? "").toString().trim().toLowerCase();
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { ok: false, error: "올바른 이메일 주소를 입력해 주세요." };
+  }
+  const supabase = await createClient();
+  const origin =
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://dancers-bio-lite.vercel.app";
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/reset-password`,
+  });
+  return { ok: true };
+}
+
+export async function changePasswordAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  const password = (formData.get("password") ?? "").toString();
+  if (password.length < 8 || password.length > 72) {
+    return { ok: false, error: "비밀번호는 8~72자여야 합니다." };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { ok: false, error: error.message };
+
+  // After password set (e.g. invite-flow recovery), auto-claim any
+  // pre-curated dancer rows provisioned for this email.
+  try {
+    await supabase.rpc("auto_claim_dancers_for_email");
+  } catch {
+    // Non-fatal.
+  }
+
   return { ok: true };
 }
 

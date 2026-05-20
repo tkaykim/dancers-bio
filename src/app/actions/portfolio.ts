@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { isValidProfilePhotoUrl } from "@/lib/storage/profile-photos";
+import {
+  DANCER_PORTFOLIO_BUCKET,
+  ALLOWED_PORTFOLIO_FILE_TYPES,
+  MAX_PORTFOLIO_FILE_BYTES,
+  isValidPortfolioFileUrl,
+} from "@/lib/storage/dancer-portfolio-file";
 import { slugify } from "@/lib/utils/slug";
 import { buildSocialUrl } from "@/lib/utils/social";
 import {
@@ -334,4 +340,128 @@ export async function createDancerProfileAction(
   revalidatePath("/me/portfolio");
   revalidatePath("/me");
   return { ok: true, data: { id: dancerId } };
+}
+
+// ===========================================================================
+// Lite: dancer 포트폴리오 첨부파일 1개 (PDF/JPG/PNG/MP4, 50MB)
+// ===========================================================================
+
+/** 본인 dancer만 portfolio_file_* 필드 갱신 가능 (admin 제외). */
+async function assertDancerOwnership(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  dancerId: string,
+  userId: string,
+): Promise<ActionResult<{ slug: string | null }>> {
+  const { data: dancer } = await supabase
+    .from("dancers")
+    .select("id, profile_id, slug")
+    .eq("id", dancerId)
+    .maybeSingle();
+  if (!dancer) return { ok: false, error: "댄서 프로필을 찾을 수 없습니다." };
+  if (dancer.profile_id !== userId) {
+    // admin 분기: profiles.is_admin
+    const { data: viewer } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!viewer?.is_admin) {
+      return { ok: false, error: "이 프로필을 편집할 권한이 없습니다." };
+    }
+  }
+  return { ok: true, data: { slug: (dancer.slug as string | null) ?? null } };
+}
+
+export async function setDancerPortfolioFileAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  const dancer_id = (formData.get("dancer_id") ?? "").toString();
+  const url = (formData.get("url") ?? "").toString();
+  const name = (formData.get("name") ?? "").toString().slice(0, 200);
+  const size = Number(formData.get("size") ?? 0);
+  const mime = (formData.get("mime") ?? "").toString();
+
+  if (!dancer_id) return { ok: false, error: "잘못된 요청입니다." };
+  if (!isValidPortfolioFileUrl(url)) {
+    return { ok: false, error: "허용되지 않은 파일 URL입니다." };
+  }
+  if (
+    !Number.isFinite(size) ||
+    size <= 0 ||
+    size > MAX_PORTFOLIO_FILE_BYTES
+  ) {
+    return { ok: false, error: "파일 크기가 허용 범위를 벗어났습니다." };
+  }
+  if (!(ALLOWED_PORTFOLIO_FILE_TYPES as readonly string[]).includes(mime)) {
+    return { ok: false, error: "허용되지 않은 파일 형식입니다." };
+  }
+
+  const supabase = await createClient();
+  const guard = await assertDancerOwnership(supabase, dancer_id, user.id);
+  if (!guard.ok) return guard;
+
+  const { error } = await supabase
+    .from("dancers")
+    .update({
+      portfolio_file_url: url,
+      portfolio_file_name: name,
+      portfolio_file_size_bytes: size,
+      portfolio_file_mime: mime,
+      portfolio_file_uploaded_at: new Date().toISOString(),
+    })
+    .eq("id", dancer_id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/me/portfolio/${dancer_id}`);
+  if (guard.data?.slug) revalidatePath(`/d/${guard.data.slug}`);
+  return { ok: true };
+}
+
+export async function removeDancerPortfolioFileAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  const dancer_id = (formData.get("dancer_id") ?? "").toString();
+  if (!dancer_id) return { ok: false, error: "잘못된 요청입니다." };
+
+  const supabase = await createClient();
+  const guard = await assertDancerOwnership(supabase, dancer_id, user.id);
+  if (!guard.ok) return guard;
+
+  // 현재 URL에서 storage path 추출하여 best-effort 삭제 (실패해도 진행).
+  const { data: row } = await supabase
+    .from("dancers")
+    .select("portfolio_file_url")
+    .eq("id", dancer_id)
+    .maybeSingle();
+  const currentUrl = (row?.portfolio_file_url as string | null) ?? null;
+  if (currentUrl) {
+    const prefix = `/storage/v1/object/public/${DANCER_PORTFOLIO_BUCKET}/`;
+    const idx = currentUrl.indexOf(prefix);
+    if (idx >= 0) {
+      const storagePath = decodeURIComponent(
+        currentUrl.slice(idx + prefix.length),
+      );
+      await supabase.storage
+        .from(DANCER_PORTFOLIO_BUCKET)
+        .remove([storagePath]);
+    }
+  }
+
+  const { error } = await supabase
+    .from("dancers")
+    .update({
+      portfolio_file_url: null,
+      portfolio_file_name: null,
+      portfolio_file_size_bytes: null,
+      portfolio_file_mime: null,
+      portfolio_file_uploaded_at: null,
+    })
+    .eq("id", dancer_id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/me/portfolio/${dancer_id}`);
+  if (guard.data?.slug) revalidatePath(`/d/${guard.data.slug}`);
+  return { ok: true };
 }

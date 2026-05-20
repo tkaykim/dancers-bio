@@ -20,6 +20,7 @@ function pickFeatured<T extends { application_deadline: string | null }>(
 
 type Row = {
   id: string;
+  short_code: string | null;
   title: string;
   description: string;
   visibility: "public" | "private";
@@ -42,7 +43,7 @@ export default async function FeedPage() {
   const { data: rawProjects } = await supabase
     .from("projects")
     .select(
-      `id, title, description, visibility, status, pay_amount, pay_type,
+      `id, short_code, title, description, visibility, status, pay_amount, pay_type,
        application_deadline, created_at, owner_id, region_text,
        genre:genres ( label_ko ),
        region:regions ( label_ko )`,
@@ -80,6 +81,7 @@ export default async function FeedPage() {
 
   const enriched = projects.map((p) => ({
     id: p.id,
+    short_code: p.short_code,
     title: p.title,
     description: p.description,
     visibility: p.visibility,

@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { ApplyForm, type ApplyAsOption } from "@/components/project/ApplyForm";
+import { ApplyForm } from "@/components/project/ApplyForm";
 import { AgreedPayEditor } from "@/components/project/AgreedPayEditor";
+import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
+import { classifyProjectIdentifier } from "@/lib/projectId";
 import {
   PAY_TYPE_LABELS,
   SESSION_TYPE_LABELS,
@@ -14,6 +16,7 @@ import {
 
 type ProjectRow = {
   id: string;
+  short_code: string;
   owner_id: string;
   title: string;
   description: string;
@@ -23,8 +26,7 @@ type ProjectRow = {
   pay_type: keyof typeof PAY_TYPE_LABELS | null;
   agreed_pay: number | null;
   recruitment_count: number;
-  allow_team_apply: boolean;
-  posted_by_admin_id: string | null;
+  posted_by_label: string | null;
   application_deadline: string | null;
   created_at: string;
   region_text: string | null;
@@ -47,7 +49,6 @@ type ApplicationRow = {
   status: string;
   applicant_id: string | null;
   dancer_id: string | null;
-  team_id: string | null;
 };
 
 function daysUntil(iso: string | null): number | null {
@@ -80,32 +81,40 @@ export default async function ProjectDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id: idParam } = await params;
+  const identifier = classifyProjectIdentifier(idParam);
+  if (!identifier) notFound();
+
   const user = await requireUser();
   const supabase = await createClient();
 
-  const { data: project } = await supabase
+  const baseQuery = supabase
     .from("projects")
     .select(
-      `id, owner_id, title, description, visibility, status, pay_amount, pay_type,
-       agreed_pay, recruitment_count, allow_team_apply, posted_by_admin_id,
+      `id, short_code, owner_id, title, description, visibility, status, pay_amount, pay_type,
+       agreed_pay, recruitment_count, posted_by_label,
        application_deadline, created_at, region_text,
        genre:genres ( label_ko ),
        region:regions ( label_ko )`,
     )
-    .eq("id", id)
-    .is("deleted_at", null)
-    .maybeSingle();
+    .is("deleted_at", null);
+
+  const { data: project } = await (
+    identifier.kind === "uuid"
+      ? baseQuery.eq("id", identifier.value)
+      : baseQuery.eq("short_code", identifier.value)
+  ).maybeSingle();
 
   if (!project) notFound();
   const p = project as unknown as ProjectRow;
+  // Internal route segment: canonical UUID. Outbound links prefer short_code.
+  const id = p.id;
 
   const [
     { data: sessionsData },
     { data: ownerProfile },
     { data: viewerProfile },
     { data: ownDancers },
-    { data: ledTeamRows },
     { data: myApplications },
     { count: acceptedCount },
   ] = await Promise.all([
@@ -117,23 +126,18 @@ export default async function ProjectDetailPage({
       .order("starts_at"),
     supabase.from("profiles").select("display_name, id").eq("id", p.owner_id).single(),
     supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle(),
-    // 시나리오 2: 본인이 보유한 dancer 가 N 개일 수 있으므로 배열로 가져와
-    // 각 dancer 별 지원 옵션을 노출한다 (multi-dancer 명시적 선택 UX).
+    // Lite: 본인 own dancer 1개만 사용 (가장 오래된 것). multi-dancer 미지원.
     supabase
       .from("dancers")
-      .select("id, stage_name, korean_name")
+      .select("id")
       .eq("profile_id", user.id)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("teams")
-      .select("id, team_name, is_active, approval_status, lead_profile_id")
-      .eq("lead_profile_id", user.id)
-      .eq("is_active", true),
+      .order("created_at", { ascending: true })
+      .limit(1),
     supabase
       .from("applications")
-      .select("id, status, applicant_id, dancer_id, team_id")
+      .select("id, status, applicant_id, dancer_id")
       .eq("project_id", id)
-      .or(`applicant_id.eq.${user.id},team_id.in.(${"00000000-0000-0000-0000-000000000000"})`)
+      .eq("applicant_id", user.id)
       .order("created_at", { ascending: false }),
     supabase
       .from("applications")
@@ -147,67 +151,17 @@ export default async function ProjectDetailPage({
   const isAdmin = !!viewerProfile?.is_admin;
   const isOwner = p.owner_id === user.id;
   const canEditAgreedPay = isOwner || isAdmin;
+  const hasDancer = !!ownDancers && ownDancers.length > 0;
 
-  // Build my applications. Use a follow-up query for team apps because OR with .in() above can't be parameterized cleanly.
-  let allMine: ApplicationRow[] = (myApplications ?? []) as ApplicationRow[];
-  const ledTeamIds = (ledTeamRows ?? []).map((t) => t.id as string);
-  if (ledTeamIds.length > 0) {
-    const { data: teamApps } = await supabase
-      .from("applications")
-      .select("id, status, applicant_id, dancer_id, team_id")
-      .eq("project_id", id)
-      .in("team_id", ledTeamIds);
-    const seen = new Set(allMine.map((a) => a.id));
-    for (const a of (teamApps ?? []) as ApplicationRow[]) {
-      if (!seen.has(a.id)) allMine = allMine.concat(a);
-    }
-  }
-  const mineTeams = allMine.filter((a) => a.team_id);
-  // 본인이 한 개인 지원(현재 라인업 노출용). applicant_id 본인 또는 본인 dancer
-  // 둘 중 하나에 매칭되는 가장 최신 row.
-  const mineIndividual =
-    allMine.find(
-      (a) =>
-        a.applicant_id === user.id ||
-        (a.dancer_id !== null &&
-          (ownDancers ?? []).some((d) => (d as { id: string }).id === a.dancer_id)),
-    ) ?? null;
-
-  // 활성 지원만 "이미 지원 중"으로 간주. withdrawn / rejected 는 새 지원 가능.
+  // Lite: 활성 지원만 "이미 지원 중"으로 간주. withdrawn / rejected 는 새 지원 가능.
   const isActiveStatus = (s: string) => s === "pending" || s === "accepted";
+  const allMine = (myApplications ?? []) as ApplicationRow[];
+  const mineActive = allMine.find((a) => isActiveStatus(a.status)) ?? null;
+  const mineMostRecent = allMine[0] ?? null;
 
   const dDay = daysUntil(p.application_deadline);
-
-  const applyOptions: ApplyAsOption[] = [];
-  // 시나리오 2: 본인의 각 dancer 별로 옵션 생성. 같은 dancer 로 이미 활성 지원 중이면
-  // 그 dancer 옵션 제외 (재지원 불가). 비활성(withdrawn/rejected) 이면 라벨에 "다시 지원" 표기.
-  type OwnDancer = { id: string; stage_name: string; korean_name: string | null };
-  const ownDancerList = (ownDancers ?? []) as OwnDancer[];
-  for (const d of ownDancerList) {
-    const mineForDancer = allMine.find((a) => a.dancer_id === d.id);
-    if (mineForDancer && isActiveStatus(mineForDancer.status)) continue;
-    const label = `${d.stage_name}${d.korean_name ? ` (${d.korean_name})` : ""}${mineForDancer ? "으로 다시 지원" : "으로 지원"}`;
-    applyOptions.push({ kind: "individual", dancer_id: d.id, label });
-  }
-  if (p.allow_team_apply) {
-    for (const t of ledTeamRows ?? []) {
-      const activeTeamApp = mineTeams.find(
-        (a) => a.team_id === t.id && isActiveStatus(a.status),
-      );
-      const hadAnyTeamApp = mineTeams.some((a) => a.team_id === t.id);
-      if (!activeTeamApp && t.lead_profile_id !== p.owner_id) {
-        applyOptions.push({
-          kind: "team",
-          team_id: t.id as string,
-          label: hadAnyTeamApp
-            ? `팀 [${t.team_name}]으로 다시 지원`
-            : `팀 [${t.team_name}]으로 지원`,
-        });
-      }
-    }
-  }
-
   const acceptedNow = acceptedCount ?? 0;
+  const postedBy = p.posted_by_label ?? ownerProfile?.display_name ?? null;
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
@@ -226,11 +180,6 @@ export default async function ProjectDetailPage({
           <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-ink-2">
             {STATUS_LABELS[p.status]}
           </span>
-          {p.allow_team_apply ? (
-            <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-ink-2">
-              팀 지원 가능
-            </span>
-          ) : null}
           {p.genre?.label_ko ? (
             <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-ink-2">
               {p.genre.label_ko}
@@ -245,11 +194,8 @@ export default async function ProjectDetailPage({
         <h1 className="text-2xl font-bold tracking-tight leading-tight">
           {p.title}
         </h1>
-        {ownerProfile ? (
-          <p className="text-sm text-ink-2">
-            {ownerProfile.display_name}
-            {p.posted_by_admin_id ? " · 관리자가 대신 등록" : ""}
-          </p>
+        {postedBy ? (
+          <p className="text-sm text-ink-2">{postedBy}</p>
         ) : null}
       </header>
 
@@ -323,41 +269,42 @@ export default async function ProjectDetailPage({
       ) : null}
 
       {/* Action area */}
-      {isOwner ? (
+      {isOwner || isAdmin ? (
         <section className="flex flex-col gap-3">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 운영</p>
-          <Link href={`/projects/${id}/applicants`}>
+          <Link href={`/projects/${p.short_code}/applicants`}>
             <Button className="w-full" size="lg">
               지원자 보기 →
             </Button>
           </Link>
+          {isAdmin ? (
+            <>
+              <Link href={`/projects/${p.short_code}/edit`}>
+                <Button variant="outline" className="w-full" size="lg">
+                  공고 수정
+                </Button>
+              </Link>
+              <DeleteProjectButton projectId={p.id} variant="ghost" />
+            </>
+          ) : null}
         </section>
       ) : (
         <>
-          {(mineIndividual || mineTeams.length > 0) ? (
+          {mineMostRecent ? (
             <section className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 내 지원 상태</p>
-              {mineIndividual ? (
-                <p className="font-mono text-sm">개인: {labelStatus(mineIndividual.status)}</p>
-              ) : null}
-              {/* 팀별 최신 지원 한 건만 표시 (재지원 시 옛 row 노이즈 제거) */}
-              {Array.from(
-                mineTeams.reduce((acc, a) => {
-                  if (a.team_id && !acc.has(a.team_id)) acc.set(a.team_id, a);
-                  return acc;
-                }, new Map<string, ApplicationRow>()).values(),
-              ).map((a) => (
-                <p key={a.id} className="font-mono text-sm">
-                  팀: {labelStatus(a.status)}
-                </p>
-              ))}
+              <p className="font-mono text-sm">{labelStatus(mineMostRecent.status)}</p>
               <Link href="/applications" className="text-xs text-ink-3 underline-offset-4 hover:underline">
                 지원 목록에서 보기 →
               </Link>
             </section>
           ) : null}
-          {p.status === "open" && applyOptions.length > 0 ? (
-            <ApplyForm projectId={id} applyOptions={applyOptions} />
+          {p.status === "open" && !mineActive ? (
+            <ApplyForm
+              projectId={p.id}
+              projectShortCode={p.short_code}
+              hasDancer={hasDancer}
+            />
           ) : p.status !== "open" ? (
             <p className="rounded-xl border border-border bg-card p-4 text-sm text-ink-3">
               현재 모집이 닫혀 있습니다.

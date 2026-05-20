@@ -14,7 +14,7 @@ export default async function DirectoryPage({
   const initialTab: Tab = params.tab === "teams" ? "teams" : "dancers";
   const supabase = await createClient();
 
-  const [dancersRes, teamsRes] = await Promise.all([
+  const [dancersRes, teamsRes, dancerCountRes, teamCountRes] = await Promise.all([
     supabase
       .from("dancers")
       .select(
@@ -34,6 +34,16 @@ export default async function DirectoryPage({
       .eq("is_active", true)
       .order("created_at", { ascending: false })
       .range(0, PAGE_SIZE - 1),
+    supabase
+      .from("dancers")
+      .select("id", { count: "exact", head: true })
+      .eq("approval_status", "approved")
+      .eq("is_active", true),
+    supabase
+      .from("teams")
+      .select("id", { count: "exact", head: true })
+      .eq("approval_status", "approved")
+      .eq("is_active", true),
   ]);
 
   return (
@@ -51,6 +61,8 @@ export default async function DirectoryPage({
         initialDancers={dancersRes.data ?? []}
         initialTeams={teamsRes.data ?? []}
         initialTab={initialTab}
+        totalDancers={dancerCountRes.count ?? 0}
+        totalTeams={teamCountRes.count ?? 0}
       />
     </div>
   );

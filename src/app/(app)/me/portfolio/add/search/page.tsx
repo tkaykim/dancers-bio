@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { safeReturnTo } from "@/lib/safeRedirect";
 import { SearchSection } from "./SearchSection";
 
 type DancerResult = {
@@ -8,38 +9,47 @@ type DancerResult = {
   korean_name: string | null;
   slug: string | null;
   profile_img: string | null;
-  approval_status: string | null;
+  genres: string[] | null;
 };
+
+const PAGE_SIZE = 24;
 
 export default async function AddDancerSearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ role?: string; q?: string }>;
+  searchParams: Promise<{ role?: string; returnTo?: string }>;
 }) {
   await requireUser();
-  const { role = "self", q = "" } = await searchParams;
+  const { role = "self", returnTo } = await searchParams;
   const resolvedRole: "self" | "manager" = role === "manager" ? "manager" : "self";
+  const safeReturn = returnTo ? safeReturnTo(returnTo, "") : "";
 
-  let results: DancerResult[] = [];
-  const trimmedQ = q.trim();
-  if (trimmedQ.length >= 1) {
-    const supabase = await createClient();
-    const { data } = await supabase
+  // SSR: claim 가능한 큐레이션 댄서 첫 페이지 + 총 카운트.
+  // (검색·페이지네이션은 클라이언트에서 debounced 호출)
+  const supabase = await createClient();
+  const [{ data: firstPage }, { count }] = await Promise.all([
+    supabase
       .from("dancers")
-      .select("id, stage_name, korean_name, slug, profile_img, approval_status")
+      .select("id, stage_name, korean_name, slug, profile_img, genres")
       .is("profile_id", null)
+      .eq("approval_status", "approved")
       .eq("is_active", true)
-      .ilike("stage_name", `%${trimmedQ}%`)
       .order("stage_name", { ascending: true })
-      .limit(10);
-    results = (data ?? []) as DancerResult[];
-  }
+      .range(0, PAGE_SIZE - 1),
+    supabase
+      .from("dancers")
+      .select("id", { count: "exact", head: true })
+      .is("profile_id", null)
+      .eq("approval_status", "approved")
+      .eq("is_active", true),
+  ]);
 
   return (
     <SearchSection
       role={resolvedRole}
-      q={trimmedQ}
-      results={results}
+      initialDancers={(firstPage ?? []) as DancerResult[]}
+      totalCount={count ?? 0}
+      returnTo={safeReturn || null}
     />
   );
 }

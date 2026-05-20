@@ -9,7 +9,7 @@ type Result<T = undefined> =
 
 export async function claimDancerProfileAction(
   formData: FormData,
-): Promise<Result> {
+): Promise<Result<{ claim_request_id: string; dancer_id: string }>> {
   const profile = await requireProfile();
   const dancer_id = String(formData.get("dancer_id") ?? "");
   const relation = String(formData.get("relation") ?? "self");
@@ -43,7 +43,22 @@ export async function claimDancerProfileAction(
     };
   }
 
-  const { error } = await supabase
+  // 기존 pending 요청이 있으면 그것을 그대로 사용 (Idempotent — 재시도가 IG 인증 단계로 자연 진입).
+  const { data: existing } = await supabase
+    .from("dancer_claim_requests")
+    .select("id")
+    .eq("dancer_id", dancer_id)
+    .eq("requester_id", profile.id)
+    .eq("status", "pending")
+    .maybeSingle();
+  if (existing) {
+    return {
+      ok: true,
+      data: { claim_request_id: existing.id as string, dancer_id },
+    };
+  }
+
+  const { data: inserted, error } = await supabase
     .from("dancer_claim_requests")
     .insert({
       dancer_id,
@@ -51,7 +66,9 @@ export async function claimDancerProfileAction(
       relation,
       message: message || null,
       status: "pending",
-    });
+    })
+    .select("id")
+    .single();
 
   if (error) {
     if (error.code === "23505") {
@@ -63,5 +80,8 @@ export async function claimDancerProfileAction(
     return { ok: false, error: error.message };
   }
 
-  return { ok: true };
+  return {
+    ok: true,
+    data: { claim_request_id: inserted.id as string, dancer_id },
+  };
 }

@@ -37,10 +37,14 @@ export function DirectoryClient({
   initialDancers,
   initialTeams,
   initialTab,
+  totalDancers,
+  totalTeams,
 }: {
   initialDancers: Dancer[];
   initialTeams: Team[];
   initialTab: Tab;
+  totalDancers: number;
+  totalTeams: number;
 }) {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [query, setQuery] = useState("");
@@ -154,6 +158,8 @@ export function DirectoryClient({
 
   const list = tab === "dancers" ? dancers : teams;
   const hasMore = tab === "dancers" ? dancerHasMore : teamHasMore;
+  const total = tab === "dancers" ? totalDancers : totalTeams;
+  const shown = list.length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -161,12 +167,12 @@ export function DirectoryClient({
         <TabBtn
           active={tab === "dancers"}
           onClick={() => setTab("dancers")}
-          label={`개인${tab === "dancers" ? ` ${dancers.length}` : ""}`}
+          label="개인"
         />
         <TabBtn
           active={tab === "teams"}
           onClick={() => setTab("teams")}
-          label={`팀${tab === "teams" ? ` ${teams.length}` : ""}`}
+          label="팀"
         />
       </div>
 
@@ -178,6 +184,12 @@ export function DirectoryClient({
         type="search"
         enterKeyHint="search"
       />
+
+      {total > 0 && !debouncedQ ? (
+        <p className="text-[11px] text-ink-3">
+          총 {total.toLocaleString()}{tab === "dancers" ? "명" : "팀"} 중 {shown.toLocaleString()}{tab === "dancers" ? "명" : "팀"} 표시
+        </p>
+      ) : null}
 
       {list.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-hairline-2 p-8 text-center text-sm text-ink-3">

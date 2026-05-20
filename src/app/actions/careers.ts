@@ -57,7 +57,7 @@ function parseFormToCareerInput(formData: FormData) {
     role: (formData.get("role") ?? "").toString().trim() || null,
     description: (formData.get("description") ?? "").toString().trim() || null,
     link: (formData.get("link") ?? "").toString().trim() || null,
-    is_public: false,
+    is_public: true,
     is_representative:
       formData.get("is_representative") === "on" ||
       formData.get("is_representative") === "true",
@@ -161,7 +161,7 @@ export async function addCareerAction(
       title: parsed.data.title,
       date: parsed.data.date,
       details,
-      is_public: false,
+      is_public: true,
       is_representative: parsed.data.is_representative,
       sort_order: parsed.data.sort_order,
     })

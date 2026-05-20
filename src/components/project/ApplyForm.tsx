@@ -3,32 +3,44 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { applyToProjectAction } from "@/app/actions/applications";
+import { NEEDS_DANCER_ERROR } from "@/lib/lite-constants";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
-export type ApplyAsOption =
-  | { kind: "individual"; dancer_id: string; label: string }
-  | { kind: "team"; team_id: string; label: string };
-
+// Lite: 본인 own dancer 1개로만 지원. dancer 없으면 onboarding 유도.
 export function ApplyForm({
   projectId,
-  applyOptions,
+  projectShortCode,
+  hasDancer,
 }: {
+  /** UUID — server action에 전달되는 canonical id. */
   projectId: string;
-  applyOptions: ApplyAsOption[];
+  /** 6자 short_code — returnTo URL 등 외부 노출용. */
+  projectShortCode: string;
+  hasDancer: boolean;
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [needsDancer, setNeedsDancer] = useState<boolean>(!hasDancer);
   const [pending, startTransition] = useTransition();
-  const [selected, setSelected] = useState<string>(
-    applyOptions[0] ? toValue(applyOptions[0]) : "",
-  );
 
-  if (applyOptions.length === 0) {
+  if (needsDancer) {
+    const returnTo = encodeURIComponent(`/projects/${projectShortCode}?apply=1`);
     return (
-      <p className="rounded-xl border border-border bg-card p-4 text-sm text-ink-3">
-        지원하려면 댄서 포트폴리오가 필요합니다.
-      </p>
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+        <p className="text-sm text-ink-2">
+          지원하려면 먼저 댄서 프로필이 필요합니다.
+        </p>
+        <p className="text-xs text-ink-3">
+          30초만에 만들 수 있어요. 만들고 나면 이 공고로 자동 복귀합니다.
+        </p>
+        <a
+          href={`/me/portfolio/add?returnTo=${returnTo}`}
+          className="inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:opacity-90"
+        >
+          댄서 프로필 만들기 →
+        </a>
+      </div>
     );
   }
 
@@ -37,16 +49,13 @@ export function ApplyForm({
       action={(formData) => {
         setMessage(null);
         formData.set("project_id", projectId);
-        formData.set("apply_as", selected);
-        // 시나리오 2: 어떤 dancer 로 지원하는지 명시적으로 전달.
-        // applyToProjectAction(v2) 의 dancer_id 폴백 분기가 본인/매니저 권한 검증 후 수용.
-        const sel = applyOptions.find((o) => toValue(o) === selected);
-        if (sel?.kind === "individual") {
-          formData.set("dancer_id", sel.dancer_id);
-        }
         startTransition(async () => {
           const result = await applyToProjectAction(formData);
           if (!result.ok) {
+            if (result.error === NEEDS_DANCER_ERROR) {
+              setNeedsDancer(true);
+              return;
+            }
             setMessage({ kind: "error", text: result.error });
             return;
           }
@@ -56,26 +65,6 @@ export function ApplyForm({
       }}
       className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4"
     >
-      {applyOptions.length > 1 ? (
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="apply_as">지원 자격</Label>
-          <select
-            id="apply_as"
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-          >
-            {applyOptions.map((opt) => (
-              <option key={toValue(opt)} value={toValue(opt)}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      ) : (
-        <p className="text-xs text-ink-3">{applyOptions[0].label}로 지원합니다.</p>
-      )}
-
       <Label htmlFor="cover_message" className="text-xs uppercase tracking-[0.14em] text-ink-3">
         ↳ 한 줄 자기소개 (선택)
       </Label>
@@ -104,12 +93,6 @@ export function ApplyForm({
       </Button>
     </form>
   );
-}
-
-function toValue(opt: ApplyAsOption): string {
-  return opt.kind === "individual"
-    ? `individual:${opt.dancer_id}`
-    : `team:${opt.team_id}`;
 }
 
 export function WithdrawButton({ applicationId }: { applicationId: string }) {

@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   Briefcase,
   House,
-  Mail,
   ClipboardList,
   Users,
 } from "lucide-react";
@@ -39,13 +38,6 @@ export function BottomTabBar({
       match: (p) => p === "/dancers" || p.startsWith("/d/"),
     },
     {
-      href: "/proposals",
-      label: "받은 제안",
-      Icon: Mail,
-      match: (p) => p === "/proposals",
-      badge: proposalCount,
-    },
-    {
       href: "/applications",
       label: "내 지원",
       Icon: ClipboardList,
@@ -68,7 +60,7 @@ export function BottomTabBar({
       aria-label="Primary"
       className="fixed bottom-0 left-1/2 z-30 w-full max-w-md -translate-x-1/2 border-t border-hairline-2 bg-background/95 pb-safe backdrop-blur-xl"
     >
-      <ul className="grid grid-cols-5">
+      <ul className="grid grid-cols-4">
         {tabs.map((t) => {
           const active = t.match(pathname);
           return (

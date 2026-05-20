@@ -80,6 +80,23 @@ export default async function AdminHomePage() {
           accent={Boolean(pendingVerifs)}
         />
         <Tile
+          href="/admin/projects"
+          title="공고 관리"
+          desc="등록한 캐스팅 공고 수정·삭제"
+          badge={projectsCount ? `${projectsCount}` : undefined}
+        />
+        <Tile
+          href="/admin/projects/import"
+          title="공고 수집 (외부)"
+          desc="외부 채널 공고 텍스트 붙여넣기 → LLM 추출 → 발행"
+          accent
+        />
+        <Tile
+          href="/admin/llm"
+          title="LLM 설정"
+          desc="Anthropic / Gemini 토글 + 연결 상태 + 테스트"
+        />
+        <Tile
           href="/admin/users"
           title="사용자 / 권한"
           desc="사용자 검색 + can_create_project 토글"

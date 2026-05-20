@@ -96,11 +96,9 @@ export default async function PublicTeamPage({
   ]);
 
   const teamLeadId = teamLead?.lead_profile_id as string | undefined;
-  const canPropose =
-    Boolean(viewer) &&
-    Boolean(viewerProfile?.can_create_project || viewerProfile?.is_admin) &&
-    Boolean(teamLeadId) &&
-    teamLeadId !== viewer?.id;
+  void teamLeadId;
+  // Lite MVP: direct_proposal OFF.
+  const canPropose = false;
 
   let myProjects: Array<{ id: string; title: string; visibility: "public" | "private"; status: string; allow_team_apply: boolean }> = [];
   if (canPropose) {
@@ -129,15 +127,16 @@ export default async function PublicTeamPage({
     profile_id: string | null;
     profiles?: { display_name: string | null; avatar_url: string | null } | null;
   } | null;
-  const members = (memberRows ?? []).map((r) => {
-    const d = (r as unknown as { dancers?: PublicDancerJoin }).dancers ?? null;
+  type MemberRowLite = { id: string; display_name: string | null; dancers?: PublicDancerJoin };
+  const members = ((memberRows ?? []) as unknown as MemberRowLite[]).map((r) => {
+    const d = r.dancers ?? null;
     return {
-      id: r.id as string,
+      id: r.id,
       profile_id: d?.profile_id ?? null,
       label:
         d?.profiles?.display_name ??
         d?.stage_name ??
-        (r.display_name as string | null) ??
+        r.display_name ??
         "(이름 없음)",
       avatar_url: d?.profiles?.avatar_url ?? d?.profile_img ?? null,
     };
