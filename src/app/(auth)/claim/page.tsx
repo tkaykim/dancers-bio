@@ -63,6 +63,8 @@ export default async function ClaimPage({
       {dancerPreview ? (
         <Link
           href={`/d/${dancerPreview.slug}`}
+          target="_blank"
+          rel="noopener"
           className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition hover:border-primary/40"
         >
           {dancerPreview.profile_img ? (
