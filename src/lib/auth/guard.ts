@@ -1,7 +1,9 @@
 import "server-only";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { safeReturnTo } from "@/lib/safeRedirect";
 
 export async function getUser() {
   const supabase = await createClient();
@@ -11,9 +13,23 @@ export async function getUser() {
   return user;
 }
 
+async function loginRedirectTarget(): Promise<string> {
+  try {
+    const h = await headers();
+    const raw = h.get("x-pathname");
+    const next = safeReturnTo(raw, "");
+    if (!next || next.startsWith("/login") || next.startsWith("/signup")) {
+      return "/login";
+    }
+    return `/login?next=${encodeURIComponent(next)}`;
+  } catch {
+    return "/login";
+  }
+}
+
 export async function requireUser() {
   const user = await getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect(await loginRedirectTarget());
   return user;
 }
 
@@ -40,7 +56,7 @@ export async function getProfile() {
 
 export async function requireProfile() {
   const profile = await getProfile();
-  if (!profile) redirect("/login");
+  if (!profile) redirect(await loginRedirectTarget());
   return profile;
 }
 

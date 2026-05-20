@@ -2,6 +2,10 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  // Expose the current pathname (incl. query) so server components / guards
+  // can build a ?next=<original-url> redirect target for login.
+  const fullPath = request.nextUrl.pathname + request.nextUrl.search;
+  request.headers.set("x-pathname", fullPath);
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function LoginForm() {
+export function LoginForm({ nextPath }: { nextPath?: string } = {}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -23,7 +23,7 @@ export function LoginForm() {
             setError(result.error);
             return;
           }
-          router.push("/me");
+          router.push(nextPath ?? "/me");
           router.refresh();
         });
       }}
@@ -68,7 +68,10 @@ export function LoginForm() {
       </p>
       <p className="text-center text-sm text-muted-foreground">
         아직 계정이 없으신가요?{" "}
-        <Link href="/signup" className="font-medium text-foreground underline">
+        <Link
+          href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"}
+          className="font-medium text-foreground underline"
+        >
           회원가입
         </Link>
       </p>
