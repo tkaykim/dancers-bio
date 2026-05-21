@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cue-lite-v1';
+const CACHE_NAME = 'dancersbio-v1';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -55,7 +55,7 @@ self.addEventListener('push', (event) => {
   } catch (_e) {
     data = { body: event.data ? event.data.text() : '' };
   }
-  const title = data.title || 'Cue';
+  const title = data.title || 'dancers.bio';
   const options = {
     body: data.body || '',
     icon: data.icon || '/icon-192.png',

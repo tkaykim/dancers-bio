@@ -95,7 +95,7 @@ export default async function AdminVerificationsPage() {
           Instagram verifications
         </h1>
         <p className="text-sm text-ink-2">
-          @cuekr_official DM에서 받은 코드와 매칭되는 요청을 찾아 승인/반려합니다.
+          @dancers.bio DM에서 받은 코드와 매칭되는 요청을 찾아 승인/반려합니다.
         </p>
       </header>
 

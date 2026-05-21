@@ -54,7 +54,7 @@
 }
 
 /* ─────────────────────────────────────────
-   Cue · Dark mode — modern, Toss-like
+   dancers.bio · Dark mode — modern, Toss-like
    ───────────────────────────────────────── */
 :root {
   --background: #0E0E0C;
@@ -174,7 +174,7 @@
   .mb-safe { margin-bottom: max(env(safe-area-inset-bottom), 0px); }
 }
 
-@keyframes cue-pulse {
+@keyframes db-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
