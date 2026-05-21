@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactElement } from "react";
+import { Bug, ChevronRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { submitBugReportAction } from "@/app/actions/bug-report";
-import { Bug } from "lucide-react";
 
 const SEVERITIES: { value: "low" | "normal" | "high" | "critical"; label: string }[] = [
   { value: "low", label: "낮음" },
@@ -21,7 +21,12 @@ const SEVERITIES: { value: "low" | "normal" | "high" | "critical"; label: string
   { value: "critical", label: "치명" },
 ];
 
-export function BugReportFab() {
+/**
+ * 버그/고장 신고 다이얼로그. trigger 는 children 으로 주입.
+ * /me 페이지의 settings row 가 메인 진입점이며, 필요하면 다른 위치에서도
+ * 동일 다이얼로그를 띄울 수 있다.
+ */
+export function BugReportDialog({ trigger }: { trigger: ReactElement }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -48,12 +53,7 @@ export function BugReportFab() {
         if (!o) setTimeout(reset, 200);
       }}
     >
-      <DialogTrigger
-        aria-label="버그 신고"
-        className="fixed bottom-[88px] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-foreground text-background shadow-lg ring-1 ring-foreground/10 transition hover:opacity-90 active:scale-95"
-      >
-        <Bug className="h-5 w-5" strokeWidth={2.25} />
-      </DialogTrigger>
+      <DialogTrigger render={trigger} />
 
       <DialogContent className="max-w-md">
         {sent ? (
@@ -73,7 +73,7 @@ export function BugReportFab() {
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>버그 신고</DialogTitle>
+              <DialogTitle>버그 / 고장 신고</DialogTitle>
               <p className="text-xs text-ink-3">
                 무엇이 잘못되었는지 알려주시면 빠르게 고치겠습니다.
               </p>
@@ -181,5 +181,36 @@ export function BugReportFab() {
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * /me 페이지의 settings list 안에서 그대로 끼워 넣을 수 있는 row-style trigger.
+ */
+export function BugReportRow() {
+  return (
+    <li className="border-b border-border last:border-b-0">
+      <BugReportDialog
+        trigger={
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition-colors active:bg-secondary"
+          >
+            <div className="flex items-center gap-3">
+              <Bug size={18} className="text-ink-2" aria-hidden />
+              <div className="flex flex-col gap-0.5">
+                <span className="text-base font-semibold text-foreground">
+                  버그 / 고장 신고
+                </span>
+                <span className="text-xs text-ink-3">
+                  동작이 이상한 부분을 알려주세요
+                </span>
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-ink-3" aria-hidden />
+          </button>
+        }
+      />
+    </li>
   );
 }
