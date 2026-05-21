@@ -1,7 +1,7 @@
 {
-  "name": "Cue — Dancers Bio",
-  "short_name": "Cue",
-  "description": "댄서 구인구직 + 포트폴리오 플랫폼",
+  "name": "dancers.bio — 댄서 캐스팅 플랫폼",
+  "short_name": "dancers.bio",
+  "description": "댄서들을 위한 캐스팅 플랫폼. 포트폴리오 관리 + 프로젝트 지원.",
   "start_url": "/feed",
   "display": "standalone",
   "background_color": "#0E0E0C",

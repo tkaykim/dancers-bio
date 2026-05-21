@@ -123,7 +123,7 @@ export function InstagramVerifyForm({
           <Input
             id="instagram_handle"
             name="instagram_handle"
-            placeholder="cuekr (@ 빼고)"
+            placeholder="your_handle (@ 빼고)"
             required
             maxLength={30}
             pattern="[a-zA-Z0-9._]{1,30}"
