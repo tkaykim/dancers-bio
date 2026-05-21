@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileCard } from "@/components/profile/ProfileCard";
 import { PushPrompt } from "@/components/layout/PushPrompt";
+import { BugReportRow } from "@/components/feedback/BugReport";
 
 // Lite: 팀·받은 제안·creator 권한 신청 CTA 모두 제거. 관리자만 프로젝트 개설.
 export default async function MePage() {
@@ -59,6 +60,7 @@ export default async function MePage() {
               desc="인증 큐 · 사용자 권한"
             />
           ) : null}
+          <BugReportRow />
         </ul>
       </section>
 
