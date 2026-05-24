@@ -2,21 +2,7 @@ import Link from "next/link";
 import { requireUser, getProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import {
-  ProjectCard,
-  FeaturedCard,
-} from "@/components/project/ProjectCard";
-
-function pickFeatured<T extends { application_deadline: string | null }>(
-  list: T[],
-): T | undefined {
-  const cutoff = Date.now() + 7 * 24 * 60 * 60 * 1000;
-  return list.find(
-    (p) =>
-      p.application_deadline &&
-      new Date(p.application_deadline).getTime() < cutoff,
-  );
-}
+import { ProjectListView } from "@/components/project/ProjectListView";
 
 type Row = {
   id: string;
@@ -53,7 +39,7 @@ export default async function FeedPage() {
     .is("deleted_at", null)
     .order("application_deadline", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(200);
 
   const projects = (rawProjects ?? []) as unknown as Row[];
 
@@ -83,9 +69,6 @@ export default async function FeedPage() {
     id: p.id,
     short_code: p.short_code,
     title: p.title,
-    description: p.description,
-    visibility: p.visibility,
-    status: p.status,
     pay_amount: p.pay_amount,
     pay_type: p.pay_type,
     application_deadline: p.application_deadline,
@@ -96,13 +79,10 @@ export default async function FeedPage() {
     session_count: sessionMap.get(p.id) ?? 0,
   }));
 
-  const featured = pickFeatured(enriched);
-  const regular = enriched.filter((p) => p.id !== featured?.id);
-
   const canCreate = profile?.can_create_project || profile?.is_admin;
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
+    <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8">
       <header className="flex items-end justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight leading-none tracking-tight">
@@ -151,12 +131,7 @@ export default async function FeedPage() {
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          {featured ? <FeaturedCard project={featured} /> : null}
-          {regular.map((p) => (
-            <ProjectCard key={p.id} project={p} />
-          ))}
-        </div>
+        <ProjectListView projects={enriched} />
       )}
     </div>
   );
