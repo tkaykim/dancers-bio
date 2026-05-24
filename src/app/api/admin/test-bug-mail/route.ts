@@ -2,17 +2,21 @@ import "server-only";
 import { NextResponse, type NextRequest } from "next/server";
 import { getProfile } from "@/lib/auth/guard";
 import { sendBugReportEmail } from "@/lib/notify/bug-mail";
+import { sendGmailEmail } from "@/lib/gmail";
 
 /**
  * SMTP 점검 엔드포인트.
  *
- * 두 가지 인증 경로:
- *  1) admin 쿠키 세션 (profile.is_admin === true)
- *  2) ?token=<SMTP_DIAG_TOKEN env 와 일치> — Vercel env 에 SMTP_DIAG_TOKEN 이
- *     세팅돼 있을 때만 활성. 진단 끝나면 env 제거하면 자동 비활성.
+ * 두 가지 인증:
+ *  1) admin 쿠키 세션
+ *  2) ?token=<SMTP_DIAG_TOKEN env 일치> — env 없으면 우회 비활성
  *
- * 응답: { ok, error, env: { ...keys, length } } — 값은 절대 노출 안 함.
- * DB 행 만들지 않음 (노이즈 방지).
+ * 옵션:
+ *  - ?to=<email> 지정 시 BUG_REPORT_TO 대신 그 주소로 송신 (admin/token 필요)
+ *  - 기본은 sendBugReportEmail 경로 (BUG_REPORT_TO)
+ *
+ * 응답: { ok, error, env, caller, sentTo? }
+ * DB 행 만들지 않음.
  */
 function envDiag() {
   const user = process.env.GMAIL_USER ?? "";
@@ -28,19 +32,15 @@ function envDiag() {
 }
 
 async function authorized(req: NextRequest): Promise<{ caller: string } | null> {
-  // 1) token 우회
   const token = new URL(req.url).searchParams.get("token");
   const expected = process.env.SMTP_DIAG_TOKEN;
-  if (token && expected && token === expected) {
-    return { caller: "diag-token" };
-  }
-  // 2) admin 쿠키
+  if (token && expected && token === expected) return { caller: "diag-token" };
   const profile = await getProfile();
-  if (profile?.is_admin) {
-    return { caller: `admin:${profile.display_name ?? "?"}` };
-  }
+  if (profile?.is_admin) return { caller: `admin:${profile.display_name ?? "?"}` };
   return null;
 }
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function handle(req: NextRequest) {
   const auth = await authorized(req);
@@ -48,9 +48,53 @@ async function handle(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
+  const url = new URL(req.url);
+  const toOverride = url.searchParams.get("to");
   const env = envDiag();
-
   const now = new Date();
+
+  if (toOverride) {
+    if (!EMAIL_RE.test(toOverride)) {
+      return NextResponse.json(
+        { ok: false, error: "invalid to-email", env, caller: auth.caller },
+        { status: 400 },
+      );
+    }
+    // 임의 주소로 직접 전송. sendBugReportEmail 의 BUG_REPORT_TO 우회.
+    const result = await sendGmailEmail({
+      to: toOverride,
+      subject: "[dancers.bio SMTP 점검] 테스트 메일",
+      text: [
+        "이 메일은 dancers.bio 의 SMTP 점검용 테스트 메시지입니다.",
+        "수신 확인되면 GMAIL_USER / GMAIL_APP_PASSWORD 가 정상 동작.",
+        `호출자: ${auth.caller}`,
+        `발송 시각: ${now.toISOString()}`,
+      ].join("\n"),
+      html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Pretendard',sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#fff;color:#222;">
+        <h1 style="margin:0 0 12px;font-size:18px;color:#18181b;">📬 dancers.bio SMTP 점검</h1>
+        <p style="font-size:14px;line-height:1.7;color:#3f3f46;">
+          이 메일은 dancers.bio 의 Gmail SMTP 가 정상 동작하는지 확인하기 위한 테스트 메시지입니다.<br/>
+          수신 확인되면 <code>GMAIL_USER</code> / <code>GMAIL_APP_PASSWORD</code> 가 모두 정상.
+        </p>
+        <div style="margin-top:16px;padding:12px 16px;background:#fafafa;border-left:4px solid #18181b;border-radius:0 8px 8px 0;font-size:13px;color:#3f3f46;">
+          호출자: <b>${auth.caller}</b><br/>
+          발송 시각: ${now.toISOString()}
+        </div>
+        <p style="margin-top:24px;font-size:11px;color:#a1a1aa;text-align:center;">
+          dancers.bio SMTP 점검 시스템
+        </p>
+      </div>`,
+    });
+    return NextResponse.json({
+      ok: result.ok,
+      error: result.error ?? null,
+      env,
+      caller: auth.caller,
+      sentTo: toOverride,
+    });
+  }
+
+  // 기본 경로: BUG_REPORT_TO 로 sendBugReportEmail
   const result = await sendBugReportEmail({
     id: `test-${now.toISOString()}`,
     title: "[SMTP 점검] dancers.bio Gmail 전송 테스트",
