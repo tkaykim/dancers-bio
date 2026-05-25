@@ -33,7 +33,7 @@ export default async function ProjectEditPage({
   const baseQuery = supabase
     .from("projects")
     .select(
-      `id, short_code, title, description, visibility, status, genre_id,
+      `id, short_code, title, description, visibility, status, category, genre_id,
        region_text, pay_amount, pay_type, recruitment_count,
        application_deadline, posted_by_label`,
     )
@@ -64,6 +64,7 @@ export default async function ProjectEditPage({
     description: project.description as string,
     visibility: project.visibility as "public" | "private",
     status: project.status as ProjectEditInitial["status"],
+    category: (project.category as ProjectEditInitial["category"]) ?? null,
     genre_id: (project.genre_id as string | null) ?? null,
     region_text: (project.region_text as string | null) ?? null,
     pay_amount: (project.pay_amount as number | null) ?? null,

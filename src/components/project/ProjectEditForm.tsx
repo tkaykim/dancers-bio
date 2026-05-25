@@ -9,6 +9,9 @@ import { Label } from "@/components/ui/label";
 import {
   SESSION_TYPE_LABELS,
   STATUS_LABELS,
+  PROJECT_CATEGORY_LABELS,
+  PROJECT_CATEGORY_ORDER,
+  type ProjectCategory,
 } from "@/lib/validation/projects";
 
 type Lookup = { id: string; label_ko: string }[];
@@ -27,6 +30,7 @@ export type ProjectEditInitial = {
   description: string;
   visibility: "public" | "private";
   status: keyof typeof STATUS_LABELS;
+  category: ProjectCategory | null;
   genre_id: string | null;
   region_text: string | null;
   pay_amount: number | null;
@@ -81,6 +85,9 @@ export function ProjectEditForm({
   const [payDisplay, setPayDisplay] = useState<string>(
     initial.pay_amount !== null ? initial.pay_amount.toLocaleString("ko-KR") : "",
   );
+  const [category, setCategory] = useState<ProjectCategory | "">(
+    initial.category ?? "",
+  );
 
   function onPayChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/[^\d]/g, "");
@@ -113,6 +120,7 @@ export function ProjectEditForm({
         setError(null);
         const payRaw = (formData.get("pay_amount") ?? "").toString();
         formData.set("pay_amount", payRaw.replace(/[^\d]/g, ""));
+        formData.set("category", category);
         formData.set("sessions_count", String(sessions.length));
         sessions.forEach((s, i) => {
           formData.set(`sessions[${i}][type]`, s.type);
@@ -151,6 +159,31 @@ export function ProjectEditForm({
           defaultValue={initial.description}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
         />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>프로젝트 종류</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {PROJECT_CATEGORY_ORDER.map((c) => {
+            const active = category === c;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCategory(active ? "" : c)}
+                aria-pressed={active}
+                className={
+                  active
+                    ? "rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
+                    : "rounded-full border border-border bg-background px-3 py-1 text-xs text-ink-2 hover:border-foreground/40 hover:text-foreground"
+                }
+              >
+                {PROJECT_CATEGORY_LABELS[c]}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-muted-foreground">하나만 선택 (다시 누르면 해제)</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
