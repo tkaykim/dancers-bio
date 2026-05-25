@@ -101,29 +101,6 @@ export default async function FeedPage() {
         ) : null}
       </header>
 
-      {canCreate ? (
-        <Link
-          href="/projects/new"
-          className="flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-4 transition-colors hover:bg-primary/15 active:bg-primary/20"
-        >
-          <div className="flex items-center gap-3">
-            <span
-              aria-hidden
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-bold leading-none text-primary-foreground"
-            >
-              +
-            </span>
-            <div>
-              <p className="text-sm font-bold text-foreground">새 캐스팅 공고 개설</p>
-              <p className="text-xs text-ink-2">
-                제목·일정·페이만 입력하면 바로 공유 가능한 링크가 생성됩니다.
-              </p>
-            </div>
-          </div>
-          <span aria-hidden className="text-base text-ink-3">→</span>
-        </Link>
-      ) : null}
-
       {enriched.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-hairline-2 p-8 text-center">
           <p className="text-sm text-ink-3">

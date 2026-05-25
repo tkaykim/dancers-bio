@@ -32,8 +32,10 @@ function formatPayShort(p: ListProject): string {
   if (!p.pay_amount) return "협의";
   const amount = p.pay_amount;
   let label: string;
-  if (amount >= 10000000) label = `${(amount / 10000000).toFixed(amount % 10000000 === 0 ? 0 : 1)}천만`;
-  else if (amount >= 10000) label = `${(amount / 10000).toFixed(amount % 10000 === 0 ? 0 : 1)}만`;
+  if (amount >= 10000000)
+    label = `${(amount / 10000000).toFixed(amount % 10000000 === 0 ? 0 : 1)}천만`;
+  else if (amount >= 10000)
+    label = `${(amount / 10000).toFixed(amount % 10000 === 0 ? 0 : 1)}만`;
   else label = amount.toLocaleString("ko-KR");
   return p.pay_type === "per_session" ? `₩${label}/회` : `₩${label}`;
 }
@@ -41,6 +43,15 @@ function formatPayShort(p: ListProject): string {
 function payValue(p: ListProject): number {
   if (!p.pay_amount) return -1;
   return p.pay_type === "per_session" ? p.pay_amount * 4 : p.pay_amount;
+}
+
+function shortRegion(s: string | null): string {
+  if (!s) return "";
+  return s
+    .replace("특별시", "")
+    .replace("광역시", "")
+    .replace("특별자치도", "")
+    .replace("특별자치시", "");
 }
 
 export function ProjectListView({ projects }: { projects: ListProject[] }) {
@@ -79,8 +90,12 @@ export function ProjectListView({ projects }: { projects: ListProject[] }) {
     const sorted = [...list];
     if (sort === "deadline") {
       sorted.sort((a, b) => {
-        const av = a.application_deadline ? new Date(a.application_deadline).getTime() : Infinity;
-        const bv = b.application_deadline ? new Date(b.application_deadline).getTime() : Infinity;
+        const av = a.application_deadline
+          ? new Date(a.application_deadline).getTime()
+          : Infinity;
+        const bv = b.application_deadline
+          ? new Date(b.application_deadline).getTime()
+          : Infinity;
         return av - bv;
       });
     } else if (sort === "latest") {
@@ -96,22 +111,22 @@ export function ProjectListView({ projects }: { projects: ListProject[] }) {
   const hasFilter = !!(query || genre || region) || sort !== "deadline";
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       <div className="flex flex-col gap-2">
         <Input
           type="search"
           placeholder="제목·주최자·지역 검색"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="h-10"
+          className="h-9"
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           <select
             value={genre}
             onChange={(e) => setGenre(e.target.value)}
-            className="h-8 rounded-lg border border-input bg-background px-2 text-xs"
+            className="h-7 rounded-md border border-input bg-background px-1.5 text-[11px]"
           >
-            <option value="">전체 장르</option>
+            <option value="">장르 전체</option>
             {genres.map((g) => (
               <option key={g} value={g}>
                 {g}
@@ -121,22 +136,22 @@ export function ProjectListView({ projects }: { projects: ListProject[] }) {
           <select
             value={region}
             onChange={(e) => setRegion(e.target.value)}
-            className="h-8 rounded-lg border border-input bg-background px-2 text-xs"
+            className="h-7 rounded-md border border-input bg-background px-1.5 text-[11px]"
           >
-            <option value="">전체 지역</option>
+            <option value="">지역 전체</option>
             {regions.map((r) => (
               <option key={r} value={r}>
-                {r}
+                {shortRegion(r)}
               </option>
             ))}
           </select>
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
-            className="h-8 rounded-lg border border-input bg-background px-2 text-xs"
+            className="h-7 rounded-md border border-input bg-background px-1.5 text-[11px]"
           >
-            <option value="deadline">마감 임박순</option>
-            <option value="latest">최신순</option>
+            <option value="deadline">마감 임박</option>
+            <option value="latest">최신</option>
             <option value="pay">페이 높은순</option>
           </select>
           {hasFilter ? (
@@ -148,24 +163,31 @@ export function ProjectListView({ projects }: { projects: ListProject[] }) {
                 setRegion("");
                 setSort("deadline");
               }}
-              className="h-8 rounded-lg px-2 text-xs text-ink-3 hover:text-foreground"
+              className="h-7 rounded-md px-1.5 text-[11px] text-ink-3 hover:text-foreground"
             >
               초기화
             </button>
           ) : null}
+          <span className="ml-auto self-center text-[10px] text-ink-3">
+            {filtered.length}
+            {filtered.length !== projects.length ? ` / ${projects.length}` : ""}건
+          </span>
         </div>
-        <p className="text-[11px] text-ink-3">
-          {filtered.length}건
-          {filtered.length !== projects.length ? ` / 전체 ${projects.length}건` : ""}
-        </p>
+      </div>
+
+      {/* Header row */}
+      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-border px-2 py-1.5 text-[10px] uppercase tracking-wider text-ink-3">
+        <span>공고</span>
+        <span className="w-16 text-right">페이</span>
+        <span className="w-10 text-right">마감</span>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-hairline-2 p-8 text-center">
-          <p className="text-sm text-ink-3">조건에 맞는 공고가 없습니다.</p>
+        <div className="rounded-md border border-dashed border-hairline-2 p-6 text-center">
+          <p className="text-xs text-ink-3">조건에 맞는 공고가 없습니다.</p>
         </div>
       ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+        <ul className="flex flex-col">
           {filtered.map((p) => (
             <ProjectRow key={p.id} project={p} />
           ))}
@@ -180,46 +202,34 @@ function ProjectRow({ project }: { project: ListProject }) {
   const urgent = dDay !== null && dDay <= 3;
 
   return (
-    <li>
+    <li className="border-b border-border/60">
       <Link
         href={`/projects/${project.short_code ?? project.id}`}
-        className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-secondary"
+        className="grid grid-cols-[1fr_auto_auto] items-center gap-2 px-2 py-2 transition-colors hover:bg-secondary"
       >
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            {project.genre_label ? (
-              <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0 text-[10px] font-medium text-primary">
-                {project.genre_label}
-              </span>
-            ) : null}
-            <h3 className="truncate text-sm font-semibold leading-tight">
-              {project.title}
-            </h3>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium leading-tight">
+            {project.title}
           </div>
-          <p className="mt-0.5 truncate text-[11px] text-ink-3">
+          <div className="mt-0.5 truncate text-[10px] text-ink-3">
             {[
+              project.genre_label,
+              shortRegion(project.region_label),
+              project.session_count ? `${project.session_count}회` : null,
               project.owner_name,
-              project.region_label,
-              project.session_count ? `${project.session_count}개 일정` : null,
             ]
               .filter(Boolean)
               .join(" · ") || "—"}
-          </p>
+          </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-0.5">
-          <span className="font-mono text-xs font-medium">
-            {formatPayShort(project)}
-          </span>
-          {dDay !== null ? (
-            <span
-              className={`font-mono text-[10px] ${urgent ? "text-destructive" : "text-ink-3"}`}
-            >
-              {dDay === 0 ? "오늘마감" : `D-${dDay}`}
-            </span>
-          ) : (
-            <span className="font-mono text-[10px] text-ink-3">상시</span>
-          )}
-        </div>
+        <span className="w-16 text-right font-mono text-[11px]">
+          {formatPayShort(project)}
+        </span>
+        <span
+          className={`w-10 text-right font-mono text-[11px] ${urgent ? "text-destructive" : "text-ink-3"}`}
+        >
+          {dDay === null ? "상시" : dDay === 0 ? "오늘" : `D-${dDay}`}
+        </span>
       </Link>
     </li>
   );
