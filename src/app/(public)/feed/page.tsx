@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser, getProfile } from "@/lib/auth/guard";
+import { getProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ProjectListView } from "@/components/project/ProjectListView";
@@ -32,7 +32,7 @@ type Row = {
 };
 
 export default async function FeedPage() {
-  await requireUser();
+  // 비로그인도 피드 열람 가능. 로그인 유도는 공고 상세에서.
   const profile = await getProfile();
   const supabase = await createClient();
 
@@ -116,6 +116,19 @@ export default async function FeedPage() {
               + 개설
             </Button>
           </Link>
+        ) : !profile ? (
+          <div className="flex gap-1.5">
+            <Link href="/login?next=/feed">
+              <Button size="sm" variant="outline" className="rounded-full">
+                로그인
+              </Button>
+            </Link>
+            <Link href="/signup?next=/feed">
+              <Button size="sm" className="rounded-full">
+                가입
+              </Button>
+            </Link>
+          </div>
         ) : null}
       </header>
 
