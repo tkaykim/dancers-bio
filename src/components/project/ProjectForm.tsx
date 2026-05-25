@@ -6,7 +6,12 @@ import { createProjectAction } from "@/app/actions/projects";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SESSION_TYPE_LABELS } from "@/lib/validation/projects";
+import {
+  SESSION_TYPE_LABELS,
+  PROJECT_CATEGORY_LABELS,
+  PROJECT_CATEGORY_ORDER,
+  type ProjectCategory,
+} from "@/lib/validation/projects";
 
 type Lookup = { id: string; label_ko: string }[];
 
@@ -34,6 +39,7 @@ export function ProjectForm({
   const [pending, startTransition] = useTransition();
   const [sessions, setSessions] = useState<SessionRow[]>([{ ...emptySession }]);
   const [payDisplay, setPayDisplay] = useState<string>("");
+  const [category, setCategory] = useState<ProjectCategory | "">("");
 
   function onPayChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/[^\d]/g, "");
@@ -66,6 +72,8 @@ export function ProjectForm({
         // strip thousand separators from pay before submit
         const payRaw = (formData.get("pay_amount") ?? "").toString();
         formData.set("pay_amount", payRaw.replace(/[^\d]/g, ""));
+        // attach category (chip-based state, not a native input)
+        formData.set("category", category);
         // attach sessions
         formData.set("sessions_count", String(sessions.length));
         sessions.forEach((s, i) => {
@@ -93,7 +101,7 @@ export function ProjectForm({
           name="title"
           required
           maxLength={120}
-          placeholder="예: NewJeans Hyein 솔로 무대 백업 4명"
+          placeholder="예: NewJeans Hyein 솔로 무대 댄서 4인 구인"
         />
       </div>
 
@@ -109,6 +117,31 @@ export function ProjectForm({
           placeholder="역할, 컨셉, 의상, 자격 요건 등을 자세히 적어주세요. (10자 이상)"
           className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
         />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>프로젝트 종류</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {PROJECT_CATEGORY_ORDER.map((c) => {
+            const active = category === c;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCategory(active ? "" : c)}
+                aria-pressed={active}
+                className={
+                  active
+                    ? "rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
+                    : "rounded-full border border-border bg-background px-3 py-1 text-xs text-ink-2 hover:border-foreground/40 hover:text-foreground"
+                }
+              >
+                {PROJECT_CATEGORY_LABELS[c]}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-muted-foreground">하나만 선택 (다시 누르면 해제)</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

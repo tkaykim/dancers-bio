@@ -73,7 +73,7 @@ export function ApplyForm({
         name="cover_message"
         rows={3}
         maxLength={500}
-        placeholder="예: 백업 7년차, K-pop 다수 경험 보유. 빠른 캐치 자신 있어요."
+        placeholder="예: 무대 댄서 7년차, K-pop 다수 경험 보유. 빠른 캐치 자신 있어요."
         className="rounded-md border border-input bg-background px-3 py-2 text-sm"
       />
       {message ? (

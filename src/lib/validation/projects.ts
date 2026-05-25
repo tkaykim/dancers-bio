@@ -28,6 +28,30 @@ export const PAY_TYPE_LABELS = {
   negotiable: "협의",
 } as const;
 
+export const PROJECT_CATEGORY_LABELS = {
+  performance: "공연",
+  choreography: "안무제작",
+  instructor: "강사",
+  broadcast: "방송",
+  advertisement: "광고",
+  event: "행사",
+  video: "영상촬영",
+  other: "기타",
+} as const;
+
+export const PROJECT_CATEGORY_ORDER = [
+  "performance",
+  "choreography",
+  "instructor",
+  "broadcast",
+  "advertisement",
+  "event",
+  "video",
+  "other",
+] as const;
+
+export type ProjectCategory = (typeof PROJECT_CATEGORY_ORDER)[number];
+
 export const APPLICATION_STATUS_LABELS = {
   pending: "대기",
   accepted: "수락됨",
@@ -47,6 +71,10 @@ export const projectSchema = z.object({
     .min(10, "10자 이상 설명을 입력해 주세요.")
     .max(2000),
   visibility: z.enum(["public", "private"]).default("public"),
+  category: z
+    .enum(PROJECT_CATEGORY_ORDER)
+    .nullable()
+    .optional(),
   genre_id: z.string().uuid().nullable().optional(),
   region_id: z.string().uuid().nullable().optional(),
   region_text: z.string().trim().max(100).nullable().optional(),
@@ -77,6 +105,10 @@ export const projectUpdateSchema = z.object({
     .min(10, "10자 이상 설명을 입력해 주세요.")
     .max(2000),
   visibility: z.enum(["public", "private"]).default("public"),
+  category: z
+    .enum(PROJECT_CATEGORY_ORDER)
+    .nullable()
+    .optional(),
   genre_id: z.string().uuid().nullable().optional(),
   region_id: z.string().uuid().nullable().optional(),
   region_text: z.string().trim().max(100).nullable().optional(),
