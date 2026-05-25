@@ -4,10 +4,21 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 
+export type ProjectCategory =
+  | "performance"
+  | "choreography"
+  | "instructor"
+  | "broadcast"
+  | "advertisement"
+  | "event"
+  | "video"
+  | "other";
+
 export type ListProject = {
   id: string;
   short_code: string | null;
   title: string;
+  category: ProjectCategory | null;
   pay_amount: number | null;
   pay_type: "per_session" | "total" | "negotiable" | null;
   application_deadline: string | null;
@@ -19,6 +30,28 @@ export type ListProject = {
 };
 
 type SortKey = "deadline" | "latest" | "pay";
+
+const CATEGORY_LABEL: Record<ProjectCategory, string> = {
+  performance: "공연",
+  choreography: "안무제작",
+  instructor: "강사",
+  broadcast: "방송",
+  advertisement: "광고",
+  event: "행사",
+  video: "영상촬영",
+  other: "기타",
+};
+
+const CATEGORY_ORDER: ProjectCategory[] = [
+  "performance",
+  "choreography",
+  "instructor",
+  "broadcast",
+  "advertisement",
+  "event",
+  "video",
+  "other",
+];
 
 function daysUntil(iso: string | null): number | null {
   if (!iso) return null;
@@ -56,9 +89,11 @@ function shortRegion(s: string | null): string {
 
 export function ProjectListView({ projects }: { projects: ListProject[] }) {
   const [query, setQuery] = useState("");
-  const [genre, setGenre] = useState<string>("");
+  const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
+  const [selectedCats, setSelectedCats] = useState<Set<ProjectCategory>>(new Set());
   const [region, setRegion] = useState<string>("");
   const [sort, setSort] = useState<SortKey>("deadline");
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const genres = useMemo(
     () =>
@@ -74,11 +109,22 @@ export function ProjectListView({ projects }: { projects: ListProject[] }) {
       ).sort(),
     [projects],
   );
+  const availableCats = useMemo(() => {
+    const present = new Set<ProjectCategory>();
+    for (const p of projects) if (p.category) present.add(p.category);
+    return CATEGORY_ORDER.filter((c) => present.has(c));
+  }, [projects]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = projects.filter((p) => {
-      if (genre && p.genre_label !== genre) return false;
+      if (
+        selectedGenres.size > 0 &&
+        (!p.genre_label || !selectedGenres.has(p.genre_label))
+      )
+        return false;
+      if (selectedCats.size > 0 && (!p.category || !selectedCats.has(p.category)))
+        return false;
       if (region && p.region_label !== region) return false;
       if (q) {
         const hay = `${p.title} ${p.owner_name ?? ""} ${p.region_label ?? ""} ${p.genre_label ?? ""}`.toLowerCase();
@@ -106,73 +152,151 @@ export function ProjectListView({ projects }: { projects: ListProject[] }) {
       sorted.sort((a, b) => payValue(b) - payValue(a));
     }
     return sorted;
-  }, [projects, query, genre, region, sort]);
+  }, [projects, query, selectedGenres, selectedCats, region, sort]);
 
-  const hasFilter = !!(query || genre || region) || sort !== "deadline";
+  const activeCount =
+    selectedGenres.size +
+    selectedCats.size +
+    (region ? 1 : 0) +
+    (sort !== "deadline" ? 1 : 0);
+  const hasFilter = activeCount > 0;
+
+  function toggleGenre(g: string) {
+    setSelectedGenres((prev) => {
+      const next = new Set(prev);
+      if (next.has(g)) next.delete(g);
+      else next.add(g);
+      return next;
+    });
+  }
+  function toggleCat(c: ProjectCategory) {
+    setSelectedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c);
+      else next.add(c);
+      return next;
+    });
+  }
+  function resetAll() {
+    setQuery("");
+    setSelectedGenres(new Set());
+    setSelectedCats(new Set());
+    setRegion("");
+    setSort("deadline");
+  }
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-col gap-2">
-        <Input
-          type="search"
-          placeholder="제목·주최자·지역 검색"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="h-9"
-        />
-        <div className="flex flex-wrap gap-1.5">
-          <select
-            value={genre}
-            onChange={(e) => setGenre(e.target.value)}
-            className="h-7 rounded-md border border-input bg-background px-1.5 text-[11px]"
-          >
-            <option value="">장르 전체</option>
-            {genres.map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
-          <select
-            value={region}
-            onChange={(e) => setRegion(e.target.value)}
-            className="h-7 rounded-md border border-input bg-background px-1.5 text-[11px]"
-          >
-            <option value="">지역 전체</option>
-            {regions.map((r) => (
-              <option key={r} value={r}>
-                {shortRegion(r)}
-              </option>
-            ))}
-          </select>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortKey)}
-            className="h-7 rounded-md border border-input bg-background px-1.5 text-[11px]"
-          >
-            <option value="deadline">마감 임박</option>
-            <option value="latest">최신</option>
-            <option value="pay">페이 높은순</option>
-          </select>
-          {hasFilter ? (
-            <button
-              type="button"
-              onClick={() => {
-                setQuery("");
-                setGenre("");
-                setRegion("");
-                setSort("deadline");
-              }}
-              className="h-7 rounded-md px-1.5 text-[11px] text-ink-3 hover:text-foreground"
-            >
-              초기화
-            </button>
-          ) : null}
-          <span className="ml-auto self-center text-[10px] text-ink-3">
-            {filtered.length}
-            {filtered.length !== projects.length ? ` / ${projects.length}` : ""}건
+      {/* Search */}
+      <Input
+        type="search"
+        placeholder="제목·주최자·지역 검색"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="h-9"
+      />
+
+      {/* Filter section */}
+      <div className="rounded-lg border border-border bg-card/50">
+        <button
+          type="button"
+          onClick={() => setFilterOpen((v) => !v)}
+          className="flex w-full items-center justify-between px-3 py-2 text-left"
+        >
+          <span className="flex items-center gap-2">
+            <span className="text-xs font-semibold">필터</span>
+            {activeCount > 0 ? (
+              <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground">
+                {activeCount}
+              </span>
+            ) : null}
           </span>
-        </div>
+          <span className="flex items-center gap-2 text-[11px] text-ink-3">
+            {hasFilter ? (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  resetAll();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.stopPropagation();
+                    resetAll();
+                  }
+                }}
+                className="cursor-pointer rounded px-1 text-ink-3 hover:text-foreground"
+              >
+                초기화
+              </span>
+            ) : null}
+            <span aria-hidden>{filterOpen ? "▾" : "▸"}</span>
+          </span>
+        </button>
+
+        {filterOpen ? (
+          <div className="flex flex-col gap-3 border-t border-border px-3 py-3">
+            {availableCats.length > 0 ? (
+              <FilterGroup label="종류">
+                {availableCats.map((c) => (
+                  <Chip
+                    key={c}
+                    active={selectedCats.has(c)}
+                    onClick={() => toggleCat(c)}
+                  >
+                    {CATEGORY_LABEL[c]}
+                  </Chip>
+                ))}
+              </FilterGroup>
+            ) : null}
+
+            {genres.length > 0 ? (
+              <FilterGroup label="장르">
+                {genres.map((g) => (
+                  <Chip
+                    key={g}
+                    active={selectedGenres.has(g)}
+                    onClick={() => toggleGenre(g)}
+                  >
+                    {g}
+                  </Chip>
+                ))}
+              </FilterGroup>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+              >
+                <option value="">지역 전체</option>
+                {regions.map((r) => (
+                  <option key={r} value={r}>
+                    {shortRegion(r)}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortKey)}
+                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+              >
+                <option value="deadline">마감 임박순</option>
+                <option value="latest">최신순</option>
+                <option value="pay">페이 높은순</option>
+              </select>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="flex items-center justify-between px-1 text-[10px] text-ink-3">
+        <span>
+          {filtered.length}
+          {filtered.length !== projects.length ? ` / ${projects.length}` : ""}건
+        </span>
       </div>
 
       {/* Header row */}
@@ -197,6 +321,48 @@ export function ProjectListView({ projects }: { projects: ListProject[] }) {
   );
 }
 
+function FilterGroup({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">
+        {label}
+      </span>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
+    </div>
+  );
+}
+
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={
+        active
+          ? "rounded-full bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground"
+          : "rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-ink-2 hover:border-foreground/40 hover:text-foreground"
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
 function ProjectRow({ project }: { project: ListProject }) {
   const dDay = daysUntil(project.application_deadline);
   const urgent = dDay !== null && dDay <= 3;
@@ -213,6 +379,7 @@ function ProjectRow({ project }: { project: ListProject }) {
           </div>
           <div className="mt-0.5 truncate text-[10px] text-ink-3">
             {[
+              project.category ? CATEGORY_LABEL[project.category] : null,
               project.genre_label,
               shortRegion(project.region_label),
               project.session_count ? `${project.session_count}회` : null,

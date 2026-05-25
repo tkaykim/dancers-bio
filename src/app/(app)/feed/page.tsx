@@ -11,6 +11,16 @@ type Row = {
   description: string;
   visibility: "public" | "private";
   status: string;
+  category:
+    | "performance"
+    | "choreography"
+    | "instructor"
+    | "broadcast"
+    | "advertisement"
+    | "event"
+    | "video"
+    | "other"
+    | null;
   pay_amount: number | null;
   pay_type: "per_session" | "total" | "negotiable" | null;
   application_deadline: string | null;
@@ -29,7 +39,7 @@ export default async function FeedPage() {
   const { data: rawProjects } = await supabase
     .from("projects")
     .select(
-      `id, short_code, title, description, visibility, status, pay_amount, pay_type,
+      `id, short_code, title, description, visibility, status, category, pay_amount, pay_type,
        application_deadline, created_at, owner_id, region_text,
        genre:genres ( label_ko ),
        region:regions ( label_ko )`,
@@ -69,6 +79,7 @@ export default async function FeedPage() {
     id: p.id,
     short_code: p.short_code,
     title: p.title,
+    category: p.category,
     pay_amount: p.pay_amount,
     pay_type: p.pay_type,
     application_deadline: p.application_deadline,
