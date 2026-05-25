@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 export default async function HomePage() {
   const user = await getUser();
   if (user) redirect("/me");
+  // 비로그인도 앱을 둘러볼 수 있도록 캐스팅 피드로 바로 진입.
+  // 회원가입/로그인은 피드 헤더 + 공고 상세의 CTA 로 유도.
+  redirect("/feed");
 
   return (
     <div className="relative mx-auto flex min-h-svh w-full max-w-md flex-col px-6 pb-10 pt-20">
