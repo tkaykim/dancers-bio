@@ -44,7 +44,6 @@ export default async function FeedPage() {
        genre:genres ( label_ko ),
        region:regions ( label_ko )`,
     )
-    .eq("visibility", "public")
     .eq("status", "open")
     .is("deleted_at", null)
     .order("application_deadline", { ascending: true, nullsFirst: false })
@@ -75,20 +74,28 @@ export default async function FeedPage() {
     sessionMap.set(s.project_id, (sessionMap.get(s.project_id) ?? 0) + 1);
   }
 
-  const enriched = projects.map((p) => ({
-    id: p.id,
-    short_code: p.short_code,
-    title: p.title,
-    category: p.category,
-    pay_amount: p.pay_amount,
-    pay_type: p.pay_type,
-    application_deadline: p.application_deadline,
-    created_at: p.created_at,
-    owner_name: ownerMap.get(p.owner_id) ?? null,
-    genre_label: p.genre?.label_ko ?? null,
-    region_label: p.region_text ?? p.region?.label_ko ?? null,
-    session_count: sessionMap.get(p.id) ?? 0,
-  }));
+  const isAdmin = !!profile?.is_admin;
+
+  const enriched = projects.map((p) => {
+    const isPrivate = p.visibility === "private";
+    // 비공개 공고는 admin 외엔 short_code도 노출하지 않음 (DOM 인스펙트로도 못 찾게)
+    const revealDetails = !isPrivate || isAdmin;
+    return {
+      id: p.id,
+      short_code: revealDetails ? p.short_code : null,
+      visibility: p.visibility,
+      title: p.title,
+      category: p.category,
+      pay_amount: p.pay_amount,
+      pay_type: p.pay_type,
+      application_deadline: p.application_deadline,
+      created_at: p.created_at,
+      owner_name: ownerMap.get(p.owner_id) ?? null,
+      genre_label: p.genre?.label_ko ?? null,
+      region_label: p.region_text ?? p.region?.label_ko ?? null,
+      session_count: sessionMap.get(p.id) ?? 0,
+    };
+  });
 
   const canCreate = profile?.can_create_project || profile?.is_admin;
 
@@ -119,7 +126,7 @@ export default async function FeedPage() {
           </p>
         </div>
       ) : (
-        <ProjectListView projects={enriched} />
+        <ProjectListView projects={enriched} isAdmin={isAdmin} />
       )}
     </div>
   );

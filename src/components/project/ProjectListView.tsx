@@ -17,6 +17,7 @@ export type ProjectCategory =
 export type ListProject = {
   id: string;
   short_code: string | null;
+  visibility: "public" | "private";
   title: string;
   category: ProjectCategory | null;
   pay_amount: number | null;
@@ -87,7 +88,13 @@ function shortRegion(s: string | null): string {
     .replace("특별자치시", "");
 }
 
-export function ProjectListView({ projects }: { projects: ListProject[] }) {
+export function ProjectListView({
+  projects,
+  isAdmin = false,
+}: {
+  projects: ListProject[];
+  isAdmin?: boolean;
+}) {
   const [query, setQuery] = useState("");
   const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
   const [selectedCats, setSelectedCats] = useState<Set<ProjectCategory>>(new Set());
@@ -118,16 +125,22 @@ export function ProjectListView({ projects }: { projects: ListProject[] }) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = projects.filter((p) => {
-      if (
-        selectedGenres.size > 0 &&
-        (!p.genre_label || !selectedGenres.has(p.genre_label))
-      )
-        return false;
-      if (selectedCats.size > 0 && (!p.category || !selectedCats.has(p.category)))
-        return false;
-      if (region && p.region_label !== region) return false;
+      // 비공개 공고는 admin이 아니면 카테고리/장르/지역 필터를 우회 (속성 노출 방지)
+      const masked = p.visibility === "private" && !isAdmin;
+      if (!masked) {
+        if (
+          selectedGenres.size > 0 &&
+          (!p.genre_label || !selectedGenres.has(p.genre_label))
+        )
+          return false;
+        if (selectedCats.size > 0 && (!p.category || !selectedCats.has(p.category)))
+          return false;
+        if (region && p.region_label !== region) return false;
+      }
       if (q) {
-        const hay = `${p.title} ${p.owner_name ?? ""} ${p.region_label ?? ""} ${p.genre_label ?? ""}`.toLowerCase();
+        const hay = masked
+          ? "비공개 공고"
+          : `${p.title} ${p.owner_name ?? ""} ${p.region_label ?? ""} ${p.genre_label ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -152,7 +165,7 @@ export function ProjectListView({ projects }: { projects: ListProject[] }) {
       sorted.sort((a, b) => payValue(b) - payValue(a));
     }
     return sorted;
-  }, [projects, query, selectedGenres, selectedCats, region, sort]);
+  }, [projects, query, selectedGenres, selectedCats, region, sort, isAdmin]);
 
   const activeCount =
     selectedGenres.size +
@@ -313,7 +326,7 @@ export function ProjectListView({ projects }: { projects: ListProject[] }) {
       ) : (
         <ul className="flex flex-col">
           {filtered.map((p) => (
-            <ProjectRow key={p.id} project={p} />
+            <ProjectRow key={p.id} project={p} isAdmin={isAdmin} />
           ))}
         </ul>
       )}
@@ -363,41 +376,71 @@ function Chip({
   );
 }
 
-function ProjectRow({ project }: { project: ListProject }) {
+function ProjectRow({
+  project,
+  isAdmin,
+}: {
+  project: ListProject;
+  isAdmin: boolean;
+}) {
   const dDay = daysUntil(project.application_deadline);
   const urgent = dDay !== null && dDay <= 3;
+  const masked = project.visibility === "private" && !isAdmin;
+
+  const rowClass =
+    "grid grid-cols-[1fr_auto_auto] items-center gap-2 px-2 py-2 transition-colors";
+  const linkClass = `${rowClass} hover:bg-secondary`;
+  const plainClass = `${rowClass} cursor-default`;
+
+  const inner = (
+    <>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5">
+          {project.visibility === "private" ? (
+            <span className="shrink-0 rounded-full border border-border bg-secondary px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider text-ink-3">
+              비공개
+            </span>
+          ) : null}
+          <div className="truncate text-sm font-medium leading-tight">
+            {masked ? "비공개 공고" : project.title}
+          </div>
+        </div>
+        <div className="mt-0.5 truncate text-[10px] text-ink-3">
+          {masked
+            ? "링크를 받은 사람만 열람 가능"
+            : [
+                project.category ? CATEGORY_LABEL[project.category] : null,
+                project.genre_label,
+                shortRegion(project.region_label),
+                project.session_count ? `${project.session_count}회` : null,
+                project.owner_name,
+              ]
+                .filter(Boolean)
+                .join(" · ") || "—"}
+        </div>
+      </div>
+      <span className="w-16 text-right font-mono text-[11px]">
+        {masked ? "—" : formatPayShort(project)}
+      </span>
+      <span
+        className={`w-10 text-right font-mono text-[11px] ${urgent ? "text-destructive" : "text-ink-3"}`}
+      >
+        {dDay === null ? "상시" : dDay === 0 ? "오늘" : `D-${dDay}`}
+      </span>
+    </>
+  );
 
   return (
     <li className="border-b border-border/60">
-      <Link
-        href={`/projects/${project.short_code ?? project.id}`}
-        className="grid grid-cols-[1fr_auto_auto] items-center gap-2 px-2 py-2 transition-colors hover:bg-secondary"
-      >
-        <div className="min-w-0">
-          <div className="truncate text-sm font-medium leading-tight">
-            {project.title}
-          </div>
-          <div className="mt-0.5 truncate text-[10px] text-ink-3">
-            {[
-              project.category ? CATEGORY_LABEL[project.category] : null,
-              project.genre_label,
-              shortRegion(project.region_label),
-              project.session_count ? `${project.session_count}회` : null,
-              project.owner_name,
-            ]
-              .filter(Boolean)
-              .join(" · ") || "—"}
-          </div>
+      {masked || !project.short_code ? (
+        <div className={plainClass} aria-disabled="true">
+          {inner}
         </div>
-        <span className="w-16 text-right font-mono text-[11px]">
-          {formatPayShort(project)}
-        </span>
-        <span
-          className={`w-10 text-right font-mono text-[11px] ${urgent ? "text-destructive" : "text-ink-3"}`}
-        >
-          {dDay === null ? "상시" : dDay === 0 ? "오늘" : `D-${dDay}`}
-        </span>
-      </Link>
+      ) : (
+        <Link href={`/projects/${project.short_code}`} className={linkClass}>
+          {inner}
+        </Link>
+      )}
     </li>
   );
 }
