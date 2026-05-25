@@ -85,7 +85,7 @@ export const CAREER_CATEGORY_LABELS: Record<CareerCategory, string> = {
 export const CAREER_CATEGORY_ROLES: Record<CareerCategory, string[]> = {
   choreo: ["제작", "공동제작", "참여"],
   performance: ["댄서", "게스트", "디렉터"],
-  broadcast: ["출연", "안무", "백업댄서"],
+  broadcast: ["출연", "안무", "퍼포머"],
   award: ["우승", "준우승", "베스트상", "참가"],
   judge: [],
   workshop: [],
