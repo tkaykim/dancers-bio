@@ -136,9 +136,13 @@ export default async function PublicDancerPage({
     ? new Date().getFullYear() - Math.min(...list.map((c) => Number(c.date.slice(0, 4))))
     : 0;
 
-  // Group careers by type for the credits section
+  // Split highlights (representative) vs. rest
+  const highlights = list.filter((c) => c.is_representative);
+  const rest = list.filter((c) => !c.is_representative);
+
+  // Group non-highlight careers by type for the credits section
   const grouped = new Map<string, Career[]>();
-  for (const c of list) {
+  for (const c of rest) {
     const arr = grouped.get(c.type) ?? [];
     arr.push(c);
     grouped.set(c.type, arr);
@@ -345,17 +349,29 @@ export default async function PublicDancerPage({
         </section>
       ) : null}
 
-      {/* Credits — grouped by type */}
+      {/* Highlight — representative careers with thumbnails */}
+      {highlights.length > 0 ? (
+        <section className="px-6 pt-8">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">
+            ↳ Highlight
+          </h2>
+          <CareerGroup label="대표 경력" items={highlights} variant="card" />
+        </section>
+      ) : null}
+
+      {/* Credits — grouped by type, compact row layout */}
       <section className="px-6 pb-16 pt-8">
         <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">
           ↳ Credits
         </h2>
         {orderedTypes.length === 0 ? (
           <p className="mt-6 rounded-xl border border-dashed border-hairline-2 p-6 text-center text-sm text-ink-3">
-            아직 공개된 경력이 없습니다.
+            {highlights.length > 0
+              ? "대표 경력 외 추가된 경력이 없습니다."
+              : "아직 공개된 경력이 없습니다."}
           </p>
         ) : (
-          <div className="mt-4 flex flex-col gap-8">
+          <div className="mt-4 flex flex-col gap-6">
             {orderedTypes.map((type) => (
               <CareerGroup
                 key={type}
@@ -365,6 +381,7 @@ export default async function PublicDancerPage({
                   ] ?? type
                 }
                 items={grouped.get(type) ?? []}
+                variant="row"
               />
             ))}
           </div>
