@@ -30,15 +30,17 @@ const COLLAPSE_THRESHOLD = 4;
 export function CareerGroup({
   label,
   items,
+  variant = "card",
 }: {
   label: string;
   items: Career[];
+  variant?: "card" | "row";
 }) {
   const [expanded, setExpanded] = useState(false);
   const [selected, setSelected] = useState<Career | null>(null);
-  const overflow = items.length > COLLAPSE_THRESHOLD;
-  const visible =
-    expanded || !overflow ? items : items.slice(0, COLLAPSE_THRESHOLD);
+  const threshold = variant === "row" ? 6 : COLLAPSE_THRESHOLD;
+  const overflow = items.length > threshold;
+  const visible = expanded || !overflow ? items : items.slice(0, threshold);
 
   return (
     <div>
@@ -48,45 +50,92 @@ export function CareerGroup({
           {items.length}
         </span>
       </h3>
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {visible.map((c) => {
-          const video = parseVideoUrl(c.details?.link);
-          return (
-            <li key={c.id}>
-              <button
-                type="button"
-                onClick={() => setSelected(c)}
-                className="group flex w-full flex-col gap-2 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:bg-secondary"
-              >
-                {video ? (
-                  <VideoThumbnail url={video.url} alt={c.title} />
-                ) : null}
-                <div className="flex items-center gap-2 font-mono text-[11px] text-ink-3">
-                  <span>{c.date}</span>
-                  {c.is_representative ? (
-                    <span className="text-primary">★ 대표</span>
+
+      {variant === "row" ? (
+        <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+          {visible.map((c) => {
+            const video = parseVideoUrl(c.details?.link);
+            const year = c.date?.slice(0, 4) ?? "";
+            return (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelected(c)}
+                  className="group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary"
+                >
+                  <span className="shrink-0 rounded-md bg-primary/15 px-2 py-0.5 font-mono text-[11px] font-semibold text-primary">
+                    {year}
+                  </span>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-sm font-semibold leading-snug">
+                      {c.title}
+                    </span>
+                    {c.details?.role ? (
+                      <span className="truncate text-xs text-ink-3">
+                        {c.details.role}
+                      </span>
+                    ) : null}
+                  </div>
+                  {video ? (
+                    <span
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-hairline-2 text-ink-3 transition-colors group-hover:border-primary group-hover:text-primary"
+                      aria-hidden
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </span>
                   ) : null}
-                </div>
-                <div className="text-sm font-medium leading-snug">
-                  {c.title}
-                </div>
-                {c.details?.role ? (
-                  <div className="text-xs text-ink-3">{c.details.role}</div>
-                ) : null}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {visible.map((c) => {
+            const video = parseVideoUrl(c.details?.link);
+            return (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelected(c)}
+                  className="group flex w-full flex-col gap-2 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:bg-secondary"
+                >
+                  {video ? (
+                    <VideoThumbnail url={video.url} alt={c.title} />
+                  ) : null}
+                  <div className="flex items-center gap-2 font-mono text-[11px] text-ink-3">
+                    <span>{c.date}</span>
+                    {c.is_representative ? (
+                      <span className="text-primary">★ 대표</span>
+                    ) : null}
+                  </div>
+                  <div className="text-sm font-medium leading-snug">
+                    {c.title}
+                  </div>
+                  {c.details?.role ? (
+                    <div className="text-xs text-ink-3">{c.details.role}</div>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
       {overflow ? (
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
           className="mt-3 inline-flex items-center gap-1 rounded-full border border-hairline-2 bg-card px-4 py-1.5 text-xs font-medium text-ink-2 transition-colors hover:bg-secondary"
         >
-          {expanded
-            ? "접기"
-            : `+ ${items.length - COLLAPSE_THRESHOLD}개 더 보기`}
+          {expanded ? "접기" : `+ ${items.length - threshold}개 더 보기`}
         </button>
       ) : null}
 
