@@ -151,7 +151,6 @@ export default async function ProjectDetailPage({
   const [
     { data: sessionsData },
     { data: ownerProfile },
-    { count: acceptedCount },
   ] = await Promise.all([
     supabase
       .from("project_sessions")
@@ -160,12 +159,6 @@ export default async function ProjectDetailPage({
       .order("sort_order")
       .order("starts_at"),
     supabase.from("profiles").select("display_name, id").eq("id", p.owner_id).single(),
-    supabase
-      .from("applications")
-      .select("id", { count: "exact", head: true })
-      .eq("project_id", id)
-      .eq("status", "accepted")
-      .is("archived_at", null),
   ]);
 
   // 익명 방문자는 본인 관련 쿼리 스킵.
@@ -212,7 +205,6 @@ export default async function ProjectDetailPage({
   const mineMostRecent = allMine[0] ?? null;
 
   const dDay = daysUntil(p.application_deadline);
-  const acceptedNow = acceptedCount ?? 0;
   const postedBy = p.posted_by_label ?? ownerProfile?.display_name ?? null;
 
   return (
@@ -259,7 +251,7 @@ export default async function ProjectDetailPage({
         <div className="flex flex-col gap-1 p-4">
           <p className="text-[10px] uppercase tracking-[0.16em] text-ink-3">모집</p>
           <p className="font-mono text-base font-semibold">
-            {acceptedNow} / {p.recruitment_count}
+            {p.recruitment_count}명
           </p>
         </div>
         <div className="flex flex-col gap-1 p-4">
