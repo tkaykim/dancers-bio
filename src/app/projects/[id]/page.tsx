@@ -5,7 +5,6 @@ import { getUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ApplyForm } from "@/components/project/ApplyForm";
-import { AgreedPayEditor } from "@/components/project/AgreedPayEditor";
 import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 import {
@@ -195,7 +194,6 @@ export default async function ProjectDetailPage({
   const sessions = (sessionsData ?? []) as SessionRow[];
   const isAdmin = !!viewerProfile?.is_admin;
   const isOwner = !!user && p.owner_id === user.id;
-  const canEditAgreedPay = isOwner || isAdmin;
   const hasDancer = ownDancers.length > 0;
 
   // Lite: 활성 지원만 "이미 지원 중"으로 간주. withdrawn / rejected 는 새 지원 가능.
@@ -262,21 +260,7 @@ export default async function ProjectDetailPage({
         </div>
       </section>
 
-      {canEditAgreedPay ? (
-        <section className="flex flex-col gap-2">
-          <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-            ↳ 협의 확정 비용
-          </p>
-          <AgreedPayEditor projectId={p.id} initialAgreedPay={p.agreed_pay} />
-        </section>
-      ) : p.agreed_pay !== null ? (
-        <section className="rounded-xl border border-border bg-card p-4">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-ink-3">확정 비용</p>
-          <p className="font-mono text-base font-semibold">
-            ₩ {p.agreed_pay.toLocaleString("ko-KR")}
-          </p>
-        </section>
-      ) : null}
+      {/* 협의 확정 비용 — 의미 없어 일단 숨김 (추후 복구 가능) */}
 
       <section className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 상세 설명</p>
