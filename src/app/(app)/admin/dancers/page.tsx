@@ -28,20 +28,36 @@ type ProfileLite = {
   display_name: string;
 };
 
-export default async function AdminDancersPage() {
+export default async function AdminDancersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const profile = await requireProfile();
   if (!profile.is_admin) notFound();
 
+  const { q: rawQ } = await searchParams;
+  // ilike/or 필터에 안전하지 않은 문자 제거
+  const q = (rawQ ?? "").replace(/[%,()*]/g, "").trim();
+
   const supabase = await createClient();
-  const { data: rows } = await supabase
+  let query = supabase
     .from("dancers")
     .select(
       "id, profile_id, stage_name, korean_name, slug, profile_img, location, approval_status, approval_reject_reason, display_order, approved_at, approved_by, created_at",
-    )
+    );
+
+  if (q) {
+    query = query.or(
+      `stage_name.ilike.%${q}%,korean_name.ilike.%${q}%,slug.ilike.%${q}%`,
+    );
+  }
+
+  const { data: rows } = await query
     .order("approval_status", { ascending: true })
     .order("display_order", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
-    .limit(200);
+    .limit(500);
 
   const list = (rows ?? []) as DancerRow[];
   const profileIds = Array.from(
@@ -64,42 +80,46 @@ export default async function AdminDancersPage() {
     <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-          ↳ 관리자 / 댄서 승인
+          ↳ 관리자 / 댄서 관리
         </p>
         <h1 className="text-2xl font-bold tracking-tight leading-tight">
           Dancer profiles
         </h1>
         <p className="text-sm text-ink-2">
-          신규 등록된 프로필을 검토하고, 공개 디렉토리의 노출 순서를 조정합니다.
+          프로필을 검색·검토하고, 사진·경력을 편집하거나 노출 순서를 조정합니다.
         </p>
       </header>
 
-      <Section title={`대기 중 (${pending.length})`} empty="대기 중인 프로필이 없습니다.">
-        {pending.map((r) => (
-          <DancerCard
-            key={r.id}
-            row={r}
-            owner={r.profile_id ? profileMap.get(r.profile_id) : undefined}
-          />
-        ))}
-      </Section>
+      <form method="get" className="flex items-center gap-2">
+        <input
+          type="search"
+          name="q"
+          defaultValue={q}
+          placeholder="활동명 / 한글 이름 / slug 검색"
+          className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+        />
+        <button
+          type="submit"
+          className="h-10 shrink-0 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          검색
+        </button>
+        {q ? (
+          <Link
+            href="/admin/dancers"
+            className="h-10 shrink-0 rounded-md border border-hairline-2 px-3 text-sm leading-10 text-ink-2 hover:text-foreground"
+          >
+            초기화
+          </Link>
+        ) : null}
+      </form>
 
-      <Section
-        title={`승인됨 (${approved.length})`}
-        empty="승인된 프로필이 없습니다."
-      >
-        {approved.map((r) => (
-          <DancerCard
-            key={r.id}
-            row={r}
-            owner={r.profile_id ? profileMap.get(r.profile_id) : undefined}
-          />
-        ))}
-      </Section>
-
-      {rejected.length > 0 ? (
-        <Section title={`거부됨 (${rejected.length})`} empty="">
-          {rejected.map((r) => (
+      {q ? (
+        <Section
+          title={`검색 결과 (${list.length})`}
+          empty="일치하는 프로필이 없습니다."
+        >
+          {list.map((r) => (
             <DancerCard
               key={r.id}
               row={r}
@@ -107,7 +127,47 @@ export default async function AdminDancersPage() {
             />
           ))}
         </Section>
-      ) : null}
+      ) : (
+        <>
+          <Section
+            title={`대기 중 (${pending.length})`}
+            empty="대기 중인 프로필이 없습니다."
+          >
+            {pending.map((r) => (
+              <DancerCard
+                key={r.id}
+                row={r}
+                owner={r.profile_id ? profileMap.get(r.profile_id) : undefined}
+              />
+            ))}
+          </Section>
+
+          <Section
+            title={`승인됨 (${approved.length})`}
+            empty="승인된 프로필이 없습니다."
+          >
+            {approved.map((r) => (
+              <DancerCard
+                key={r.id}
+                row={r}
+                owner={r.profile_id ? profileMap.get(r.profile_id) : undefined}
+              />
+            ))}
+          </Section>
+
+          {rejected.length > 0 ? (
+            <Section title={`거부됨 (${rejected.length})`} empty="">
+              {rejected.map((r) => (
+                <DancerCard
+                  key={r.id}
+                  row={r}
+                  owner={r.profile_id ? profileMap.get(r.profile_id) : undefined}
+                />
+              ))}
+            </Section>
+          ) : null}
+        </>
+      )}
 
       <Link
         href="/admin"
@@ -220,6 +280,21 @@ function DancerCard({
             현재 노출 순서: <strong>{row.display_order}</strong>
           </span>
         ) : null}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Link
+          href={`/me/portfolio/${row.id}`}
+          className="rounded-lg border border-hairline-2 px-3 py-2 text-center text-xs font-medium text-ink-2 hover:bg-secondary hover:text-foreground"
+        >
+          프로필·사진 편집
+        </Link>
+        <Link
+          href={`/me/portfolio/${row.id}/careers`}
+          className="rounded-lg border border-hairline-2 px-3 py-2 text-center text-xs font-medium text-ink-2 hover:bg-secondary hover:text-foreground"
+        >
+          경력 관리
+        </Link>
       </div>
 
       <AdminDancerActions

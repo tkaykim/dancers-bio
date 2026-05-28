@@ -190,6 +190,7 @@ export async function upsertDancerProfileAction(
 
     const isOwner = dancer.profile_id === user.id;
     let isManager = false;
+    let isAdmin = false;
     if (!isOwner) {
       const { data: mgr } = await supabase
         .from("dancer_managers")
@@ -198,8 +199,16 @@ export async function upsertDancerProfileAction(
         .eq("manager_id", user.id)
         .maybeSingle();
       isManager = Boolean(mgr);
+      if (!isManager) {
+        const { data: viewer } = await supabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", user.id)
+          .maybeSingle();
+        isAdmin = Boolean(viewer?.is_admin);
+      }
     }
-    if (!isOwner && !isManager) {
+    if (!isOwner && !isManager && !isAdmin) {
       return { ok: false, error: "수정 권한이 없습니다." };
     }
 
@@ -236,6 +245,8 @@ export async function upsertDancerProfileAction(
   }
 
   revalidatePath("/me/portfolio");
+  revalidatePath(`/me/portfolio/${dancerId}`);
+  revalidatePath("/admin/dancers");
   if (resolvedSlug) revalidatePath(`/d/${resolvedSlug}`);
   revalidatePath(`/d/${dancerId}`);
   return { ok: true, data: { id: dancerId } };
