@@ -145,25 +145,30 @@ export async function POST(req: NextRequest) {
     .update({ profile_id: userId as string })
     .filter("social_links->>source_email", "eq", email)
     .is("profile_id", null)
-    .select("stage_name");
+    .select("stage_name, slug");
 
-  // 이름: 방금 연결됐거나 이미 연결돼 있는 댄서에서 가져옴
+  // 이름·slug: 방금 연결됐거나 이미 연결돼 있는 댄서에서 가져옴
   let name = (linkedRows?.[0]?.stage_name as string | null) ?? null;
+  let slug = (linkedRows?.[0]?.slug as string | null) ?? null;
   if (!name) {
-    const { data: d } = await admin
+    const { data: dr } = await admin
       .from("dancers")
-      .select("stage_name")
+      .select("stage_name, slug")
       .eq("profile_id", userId as string)
       .maybeSingle();
-    name = (d?.stage_name as string | null) ?? null;
+    name = (dr?.stage_name as string | null) ?? null;
+    slug = (dr?.slug as string | null) ?? null;
   }
 
-  const loginUrl = `${SITE_URL}/login`;
+  // 메일 버튼 → 프로필 미리보기 + 로그인 팝업이 있는 /welcome
+  const welcomeUrl = slug
+    ? `${SITE_URL}/welcome?d=${encodeURIComponent(slug)}&email=${encodeURIComponent(email)}`
+    : `${SITE_URL}/login`;
   const sent = await sendGmailEmail({
     to: email,
     subject: "[dancers.bio] 프로필이 준비됐어요 · 로그인 정보 안내",
-    text: buildText(name, email, tempPw, loginUrl),
-    html: buildHtml(name, email, tempPw, loginUrl),
+    text: buildText(name, email, tempPw, welcomeUrl),
+    html: buildHtml(name, email, tempPw, welcomeUrl),
   });
 
   return NextResponse.json({
