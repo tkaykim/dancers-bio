@@ -39,19 +39,30 @@ export function ResetPasswordForm() {
   const [pending, startTransition] = useTransition();
   // 세션 감지: PKCE(코드 교환→쿠키) 또는 implicit(해시 토큰) 모두 지원.
   const [phase, setPhase] = useState<Phase>("checking");
+  // 어느 계정의 비밀번호를 설정 중인지 — 마스킹해서 표시 (예: to***@gmail.com).
+  const [maskedEmail, setMaskedEmail] = useState<string | null>(null);
+
+  const maskEmail = (e?: string | null): string | null => {
+    if (!e || !e.includes("@")) return null;
+    const [local, domain] = e.split("@");
+    const head = local.length <= 2 ? local.slice(0, 1) : local.slice(0, 2);
+    return `${head}***@${domain}`;
+  };
 
   useEffect(() => {
     const supabase = getBrowserClient();
     let active = true;
 
-    const markReady = () => {
-      if (active) setPhase("ready");
+    const markReady = (sessionEmail?: string | null) => {
+      if (!active) return;
+      if (sessionEmail) setMaskedEmail(maskEmail(sessionEmail));
+      setPhase("ready");
     };
 
     const run = async () => {
       // 1) 이미 세션이 있으면 (PKCE 코드 교환으로 서버가 쿠키 설정한 경우 포함) 바로 준비.
       const { data: s } = await supabase.auth.getSession();
-      if (s.session) return markReady();
+      if (s.session) return markReady(s.session.user?.email);
 
       // 2) implicit 경로: URL 해시에서 토큰을 직접 읽어 세션 설정 (기기 독립적).
       if (typeof window !== "undefined" && window.location.hash) {
@@ -64,7 +75,7 @@ export function ResetPasswordForm() {
           return;
         }
         if (access_token && refresh_token) {
-          const { error: setErr } = await supabase.auth.setSession({
+          const { data: setData, error: setErr } = await supabase.auth.setSession({
             access_token,
             refresh_token,
           });
@@ -74,7 +85,7 @@ export function ResetPasswordForm() {
             "",
             window.location.pathname + window.location.search,
           );
-          if (!setErr) return markReady();
+          if (!setErr) return markReady(setData.user?.email);
         }
       }
       // 3) detectSessionInUrl가 비동기로 처리할 수도 있으니 잠시 대기 후 판정.
@@ -83,7 +94,7 @@ export function ResetPasswordForm() {
 
     // detectSessionInUrl(비동기 해시 파싱) 결과도 수신.
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) markReady();
+      if (session) markReady(session.user?.email);
     });
 
     void run();
@@ -162,6 +173,12 @@ export function ResetPasswordForm() {
       }}
       className="flex flex-col gap-4"
     >
+      {maskedEmail ? (
+        <p className="rounded-lg bg-secondary/40 px-3 py-2 text-xs text-ink-2">
+          <span className="font-medium text-foreground">{maskedEmail}</span> 계정의
+          비밀번호를 설정합니다.
+        </p>
+      ) : null}
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">새 비밀번호</Label>
         <Input
