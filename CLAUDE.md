@@ -8,7 +8,7 @@
 - **Next.js 16 (App Router)** + React 19 + TypeScript strict
 - **Supabase**: Postgres, Auth(이메일+비밀번호), Storage, RLS
 - **Tailwind v4** + shadcn/ui (base-ui)
-- **Resend** (이메일)
+- **Gmail SMTP** (nodemailer, 운영 알림·버그 리포트 메일 — `src/lib/gmail.ts`)
 - **zod** (검증) + **react-hook-form** (폼)
 
 > ⚠️ Next.js 16은 conventions가 바뀐 버전입니다. 의심되면 `node_modules/next/dist/docs/` 또는 공식 문서 확인. `AGENTS.md` 안내문도 참조.
