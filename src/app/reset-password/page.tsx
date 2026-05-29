@@ -14,6 +14,7 @@ export default async function ResetPasswordPage({
 
   let exchangeError: string | null = null;
   if (code) {
+    // PKCE 경로: 같은 브라우저에서 시작된 재설정. 서버에서 코드 교환 → 세션 쿠키 설정.
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
@@ -21,10 +22,9 @@ export default async function ResetPasswordPage({
     }
   } else if (errParam) {
     exchangeError = error_description ?? errParam;
-  } else {
-    exchangeError =
-      "유효하지 않은 재설정 링크입니다. 다시 시도해 주세요.";
   }
+  // code도 error도 없으면 implicit(해시 토큰) 경로일 수 있음.
+  // 해시는 서버에서 못 읽으므로 폼을 렌더하고 클라이언트가 세션을 감지하게 둔다.
 
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-8 px-6 pb-10 pt-12">
