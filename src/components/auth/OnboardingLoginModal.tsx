@@ -105,17 +105,18 @@ export function OnboardingLoginModal({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="ob-pw">임시 비밀번호</Label>
+                <Label htmlFor="ob-pw">임시 비밀번호 (숫자 6자리)</Label>
                 <Input
                   id="ob-pw"
                   name="password"
                   type="password"
                   required
                   autoFocus
+                  inputMode="numeric"
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="메일에 적힌 임시 비밀번호"
+                  placeholder="메일에 적힌 숫자 6자리"
                 />
               </div>
               {error ? (

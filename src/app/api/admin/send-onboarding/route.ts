@@ -19,13 +19,10 @@ const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://dancers-bio-lite.vercel.app";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// 혼동되는 문자(0/O/1/l/I) 제외한 읽기 쉬운 10자리 임시 비밀번호
+// 임시 비밀번호: 숫자 6자리 (앞자리 0 허용)
 function genPassword(): string {
-  const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const b = randomBytes(10);
-  let s = "";
-  for (let i = 0; i < 10; i++) s += chars[b[i] % chars.length];
-  return s;
+  const n = randomBytes(4).readUInt32BE(0) % 1000000;
+  return n.toString().padStart(6, "0");
 }
 
 function escapeHtml(s: string): string {
@@ -47,7 +44,7 @@ function buildHtml(name: string | null, email: string, pw: string, loginUrl: str
   </ul>
   <div style="margin:18px 0;padding:16px 18px;background:#fafafa;border:1px solid #eee;border-radius:12px;font-size:14px;color:#222;">
     <div style="margin-bottom:6px;">이메일 &nbsp;<b>${escapeHtml(email)}</b></div>
-    <div>임시 비밀번호 &nbsp;<b style="font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:0.5px;">${escapeHtml(pw)}</b></div>
+    <div>임시 비밀번호 (숫자 6자리) &nbsp;<b style="font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:2px;font-size:16px;">${escapeHtml(pw)}</b></div>
   </div>
   <p style="margin:20px 0;"><a href="${loginUrl}" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 24px;border-radius:10px;">로그인하고 내 프로필 확인하기</a></p>
   <p style="font-size:12px;line-height:1.6;color:#888;">보안을 위해 로그인 후 <b>[내 정보 → 비밀번호 변경]</b>에서 비밀번호를 꼭 바꿔 주세요.</p>
@@ -70,7 +67,7 @@ function buildText(name: string | null, email: string, pw: string, loginUrl: str
 
 [로그인 정보]
 이메일: ${email}
-임시 비밀번호: ${pw}
+임시 비밀번호(숫자 6자리): ${pw}
 
 로그인하기: ${loginUrl}
 
