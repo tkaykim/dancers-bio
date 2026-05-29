@@ -109,6 +109,26 @@ export async function changePasswordAction(
   return { ok: true };
 }
 
+/**
+ * 비밀번호 설정/로그인 직후 호출 — 지원 이메일로 미리 만들어둔(curation) 댄서 프로필을
+ * 현재 계정에 자동 연결. updateUser는 하지 않음 (호출 측에서 이미 비번 설정 완료).
+ */
+export async function autoClaimDancersAction(): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: "로그인 세션을 찾을 수 없습니다." };
+  }
+  try {
+    await supabase.rpc("auto_claim_dancers_for_email");
+  } catch {
+    // 연결 실패는 치명적 아님 — 다음 로그인 때 재시도 가능.
+  }
+  return { ok: true };
+}
+
 export async function logoutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();

@@ -3,13 +3,34 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { changePasswordAction } from "@/app/actions/auth";
+import { autoClaimDancersAction } from "@/app/actions/auth";
 import { getBrowserClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type Phase = "checking" | "ready" | "no_session";
+
+/** Supabase(GoTrue) 영어 에러 메시지를 한글 안내로 변환. */
+function toKoreanAuthError(msg: string): string {
+  const m = (msg || "").toLowerCase();
+  if (m.includes("different from the old") || m.includes("same as the existing")) {
+    return "새 비밀번호는 기존 비밀번호와 달라야 합니다.";
+  }
+  if (m.includes("at least") || m.includes("too short") || m.includes("weak") || m.includes("characters")) {
+    return "비밀번호가 너무 짧거나 약합니다. 8자 이상으로 설정해 주세요.";
+  }
+  if (m.includes("session") && (m.includes("missing") || m.includes("expired"))) {
+    return "로그인 세션이 만료됐어요. 메일의 링크를 다시 열어 주세요.";
+  }
+  if (m.includes("expired") || m.includes("invalid")) {
+    return "링크가 만료됐거나 유효하지 않습니다. 새 링크를 받아 주세요.";
+  }
+  if (m.includes("rate") && m.includes("limit")) {
+    return "요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.";
+  }
+  return "비밀번호 변경에 실패했습니다. 다시 시도해 주세요.";
+}
 
 export function ResetPasswordForm() {
   const router = useRouter();
@@ -124,22 +145,17 @@ export function ResetPasswordForm() {
           return;
         }
         startTransition(async () => {
-          // 브라우저 클라이언트로 먼저 비밀번호 설정 (해시 세션이 확실히 적용됨).
+          // 비밀번호는 브라우저 클라이언트로 한 번만 설정 (해시/쿠키 세션 모두 적용됨).
           const supabase = getBrowserClient();
           const { error: pwErr } = await supabase.auth.updateUser({
             password: pw,
           });
           if (pwErr) {
-            setError(pwErr.message);
+            setError(toKoreanAuthError(pwErr.message));
             return;
           }
-          // 서버 액션으로 프로필 자동 연결(auto_claim) 실행. 쿠키 세션 사용.
-          const result = await changePasswordAction(formData);
-          if (!result.ok) {
-            // 비번 자체는 이미 변경됨 — 연결만 실패한 경우라도 로그인은 가능.
-            setError(result.error);
-            return;
-          }
+          // 프로필 자동 연결(auto_claim)만 서버에서 실행 — 비번 재설정은 하지 않음.
+          await autoClaimDancersAction();
           setDone(true);
           router.refresh();
         });
