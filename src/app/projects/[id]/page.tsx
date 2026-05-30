@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ApplyForm } from "@/components/project/ApplyForm";
 import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
 import { classifyProjectIdentifier } from "@/lib/projectId";
-import { deadlineLabel } from "@/lib/utils/deadline";
+import { deadlineLabel, isDeadlinePassed } from "@/lib/utils/deadline";
 import {
   PAY_TYPE_LABELS,
   SESSION_TYPE_LABELS,
@@ -198,6 +198,13 @@ export default async function ProjectDetailPage({
 
   const postedBy = p.posted_by_label ?? ownerProfile?.display_name ?? null;
 
+  // 지원 가능 = 모집 중 + 마감일 안 지남. 마감일 지나면 status가 open이어도 닫힘 처리.
+  const expired = isDeadlinePassed(p.application_deadline);
+  const applyOpen = p.status === "open" && !expired;
+  const closedMsg = expired
+    ? "지원 마감일이 지났습니다."
+    : "현재 모집이 닫혀 있습니다.";
+
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
       <Link
@@ -310,7 +317,7 @@ export default async function ProjectDetailPage({
           ) : null}
         </section>
       ) : !user ? (
-        p.status === "open" ? (
+        applyOpen ? (
           <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
             <p className="text-sm text-ink-2">
               지원하려면 로그인 또는 회원가입이 필요해요.
@@ -332,7 +339,7 @@ export default async function ProjectDetailPage({
           </section>
         ) : (
           <p className="rounded-xl border border-border bg-card p-4 text-sm text-ink-3">
-            현재 모집이 닫혀 있습니다.
+            {closedMsg}
           </p>
         )
       ) : (
@@ -346,15 +353,15 @@ export default async function ProjectDetailPage({
               </Link>
             </section>
           ) : null}
-          {p.status === "open" && !mineActive ? (
+          {applyOpen && !mineActive ? (
             <ApplyForm
               projectId={p.id}
               projectShortCode={p.short_code}
               hasDancer={hasDancer}
             />
-          ) : p.status !== "open" ? (
+          ) : !applyOpen ? (
             <p className="rounded-xl border border-border bg-card p-4 text-sm text-ink-3">
-              현재 모집이 닫혀 있습니다.
+              {closedMsg}
             </p>
           ) : null}
         </>

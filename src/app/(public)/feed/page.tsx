@@ -3,6 +3,7 @@ import { getProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ProjectListView } from "@/components/project/ProjectListView";
+import { isDeadlinePassed } from "@/lib/utils/deadline";
 
 type Row = {
   id: string;
@@ -46,7 +47,8 @@ export default async function FeedPage() {
     )
     .eq("status", "open")
     .is("deleted_at", null)
-    .order("application_deadline", { ascending: true, nullsFirst: false })
+    // 최신순으로 가져온다. 만료 공고가 ascending deadline 정렬로 상단을 차지해
+    // limit을 잠식하지 않도록(클라이언트가 마감순 재정렬). 기본 노출에서 만료는 제외.
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -98,6 +100,10 @@ export default async function FeedPage() {
   });
 
   const canCreate = profile?.can_create_project || profile?.is_admin;
+  // 헤더 "모집 중" 카운트는 만료되지 않은 공고 기준 (만료는 기본 숨김).
+  const activeCount = enriched.filter(
+    (p) => !isDeadlinePassed(p.application_deadline),
+  ).length;
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8">
@@ -107,7 +113,7 @@ export default async function FeedPage() {
             Casting
           </h1>
           <p className="mt-2 text-xs uppercase tracking-[0.18em] text-ink-3">
-            {enriched.length} 모집 중
+            {activeCount} 모집 중
           </p>
         </div>
         {canCreate ? (

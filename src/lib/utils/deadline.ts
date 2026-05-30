@@ -36,6 +36,17 @@ export function daysUntilDeadline(iso: string | null | undefined): number | null
   return Math.round((deadlineDay - todayDay) / 86_400_000);
 }
 
+/**
+ * 마감일이 지났는지 (KST 달력일 기준).
+ * - 마감일 없음(null/상시) → false (지원 가능, 계속 노출)
+ * - 오늘 마감 → false (오늘 자정까지는 유효)
+ * - 어제 이전 → true
+ */
+export function isDeadlinePassed(iso: string | null | undefined): boolean {
+  const d = daysUntilDeadline(iso);
+  return d !== null && d < 0;
+}
+
 export type DeadlineLabels = {
   /** 마감일 없음 (상시). 기본값 "—" */
   none?: string;

@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { humanizeDbError } from "@/lib/db-errors";
 import { NEEDS_DANCER_ERROR } from "@/lib/lite-constants";
+import { isDeadlinePassed } from "@/lib/utils/deadline";
 import type { ActionResult } from "./auth";
 
 // Lite MVP: 1계정 = 1댄서 가정. team apply / manager-as-actor 분기 모두 제거.
@@ -23,7 +24,7 @@ export async function applyToProjectAction(
   const supabase = await createClient();
   const { data: project } = await supabase
     .from("projects")
-    .select("owner_id, status, visibility, deleted_at")
+    .select("owner_id, status, visibility, deleted_at, application_deadline")
     .eq("id", project_id)
     .single();
 
@@ -35,6 +36,10 @@ export async function applyToProjectAction(
   }
   if (project.status !== "open") {
     return { ok: false, error: "현재 모집이 닫혀 있습니다." };
+  }
+  // 마감일이 지난 공고는 status가 아직 open이어도 지원 불가 (방어적 — UI에서도 막지만 서버에서 재확인)
+  if (isDeadlinePassed(project.application_deadline)) {
+    return { ok: false, error: "지원 마감일이 지났습니다." };
   }
 
   // 본인 own dancer 1개 조회 (multi-dancer는 Lite에서 미지원 — 가장 오래된 1개)
