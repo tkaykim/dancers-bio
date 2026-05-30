@@ -26,7 +26,7 @@ type ProposalProject = {
 
 type Props = {
   target:
-    | { kind: "dancer"; profile_id: string; name: string }
+    | { kind: "dancer"; dancer_id: string; name: string }
     | { kind: "team"; team_id: string; name: string };
   myProjects: ProposalProject[];
 };
@@ -99,11 +99,11 @@ export function SendProposalDialog({ target, myProjects }: Props) {
             action={(formData) => {
               setError(null);
               if (target.kind === "dancer") {
-                formData.set("applicant_id", target.profile_id);
+                formData.set("dancer_id", target.dancer_id);
                 formData.delete("team_id");
               } else {
                 formData.set("team_id", target.team_id);
-                formData.delete("applicant_id");
+                formData.delete("dancer_id");
               }
               startTransition(async () => {
                 const result = await sendDirectProposalAction(formData);

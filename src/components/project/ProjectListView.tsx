@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import {
   daysUntilDeadline,
   deadlineLabel,
-  isDeadlinePassed,
+  isExpired,
 } from "@/lib/utils/deadline";
 
 export type ProjectCategory =
@@ -28,6 +28,7 @@ export type ListProject = {
   pay_amount: number | null;
   pay_type: "per_session" | "total" | "negotiable" | null;
   application_deadline: string | null;
+  is_standing_pool?: boolean | null;
   created_at: string;
   owner_name: string | null;
   genre_label: string | null;
@@ -103,7 +104,10 @@ export function ProjectListView({
   const [showExpired, setShowExpired] = useState(false);
 
   const expiredCount = useMemo(
-    () => projects.filter((p) => isDeadlinePassed(p.application_deadline)).length,
+    () =>
+      projects.filter((p) =>
+        isExpired(p.application_deadline, p.is_standing_pool),
+      ).length,
     [projects],
   );
 
@@ -131,7 +135,9 @@ export function ProjectListView({
     const q = query.trim().toLowerCase();
     const list = projects.filter((p) => {
       // 마감 지난 공고는 기본 숨김 (토글로 노출). 검색어가 있어도 동일하게 적용.
-      if (!showExpired && isDeadlinePassed(p.application_deadline)) return false;
+      // 상시 섭외풀은 절대 만료로 보지 않아 항상 노출.
+      if (!showExpired && isExpired(p.application_deadline, p.is_standing_pool))
+        return false;
       // 비공개 공고는 admin이 아니면 카테고리/장르/지역 필터를 우회 (속성 노출 방지)
       const masked = p.visibility === "private" && !isAdmin;
       if (!masked) {
@@ -157,8 +163,8 @@ export function ProjectListView({
     if (sort === "deadline") {
       sorted.sort((a, b) => {
         // 마감 지난 공고는(토글로 노출 시) 항상 맨 뒤로.
-        const aExp = isDeadlinePassed(a.application_deadline);
-        const bExp = isDeadlinePassed(b.application_deadline);
+        const aExp = isExpired(a.application_deadline, a.is_standing_pool);
+        const bExp = isExpired(b.application_deadline, b.is_standing_pool);
         if (aExp !== bExp) return aExp ? 1 : -1;
         const av = a.application_deadline
           ? new Date(a.application_deadline).getTime()
@@ -410,9 +416,10 @@ function ProjectRow({
   project: ListProject;
   isAdmin: boolean;
 }) {
+  const standing = !!project.is_standing_pool;
   const dDay = daysUntilDeadline(project.application_deadline);
-  // 마감 지남(음수) 또는 3일 이내(0~3)면 강조.
-  const urgent = dDay !== null && dDay <= 3;
+  // 마감 지남(음수) 또는 3일 이내(0~3)면 강조. 상시는 마감이 없어 강조 안 함.
+  const urgent = !standing && dDay !== null && dDay <= 3;
   const masked = project.visibility === "private" && !isAdmin;
 
   const rowClass =
@@ -427,6 +434,11 @@ function ProjectRow({
           {project.visibility === "private" ? (
             <span className="shrink-0 rounded-full border border-border bg-secondary px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider text-ink-3">
               비공개
+            </span>
+          ) : null}
+          {standing ? (
+            <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider text-primary">
+              상시 모집
             </span>
           ) : null}
           <div className="truncate text-sm font-medium leading-tight">
@@ -453,7 +465,9 @@ function ProjectRow({
       <span
         className={`w-10 text-right font-mono text-[11px] ${urgent ? "text-destructive" : "text-ink-3"}`}
       >
-        {deadlineLabel(project.application_deadline, { none: "상시" })}
+        {standing
+          ? "상시"
+          : deadlineLabel(project.application_deadline, { none: "상시" })}
       </span>
     </>
   );

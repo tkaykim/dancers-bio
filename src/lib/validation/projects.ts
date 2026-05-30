@@ -92,6 +92,8 @@ export const projectSchema = z.object({
   recruitment_count: z.coerce.number().int().min(1).max(999).default(1),
   application_deadline: z.string().datetime().nullable().optional(),
   publish_now: z.boolean().default(true),
+  // 상시 섭외풀: 마감 없음 · 지원자를 풀에 적재. true 면 마감일 무시.
+  is_standing_pool: z.boolean().default(false),
   // Lite: admin이 직접 입력하는 등록자 표시 텍스트 (max 80)
   posted_by_label: z.string().trim().max(80).nullable().optional(),
 });

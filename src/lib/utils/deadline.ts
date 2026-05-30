@@ -47,6 +47,19 @@ export function isDeadlinePassed(iso: string | null | undefined): boolean {
   return d !== null && d < 0;
 }
 
+/**
+ * 상시 섭외풀을 고려한 만료 판정.
+ * - 상시(is_standing_pool=true) 또는 마감일 없음 → 절대 만료 아님 (계속 노출).
+ * - 그 외엔 `isDeadlinePassed` 와 동일.
+ */
+export function isExpired(
+  iso: string | null | undefined,
+  isStandingPool?: boolean | null,
+): boolean {
+  if (isStandingPool) return false;
+  return isDeadlinePassed(iso);
+}
+
 export type DeadlineLabels = {
   /** 마감일 없음 (상시). 기본값 "—" */
   none?: string;

@@ -17,6 +17,8 @@ export default async function AdminHomePage() {
     { count: pendingDancers },
     { count: teamsCount },
     { count: pendingTeams },
+    { count: discoveredCount },
+    { count: draftIngestions },
   ] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase
@@ -36,6 +38,14 @@ export default async function AdminHomePage() {
       .select("id", { count: "exact", head: true })
       .eq("approval_status", "pending")
       .eq("is_active", true),
+    supabase
+      .from("ig_discovery")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "discovered"),
+    supabase
+      .from("dancer_ingestions")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "draft"),
   ]);
 
   return (
@@ -90,6 +100,25 @@ export default async function AdminHomePage() {
           title="공고 수집 (외부)"
           desc="외부 채널 공고 텍스트 붙여넣기 → LLM 추출 → 발행"
           accent
+        />
+        <Tile
+          href="/admin/dancers/discovery"
+          title="발견 / 스크랩 큐"
+          desc="IG 발견 풀 → 스크랩 큐 추가 → 프로필 수집"
+          badge={discoveredCount ? `${discoveredCount} 발견` : undefined}
+          accent={Boolean(discoveredCount)}
+        />
+        <Tile
+          href="/admin/dancers/ingestions"
+          title="댄서 검수"
+          desc="스크랩된 프로필 초안 검수 → 승인/기각 (경력 미검증)"
+          badge={draftIngestions ? `${draftIngestions} 대기` : undefined}
+          accent={Boolean(draftIngestions)}
+        />
+        <Tile
+          href="/admin/dancers/outreach"
+          title="아웃리치"
+          desc="승인된 미claim 댄서에게 claim 초대 발송"
         />
         <Tile
           href="/admin/llm"

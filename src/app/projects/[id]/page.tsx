@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ApplyForm } from "@/components/project/ApplyForm";
 import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
 import { classifyProjectIdentifier } from "@/lib/projectId";
-import { deadlineLabel, isDeadlinePassed } from "@/lib/utils/deadline";
+import { deadlineLabel, isExpired } from "@/lib/utils/deadline";
 import {
   PAY_TYPE_LABELS,
   SESSION_TYPE_LABELS,
@@ -65,6 +65,7 @@ type ProjectRow = {
   recruitment_count: number;
   posted_by_label: string | null;
   application_deadline: string | null;
+  is_standing_pool: boolean | null;
   created_at: string;
   region_text: string | null;
   genre: { label_ko: string } | null;
@@ -124,7 +125,7 @@ export default async function ProjectDetailPage({
     .select(
       `id, short_code, owner_id, title, description, visibility, status, pay_amount, pay_type,
        agreed_pay, recruitment_count, posted_by_label,
-       application_deadline, created_at, region_text,
+       application_deadline, is_standing_pool, created_at, region_text,
        genre:genres ( label_ko ),
        region:regions ( label_ko )`,
     )
@@ -199,7 +200,9 @@ export default async function ProjectDetailPage({
   const postedBy = p.posted_by_label ?? ownerProfile?.display_name ?? null;
 
   // 지원 가능 = 모집 중 + 마감일 안 지남. 마감일 지나면 status가 open이어도 닫힘 처리.
-  const expired = isDeadlinePassed(p.application_deadline);
+  // 상시 섭외풀은 마감이 없어 만료되지 않음 (계속 지원 가능).
+  const standingPool = !!p.is_standing_pool;
+  const expired = isExpired(p.application_deadline, standingPool);
   const applyOpen = p.status === "open" && !expired;
   const closedMsg = expired
     ? "지원 마감일이 지났습니다."
@@ -222,6 +225,11 @@ export default async function ProjectDetailPage({
           <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-ink-2">
             {STATUS_LABELS[p.status]}
           </span>
+          {standingPool ? (
+            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+              상시 모집
+            </span>
+          ) : null}
           {p.genre?.label_ko ? (
             <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-ink-2">
               {p.genre.label_ko}
@@ -255,7 +263,7 @@ export default async function ProjectDetailPage({
         <div className="flex flex-col gap-1 p-4">
           <p className="text-[10px] uppercase tracking-[0.16em] text-ink-3">마감</p>
           <p className="font-mono text-base font-semibold">
-            {deadlineLabel(p.application_deadline)}
+            {standingPool ? "상시" : deadlineLabel(p.application_deadline)}
           </p>
         </div>
       </section>

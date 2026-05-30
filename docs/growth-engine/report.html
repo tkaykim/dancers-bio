@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>mydancersbio — 성장 엔진 구현 계획</title>
+<style>
+  :root{
+    --bg:#0b0c10; --panel:#15171f; --panel2:#1c1f2a; --line:#2a2e3c;
+    --ink:#f3f4f8; --mut:#a3a9bd; --dim:#717892;
+    --acc:#7c5cff; --acc2:#22d3ee; --ok:#34d399; --warn:#fbbf24; --bad:#fb7185;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:linear-gradient(180deg,#0b0c10,#0d0f16 40%,#0b0c10);
+    color:var(--ink);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:980px;margin:0 auto;padding:48px 24px 96px}
+  header.hero{padding:40px 0 28px;border-bottom:1px solid var(--line);margin-bottom:36px}
+  .kicker{color:var(--acc2);font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:12px}
+  h1{font-size:34px;line-height:1.2;margin:10px 0 8px;letter-spacing:-.02em}
+  h1 .grad{background:linear-gradient(92deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--mut);max-width:64ch}
+  .meta{margin-top:18px;display:flex;gap:8px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);
+    color:var(--mut);padding:5px 11px;border-radius:999px;font-size:12.5px;font-weight:600}
+  h2{font-size:22px;margin:46px 0 14px;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+  h2 .n{font-size:13px;color:var(--acc);border:1px solid var(--acc);border-radius:7px;padding:1px 8px;font-weight:800}
+  h3{font-size:16px;margin:22px 0 8px;color:#e7e9f2}
+  p{color:#d7dae6}
+  .lead{color:var(--mut)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:14px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}.wrap{padding:32px 16px 64px}h1{font-size:27px}}
+  table{width:100%;border-collapse:collapse;margin:8px 0;font-size:14.5px}
+  th,td{text-align:left;padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--mut);font-size:12.5px;text-transform:uppercase;letter-spacing:.05em}
+  td b{color:#fff}
+  code{background:#0e1018;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:#c7d2fe;font-family:"SF Mono",ui-monospace,Menlo,monospace}
+  .tag{font-size:11.5px;font-weight:800;padding:2px 8px;border-radius:6px;white-space:nowrap}
+  .t-do{background:#23252f;color:#aab}
+  .t-go{background:rgba(124,92,255,.16);color:#b9a6ff;border:1px solid rgba(124,92,255,.4)}
+  .t-ok{background:rgba(52,211,153,.14);color:#6ee7b7;border:1px solid rgba(52,211,153,.35)}
+  .badge{font-size:11px;font-weight:800;padding:2px 7px;border-radius:5px}
+  .b-wait{background:#23252f;color:#9aa}
+  .b-run{background:rgba(251,191,36,.16);color:#fcd34d}
+  .b-done{background:rgba(52,211,153,.16);color:#6ee7b7}
+  ul.clean{list-style:none;padding:0;margin:8px 0}
+  ul.clean li{padding:7px 0 7px 26px;position:relative;border-bottom:1px dashed var(--line);color:#d7dae6}
+  ul.clean li:last-child{border-bottom:0}
+  ul.clean li::before{content:"";position:absolute;left:4px;top:14px;width:7px;height:7px;border-radius:2px;background:var(--acc)}
+  .flow{display:flex;flex-direction:column;gap:0;margin:10px 0}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:13px 16px}
+  .step .lab{font-weight:800;color:#fff}
+  .step .desc{color:var(--mut);font-size:14px;margin-top:3px}
+  .arrow{align-self:center;color:var(--dim);font-size:18px;line-height:1;padding:6px 0}
+  .warn{border-left:3px solid var(--warn);background:rgba(251,191,36,.06)}
+  .bad{border-left:3px solid var(--bad);background:rgba(251,113,133,.06)}
+  .ok{border-left:3px solid var(--ok);background:rgba(52,211,153,.06)}
+  .muted{color:var(--mut);font-size:14px}
+  .phase{display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
+  .phase:last-child{border-bottom:0}
+  .phase .ph{flex:0 0 auto;width:74px}
+  .phase .body{flex:1}
+  .phase .body .h{font-weight:800;color:#fff;margin-bottom:3px}
+  .star{color:var(--warn)}
+  hr{border:0;border-top:1px solid var(--line);margin:34px 0}
+  footer{color:var(--dim);font-size:13px;margin-top:40px;text-align:center}
+  a{color:var(--acc2)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 0;color:var(--mut);font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="kicker">mydancersbio · Growth Engine</div>
+    <h1>댄서·프로젝트 <span class="grad">양방향 자동 채움</span> 구현 계획</h1>
+    <p class="sub">공급(댄서 프로필을 자동 수집·생성해 가입 전환)과 수요(프로젝트 공고 자동 수집·중개)를 동시에 채워
+    플랫폼을 활성화하는 성장 엔진. 아래는 확정된 전략과 단계별 구현 로드맵입니다.</p>
+    <div class="meta">
+      <span class="pill">📅 2026-05-31</span>
+      <span class="pill">상태: 전략 확정 · 구현 대기</span>
+      <span class="pill">SSOT: docs/growth-engine/PLAN.md</span>
+    </div>
+  </header>
+
+  <!-- 0. 한 줄 -->
+  <div class="card ok">
+    <b>핵심 한 줄.</b> 이건 "잡보드"가 아니라 <b>모든 한국 댄서의 정본·랭킹된 프로필 레이어</b>다.
+    그래서 가입제안 후크가 "빈 게시판에 가입하세요"가 아니라
+    <b>"당신 포트폴리오를 이미 만들어 놨습니다 — claim하세요"</b>가 된다.
+    그리고 <b>미claim 댄서에게 도착한 캐스팅 제안</b>이 가장 강력한 전환 후크 — 두 엔진을 묶는 톱니바퀴.
+  </div>
+
+  <!-- 1. 플라이휠 -->
+  <h2><span class="n">01</span> 성장 플라이휠</h2>
+  <div class="flow">
+    <div class="step"><div class="lab">① 큐레이션·자동 수집</div><div class="desc">IG 크롤 → 프로필 + 스코어 자동 생성 (가입 0명이어도 공급 인벤토리 증가)</div></div>
+    <div class="arrow">↓</div>
+    <div class="step"><div class="lab">② 단독 가치 → claim</div><div class="desc">예쁜 랭킹 프로필은 그 자체로 공유 가치 → 링크 배포 → claim → 실유저</div></div>
+    <div class="arrow">↓</div>
+    <div class="step"><div class="lab">③ 수요 발생</div><div class="desc">대표 본업(섭외) + claim한 프로/네트워크가 프로젝트 게시</div></div>
+    <div class="arrow">↓</div>
+    <div class="step warn"><div class="lab">④ ⭐ 미claim 댄서로의 제안 = 최강 후크</div><div class="desc">"누군가 당신을 캐스팅하려 합니다 → 응답하려면 claim하세요" → ②로 회귀, 최고 전환율</div></div>
+    <div class="arrow">↺</div>
+    <div class="step"><div class="lab">⑤ 플라이휠</div><div class="desc">claim↑ → 디렉토리 풍부 → 창작자 매력↑ → 수요↑ → 제안↑ → claim↑</div></div>
+  </div>
+  <p class="muted">비대칭: 공급은 공개 데이터로 cold 씨딩 가능, 수요는 대표 본업이 실수요라 사실상 해소됨.
+  <b>→ 유일한 병목은 공급(댄서 claim 전환).</b></p>
+
+  <!-- 2. 확정 결정 -->
+  <h2><span class="n">02</span> 확정된 전략 결정</h2>
+  <table>
+    <tr><th style="width:42px">#</th><th>결정</th><th>구현 함의</th></tr>
+    <tr><td><b>D1</b></td><td><b>스코어 완전 비공개</b></td><td>정렬 순서에만 작동. 댄서는 점수 존재조차 모름 (인지 시 경력 부풀리기 편법). server-only.</td></tr>
+    <tr><td><b>D2</b></td><td><b>하이브리드 공개 디폴트</b></td><td>경력·예명·사진은 claim 전 공개. <b>이메일·연락처는 항상 가림(관리자만)</b>. 모든 미claim 프로필에 "내려주세요" 옵트아웃.</td></tr>
+    <tr><td><b>D3</b></td><td><b>Apify → 이메일 + IG DM</b></td><td>수집 후 정리 → claim 발송. 저볼륨·개인화. IG DM은 반자동(사람 발송).</td></tr>
+    <tr><td><b>D4</b></td><td><b>founder-as-demand + 상시풀</b></td><td>대표 본업이 실수요. 부족분은 "상시 섭외풀"(진실·탈락없음). <b>가짜 특정공고+전원탈락은 기각.</b></td></tr>
+    <tr><td><b>D5</b></td><td><b>컨시어지 인력 보유</b></td><td>직접 중개·현장출동 가능 → 첫 실거래를 사람이 생성.</td></tr>
+  </table>
+
+  <!-- 3. 두 파이프라인 -->
+  <h2><span class="n">03</span> 두 파이프라인</h2>
+
+  <h3>🟣 공급 — IG 크롤 → 프로필 → 아웃리치 (3단계 큐)</h3>
+  <div class="grid2">
+    <div class="card"><div class="lab"><b>A. 발견 풀</b> <span class="tag t-do">싸다·거대</span></div>
+      <p class="muted">팔로우그래프에서 핸들 + 싼 신호(팔로워수·72명과의 맞팔수·bio키워드) 대량 수집.
+      dedup = IG 숫자 user_id(핸들 X).</p></div>
+    <div class="card"><div class="lab"><b>B. 스크랩 큐</b> <span class="tag t-go">관리자 제어</span></div>
+      <p class="muted">자동 랭킹된 후보를 "며칠에 정밀 스크랩" 배정. <b>관리자가 보고 순서·날짜 수정.</b> 하루 N개 throttle.</p></div>
+    <div class="card"><div class="lab"><b>C. 검수 게이트</b> <span class="tag t-go">사람 승인</span></div>
+      <p class="muted">정밀 스크랩 → LLM 경력 추출(미검증 플래그) → 프로필 자동 생성 → 관리자 승인 → 디렉토리 공개.</p></div>
+    <div class="card"><div class="lab"><b>아웃리치 → claim</b> <span class="tag t-ok">전환</span></div>
+      <p class="muted">이메일/IG DM 발송 + 추적(조회·전환). claim 시 대기 중 제안 연결 → 실유저.</p></div>
+  </div>
+  <div class="card bad"><b>기각된 대안.</b> "가짜 특정 공고 + 전원 탈락"은 좁은 신에서 <b>승자가 한 명도 없는 패턴</b>으로 들키고,
+  반복 탈락이 지원자 인게이지먼트를 태워 공급 전환을 거꾸로 깎는다. → 대신 <b>상시 섭외풀(진실·탈락없음)</b>.</div>
+
+  <h3>🔵 수요 — 프로젝트 자동 수집 <span class="tag t-ok">검토·발행·중개 부분 이미 완성</span></h3>
+  <div class="flow">
+    <div class="step"><div class="lab">크롤러 (신규)</div><div class="desc">댄서채용 정보 흩어진 소스 → Apify 스케줄 수집</div></div>
+    <div class="arrow">↓</div>
+    <div class="step"><div class="lab">webhook 어댑터 (신규)</div><div class="desc"><code>/api/ingest/project</code> → 기존 <code>createIngestionAction</code> 재사용</div></div>
+    <div class="arrow">↓</div>
+    <div class="step ok"><div class="lab">검토 → 발행 → 중개 (이미 있음)</div><div class="desc"><code>project_ingestions</code> + <code>/admin/projects/import</code>: LLM 파싱·중복탐지·발행·병합·기각 전부 동작 중</div></div>
+  </div>
+  <p class="muted">즉 수요 파이프라인은 <b>새 검토 UI를 만들 필요 없이</b> 자동 수집(크롤러+webhook)만 붙이면 된다.</p>
+
+  <!-- 4. 로드맵 -->
+  <h2><span class="n">04</span> 구현 로드맵</h2>
+  <div class="legend">
+    <span><span class="badge b-wait">대기</span> 미착수</span>
+    <span><span class="badge b-run">진행</span> 작업 중</span>
+    <span><span class="badge b-done">완료</span> 끝남</span>
+  </div>
+  <div class="card">
+    <div class="phase"><div class="ph"><span class="badge b-wait">대기</span><div class="muted" style="margin-top:6px">Phase 0</div></div>
+      <div class="body"><div class="h">기반 (선결과제)</div>
+        <div class="muted">알림 인프라 점검·구축(현재 버그메일만) · 중복탐지 trigram RPC 보강. Phase 1·2의 전제.</div></div></div>
+    <div class="phase"><div class="ph"><span class="badge b-wait">대기</span><div class="muted" style="margin-top:6px">Phase 1 <span class="star">★</span></div></div>
+      <div class="body"><div class="h">플라이휠 점화 — 미claim 제안 → claim 후크 <span class="star">(최우선)</span></div>
+        <div class="muted"><code>/d/[slug]</code> 제안 열기 · 미claim 대상 제안 저장 · claim 전환 시 제안 연결 · 연락처 마스킹 + 옵트아웃 버튼.</div></div></div>
+    <div class="phase"><div class="ph"><span class="badge b-wait">대기</span><div class="muted" style="margin-top:6px">Phase 2</div></div>
+      <div class="body"><div class="h">공급 인제스트 (IG 크롤)</div>
+        <div class="muted">발견 풀 + 스크랩 큐(관리자 화면) + 검수 게이트 + 분류 필터 + 경력 추출(미검증) + 프로필 자동생성 + 아웃리치 인프라.</div></div></div>
+    <div class="phase"><div class="ph"><span class="badge b-wait">대기</span><div class="muted" style="margin-top:6px">Phase 3</div></div>
+      <div class="body"><div class="h">수요 인제스트 + 상시풀</div>
+        <div class="muted">프로젝트 크롤러 + webhook 어댑터(기존 인제스트 재사용) · 상시 섭외풀 타입(탈락 대신 풀 적재).</div></div></div>
+    <div class="phase"><div class="ph"><span class="badge b-wait">대기</span><div class="muted" style="margin-top:6px">Phase 4</div></div>
+      <div class="body"><div class="h">매칭</div>
+        <div class="muted">프로젝트↔댄서 top-N 매칭(스코어+장르+지역) · 창작자에 원클릭 제안 추천 · 미claim 고매칭 댄서에 후크 발사 = 플라이휠 닫힘.</div></div></div>
+  </div>
+
+  <!-- 5. 리스크 -->
+  <h2><span class="n">05</span> 리스크 · 가드레일 (협상 불가)</h2>
+  <ul class="clean">
+    <li>🇰🇷 <b>PIPA</b> — 대량 자동생성 프로필이라 "내려주세요" 옵트아웃 + 연락처 마스킹이 필수 선제. 옵트아웃 요청률을 건강도 지표로.</li>
+    <li><b>IG ToS / 밴</b> — Apify 크롤·팔로우그래프는 ToS 위반 → managed proxy·저볼륨·소스계정 분리. IG DM 매스 발송 금지(반자동).</li>
+    <li><b>미검증 경력 공개</b> — LLM 추출 경력은 <code>unverified</code> 플래그 + 보수적 추출, claim 시 본인 수정.</li>
+    <li><b>나무위키</b> — 보조 소스로 좋음(유명 댄서 일부). CC BY-NC-SA·유저편집 → 정본 아님, 교차참조·출처표기.</li>
+    <li><b>가짜 특정공고 금지</b> — 모든 프로젝트는 진짜 결과(승자/풀 등록)로 이어져야.</li>
+  </ul>
+
+  <!-- 6. 열린 질문 -->
+  <h2><span class="n">06</span> 다음 결정이 필요한 것</h2>
+  <table>
+    <tr><th style="width:48px">Q</th><th>질문</th><th>시점</th></tr>
+    <tr><td><b>Q1</b></td><td>미claim 댄서 제안 저장 방식 — <code>applications</code> 제약 완화 vs 별도 <code>dancer_proposals</code> 테이블</td><td>Phase 1 착수 시</td></tr>
+    <tr><td><b>Q2</b></td><td>Apify 스케줄 위치 — actor→webhook push(권장) vs 앱 cron이 Apify 호출</td><td>Phase 2 착수 시</td></tr>
+    <tr><td><b>Q3</b></td><td>하루 스크랩 N개 = ? (Apify 예산 + IG 밴 임계 기준)</td><td>Phase 2 착수 시</td></tr>
+    <tr><td><b>Q4</b></td><td>경력 추출 깊이 — IG 캡션만 vs +나무위키 +유튜브 크레딧</td><td>Phase 2 착수 시</td></tr>
+  </table>
+
+  <footer>
+    mydancersbio Growth Engine · 작업 진행은 <code>docs/growth-engine/LOG.md</code>에 누적 기록됩니다.<br/>
+    이 리포트는 스냅샷입니다 — 최신 상태는 PLAN.md 로드맵의 상태 표시를 확인하세요.
+  </footer>
+
+</div>
+</body>
+</html>

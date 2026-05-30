@@ -12,6 +12,7 @@ type Project = {
   pay_amount: number | null;
   pay_type: "per_session" | "total" | "negotiable" | null;
   application_deadline: string | null;
+  is_standing_pool?: boolean | null;
   created_at: string;
   genre_label?: string | null;
   region_label?: string | null;
@@ -49,7 +50,11 @@ export function ProjectCard({ project }: { project: Project }) {
             </span>
           ) : null}
         </div>
-        {project.application_deadline ? (
+        {project.is_standing_pool ? (
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+            상시 모집
+          </span>
+        ) : project.application_deadline ? (
           <span className="font-mono text-[11px] text-ink-3">
             {deadlineLabel(project.application_deadline, { today: "오늘 마감" })}
           </span>
@@ -88,7 +93,11 @@ export function FeaturedCard({ project }: { project: Project }) {
         <p className="text-[10px] font-bold uppercase tracking-[0.18em]">
           ↳ Featured · 모집 중
         </p>
-        {project.application_deadline ? (
+        {project.is_standing_pool ? (
+          <span className="rounded-full bg-primary-foreground px-2 py-0.5 font-mono text-[11px] font-bold text-primary">
+            상시 모집
+          </span>
+        ) : project.application_deadline ? (
           <span className="rounded-full bg-primary-foreground px-2 py-0.5 font-mono text-[11px] font-bold text-primary">
             {deadlineLabel(project.application_deadline, {
               today: "TODAY",

@@ -1,0 +1,4 @@
+-- 20260531_004 phase4_match_dancers_for_project
+-- 프로젝트↔댄서 top-N 매칭 RPC. SECURITY DEFINER, 소유자/admin만.
+-- ⚠️ D1: score 수치는 반환 안 함(내부 정렬에만). genre/location_match 불리언만 노출.
+-- 정의는 supabase 마이그레이션 phase4_match_dancers_for_project 참조(레포 기록용).
