@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { daysUntilDeadline, deadlineLabel } from "@/lib/utils/deadline";
+import {
+  daysUntilDeadline,
+  deadlineLabel,
+  isDeadlinePassed,
+} from "@/lib/utils/deadline";
 
 export type ProjectCategory =
   | "performance"
@@ -95,6 +99,13 @@ export function ProjectListView({
   const [region, setRegion] = useState<string>("");
   const [sort, setSort] = useState<SortKey>("deadline");
   const [filterOpen, setFilterOpen] = useState(false);
+  // 마감 지난 공고는 기본 숨김. 토글로 노출.
+  const [showExpired, setShowExpired] = useState(false);
+
+  const expiredCount = useMemo(
+    () => projects.filter((p) => isDeadlinePassed(p.application_deadline)).length,
+    [projects],
+  );
 
   const genres = useMemo(
     () =>
@@ -119,6 +130,8 @@ export function ProjectListView({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = projects.filter((p) => {
+      // 마감 지난 공고는 기본 숨김 (토글로 노출). 검색어가 있어도 동일하게 적용.
+      if (!showExpired && isDeadlinePassed(p.application_deadline)) return false;
       // 비공개 공고는 admin이 아니면 카테고리/장르/지역 필터를 우회 (속성 노출 방지)
       const masked = p.visibility === "private" && !isAdmin;
       if (!masked) {
@@ -143,6 +156,10 @@ export function ProjectListView({
     const sorted = [...list];
     if (sort === "deadline") {
       sorted.sort((a, b) => {
+        // 마감 지난 공고는(토글로 노출 시) 항상 맨 뒤로.
+        const aExp = isDeadlinePassed(a.application_deadline);
+        const bExp = isDeadlinePassed(b.application_deadline);
+        if (aExp !== bExp) return aExp ? 1 : -1;
         const av = a.application_deadline
           ? new Date(a.application_deadline).getTime()
           : Infinity;
@@ -159,14 +176,17 @@ export function ProjectListView({
       sorted.sort((a, b) => payValue(b) - payValue(a));
     }
     return sorted;
-  }, [projects, query, selectedGenres, selectedCats, region, sort, isAdmin]);
+  }, [projects, query, selectedGenres, selectedCats, region, sort, isAdmin, showExpired]);
 
   const activeCount =
     selectedGenres.size +
     selectedCats.size +
     (region ? 1 : 0) +
-    (sort !== "deadline" ? 1 : 0);
+    (sort !== "deadline" ? 1 : 0) +
+    (showExpired ? 1 : 0);
   const hasFilter = activeCount > 0;
+  // 분모: 만료 숨김 상태면 비만료만, 포함이면 전체.
+  const poolSize = showExpired ? projects.length : projects.length - expiredCount;
 
   function toggleGenre(g: string) {
     setSelectedGenres((prev) => {
@@ -190,6 +210,7 @@ export function ProjectListView({
     setSelectedCats(new Set());
     setRegion("");
     setSort("deadline");
+    setShowExpired(false);
   }
 
   return (
@@ -295,6 +316,18 @@ export function ProjectListView({
                 <option value="pay">페이 높은순</option>
               </select>
             </div>
+
+            {expiredCount > 0 ? (
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-2">
+                <input
+                  type="checkbox"
+                  checked={showExpired}
+                  onChange={(e) => setShowExpired(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-primary"
+                />
+                마감된 공고 포함 ({expiredCount})
+              </label>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -302,7 +335,7 @@ export function ProjectListView({
       <div className="flex items-center justify-between px-1 text-[10px] text-ink-3">
         <span>
           {filtered.length}
-          {filtered.length !== projects.length ? ` / ${projects.length}` : ""}건
+          {filtered.length !== poolSize ? ` / ${poolSize}` : ""}건
         </span>
       </div>
 
