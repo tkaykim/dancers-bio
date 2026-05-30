@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ApplyForm } from "@/components/project/ApplyForm";
 import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
 import { classifyProjectIdentifier } from "@/lib/projectId";
+import { deadlineLabel } from "@/lib/utils/deadline";
 import {
   PAY_TYPE_LABELS,
   SESSION_TYPE_LABELS,
@@ -87,13 +88,6 @@ type ApplicationRow = {
   dancer_id: string | null;
 };
 
-function daysUntil(iso: string | null): number | null {
-  if (!iso) return null;
-  return Math.max(
-    0,
-    Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
-  );
-}
 
 function fmtDateTime(iso: string) {
   const d = new Date(iso);
@@ -202,7 +196,6 @@ export default async function ProjectDetailPage({
   const mineActive = allMine.find((a) => isActiveStatus(a.status)) ?? null;
   const mineMostRecent = allMine[0] ?? null;
 
-  const dDay = daysUntil(p.application_deadline);
   const postedBy = p.posted_by_label ?? ownerProfile?.display_name ?? null;
 
   return (
@@ -255,7 +248,7 @@ export default async function ProjectDetailPage({
         <div className="flex flex-col gap-1 p-4">
           <p className="text-[10px] uppercase tracking-[0.16em] text-ink-3">마감</p>
           <p className="font-mono text-base font-semibold">
-            {dDay !== null ? (dDay === 0 ? "오늘" : `D-${dDay}`) : "—"}
+            {deadlineLabel(p.application_deadline)}
           </p>
         </div>
       </section>
