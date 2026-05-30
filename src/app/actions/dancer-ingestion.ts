@@ -7,8 +7,11 @@ import { requireAdmin } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendGmailEmail } from "@/lib/gmail";
-import { scrapeIgProfile } from "@/lib/apify";
-import { extractDancerProfileFromScrape } from "@/lib/ingest/dancer";
+import { scrapeIgProfile, discoverViaHashtag } from "@/lib/apify";
+import {
+  extractDancerProfileFromScrape,
+  classifyDancerCandidate,
+} from "@/lib/ingest/dancer";
 import type { ActionResult } from "./auth";
 
 const uuid = z.string().uuid("잘못된 식별자입니다.");
@@ -40,6 +43,69 @@ function slugify(input: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 40);
   return base || "dancer";
+}
+
+// ---------------------------------------------------------------------------
+// Discovery — 해시태그 기반 댄서 후보 발견 (Apify hashtag-scraper)
+// ---------------------------------------------------------------------------
+
+export async function discoverDancersByHashtagAction(
+  formData: FormData,
+): Promise<ActionResult<{ found: number; inserted: number }>> {
+  await requireAdmin();
+
+  const parsed = z
+    .object({
+      hashtag: z.string().min(1, "해시태그를 입력하세요.").max(60),
+      limit: z.number().int().min(1).max(200).nullable(),
+    })
+    .safeParse({
+      hashtag: strOrNull(formData, "hashtag"),
+      limit: intOrNull(formData, "limit"),
+    });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const candidates = await discoverViaHashtag(
+    parsed.data.hashtag,
+    parsed.data.limit ?? 60,
+  );
+  if (candidates.length === 0) {
+    return {
+      ok: false,
+      error: "발견 결과가 없습니다. APIFY_TOKEN 설정 또는 해시태그를 확인하세요.",
+    };
+  }
+
+  // 해시태그 후보는 작성자 핸들만 신뢰 가능(bio 없음) → 분류로 필터링하지 않고
+  // 모두 발견 풀에 적재한다(댄스 해시태그에서 왔으므로 presumptive). 핸들/이름에
+  // 댄스 키워드가 있으면 rank를 약간 올린다. 최종 선별은 admin 검수가 담당.
+  const admin = createAdminClient();
+  let inserted = 0;
+  for (const cand of candidates) {
+    const cls = classifyDancerCandidate({
+      bio_text: cand.bio_text,
+      ig_handle: cand.ig_handle,
+      display_name: cand.display_name,
+      mutuals_with_seed: 0,
+    });
+    const { error } = await admin.from("ig_discovery").upsert(
+      {
+        ig_user_id: cand.ig_user_id,
+        ig_handle: cand.ig_handle,
+        display_name: cand.display_name ?? null,
+        bio_text: cand.bio_text ?? null,
+        bio_keyword_hit: cls.bioKeywordHit,
+        rank_score: Math.max(cls.rankScore, 25),
+        source: cand.source,
+        status: "discovered",
+      },
+      { onConflict: "ig_user_id", ignoreDuplicates: true },
+    );
+    if (!error) inserted += 1;
+  }
+
+  revalidatePath("/admin/dancers/discovery");
+  return { ok: true, data: { found: candidates.length, inserted } };
 }
 
 // ---------------------------------------------------------------------------

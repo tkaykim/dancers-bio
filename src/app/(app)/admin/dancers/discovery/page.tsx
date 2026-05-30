@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
-import { EnqueueButton, QueueRowControls } from "./QueueControls";
+import {
+  EnqueueButton,
+  QueueRowControls,
+  HashtagDiscoverForm,
+} from "./QueueControls";
 
 type DiscoveryRow = {
   id: string;
@@ -138,6 +142,9 @@ export default async function AdminDiscoveryPage() {
           {stats.queued ?? 0} — 꼬리(tail)가 아직 다 처리되지 않았습니다.
         </p>
       </section>
+
+      {/* 해시태그 발견 */}
+      <HashtagDiscoverForm />
 
       {/* Section A: 발견 풀 */}
       <section className="flex flex-col gap-3">

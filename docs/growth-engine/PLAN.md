@@ -101,8 +101,9 @@
 - ⬜ (후속·낮은 우선순위) 미claim 프로필 "내려주세요" 옵트아웃 (D2). 대표 판단(2026-05-31): 옵트아웃 가능성 낮고 DM/이메일 등으로도 대응 가능 → 급하지 않음(필요 없다는 뜻은 아님). 이메일은 현재 페이지에 미렌더라 마스킹 이미 충족. Phase 2 대량생성 운영 전까지 처리하면 됨.
 - 🔎 검증 남음: 라이브 UI 스모크(제안 보내기 → claim → /proposals 응답), 알림 실발송(VAPID/SERVICE_ROLE 키 환경). 코드/타입/빌드/DB제약은 통과.
 
-### Phase 2 — 공급 인제스트 (IG 크롤)  ✅ 기계 구현 완료(2026-05-31) · 외부키 대기
-- ✅ `ig_discovery`(발견 풀) 테이블 + dedup(ig_user_id unique) + 자동랭킹(rank_score). Apify 팔로우그래프 actor는 stub(APIFY_TOKEN 대기).
+### Phase 2 — 공급 인제스트 (IG 크롤)  ✅ 구현 완료 + Apify 실연결(2026-05-31)
+- ✅ Apify 실연결: `apify-client` + `instagram-profile/post/hashtag-scraper`. `APIFY_TOKEN`(tkay_kim, FREE) 유효 확인. 발견은 **해시태그 기반**(`discoverViaHashtag`/`discoverDancersByHashtagAction` + admin "해시태그로 발견" 폼). `INGEST_WEBHOOK_SECRET` 생성·연결.
+- ✅ `ig_discovery`(발견 풀) 테이블 + dedup(ig_user_id unique) + 자동랭킹(rank_score).
 - ✅ `dancer_scrape_queue` + 관리자 화면 `/admin/dancers/discovery`(순서·날짜 수정, stats "발견X/스크랩Y/대기Z").
 - ✅ `dancer_ingestions`(draft→approved/dismissed) + 검수 UI `/admin/dancers/ingestions`(미검증 배지).
 - ✅ 분류 필터(`classifyDancerCandidate` bio키워드+mutuals) + 경력추출(`extractDancerProfileFromScrape`, `unverified` 플래그). LLM 고도화·나무위키는 TODO.

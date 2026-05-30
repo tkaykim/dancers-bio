@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-05-31 (5) — Apify 실가동 연결 (토큰 발굴 + 해시태그 발견)
+
+**한 일**
+- 대표 다른 프로젝트에서 Apify 토큰·구현 발굴: `orchestrator-integrations/.env`의 `APIFY_TOKEN` + `apify-instagram.ts`(검증된 구현, `apify-client` + actor `instagram-profile/post/hashtag-scraper`).
+- `apify-client@^2.10.0` 설치. `src/lib/apify/index.ts`를 stub→실구현 교체: `scrapeIgProfile`(profile-scraper + post-scraper로 latestPosts 확보), `discoverViaHashtag`(hashtag-scraper로 작성자 발견 — 팔로우그래프보다 싸고 검증됨). `discoverFollowGraph` 제거.
+- `discoverDancersByHashtagAction` 추가(dancer-ingestion.ts) + admin discovery 페이지에 `HashtagDiscoverForm`. 해시태그 후보는 분류 필터 없이 발견풀 적재(댄스 해시태그 출처) → admin 검수가 선별.
+- env 연결: `.env.local`(메인+워크트리) `APIFY_TOKEN`+`INGEST_WEBHOOK_SECRET`(생성), `secrets/.env.shared` `APIFY_TOKEN`. 전부 gitignore(미커밋).
+
+**검증**
+- typecheck ✅ / build ✅. **Apify 토큰 유효성 실확인**(users/me): user `tkay_kim`, FREE plan → 실가동 가능(크레딧 한도 내).
+- 미수행: 실제 hashtag-scraper 액터 실행(크레딧 소모 — 대표가 admin UI에서 직접 1회 돌려보면 됨). profile-scraper 출력 필드 매핑은 검증된 레퍼런스 기반이라 신뢰.
+
+**다음**
+- admin `/admin/dancers/discovery`에서 "해시태그로 발견" 1회 실행 → 발견풀 채우고 → 큐 → 스크랩 → 검수 → 승인 흐름 라이브 확인.
+- INGEST_WEBHOOK_SECRET를 Vercel 환경에도 추가(프로덕션 webhook). FREE plan 크레딧 한도 주의.
+
+---
+
 ## 2026-05-31 (4) — Phase 2·3·4 자율 완결 구현 (overnight-build, 병렬 4에이전트)
 
 **권한 이슈 해결 (선행)**
