@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { deadlineLabel } from "@/lib/utils/deadline";
 
 type Project = {
   id: string;
@@ -19,13 +20,6 @@ type Project = {
   first_session_at?: string | null;
 };
 
-function daysUntil(iso: string | null): number | null {
-  if (!iso) return null;
-  const now = Date.now();
-  const target = new Date(iso).getTime();
-  return Math.max(0, Math.ceil((target - now) / (1000 * 60 * 60 * 24)));
-}
-
 function formatPay(p: Project): string {
   if (p.pay_type === "negotiable" || (!p.pay_amount && p.pay_type !== "per_session" && p.pay_type !== "total")) {
     return "협의";
@@ -37,7 +31,6 @@ function formatPay(p: Project): string {
 }
 
 export function ProjectCard({ project }: { project: Project }) {
-  const dDay = daysUntil(project.application_deadline);
   return (
     <Link
       href={`/projects/${project.short_code ?? project.id}`}
@@ -56,9 +49,9 @@ export function ProjectCard({ project }: { project: Project }) {
             </span>
           ) : null}
         </div>
-        {dDay !== null ? (
+        {project.application_deadline ? (
           <span className="font-mono text-[11px] text-ink-3">
-            {dDay === 0 ? "오늘 마감" : `D-${dDay}`}
+            {deadlineLabel(project.application_deadline, { today: "오늘 마감" })}
           </span>
         ) : null}
       </div>
@@ -86,7 +79,6 @@ export function ProjectCard({ project }: { project: Project }) {
 }
 
 export function FeaturedCard({ project }: { project: Project }) {
-  const dDay = daysUntil(project.application_deadline);
   return (
     <Link
       href={`/projects/${project.short_code ?? project.id}`}
@@ -96,9 +88,12 @@ export function FeaturedCard({ project }: { project: Project }) {
         <p className="text-[10px] font-bold uppercase tracking-[0.18em]">
           ↳ Featured · 모집 중
         </p>
-        {dDay !== null ? (
+        {project.application_deadline ? (
           <span className="rounded-full bg-primary-foreground px-2 py-0.5 font-mono text-[11px] font-bold text-primary">
-            {dDay === 0 ? "TODAY" : `D-${dDay}`}
+            {deadlineLabel(project.application_deadline, {
+              today: "TODAY",
+              past: "마감",
+            })}
           </span>
         ) : null}
       </div>

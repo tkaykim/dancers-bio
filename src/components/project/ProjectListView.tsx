@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { daysUntilDeadline, deadlineLabel } from "@/lib/utils/deadline";
 
 export type ProjectCategory =
   | "performance"
@@ -53,13 +54,6 @@ const CATEGORY_ORDER: ProjectCategory[] = [
   "video",
   "other",
 ];
-
-function daysUntil(iso: string | null): number | null {
-  if (!iso) return null;
-  const now = Date.now();
-  const target = new Date(iso).getTime();
-  return Math.max(0, Math.ceil((target - now) / (1000 * 60 * 60 * 24)));
-}
 
 function formatPayShort(p: ListProject): string {
   if (p.pay_type === "negotiable") return "협의";
@@ -383,7 +377,8 @@ function ProjectRow({
   project: ListProject;
   isAdmin: boolean;
 }) {
-  const dDay = daysUntil(project.application_deadline);
+  const dDay = daysUntilDeadline(project.application_deadline);
+  // 마감 지남(음수) 또는 3일 이내(0~3)면 강조.
   const urgent = dDay !== null && dDay <= 3;
   const masked = project.visibility === "private" && !isAdmin;
 
@@ -425,7 +420,7 @@ function ProjectRow({
       <span
         className={`w-10 text-right font-mono text-[11px] ${urgent ? "text-destructive" : "text-ink-3"}`}
       >
-        {dDay === null ? "상시" : dDay === 0 ? "오늘" : `D-${dDay}`}
+        {deadlineLabel(project.application_deadline, { none: "상시" })}
       </span>
     </>
   );

@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
+import { deadlineLabel } from "@/lib/utils/deadline";
 import {
   STATUS_LABELS,
   VISIBILITY_LABELS,
@@ -21,13 +22,6 @@ type ProjectRow = {
   posted_by_label: string | null;
 };
 
-function daysUntil(iso: string | null): number | null {
-  if (!iso) return null;
-  return Math.max(
-    0,
-    Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
-  );
-}
 
 export default async function AdminProjectsPage() {
   await requireAdmin();
@@ -74,7 +68,6 @@ export default async function AdminProjectsPage() {
       ) : (
         <ul className="flex flex-col gap-3">
           {projects.map((p) => {
-            const dDay = daysUntil(p.application_deadline);
             return (
               <li
                 key={p.id}
@@ -101,9 +94,12 @@ export default async function AdminProjectsPage() {
                       <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-ink-2">
                         모집 {p.recruitment_count}명
                       </span>
-                      {dDay !== null ? (
+                      {p.application_deadline ? (
                         <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-ink-2">
-                          {dDay === 0 ? "오늘 마감" : `D-${dDay}`}
+                          {deadlineLabel(p.application_deadline, {
+                            today: "오늘 마감",
+                            past: "마감 지남",
+                          })}
                         </span>
                       ) : null}
                     </div>
