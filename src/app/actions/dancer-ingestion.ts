@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { sendGmailEmail } from "@/lib/gmail";
 import { scrapeIgProfile, discoverViaHashtag } from "@/lib/apify";
 import {
@@ -79,7 +78,8 @@ export async function discoverDancersByHashtagAction(
   // 해시태그 후보는 작성자 핸들만 신뢰 가능(bio 없음) → 분류로 필터링하지 않고
   // 모두 발견 풀에 적재한다(댄스 해시태그에서 왔으므로 presumptive). 핸들/이름에
   // 댄스 키워드가 있으면 rank를 약간 올린다. 최종 선별은 admin 검수가 담당.
-  const admin = createAdminClient();
+  // 인증된 admin의 RLS 클라이언트(ig_discovery는 is_admin() 정책 → service role 불필요).
+  const admin = await createClient();
   let inserted = 0;
   for (const cand of candidates) {
     const cls = classifyDancerCandidate({
@@ -369,7 +369,8 @@ export async function approveDancerIngestionAction(
 
   // Service-role client for cross-table writes (careers RLS expects an owner;
   // ingested dancers are unclaimed, so write as system).
-  const adminDb = createAdminClient();
+  // 인증된 admin의 RLS 클라이언트 (dancers_insert_self·careers_manage 모두 is_admin() 허용 → service role 불필요).
+  const adminDb = await createClient();
 
   // Slug generation: prefer the existing RPC, fall back to slugify + suffix.
   let slug: string;

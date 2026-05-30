@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-05-31 (6) — 라이브 발견 실행 + service-role 부재 대응(RLS 전환)
+
+**라이브 실행 ✓**
+- Apify hashtag-scraper 실가동(`kpopdance`, 15 posts → 10 unique authors). 발견 풀에 10건 적재(`ig_discovery`, discovered=10). 파이프라인 실동작 증명.
+- 관찰: 영어 광역 태그는 무관 계정(댄스학원·파티업체 등) 다수 → **검수 게이트 필요성 실증**. 한국 태그(팝핀·안무) 권장.
+
+**🔴 중요 발견: service role 키 부재**
+- `.env.local`(vercel-pulled)에 `SUPABASE_SERVICE_ROLE_KEY` 없음. `.env.lite.local`엔 `""`(빈 placeholder). → 프로젝트에 service role 키가 사실상 없음.
+- 영향: `createAdminClient()`는 키 없으면 throw. 내 admin 액션들이 이걸 써서 in-app에서 깨질 상태였음.
+- **수정: dancer-ingestion.ts의 createAdminClient → RLS `createClient()` 전환.** 확인된 정책으로 충분: `ig_discovery/scrape_queue/ingestions/outreach`=is_admin(), `dancers_insert_self`·`careers_manage` check_admin=true → 인증 admin이 RLS로 전부 쓰기 가능. service role 불필요.
+- notify: 이미 try/catch로 non-fatal → service role 없으면 알림/푸시만 조용히 skip(핵심 흐름 무영향).
+- webhooks(`/api/ingest/*`): 인증 컨텍스트 없어 RLS 불가 → service role 필수. 키 없으면 비동작(에러 응답). **Vercel에 SUPABASE_SERVICE_ROLE_KEY 설정 필요**(webhook + 알림/푸시 활성화용).
+
+**검증**: typecheck ✅ / build ✅. 임시 seed 스크립트 제거.
+
+**다음**: Vercel에 `SUPABASE_SERVICE_ROLE_KEY`(+`APIFY_TOKEN`,`INGEST_WEBHOOK_SECRET`) 설정 → webhook·알림 활성화. admin UI에서 한국 태그로 발견 재실행 권장.
+
+---
+
 ## 2026-05-31 (5) — Apify 실가동 연결 (토큰 발굴 + 해시태그 발견)
 
 **한 일**
