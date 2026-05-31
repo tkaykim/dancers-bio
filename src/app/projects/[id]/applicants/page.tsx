@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { DecideButtons } from "@/components/project/DecideButtons";
 import { RecommendedDancers } from "@/components/project/RecommendedDancers";
+import { SearchAndPropose } from "@/components/project/SearchAndPropose";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 import { APPLICATION_STATUS_LABELS } from "@/lib/validation/projects";
 
@@ -129,6 +130,7 @@ export default async function ApplicantsPage({
         <RecommendedDancers projectId={p.id} dancers={recommended} />
       ) : null}
 
+      <SearchAndPropose projectId={p.id} />
       {pending.length > 0 ? (
         <section className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">

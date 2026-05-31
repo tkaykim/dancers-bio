@@ -142,15 +142,6 @@ export default async function PublicDancerPage({
     pendingProposalCount = typeof cnt === "number" ? cnt : 0;
   }
 
-  // 미claim 프로필에 도착한 대기 중 캐스팅 제안 수 — claim 후크. (SECURITY DEFINER RPC)
-  let pendingProposalCount = 0;
-  if (isCuration) {
-    const { data: cnt } = await supabase.rpc("dancer_pending_proposal_count", {
-      d_id: dancer.id,
-    });
-    pendingProposalCount = typeof cnt === "number" ? cnt : 0;
-  }
-
   const list = (careers ?? []) as Career[];
   const social = (dancer.social_links ?? {}) as Record<string, string>;
   const portfolio = (dancer.portfolio ?? []).filter((p) => p?.url) as Array<{
