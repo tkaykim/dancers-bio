@@ -35,14 +35,14 @@ export default async function ClaimPage({
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-6 px-6 pb-12 pt-10">
       <Link href="/" className="flex items-baseline gap-1.5 self-start">
         <span className="text-2xl font-extrabold tracking-tight leading-none">
-          dancers.bio
+          deetz
         </span>
         <span className="h-2 w-2 rounded-full bg-primary" aria-hidden />
       </Link>
 
       <div className="flex flex-col gap-2.5">
         <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-          그리고엔터테인먼트 × dancers.bio
+          그리고엔터테인먼트 × deetz
         </p>
         <h1 className="text-[28px] font-extrabold tracking-tight leading-[1.2]">
           {dancerPreview?.stage_name ? (
@@ -56,7 +56,7 @@ export default async function ClaimPage({
         </h1>
         <p className="text-sm text-ink-2 leading-relaxed">
           그리고엔터 에이전시 풀에 지원해주신 정보로<br />
-          dancers.bio 댄서 프로필을 미리 만들어두었습니다.
+          deetz 댄서 프로필을 미리 만들어두었습니다.
         </p>
       </div>
 
@@ -95,7 +95,7 @@ export default async function ClaimPage({
 
       <div className="rounded-xl bg-muted/50 p-4 text-xs leading-relaxed text-ink-2">
         <p className="font-semibold text-ink-2 mb-1.5">이 페이지가 보이는 이유</p>
-        지원하실 때 입력하신 이메일로 dancers.bio 계정을 미리 만들어두었습니다.
+        지원하실 때 입력하신 이메일로 deetz 계정을 미리 만들어두었습니다.
         비밀번호만 새로 설정하시면 바로 로그인할 수 있고, 본인 프로필이 자동으로 연결됩니다.
       </div>
 

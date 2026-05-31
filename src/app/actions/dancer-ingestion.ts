@@ -573,7 +573,7 @@ export async function sendOutreachAction(
   if (!dancer) return { ok: false, error: "댄서를 찾을 수 없습니다." };
 
   const now = new Date().toISOString();
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://dancers.bio";
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://deetz.kr";
   const claimUrl = `${site}/d/${dancer.slug as string}?o=${outreach.token as string}`;
 
   if (outreach.channel === "email") {
@@ -586,26 +586,26 @@ export async function sendOutreachAction(
     const text = [
       `안녕하세요, ${stageName}님!`,
       "",
-      "mydancersbio 에서 회원님의 프로필을 미리 준비해 두었습니다.",
+      "deetz 에서 회원님의 프로필을 미리 준비해 두었습니다.",
       "아래 링크에서 프로필을 확인하고 직접 인증(claim)하실 수 있어요.",
       "",
       claimUrl,
       ...(custom ? ["", custom] : []),
       "",
-      "— mydancersbio 팀",
+      "— deetz 팀",
     ].join("\n");
     const html = `
       <p>안녕하세요, <strong>${stageName}</strong>님!</p>
-      <p>mydancersbio 에서 회원님의 프로필을 미리 준비해 두었습니다.<br/>
+      <p>deetz 에서 회원님의 프로필을 미리 준비해 두었습니다.<br/>
       아래 링크에서 프로필을 확인하고 직접 인증(claim)하실 수 있어요.</p>
       <p><a href="${claimUrl}">${claimUrl}</a></p>
       ${custom ? `<p>${custom}</p>` : ""}
-      <p>— mydancersbio 팀</p>
+      <p>— deetz 팀</p>
     `;
 
     const res = await sendGmailEmail({
       to: target,
-      subject: "[mydancersbio] 회원님의 프로필이 준비되어 있어요",
+      subject: "[deetz] 회원님의 프로필이 준비되어 있어요",
       text,
       html,
     });

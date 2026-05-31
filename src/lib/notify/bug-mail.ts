@@ -37,14 +37,14 @@ export async function sendBugReportEmail(report: BugReportEmail): Promise<{
   const ts = new Date(report.created_at).toLocaleString("ko-KR", {
     timeZone: "Asia/Seoul",
   });
-  const subject = `[dancers.bio 버그] ${report.title.slice(0, 100)}`;
+  const subject = `[deetz 버그] ${report.title.slice(0, 100)}`;
   const row = (label: string, value: string) =>
     `<tr><td style="padding:6px 12px;color:#666;width:120px;vertical-align:top;">${label}</td><td style="padding:6px 12px;font-size:13px;word-break:break-all;">${escapeHtml(value)}</td></tr>`;
 
   const html = `
   <div style="max-width:680px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Pretendard','Apple SD Gothic Neo',sans-serif;color:#222;">
     <div style="background:#18181b;padding:20px 24px;">
-      <h1 style="color:#fff;margin:0;font-size:18px;letter-spacing:-0.01em;">🐞 dancers.bio 버그 리포트</h1>
+      <h1 style="color:#fff;margin:0;font-size:18px;letter-spacing:-0.01em;">🐞 deetz 버그 리포트</h1>
       <p style="color:#a1a1aa;margin:6px 0 0;font-size:12px;">
         <span style="background:${sev.bg};color:#fff;padding:2px 9px;border-radius:4px;font-size:11px;font-weight:600;">${sev.label}</span>
         &nbsp;&nbsp;${ts} KST
@@ -67,12 +67,12 @@ export async function sendBugReportEmail(report: BugReportEmail): Promise<{
       </p>
     </div>
     <div style="background:#fafafa;padding:12px 24px;text-align:center;font-size:11px;color:#a1a1aa;">
-      dancers.bio 자동 버그 리포트 시스템
+      deetz 자동 버그 리포트 시스템
     </div>
   </div>`;
 
   const text = [
-    `[dancers.bio 버그] ${report.title}`,
+    `[deetz 버그] ${report.title}`,
     `Severity: ${sev.label}`,
     `Time: ${ts} KST`,
     "",

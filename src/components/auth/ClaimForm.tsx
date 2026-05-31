@@ -41,7 +41,7 @@ export function ClaimForm({ initialEmail, dancerSlug }: ClaimFormProps) {
         </div>
         <div className="rounded-xl bg-background p-3.5 text-xs leading-relaxed text-ink-2">
           <p className="mb-1.5 font-semibold text-foreground">다음 단계</p>
-          1. 받은편지함 (또는 스팸함)에서 dancers.bio 메일 열기<br />
+          1. 받은편지함 (또는 스팸함)에서 deetz 메일 열기<br />
           2. 메일 안의 <b>비밀번호 재설정 링크</b> 클릭<br />
           3. 새 비밀번호 설정 → 자동으로 본인 프로필 연결
         </div>

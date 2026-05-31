@@ -59,13 +59,13 @@ export default async function WelcomePage({
     <div className="mx-auto w-full max-w-md px-6 pb-28 pt-12">
       <Link href="/" className="mb-7 flex items-baseline gap-1.5">
         <span className="text-2xl font-extrabold tracking-tight leading-none">
-          dancers.bio
+          deetz
         </span>
         <span className="h-2 w-2 rounded-full bg-primary" aria-hidden />
       </Link>
 
       <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-        그리고엔터테인먼트 × dancers.bio
+        그리고엔터테인먼트 × deetz
       </p>
       <h1 className="mt-2 text-[28px] font-extrabold leading-[1.2] tracking-tight">
         {dancer ? (
@@ -79,7 +79,7 @@ export default async function WelcomePage({
         )}
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-ink-2">
-        에이전시 풀에 제출해주신 정보로 dancers.bio 프로필을 미리 만들어 두었습니다.
+        에이전시 풀에 제출해주신 정보로 deetz 프로필을 미리 만들어 두었습니다.
         아래 프로필이 회원님 본인이 맞다면, 로그인하고 직접 관리해 보세요.
       </p>
 

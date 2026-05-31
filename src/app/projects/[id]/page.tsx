@@ -43,9 +43,9 @@ export async function generateMetadata({
     title: p.title as string,
     description: desc,
     openGraph: {
-      title: `${p.title} · dancers.bio`,
+      title: `${p.title} · deetz`,
       description: desc,
-      siteName: "dancers.bio",
+      siteName: "deetz",
       type: "article",
     },
   };
@@ -214,7 +214,7 @@ export default async function ProjectDetailPage({
         href={user ? "/feed" : "/"}
         className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
       >
-        ← {user ? "캐스팅 피드" : "dancers.bio"}
+        ← {user ? "캐스팅 피드" : "deetz"}
       </Link>
 
       <header className="flex flex-col gap-3">

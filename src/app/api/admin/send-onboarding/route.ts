@@ -10,13 +10,13 @@ import { sendGmailEmail } from "@/lib/gmail";
  * 방식: 발급형 자격증명
  *  1) 대상 이메일의 auth 계정에 임시 비밀번호를 새로 발급(설정)한다.
  *  2) 지원 이메일로 미리 만들어둔 댄서 프로필을 해당 계정에 연결한다.
- *  3) dancers.bio Gmail 로 "이메일 + 임시 비밀번호 + 로그인 링크" 메일을 보낸다.
+ *  3) deetz Gmail 로 "이메일 + 임시 비밀번호 + 로그인 링크" 메일을 보낸다.
  *
  * 인증: Authorization: Bearer <admin access_token>
  * Body: { email: string }
  */
 const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://dancers-bio-lite.vercel.app";
+  process.env.NEXT_PUBLIC_SITE_URL || "https://deetz.kr";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // 임시 비밀번호: 숫자 6자리 (앞자리 0 허용)
@@ -34,9 +34,9 @@ function escapeHtml(s: string): string {
 function buildHtml(name: string | null, email: string, pw: string, loginUrl: string): string {
   const hi = name ? `${escapeHtml(name)}님, ` : "";
   return `<div style="max-width:480px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#111111;padding:8px 4px;">
-  <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;padding:8px 0;">dancers.bio<span style="color:#6366f1;">.</span></div>
+  <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;padding:8px 0;">deetz<span style="color:#6366f1;">.</span></div>
   <p style="font-size:14px;line-height:1.7;color:#222;">안녕하세요 ${hi}<b>그리고엔터테인먼트</b>입니다.</p>
-  <p style="font-size:14px;line-height:1.7;color:#444;">에이전시 풀에 프로필을 제출해 주셔서 감사합니다. 현재 시범 운영 중인 댄서 구인·구직 &amp; 프로필 관리 플랫폼 <b>dancers.bio</b>에 회원님의 프로필을 미리 만들어 두었습니다.</p>
+  <p style="font-size:14px;line-height:1.7;color:#444;">에이전시 풀에 프로필을 제출해 주셔서 감사합니다. 현재 시범 운영 중인 댄서 구인·구직 &amp; 프로필 관리 플랫폼 <b>deetz</b>에 회원님의 프로필을 미리 만들어 두었습니다.</p>
   <p style="font-size:14px;line-height:1.7;color:#444;">아래 정보로 <b>로그인</b>하시면 바로 확인하실 수 있어요:</p>
   <ul style="font-size:14px;line-height:1.8;color:#444;margin:8px 0 0 18px;padding:0;">
     <li>내 <b>프로필·포트폴리오</b> 확인 및 수정</li>
@@ -50,7 +50,7 @@ function buildHtml(name: string | null, email: string, pw: string, loginUrl: str
   <p style="font-size:12px;line-height:1.6;color:#888;">보안을 위해 로그인 후 <b>[내 정보 → 비밀번호 변경]</b>에서 비밀번호를 꼭 바꿔 주세요.</p>
   <p style="font-size:12px;color:#aaaaaa;margin-top:6px;">본인이 제출하신 적이 없다면 이 메일을 무시하셔도 됩니다.</p>
   <hr style="border:none;border-top:1px solid #eeeeee;margin:24px 0;">
-  <p style="font-size:11px;color:#bbbbbb;">dancers.bio · 한국 댄스 신을 위한 프로필 &amp; 캐스팅 플랫폼</p>
+  <p style="font-size:11px;color:#bbbbbb;">deetz · 한국 댄스 신을 위한 프로필 &amp; 캐스팅 플랫폼</p>
 </div>`;
 }
 
@@ -59,7 +59,7 @@ function buildText(name: string | null, email: string, pw: string, loginUrl: str
   return `안녕하세요 ${hi}그리고엔터테인먼트입니다.
 
 에이전시 풀에 프로필을 제출해 주셔서 감사합니다.
-현재 시범 운영 중인 댄서 구인·구직 & 프로필 관리 플랫폼 dancers.bio에 회원님의 프로필을 미리 만들어 두었습니다.
+현재 시범 운영 중인 댄서 구인·구직 & 프로필 관리 플랫폼 deetz에 회원님의 프로필을 미리 만들어 두었습니다.
 
 아래 정보로 로그인하시면 바로 확인하실 수 있어요:
 - 내 프로필·포트폴리오 확인 및 수정
@@ -74,7 +74,7 @@ function buildText(name: string | null, email: string, pw: string, loginUrl: str
 보안을 위해 로그인 후 [내 정보 → 비밀번호 변경]에서 비밀번호를 꼭 바꿔 주세요.
 본인이 제출하신 적이 없다면 이 메일을 무시하셔도 됩니다.
 
-dancers.bio · 한국 댄스 신을 위한 프로필 & 캐스팅 플랫폼`;
+deetz · 한국 댄스 신을 위한 프로필 & 캐스팅 플랫폼`;
 }
 
 async function requireAdmin(req: NextRequest) {
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
     : `${SITE_URL}/login`;
   const sent = await sendGmailEmail({
     to: email,
-    subject: "[dancers.bio] 프로필이 준비됐어요 · 로그인 정보 안내",
+    subject: "[deetz] 프로필이 준비됐어요 · 로그인 정보 안내",
     text: buildText(name, email, tempPw, welcomeUrl),
     html: buildHtml(name, email, tempPw, welcomeUrl),
   });

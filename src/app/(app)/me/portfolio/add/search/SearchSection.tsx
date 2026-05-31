@@ -289,7 +289,7 @@ function DancerCard({
           className="absolute inset-0"
           style={{
             background:
-              "repeating-linear-gradient(135deg, rgba(255,250,235,0.04) 0 12px, rgba(255,250,235,0.08) 12px 24px)",
+              "repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 12px, rgba(255,255,255,0.09) 12px 24px), #1c1c19",
           }}
         />
       )}
@@ -301,14 +301,14 @@ function DancerCard({
         }}
       />
       <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-0.5 p-3">
-        <p className="text-sm font-semibold leading-tight text-foreground">
+        <p className="text-sm font-semibold leading-tight text-white">
           {dancer.stage_name}
         </p>
         {dancer.korean_name ? (
-          <p className="text-[11px] text-ink-3">{dancer.korean_name}</p>
+          <p className="text-[11px] text-white/65">{dancer.korean_name}</p>
         ) : null}
         {(dancer.genres ?? []).length > 0 ? (
-          <p className="text-[10px] text-ink-3">
+          <p className="text-[10px] text-white/55">
             {(dancer.genres ?? []).slice(0, 2).join(" · ")}
           </p>
         ) : null}

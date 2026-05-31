@@ -66,9 +66,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const dancer = await loadDancer(slug);
-  if (!dancer) return { title: "dancers.bio" };
+  if (!dancer) return { title: { absolute: "deetz" } };
   return {
-    title: `${dancer.stage_name} · dancers.bio`,
+    title: { absolute: `${dancer.stage_name} · deetz` },
     description: dancer.bio ?? `${dancer.stage_name}의 댄서 포트폴리오`,
   };
 }
@@ -197,8 +197,9 @@ export default async function PublicDancerPage({
             className="absolute inset-0"
             style={{
               background: `
-                radial-gradient(ellipse at 30% 30%, rgba(217,255,60,0.18), transparent 55%),
-                repeating-linear-gradient(135deg, rgba(255,250,235,0.05) 0 12px, rgba(255,250,235,0.10) 12px 24px)
+                radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.07), transparent 55%),
+                repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 12px, rgba(255,255,255,0.09) 12px 24px),
+                #1c1c19
               `,
             }}
           />
@@ -223,10 +224,10 @@ export default async function PublicDancerPage({
               </span>
             ) : null}
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight leading-none tracking-tight">
+          <h1 className="text-4xl font-extrabold tracking-tight leading-none text-white">
             {dancer.stage_name}
           </h1>
-          <p className="text-sm font-medium text-ink-2">
+          <p className="text-sm font-medium text-white/80">
             {(dancer.genres ?? []).slice(0, 3).join(" · ")}
             {dancer.korean_name ? ` · ${dancer.korean_name}` : ""}
           </p>

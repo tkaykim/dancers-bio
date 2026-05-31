@@ -35,7 +35,7 @@ export async function sendGmailEmail({
 }: SendGmailParams): Promise<{ ok: boolean; error?: string }> {
   const t = getTransporter();
   if (!t) return { ok: false, error: "transporter_unavailable" };
-  const fromName = process.env.GMAIL_FROM_NAME || "dancers.bio";
+  const fromName = process.env.GMAIL_FROM_NAME || "deetz";
   const fromEmail = process.env.GMAIL_USER!;
   try {
     await t.sendMail({

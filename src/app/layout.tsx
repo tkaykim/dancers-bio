@@ -19,19 +19,19 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "dancers.bio — 댄서 캐스팅 플랫폼",
-    template: "%s · dancers.bio",
+    default: "deetz — 댄서 매거진 & 캐스팅 플랫폼",
+    template: "%s · deetz",
   },
-  description: "댄서들을 위한 캐스팅 플랫폼. 본인의 포트폴리오를 관리하고, 프로젝트에 지원하세요.",
+  description: "댄서를 소개하는 매거진이자, 포트폴리오와 일을 잇는 캐스팅 플랫폼.",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon-192.png",
     apple: "/icon-192.png",
   },
   openGraph: {
-    title: "dancers.bio — 댄서 캐스팅 플랫폼",
-    description: "댄서들을 위한 캐스팅 플랫폼. 본인의 포트폴리오를 관리하고, 프로젝트에 지원하세요.",
-    siteName: "dancers.bio",
+    title: "deetz — 댄서 매거진 & 캐스팅 플랫폼",
+    description: "댄서를 소개하는 매거진이자, 포트폴리오와 일을 잇는 캐스팅 플랫폼.",
+    siteName: "deetz",
     type: "website",
   },
 };
@@ -41,7 +41,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#0E0E0C",
+  themeColor: "#FFFFFF",
 };
 
 export default function RootLayout({

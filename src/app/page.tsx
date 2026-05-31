@@ -16,13 +16,13 @@ export default async function HomePage() {
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10"
         style={{
-          background: `radial-gradient(ellipse at 20% 10%, rgba(217,255,60,0.18), transparent 55%)`,
+          background: `radial-gradient(ellipse at 20% 10%, rgba(20,18,12,0.04), transparent 55%)`,
         }}
       />
 
       <div className="flex items-baseline gap-2">
         <h1 className="text-5xl font-extrabold tracking-tighter leading-none">
-          dancers.bio
+          deetz
         </h1>
         <span className="h-3 w-3 rounded-full bg-primary" aria-hidden />
       </div>

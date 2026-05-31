@@ -55,7 +55,7 @@ self.addEventListener('push', (event) => {
   } catch (_e) {
     data = { body: event.data ? event.data.text() : '' };
   }
-  const title = data.title || 'dancers.bio';
+  const title = data.title || 'deetz';
   const options = {
     body: data.body || '',
     icon: data.icon || '/icon-192.png',
