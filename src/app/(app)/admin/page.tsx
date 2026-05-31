@@ -102,6 +102,11 @@ export default async function AdminHomePage() {
           title="사용자 / 권한"
           desc="사용자 검색 + can_create_project 토글"
         />
+        <Tile
+          href="/admin/scores"
+          title="경력 점수 (내부)"
+          desc="프로 근접도 랭킹 + 경력별 점수 분해 · 비노출"
+        />
       </section>
 
       <section className="flex flex-col gap-3">
