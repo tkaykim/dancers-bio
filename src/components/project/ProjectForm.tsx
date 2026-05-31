@@ -40,6 +40,7 @@ export function ProjectForm({
   const [sessions, setSessions] = useState<SessionRow[]>([{ ...emptySession }]);
   const [payDisplay, setPayDisplay] = useState<string>("");
   const [category, setCategory] = useState<ProjectCategory | "">("");
+  const [isStandingPool, setIsStandingPool] = useState(false);
 
   function onPayChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/[^\d]/g, "");
@@ -224,9 +225,32 @@ export function ProjectForm({
             id="application_deadline"
             name="application_deadline"
             type="datetime-local"
+            disabled={isStandingPool}
+            className={isStandingPool ? "opacity-50" : undefined}
           />
+          {isStandingPool ? (
+            <p className="text-xs text-muted-foreground">
+              상시 섭외풀은 마감일이 없습니다.
+            </p>
+          ) : null}
         </div>
       </div>
+
+      <label className="flex flex-col gap-1 rounded-xl border border-border p-4">
+        <span className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            name="is_standing_pool"
+            checked={isStandingPool}
+            onChange={(e) => setIsStandingPool(e.target.checked)}
+            className="h-4 w-4"
+          />
+          상시 섭외풀로 등록 (마감 없음 · 지원자는 풀에 적재)
+        </span>
+        <span className="ml-6 text-xs text-muted-foreground">
+          특정 일정 없이 상시로 지원을 받아 인재 풀을 쌓습니다. 마감일은 무시됩니다.
+        </span>
+      </label>
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="posted_by_label">등록자 표시명 (선택)</Label>

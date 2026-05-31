@@ -3,7 +3,7 @@ import { getProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ProjectListView } from "@/components/project/ProjectListView";
-import { isDeadlinePassed } from "@/lib/utils/deadline";
+import { isExpired } from "@/lib/utils/deadline";
 
 type Row = {
   id: string;
@@ -25,6 +25,7 @@ type Row = {
   pay_amount: number | null;
   pay_type: "per_session" | "total" | "negotiable" | null;
   application_deadline: string | null;
+  is_standing_pool: boolean | null;
   created_at: string;
   owner_id: string;
   region_text: string | null;
@@ -41,7 +42,7 @@ export default async function FeedPage() {
     .from("projects")
     .select(
       `id, short_code, title, description, visibility, status, category, pay_amount, pay_type,
-       application_deadline, created_at, owner_id, region_text,
+       application_deadline, is_standing_pool, created_at, owner_id, region_text,
        genre:genres ( label_ko ),
        region:regions ( label_ko )`,
     )
@@ -91,6 +92,7 @@ export default async function FeedPage() {
       pay_amount: p.pay_amount,
       pay_type: p.pay_type,
       application_deadline: p.application_deadline,
+      is_standing_pool: !!p.is_standing_pool,
       created_at: p.created_at,
       owner_name: ownerMap.get(p.owner_id) ?? null,
       genre_label: p.genre?.label_ko ?? null,
@@ -102,7 +104,7 @@ export default async function FeedPage() {
   const canCreate = profile?.can_create_project || profile?.is_admin;
   // 헤더 "모집 중" 카운트는 만료되지 않은 공고 기준 (만료는 기본 숨김).
   const activeCount = enriched.filter(
-    (p) => !isDeadlinePassed(p.application_deadline),
+    (p) => !isExpired(p.application_deadline, p.is_standing_pool),
   ).length;
 
   return (

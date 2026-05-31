@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { DecideButtons } from "@/components/project/DecideButtons";
+import { RecommendedDancers } from "@/components/project/RecommendedDancers";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 import { APPLICATION_STATUS_LABELS } from "@/lib/validation/projects";
 
@@ -28,6 +29,18 @@ type Application = {
 };
 
 type Project = { id: string; short_code: string; owner_id: string; title: string; recruitment_count: number };
+
+type RecommendedDancer = {
+  dancer_id: string;
+  stage_name: string;
+  slug: string | null;
+  profile_img: string | null;
+  genres: string[] | null;
+  location: string | null;
+  profile_id: string | null;
+  genre_match: boolean;
+  location_match: boolean;
+};
 
 const STATUS_COLOR: Record<string, string> = {
   pending: "text-ink-2",
@@ -69,6 +82,14 @@ export default async function ApplicantsPage({
   const p = project as Project;
   if (p.owner_id !== user.id && !isAdmin) notFound();
 
+  // 추천 댄서 — 매칭 RPC(SECURITY DEFINER). 소유자/admin이 아니면 빈 배열 반환.
+  // 점수 수치는 반환하지 않으며 genre/location_match 불리언만 노출한다.
+  const { data: matchData } = await supabase.rpc("match_dancers_for_project", {
+    p_id: p.id,
+    _limit: 12,
+  });
+  const recommended = (matchData ?? []) as RecommendedDancer[];
+
   const { data: rows } = await supabase
     .from("applications")
     .select(
@@ -103,6 +124,10 @@ export default async function ApplicantsPage({
           총 {list.length}명 · 수락 {acceptedCount} / {p.recruitment_count}
         </p>
       </header>
+
+      {recommended.length > 0 ? (
+        <RecommendedDancers projectId={p.id} dancers={recommended} />
+      ) : null}
 
       {pending.length > 0 ? (
         <section className="flex flex-col gap-2">

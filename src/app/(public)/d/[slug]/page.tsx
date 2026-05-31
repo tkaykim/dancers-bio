@@ -95,8 +95,16 @@ export default async function PublicDancerPage({
     getProfile(),
   ]);
 
-  // Lite MVP: direct_proposal 흐름 OFF. SendProposalDialog 노출하지 않음.
-  const canPropose = false;
+  // claim 상태
+  const isCuration = !dancer.profile_id;
+  const isOwner = Boolean(viewer && dancer.profile_id === viewer.id);
+
+  // Phase 1: direct_proposal 복원. 프로젝트 개설 권한이 있는 로그인 사용자가
+  // 댄서(claimed·미claim 공통)에게 제안 가능. 본인 소유 프로필엔 불가.
+  const canPropose =
+    Boolean(viewer) &&
+    Boolean(viewerProfile?.can_create_project || viewerProfile?.is_admin) &&
+    !isOwner;
 
   let myProjects: Array<{ id: string; title: string; visibility: "public" | "private"; status: string; allow_team_apply: boolean }> = [];
   if (canPropose) {
@@ -111,9 +119,6 @@ export default async function PublicDancerPage({
     myProjects = (mp ?? []) as typeof myProjects;
   }
 
-  // Footer CTA state — claim availability for curation dancers
-  const isCuration = !dancer.profile_id;
-  const isOwner = Boolean(viewer && dancer.profile_id === viewer.id);
   let alreadyRequested = false;
   if (viewer && isCuration) {
     const { data: existing } = await supabase
@@ -123,6 +128,15 @@ export default async function PublicDancerPage({
       .eq("requester_id", viewer.id)
       .maybeSingle();
     alreadyRequested = Boolean(existing);
+  }
+
+  // 미claim 프로필에 도착한 대기 중 캐스팅 제안 수 — claim 후크. (SECURITY DEFINER RPC)
+  let pendingProposalCount = 0;
+  if (isCuration) {
+    const { data: cnt } = await supabase.rpc("dancer_pending_proposal_count", {
+      d_id: dancer.id,
+    });
+    pendingProposalCount = typeof cnt === "number" ? cnt : 0;
   }
 
   const list = (careers ?? []) as Career[];
@@ -388,6 +402,18 @@ export default async function PublicDancerPage({
         )}
       </section>
 
+      {/* 미claim 프로필 claim 후크: 도착한 캐스팅 제안이 있으면 강조 */}
+      {isCuration && pendingProposalCount > 0 ? (
+        <section className="mx-6 mt-6 rounded-2xl border border-primary/40 bg-primary/10 px-5 py-4">
+          <p className="text-sm font-semibold text-foreground">
+            🔥 이 프로필로 캐스팅 제안 {pendingProposalCount}건이 도착했어요
+          </p>
+          <p className="mt-1 text-xs text-ink-3">
+            본인 또는 매니저라면 권한을 신청하고 제안에 응답할 수 있어요. 아래에서 신청하세요.
+          </p>
+        </section>
+      ) : null}
+
       {/* Footer CTAs: claim / signup / create-your-own */}
       <ProfileFooterCTA
         dancerId={dancer.id}
@@ -407,7 +433,7 @@ export default async function PublicDancerPage({
           <SendProposalDialog
             target={{
               kind: "dancer",
-              profile_id: dancer.profile_id!,
+              dancer_id: dancer.id,
               name: dancer.stage_name,
             }}
             myProjects={myProjects}

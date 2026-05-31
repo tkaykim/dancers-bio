@@ -44,6 +44,9 @@ export async function createProjectAction(
     publish_now:
       formData.get("publish_now") === "on" ||
       formData.get("publish_now") === "true",
+    is_standing_pool:
+      formData.get("is_standing_pool") === "on" ||
+      formData.get("is_standing_pool") === "true",
     posted_by_label: strOrNull(formData, "posted_by_label"),
   });
   if (!parsed.success) {
@@ -90,6 +93,12 @@ export async function createProjectAction(
 
   const supabase = await createClient();
 
+  // 상시 섭외풀: 마감 없음. true 면 입력된 마감일을 무시하고 null 강제.
+  const isStandingPool = parsed.data.is_standing_pool;
+  const applicationDeadline = isStandingPool
+    ? null
+    : parsed.data.application_deadline ?? null;
+
   // Lite: owner = admin 본인. allow_team_apply는 항상 false.
   const { data: project, error } = await supabase
     .from("projects")
@@ -107,7 +116,8 @@ export async function createProjectAction(
       pay_type: parsed.data.pay_type ?? null,
       recruitment_count: parsed.data.recruitment_count,
       allow_team_apply: false,
-      application_deadline: parsed.data.application_deadline ?? null,
+      application_deadline: applicationDeadline,
+      is_standing_pool: isStandingPool,
       posted_by_label: parsed.data.posted_by_label ?? null,
     })
     .select("id, short_code")
