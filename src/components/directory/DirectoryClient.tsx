@@ -74,23 +74,14 @@ export function DirectoryClient({
     ): Promise<{ dancers?: Dancer[]; teams?: Team[] }> => {
       const supabase = createClient();
       if (target === "dancers") {
-        let qb = supabase
-          .from("dancers")
-          .select(
-            "id, stage_name, korean_name, slug, profile_img, location, genres, specialties, profile_id",
-          )
-          .eq("approval_status", "approved")
-          .eq("is_active", true)
-          .order("display_order", { ascending: false, nullsFirst: false })
-          .order("created_at", { ascending: false })
-          .range(offset, offset + PAGE_SIZE - 1);
-        if (q) {
-          const safe = q.replace(/[%_,]/g, "");
-          qb = qb.or(
-            `stage_name.ilike.%${safe}%,korean_name.ilike.%${safe}%`,
-          );
-        }
-        const { data } = await qb;
+        // 내부 경력점수 정렬 + 이름 검색을 RPC(SECURITY DEFINER)로 위임.
+        // 점수는 노출하지 않고 정렬만 수행한다.
+        const safe = q ? q.replace(/[%_,]/g, "") : "";
+        const { data } = await supabase.rpc("list_directory_dancers", {
+          _limit: PAGE_SIZE,
+          _offset: offset,
+          _q: safe,
+        });
         return { dancers: (data ?? []) as Dancer[] };
       } else {
         let qb = supabase

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { RecomputeScoresButton } from "@/components/admin/RecomputeScoresButton";
 
 export default async function AdminHomePage() {
   const profile = await requireProfile();
@@ -130,6 +131,16 @@ export default async function AdminHomePage() {
           title="사용자 / 권한"
           desc="사용자 검색 + can_create_project 토글"
         />
+        <Tile
+          href="/admin/scores"
+          title="경력 점수 (내부)"
+          desc="프로 근접도 랭킹 + 경력별 점수 분해 · 비노출"
+        />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-bold text-ink-2">시스템</h2>
+        <RecomputeScoresButton />
       </section>
     </div>
   );

@@ -131,7 +131,6 @@ export default async function ApplicantsPage({
       ) : null}
 
       <SearchAndPropose projectId={p.id} />
-
       {pending.length > 0 ? (
         <section className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">

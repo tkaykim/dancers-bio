@@ -3,9 +3,25 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { recomputeScores } from "@/lib/scoring/recompute";
 import { parseVideoUrl } from "@/lib/utils/video";
 import { careerSchema } from "@/lib/validation/portfolio";
 import type { ActionResult } from "./auth";
+
+/**
+ * 경력 변경 후 해당 댄서의 내부 점수를 백그라운드 재계산 (사용자 무인지).
+ * service-role 필요(점수 테이블 admin-only). 실패해도 사용자 작업에는 영향 없음.
+ * 점수는 공개/비공개 무관 전체 경력 기준이라 가시성 토글에는 재계산 불필요.
+ */
+async function recomputeDancerScoreSafe(dancerId: string): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    await recomputeScores(admin, [dancerId]);
+  } catch (e) {
+    console.warn("[careers] score recompute failed:", (e as Error).message);
+  }
+}
 
 type CareerDetails = {
   link?: string;
@@ -170,6 +186,7 @@ export async function addCareerAction(
 
   if (error) return { ok: false, error: error.message };
 
+  await recomputeDancerScoreSafe(target.dancer.id);
   revalidateForDancer(target.dancer);
   return { ok: true, data: { id: data.id as number } };
 }
@@ -208,6 +225,7 @@ export async function updateCareerAction(
 
   if (error) return { ok: false, error: error.message };
 
+  await recomputeDancerScoreSafe(target.dancer.id);
   revalidateForDancer(target.dancer);
   return { ok: true };
 }
@@ -261,6 +279,7 @@ export async function deleteCareerAction(
 
   if (error) return { ok: false, error: error.message };
 
+  await recomputeDancerScoreSafe(target.dancer.id);
   revalidateForDancer(target.dancer);
   return { ok: true };
 }

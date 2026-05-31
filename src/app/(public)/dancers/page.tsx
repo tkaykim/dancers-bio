@@ -15,16 +15,9 @@ export default async function DirectoryPage({
   const supabase = await createClient();
 
   const [dancersRes, teamsRes, dancerCountRes, teamCountRes] = await Promise.all([
-    supabase
-      .from("dancers")
-      .select(
-        "id, stage_name, korean_name, slug, profile_img, location, genres, specialties, profile_id",
-      )
-      .eq("approval_status", "approved")
-      .eq("is_active", true)
-      .order("display_order", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false })
-      .range(0, PAGE_SIZE - 1),
+    // 내부 경력점수 내림차순 정렬. RPC(SECURITY DEFINER)가 점수를 노출하지 않고
+    // 정렬만 수행하고 공개 컬럼만 반환한다.
+    supabase.rpc("list_directory_dancers", { _limit: PAGE_SIZE, _offset: 0, _q: "" }),
     supabase
       .from("teams")
       .select(
