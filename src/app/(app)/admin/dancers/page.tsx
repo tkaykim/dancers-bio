@@ -96,7 +96,7 @@ export default async function AdminDancersPage({
   const rejected = list.filter((r) => r.approval_status === "rejected");
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
+    <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
           ↳ 관리자 / 댄서 관리

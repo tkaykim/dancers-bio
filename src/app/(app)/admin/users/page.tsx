@@ -44,7 +44,7 @@ export default async function AdminUsersPage({
   const list = (data ?? []) as Row[];
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
+    <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
         <Link
           href="/admin"
