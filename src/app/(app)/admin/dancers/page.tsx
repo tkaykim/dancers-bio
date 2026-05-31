@@ -72,6 +72,25 @@ export default async function AdminDancersPage({
     for (const p of profiles ?? []) profileMap.set(p.id, p);
   }
 
+  // 내부 경력점수 (admin-only RLS — admin 세션만 읽힘). 배지로 표시.
+  const scoreMap = new Map<string, { score: number; career_count: number }>();
+  if (list.length > 0) {
+    const { data: scores } = await supabase
+      .from("dancer_scores")
+      .select("dancer_id, score, career_count")
+      .in(
+        "dancer_id",
+        list.map((r) => r.id),
+      );
+    for (const s of (scores ?? []) as {
+      dancer_id: string;
+      score: number;
+      career_count: number;
+    }[]) {
+      scoreMap.set(s.dancer_id, { score: Number(s.score), career_count: s.career_count });
+    }
+  }
+
   const pending = list.filter((r) => r.approval_status === "pending");
   const approved = list.filter((r) => r.approval_status === "approved");
   const rejected = list.filter((r) => r.approval_status === "rejected");
@@ -124,6 +143,7 @@ export default async function AdminDancersPage({
               key={r.id}
               row={r}
               owner={r.profile_id ? profileMap.get(r.profile_id) : undefined}
+              score={scoreMap.get(r.id)}
             />
           ))}
         </Section>
@@ -209,9 +229,11 @@ function Section({
 function DancerCard({
   row,
   owner,
+  score,
 }: {
   row: DancerRow;
   owner?: ProfileLite;
+  score?: { score: number; career_count: number };
 }) {
   const statusColor = {
     pending: "border-warn/30 bg-warn/5 text-warn",
@@ -252,11 +274,21 @@ function DancerCard({
                 {new Date(row.created_at).toLocaleString("ko-KR")}
               </p>
             </div>
-            <span
-              className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${statusColor}`}
-            >
-              {row.approval_status}
-            </span>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              <span
+                className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${statusColor}`}
+              >
+                {row.approval_status}
+              </span>
+              {score ? (
+                <span
+                  className="rounded-full border border-border bg-secondary px-2 py-0.5 font-mono text-[10px] text-ink-2"
+                  title={`내부 경력점수 (비노출) · 경력 ${score.career_count}건`}
+                >
+                  ★ {score.score.toFixed(1)}
+                </span>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
