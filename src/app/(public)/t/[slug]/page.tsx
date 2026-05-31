@@ -57,9 +57,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const team = await loadTeam(slug);
-  if (!team) return { title: "dancers.bio" };
+  if (!team) return { title: { absolute: "deetz" } };
   return {
-    title: `${team.team_name} · dancers.bio`,
+    title: { absolute: `${team.team_name} · deetz` },
     description: team.bio ?? `${team.team_name} 댄스팀 포트폴리오`,
   };
 }
@@ -181,8 +181,9 @@ export default async function PublicTeamPage({
             className="absolute inset-0"
             style={{
               background: `
-                radial-gradient(ellipse at 30% 30%, rgba(217,255,60,0.18), transparent 55%),
-                repeating-linear-gradient(135deg, rgba(255,250,235,0.05) 0 12px, rgba(255,250,235,0.10) 12px 24px)
+                radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.07), transparent 55%),
+                repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 12px, rgba(255,255,255,0.09) 12px 24px),
+                #1c1c19
               `,
             }}
           />
@@ -205,10 +206,10 @@ export default async function PublicTeamPage({
               </span>
             ) : null}
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight leading-none">
+          <h1 className="text-4xl font-extrabold tracking-tight leading-none text-white">
             {team.team_name}
           </h1>
-          <p className="text-sm font-medium text-ink-2">
+          <p className="text-sm font-medium text-white/80">
             {(team.genres ?? []).slice(0, 3).join(" · ")}
             {team.korean_name ? ` · ${team.korean_name}` : ""}
           </p>

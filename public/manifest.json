@@ -1,11 +1,11 @@
 {
-  "name": "dancers.bio — 댄서 캐스팅 플랫폼",
-  "short_name": "dancers.bio",
-  "description": "댄서들을 위한 캐스팅 플랫폼. 포트폴리오 관리 + 프로젝트 지원.",
+  "name": "deetz — 댄서 매거진 & 캐스팅 플랫폼",
+  "short_name": "deetz",
+  "description": "댄서를 소개하는 매거진이자, 포트폴리오와 일을 잇는 캐스팅 플랫폼.",
   "start_url": "/feed",
   "display": "standalone",
-  "background_color": "#0E0E0C",
-  "theme_color": "#0E0E0C",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFFFFF",
   "orientation": "portrait",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
