@@ -573,7 +573,7 @@ export async function sendOutreachAction(
   if (!dancer) return { ok: false, error: "댄서를 찾을 수 없습니다." };
 
   const now = new Date().toISOString();
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://deetz.kr";
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://dancers-bio-lite.vercel.app";
   const claimUrl = `${site}/d/${dancer.slug as string}?o=${outreach.token as string}`;
 
   if (outreach.channel === "email") {

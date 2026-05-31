@@ -16,7 +16,7 @@ import { sendGmailEmail } from "@/lib/gmail";
  * Body: { email: string }
  */
 const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://deetz.kr";
+  process.env.NEXT_PUBLIC_SITE_URL || "https://dancers-bio-lite.vercel.app";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // 임시 비밀번호: 숫자 6자리 (앞자리 0 허용)

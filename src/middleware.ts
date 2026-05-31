@@ -1,15 +1,20 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Canonical app host. Everything is served from here; dancers.bio is only a
-// vanity domain that forwards into it.
-const CANONICAL_ORIGIN = "https://deetz.kr";
+// Canonical app origin. Everything is served from here; dancers.bio is only a
+// vanity domain that forwards into it. Env-driven so the same code works before
+// and after the deetz.kr cutover:
+//   • now (no domain yet): leave NEXT_PUBLIC_SITE_URL unset or = the vercel.app
+//     URL → forwards to dancers-bio-lite.vercel.app/d/<slug>
+//   • later: set NEXT_PUBLIC_SITE_URL=https://deetz.kr → forwards there instead
+const CANONICAL_ORIGIN = (
+  process.env.NEXT_PUBLIC_SITE_URL || "https://dancers-bio-lite.vercel.app"
+).replace(/\/+$/, "");
 // dancers.bio is the clean vanity domain dancers paste into their IG bio.
 // It does not serve the app — it forwards to the canonical profile route:
-//   dancers.bio/<slug>  ->  https://deetz.kr/d/<slug>
-//   dancers.bio/        ->  https://deetz.kr
-// Activates automatically once dancers.bio points at this deployment; on
-// localhost / *.vercel.app the host never matches, so nothing changes.
+//   dancers.bio/<slug>  ->  <CANONICAL_ORIGIN>/d/<slug>
+//   dancers.bio/        ->  <CANONICAL_ORIGIN>
+// On localhost / *.vercel.app the host never matches, so nothing changes.
 const VANITY_HOSTS = new Set(["dancers.bio", "www.dancers.bio"]);
 
 export async function middleware(request: NextRequest) {
