@@ -7,7 +7,7 @@ import { claimDancerProfileAction } from "@/app/actions/claim";
 
 type Mode =
   | { kind: "guest" }
-  | { kind: "logged"; canClaim: boolean; alreadyRequested: boolean };
+  | { kind: "logged"; canClaim: boolean; alreadyRequested: boolean; claimRequestId?: string | null };
 
 export function ProfileFooterCTA({
   dancerId,
@@ -87,13 +87,33 @@ export function ProfileFooterCTA({
       {/* Logged-in: claim or generic CTA */}
       {mode.kind === "logged" && isCuration ? (
         mode.alreadyRequested ? (
-          <div className="rounded-2xl border border-hairline-2 bg-card px-5 py-4 text-center">
-            <p className="text-sm font-medium text-ink-2">
-              이미 권한 신청이 접수되었습니다.
-            </p>
-            <p className="mt-1 text-xs text-ink-3">
-              관리자 검토 결과를 알려드릴게요.
-            </p>
+          <div className="flex flex-col gap-2">
+            <div className="rounded-2xl border border-hairline-2 bg-card px-5 py-4 text-center">
+              <p className="text-sm font-medium text-ink-2">
+                이미 권한 신청이 접수되었습니다.
+              </p>
+              <p className="mt-1 text-xs text-ink-3">
+                인증을 아직 완료하지 않았다면 아래에서 코드를 다시 확인하세요.
+              </p>
+              {mode.claimRequestId ? (
+                <Link
+                  href={`/verify-instagram?claim=${mode.claimRequestId}`}
+                  className="mt-3 inline-flex h-9 items-center justify-center rounded-full bg-primary px-5 text-xs font-semibold text-primary-foreground"
+                >
+                  인증 코드 확인하기 →
+                </Link>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onSubmit();
+              }}
+              disabled={pending}
+              className="text-xs text-ink-3 underline underline-offset-4"
+            >
+              {pending ? "처리 중..." : "다시 신청하기"}
+            </button>
           </div>
         ) : !open ? (
           <button
