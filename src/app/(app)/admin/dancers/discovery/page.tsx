@@ -105,7 +105,7 @@ export default async function AdminDiscoveryPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
+    <div className="flex flex-col gap-6">
       <Link
         href="/admin"
         className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"

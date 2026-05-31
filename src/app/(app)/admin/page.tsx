@@ -50,7 +50,7 @@ export default async function AdminHomePage() {
   ]);
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
+    <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
           ↳ 관리자
@@ -60,7 +60,7 @@ export default async function AdminHomePage() {
         </h1>
       </header>
 
-      <section className="grid grid-cols-2 gap-3">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="사용자" value={usersCount ?? 0} />
         <Stat label="댄서 프로필" value={dancersCount ?? 0} />
         <Stat label="팀" value={teamsCount ?? 0} />
@@ -68,7 +68,7 @@ export default async function AdminHomePage() {
         <Stat label="지원/제안" value={applicationsCount ?? 0} />
       </section>
 
-      <section className="flex flex-col gap-3">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Tile
           href="/admin/dancers"
           title="댄서 승인 큐"
