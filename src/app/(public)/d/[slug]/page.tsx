@@ -120,14 +120,17 @@ export default async function PublicDancerPage({
   }
 
   let alreadyRequested = false;
+  let existingClaimId: string | null = null;
   if (viewer && isCuration) {
     const { data: existing } = await supabase
       .from("dancer_claim_requests")
-      .select("id")
+      .select("id, status")
       .eq("dancer_id", dancer.id)
       .eq("requester_id", viewer.id)
+      .eq("status", "pending")
       .maybeSingle();
     alreadyRequested = Boolean(existing);
+    existingClaimId = (existing?.id as string) ?? null;
   }
 
   // 미claim 프로필에 도착한 대기 중 캐스팅 제안 수 — claim 후크. (SECURITY DEFINER RPC)
@@ -422,7 +425,7 @@ export default async function PublicDancerPage({
         isOwner={isOwner}
         mode={
           viewer
-            ? { kind: "logged", canClaim: isCuration, alreadyRequested }
+            ? { kind: "logged", canClaim: isCuration, alreadyRequested, claimRequestId: existingClaimId }
             : { kind: "guest" }
         }
       />
