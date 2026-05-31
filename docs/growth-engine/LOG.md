@@ -6,6 +6,27 @@
 
 ---
 
+## 2026-05-31 (7) — 파이프라인 E2E 실라이브 시연 완료
+
+**한 것**
+- 팝핀 해시태그 → 10명 후보 → `@_joker_popping` 정밀 스크랩 선택(이름에 popping 명시)
+- `instagram-profile-scraper` 실행: **장지훈**, bio "POPPING DANCER", 팀 rated_crew/tnkcrew/wave_symphony_kr, 팔로워 2,513
+- 경력 7건 IG 캡션 자동 추출(배틀 3·공연 4, 날짜·링크 포함, unverified=true 마킹)
+- `ig_discovery` 8건 신규 적재(팝핀 태그 댄서 후보), `_joker_popping`은 status='scraped' + bio_keyword_hit=true + rank_score=60
+- `dancer_ingestions` draft 행 생성(id: 8da8955a). 검수 대기 상태.
+- 최종 stats: **discovered=17, draft=1** — 파이프라인 전 단계 실동작 증명
+
+**관찰(비즈니스)**
+- `팝핀` 태그는 `kpopdance`보다 훨씬 타겟팅 좋음(실댄서 비율↑)
+- 첫 번째 후보(`ganaswim`)는 수영복 쇼핑몰 → 검수 게이트 필요성 실증
+- `_joker_popping` 같이 핸들에 장르 키워드 있는 경우 rank_score를 자동 상향하면 정밀도 개선 가능
+
+**다음 액션 (대표님)**
+- admin `/admin/dancers/ingestions` → `장지훈` draft 검수 → 승인 클릭 → dancers 행 자동 생성 → `/d/joker-popping` 공개
+- 이후 아웃리치(이메일/DM) → claim → 플라이휠 첫 실가동
+
+---
+
 ## 2026-05-31 (6) — 라이브 발견 실행 + service-role 부재 대응(RLS 전환)
 
 **라이브 실행 ✓**
