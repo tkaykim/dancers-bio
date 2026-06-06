@@ -28,6 +28,18 @@ type ProfileLite = {
   display_name: string;
 };
 
+type PrivateInfo = {
+  dancer_id: string;
+  height_cm: number | null;
+  birth_date: string | null;
+  phone: string | null;
+  email: string | null;
+  nationality: string | null;
+  has_visa: boolean | null;
+  visa_details: string | null;
+  agency_name: string | null;
+};
+
 export default async function AdminDancersPage({
   searchParams,
 }: {
@@ -91,6 +103,22 @@ export default async function AdminDancersPage({
     }
   }
 
+  // 비공개 민감정보 (키·생년월일·연락처·국적·비자). dancer_private_info 는 RLS로
+  // is_admin() OR 본인만 읽힘 — 이 페이지는 admin 서버 가드라 관리자 세션에서만 조회된다.
+  const privMap = new Map<string, PrivateInfo>();
+  if (list.length > 0) {
+    const { data: privs } = await supabase
+      .from("dancer_private_info")
+      .select(
+        "dancer_id, height_cm, birth_date, phone, email, nationality, has_visa, visa_details, agency_name",
+      )
+      .in(
+        "dancer_id",
+        list.map((r) => r.id),
+      );
+    for (const p of (privs ?? []) as PrivateInfo[]) privMap.set(p.dancer_id, p);
+  }
+
   const pending = list.filter((r) => r.approval_status === "pending");
   const approved = list.filter((r) => r.approval_status === "approved");
   const rejected = list.filter((r) => r.approval_status === "rejected");
@@ -144,6 +172,7 @@ export default async function AdminDancersPage({
               row={r}
               owner={r.profile_id ? profileMap.get(r.profile_id) : undefined}
               score={scoreMap.get(r.id)}
+              priv={privMap.get(r.id)}
             />
           ))}
         </Section>
@@ -158,6 +187,7 @@ export default async function AdminDancersPage({
                 key={r.id}
                 row={r}
                 owner={r.profile_id ? profileMap.get(r.profile_id) : undefined}
+                priv={privMap.get(r.id)}
               />
             ))}
           </Section>
@@ -171,6 +201,7 @@ export default async function AdminDancersPage({
                 key={r.id}
                 row={r}
                 owner={r.profile_id ? profileMap.get(r.profile_id) : undefined}
+                priv={privMap.get(r.id)}
               />
             ))}
           </Section>
@@ -230,10 +261,12 @@ function DancerCard({
   row,
   owner,
   score,
+  priv,
 }: {
   row: DancerRow;
   owner?: ProfileLite;
   score?: { score: number; career_count: number };
+  priv?: PrivateInfo;
 }) {
   const statusColor = {
     pending: "border-warn/30 bg-warn/5 text-warn",
@@ -293,6 +326,49 @@ function DancerCard({
         </div>
       </div>
 
+      {priv ? (
+        <div className="rounded-md border border-hairline-2 bg-secondary/30 px-3 py-2 text-[11px] text-ink-2">
+          <p className="mb-1 text-[10px] uppercase tracking-[0.14em] text-ink-3">
+            비공개 정보 · 본인·관리자 전용
+          </p>
+          <div className="flex flex-wrap gap-x-3 gap-y-1">
+            {priv.height_cm ? <span>키 {priv.height_cm}cm</span> : null}
+            {priv.birth_date ? (
+              <span>
+                {priv.birth_date} ({calcAge(priv.birth_date)}세)
+              </span>
+            ) : null}
+            {priv.nationality ? <span>국적 {priv.nationality}</span> : null}
+            {priv.has_visa ? (
+              <span className="text-warn">
+                비자 {priv.visa_details ?? "보유"}
+              </span>
+            ) : null}
+            {priv.agency_name ? <span>소속 {priv.agency_name}</span> : null}
+          </div>
+          {priv.phone || priv.email ? (
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 font-mono">
+              {priv.phone ? (
+                <a
+                  href={`tel:${priv.phone}`}
+                  className="text-foreground hover:underline"
+                >
+                  📞 {priv.phone}
+                </a>
+              ) : null}
+              {priv.email ? (
+                <a
+                  href={`mailto:${priv.email}`}
+                  className="text-foreground hover:underline"
+                >
+                  ✉️ {priv.email}
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {row.approval_reject_reason ? (
         <p className="rounded-md bg-secondary/40 px-3 py-2 text-xs text-ink-2">
           거부 사유: {row.approval_reject_reason}
@@ -336,4 +412,13 @@ function DancerCard({
       />
     </li>
   );
+}
+
+function calcAge(birthDate: string): number {
+  const b = new Date(birthDate);
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+  return age;
 }
