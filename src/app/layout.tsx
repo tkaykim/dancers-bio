@@ -18,6 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://dancers.bio"),
   title: {
     default: "deetz — 댄서 매거진 & 캐스팅 플랫폼",
     template: "%s · deetz",
@@ -49,6 +50,31 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // GEO/AEO: schema.org JSON-LD (Organization + WebSite)
+  const SITE = "https://dancers.bio";
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE}/#organization`,
+        name: "deetz",
+        alternateName: "dancers.bio",
+        url: SITE,
+        email: "dancers.bio.kr@gmail.com",
+        description: "댄서를 소개하는 매거진이자 포트폴리오와 일을 잇는 캐스팅 플랫폼.",
+        areaServed: "KR",
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE}/#website`,
+        url: SITE,
+        name: "deetz",
+        inLanguage: "ko-KR",
+        publisher: { "@id": `${SITE}/#organization` },
+      },
+    ],
+  };
   return (
     <html
       lang="ko"
@@ -59,6 +85,7 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css"
         />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <SessionRefresher />
