@@ -99,6 +99,20 @@ export default async function PublicDancerPage({
   const isCuration = !dancer.profile_id;
   const isOwner = Boolean(viewer && dancer.profile_id === viewer.id);
 
+  // 수정 권한: 에디터(/me/portfolio/[dancerId]) 가드와 동일 — owner / manager / admin.
+  // 본인 공개 프로필에서 바로 수정으로 진입할 수 있게 한다.
+  let canEdit = isOwner || Boolean(viewerProfile?.is_admin);
+  if (!canEdit && viewer) {
+    const { data: mgr } = await supabase
+      .from("dancer_managers")
+      .select("dancer_id")
+      .eq("dancer_id", dancer.id)
+      .eq("manager_id", viewer.id)
+      .maybeSingle();
+    canEdit = Boolean(mgr);
+  }
+  const editHref = `/me/portfolio/${dancer.id}`;
+
   // Phase 1: direct_proposal 복원. 프로젝트 개설 권한이 있는 로그인 사용자가
   // 댄서(claimed·미claim 공통)에게 제안 가능. 본인 소유 프로필엔 불가.
   const canPropose =
@@ -181,6 +195,19 @@ export default async function PublicDancerPage({
           <path d="M12 19l-7-7 7-7" />
         </svg>
       </Link>
+      {/* Edit button (top-right, over hero) — owner/manager/admin only */}
+      {canEdit ? (
+        <Link
+          href={editHref}
+          aria-label="프로필 수정"
+          className="absolute right-4 top-4 z-40 flex h-10 items-center gap-1.5 rounded-full bg-background/70 px-4 text-sm font-semibold text-foreground backdrop-blur hover:bg-background/90"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+          </svg>
+          수정
+        </Link>
+      ) : null}
       {/* Hero */}
       <div className="relative h-[420px] overflow-hidden">
         {dancer.profile_img ? (
@@ -415,6 +442,21 @@ export default async function PublicDancerPage({
           <p className="mt-1 text-xs text-ink-3">
             본인 또는 매니저라면 권한을 신청하고 제안에 응답할 수 있어요. 아래에서 신청하세요.
           </p>
+        </section>
+      ) : null}
+
+      {/* Owner edit entry — 본인(또는 매니저·관리자) 프로필이면 바로 수정 진입 */}
+      {canEdit ? (
+        <section className="mx-6 mt-6">
+          <Link
+            href={editHref}
+            className="block rounded-2xl border border-primary/30 bg-primary/5 px-5 py-4 text-center transition-colors hover:bg-primary/10"
+          >
+            <p className="text-sm font-semibold text-foreground">✏️ 내 프로필 수정하기</p>
+            <p className="mt-1 text-xs text-ink-3">
+              사진·소개·경력·영상을 수정하고 저장하면 이 페이지에 바로 반영돼요
+            </p>
+          </Link>
         </section>
       ) : null}
 
