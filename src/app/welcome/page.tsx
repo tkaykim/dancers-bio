@@ -17,9 +17,12 @@ type DancerRow = {
 export default async function WelcomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ d?: string; email?: string }>;
+  searchParams: Promise<{ d?: string; email?: string; next?: string }>;
 }) {
-  const { d, email = "" } = await searchParams;
+  const { d, email = "", next } = await searchParams;
+  // 로그인·클레임 후 이동할 경로. 오픈리다이렉트 방지: 앱 내부 상대경로(/...)만 허용.
+  const redirectTo =
+    next && next.startsWith("/") && !next.startsWith("//") ? next : "/me/portfolio";
   const supabase = await createClient();
 
   let dancer: DancerRow | null = null;
@@ -161,7 +164,7 @@ export default async function WelcomePage({
         아래로 스크롤하거나 버튼을 누르면 로그인 창이 열립니다.
       </p>
 
-      <OnboardingLoginModal email={email} />
+      <OnboardingLoginModal email={email} redirectTo={redirectTo} />
     </div>
   );
 }
