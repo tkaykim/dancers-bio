@@ -81,70 +81,44 @@ export async function sendApplicationRejectionEmail(params: {
   const titleClean = projectTitle.trim();
   const subjectSuffix = titleClean ? ` - ${titleClean}` : "";
 
-  // 기존 deetz(dancers.bio) + 그리고엔터(contact@grigoent) 메일 디자인·서명 참고. 1문장=1줄.
+  // deetz(dancers.bio) 메일 디자인·서명에 맞춤(온보딩 메일 기준). 1문장=1줄.
   const text = [
     `안녕하세요 ${name}님,`,
-    `그리고 엔터테인먼트(deetz)입니다.`,
     ``,
     `deetz를 통해 지원해 주셔서 진심으로 감사합니다.`,
-    ...(titleClean ? [`지원 프로젝트: ${titleClean}`] : []),
-    ``,
-    `신중히 검토했지만, 아쉽게도 이번 프로젝트에서는 함께하지 못하게 되었습니다.`,
+    ...(titleClean ? [``, `지원 프로젝트: ${titleClean}`] : []),
     ...(reasonClean ? [`거절 사유: ${reasonClean}`] : []),
     ``,
+    `신중히 검토했지만, 아쉽게도 이번 프로젝트에서는 함께하지 못하게 되었습니다.`,
     `보내주신 관심과 노력에 깊이 감사드립니다.`,
     `더 좋은 기회로 다시 만나뵐 수 있기를 바라며, 앞으로의 활동을 진심으로 응원합니다.`,
     ``,
     `감사합니다.`,
+    `— deetz 팀`,
     ``,
-    `그리고 엔터테인먼트`,
-    `(주)그리고 엔터테인먼트`,
-    `사업자등록번호 116-81-96848 | 서울특별시 마포구 성지3길 55, 3층`,
-    `연락처 02-6229-9229 | dancers.bio.kr@gmail.com`,
     `deetz · 한국 댄스 신을 위한 프로필 & 캐스팅 플랫폼`,
   ].join("\n");
 
-  const infoRows =
-    `<tr><td style="padding:12px 16px;background:#f5f5f5;border-bottom:1px solid #e8e8e8;font-size:13px;color:#666;width:96px;">지원 프로젝트</td><td style="padding:12px 16px;background:#f5f5f5;border-bottom:1px solid #e8e8e8;font-size:14px;font-weight:600;color:#111;">${titleClean ? escapeHtml(titleClean) : "-"}</td></tr>` +
-    (reasonClean
-      ? `<tr><td style="padding:12px 16px;background:#f5f5f5;font-size:13px;color:#666;vertical-align:top;">거절 사유</td><td style="padding:12px 16px;background:#f5f5f5;font-size:14px;color:#222;line-height:1.6;">${escapeHtml(reasonClean)}</td></tr>`
-      : "");
+  const infoBox = `<div style="margin:18px 0;padding:16px 18px;background:#fafafa;border:1px solid #eee;border-radius:12px;font-size:14px;color:#222;line-height:1.8;">
+    <div>지원 프로젝트 &nbsp;<b>${titleClean ? escapeHtml(titleClean) : "-"}</b></div>${
+      reasonClean
+        ? `\n    <div style="margin-top:6px;"><span style="color:#888;">거절 사유</span> &nbsp;${escapeHtml(reasonClean)}</div>`
+        : ""
+    }
+  </div>`;
 
-  const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"/></head>
-<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Apple SD Gothic Neo','Malgun Gothic','Helvetica Neue',sans-serif;">
-<div style="max-width:600px;margin:0 auto;background:#ffffff;">
-  <div style="padding:36px 40px 0;">
-    <div style="font-size:24px;font-weight:800;letter-spacing:-0.5px;color:#111;">deetz<span style="color:#6366f1;">.</span></div>
-    <div style="border-bottom:2.5px solid #111;margin-top:16px;"></div>
-  </div>
-  <div style="padding:28px 40px 36px;">
-    <div style="font-size:15px;color:#111;line-height:1.8;">안녕하세요, <strong>${safeName}</strong>님.</div>
-    <div style="font-size:14px;color:#111;margin-top:2px;line-height:1.8;">그리고 엔터테인먼트(deetz)입니다.</div>
-    <div style="font-size:14px;color:#444;margin-top:16px;line-height:1.8;">deetz를 통해 지원해 주셔서 진심으로 감사합니다.</div>
-
-    <table style="width:100%;border-collapse:collapse;margin:20px 0;" cellpadding="0" cellspacing="0">
-      ${infoRows}
-    </table>
-
-    <div style="font-size:14px;color:#444;line-height:1.8;">신중히 검토했지만, 아쉽게도 이번 프로젝트에서는 함께하지 못하게 되었습니다.</div>
-    <div style="font-size:14px;color:#444;margin-top:14px;line-height:1.8;">보내주신 관심과 노력에 깊이 감사드립니다.</div>
-    <div style="font-size:14px;color:#444;line-height:1.8;">더 좋은 기회로 다시 만나뵐 수 있기를 바라며, 앞으로의 활동을 진심으로 응원합니다.</div>
-    <div style="font-size:14px;color:#111;margin-top:16px;line-height:1.8;">감사합니다.</div>
-  </div>
-  <div style="padding:20px 40px;border-top:1px solid #eee;">
-    <div style="font-size:13px;font-weight:700;color:#111;">그리고 엔터테인먼트</div>
-    <div style="font-size:11px;color:#888;margin-top:4px;line-height:1.6;">
-      (주)그리고 엔터테인먼트<br/>
-      사업자등록번호 116-81-96848 | 서울특별시 마포구 성지3길 55, 3층<br/>
-      연락처 02-6229-9229 | dancers.bio.kr@gmail.com<br/>
-      deetz · 한국 댄스 신을 위한 프로필 &amp; 캐스팅 플랫폼
-    </div>
-  </div>
-</div>
-</body>
-</html>`;
+  const html = `<div style="max-width:480px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#111111;padding:8px 4px;">
+  <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;padding:8px 0;">deetz<span style="color:#6366f1;">.</span></div>
+  <p style="font-size:14px;line-height:1.7;color:#222;">안녕하세요 ${safeName}님,</p>
+  <p style="font-size:14px;line-height:1.7;color:#444;">deetz를 통해 지원해 주셔서 진심으로 감사합니다.</p>
+  ${infoBox}
+  <p style="font-size:14px;line-height:1.7;color:#444;">신중히 검토했지만, 아쉽게도 이번 프로젝트에서는 함께하지 못하게 되었습니다.</p>
+  <p style="font-size:14px;line-height:1.7;color:#444;">보내주신 관심과 노력에 깊이 감사드립니다.</p>
+  <p style="font-size:14px;line-height:1.7;color:#444;">더 좋은 기회로 다시 만나뵐 수 있기를 바라며, 앞으로의 활동을 진심으로 응원합니다.</p>
+  <p style="font-size:14px;line-height:1.7;color:#222;margin-top:16px;">감사합니다.<br>— deetz 팀</p>
+  <hr style="border:none;border-top:1px solid #eeeeee;margin:24px 0;">
+  <p style="font-size:11px;color:#bbbbbb;">deetz · 한국 댄스 신을 위한 프로필 &amp; 캐스팅 플랫폼</p>
+</div>`;
 
   const res = await sendGmailEmail({
     to: email,
