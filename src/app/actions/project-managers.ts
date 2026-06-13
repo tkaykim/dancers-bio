@@ -32,7 +32,7 @@ export async function searchManagerCandidatesAction(
     .or(`display_name.ilike.%${safe}%,instagram_handle.ilike.%${safe}%`)
     .limit(8);
   if (error) return { ok: false, error: error.message };
-  return { ok: true, data: (data ?? []) as ManagerCandidate[] };
+  return { ok: true, data: (data ?? []) as unknown as ManagerCandidate[] };
 }
 
 // 공동관리자 추가 — 소유자·슈퍼관리자만 (RLS가 이중으로 강제).

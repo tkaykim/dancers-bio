@@ -95,21 +95,26 @@ export default async function ApplicantsPage({
     )
     .eq("project_id", p.id)
     .order("created_at");
-  const managers: ProjectManager[] = (mgrRows ?? []).map(
-    (r: {
-      profile_id: string;
-      profile: {
-        display_name: string | null;
-        avatar_url: string | null;
-        instagram_handle: string | null;
-      } | null;
-    }) => ({
+  type ProfileLite = {
+    display_name: string | null;
+    avatar_url: string | null;
+    instagram_handle: string | null;
+  };
+  type MgrRow = {
+    profile_id: string;
+    profile: ProfileLite | ProfileLite[] | null;
+  };
+  const managers: ProjectManager[] = (
+    (mgrRows ?? []) as unknown as MgrRow[]
+  ).map((r) => {
+    const prof = Array.isArray(r.profile) ? r.profile[0] ?? null : r.profile;
+    return {
       profile_id: r.profile_id,
-      display_name: r.profile?.display_name ?? "(이름 없음)",
-      avatar_url: r.profile?.avatar_url ?? null,
-      instagram_handle: r.profile?.instagram_handle ?? null,
-    }),
-  );
+      display_name: prof?.display_name ?? "(이름 없음)",
+      avatar_url: prof?.avatar_url ?? null,
+      instagram_handle: prof?.instagram_handle ?? null,
+    };
+  });
 
   // 추천 댄서 — 매칭 RPC(SECURITY DEFINER). 소유자/admin이 아니면 빈 배열 반환.
   // 점수 수치는 반환하지 않으며 genre/location_match 불리언만 노출한다.
