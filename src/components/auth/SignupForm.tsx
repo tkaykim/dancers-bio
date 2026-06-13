@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signupAction } from "@/app/actions/auth";
+import { suggestEmailCorrection } from "@/lib/utils/email-typo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,8 @@ export function SignupForm() {
       : null;
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [email, setEmail] = useState("");
+  const emailSuggestion = suggestEmailCorrection(email);
 
   return (
     <form
@@ -61,7 +64,22 @@ export function SignupForm() {
           required
           autoComplete="email"
           inputMode="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
         />
+        {emailSuggestion ? (
+          <p className="text-xs text-warn">
+            혹시{" "}
+            <button
+              type="button"
+              onClick={() => setEmail(emailSuggestion)}
+              className="font-semibold underline underline-offset-2"
+            >
+              {emailSuggestion}
+            </button>{" "}
+            아닌가요? (오타 확인)
+          </p>
+        ) : null}
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">비밀번호</Label>
