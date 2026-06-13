@@ -15,6 +15,31 @@ import {
   VISIBILITY_LABELS,
 } from "@/lib/validation/projects";
 
+// 설명글 안의 http(s) URL을 클릭 가능한 링크로 변환.
+// 텍스트 조각은 React가 자동 이스케이프하므로 XSS 안전 (dangerouslySetInnerHTML 미사용).
+function Linkify({ text }: { text: string }) {
+  const parts = text.split(/(https?:\/\/[^\s<>]+)/g);
+  return (
+    <>
+      {parts.map((part, i) =>
+        /^https?:\/\//.test(part) ? (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className="font-medium text-[#6366f1] underline underline-offset-2 break-all"
+          >
+            {part}
+          </a>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </>
+  );
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -273,7 +298,7 @@ export default async function ProjectDetailPage({
       <section className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 상세 설명</p>
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2">
-          {p.description}
+          <Linkify text={p.description} />
         </p>
       </section>
 
