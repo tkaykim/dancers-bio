@@ -64,26 +64,38 @@ export async function sendApplicationRejectionEmail(params: {
 
   if (!email) return { ok: false, skipped: "no_email" };
 
-  const lines: string[] = [
-    `안녕하세요, ${name}님.`,
-    `deetz를 통해 소중한 지원을 보내주셔서 진심으로 감사합니다.`,
+  const safeName = escapeHtml(name);
+  const reasonClean = reason && reason.trim() ? reason.trim() : null;
+
+  // 기존 deetz 메일(온보딩) 디자인·톤·서명에 맞춤. 1문장=1줄.
+  const text = [
+    `안녕하세요 ${name}님,`,
     ``,
+    `deetz를 통해 소중한 지원을 보내주셔서 진심으로 감사합니다.`,
     `신중히 검토했지만, 아쉽게도 이번 프로젝트에서는 함께하지 못하게 되었습니다.`,
-  ];
-  if (reason && reason.trim()) {
-    lines.push(``, `사유: ${reason.trim()}`);
-  }
-  lines.push(
+    ...(reasonClean ? [``, `거절 사유: ${reasonClean}`] : []),
     ``,
     `보내주신 관심과 노력에 깊이 감사드립니다.`,
     `더 좋은 기회로 다시 만나뵐 수 있기를 바라며, 앞으로의 활동을 진심으로 응원합니다.`,
     ``,
-    `감사합니다.`,
-    `deetz 드림`,
-  );
+    `deetz · 한국 댄스 신을 위한 프로필 & 캐스팅 플랫폼`,
+  ].join("\n");
 
-  const text = lines.join("\n");
-  const html = lines.map((l) => (l === "" ? "<br>" : escapeHtml(l))).join("<br>");
+  const reasonBox = reasonClean
+    ? `<div style="margin:18px 0;padding:16px 18px;background:#fafafa;border:1px solid #eee;border-radius:12px;font-size:14px;color:#222;line-height:1.7;"><span style="color:#888;">거절 사유</span><br>${escapeHtml(reasonClean)}</div>`
+    : "";
+
+  const html = `<div style="max-width:480px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#111111;padding:8px 4px;">
+  <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;padding:8px 0;">deetz<span style="color:#6366f1;">.</span></div>
+  <p style="font-size:14px;line-height:1.7;color:#222;">안녕하세요 ${safeName}님,</p>
+  <p style="font-size:14px;line-height:1.7;color:#444;">deetz를 통해 소중한 지원을 보내주셔서 진심으로 감사합니다.</p>
+  <p style="font-size:14px;line-height:1.7;color:#444;">신중히 검토했지만, 아쉽게도 이번 프로젝트에서는 함께하지 못하게 되었습니다.</p>
+  ${reasonBox}
+  <p style="font-size:14px;line-height:1.7;color:#444;">보내주신 관심과 노력에 깊이 감사드립니다.</p>
+  <p style="font-size:14px;line-height:1.7;color:#444;">더 좋은 기회로 다시 만나뵐 수 있기를 바라며, 앞으로의 활동을 진심으로 응원합니다.</p>
+  <hr style="border:none;border-top:1px solid #eeeeee;margin:24px 0;">
+  <p style="font-size:11px;color:#bbbbbb;">deetz · 한국 댄스 신을 위한 프로필 &amp; 캐스팅 플랫폼</p>
+</div>`;
 
   const res = await sendGmailEmail({
     to: email,
