@@ -162,7 +162,7 @@ export function DancerProfileForm({
           maxLength={80}
           value={stageName}
           onChange={(e) => setStageName(e.target.value)}
-          placeholder="예: HIYORI"
+          placeholder="예: Hong Gil Dong"
         />
       </Field>
       <Field label="한글 이름 (선택)" htmlFor="korean_name">
@@ -171,7 +171,7 @@ export function DancerProfileForm({
           name="korean_name"
           maxLength={40}
           defaultValue={defaultValues.korean_name}
-          placeholder="예: 히요리"
+          placeholder="예: 홍길동"
         />
       </Field>
       <Field

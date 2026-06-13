@@ -329,7 +329,7 @@ function StepBasic({
         <Field label="활동명 (Stage Name)" required>
           <input
             type="text"
-            placeholder="예: HIYORI"
+            placeholder="예: Hong Gil Dong"
             className={fieldInputClass}
             value={data.stage_name}
             onChange={(e) => setData({ ...data, stage_name: e.target.value })}
@@ -339,7 +339,7 @@ function StepBasic({
         <Field label="한글 이름 (선택)">
           <input
             type="text"
-            placeholder="예: 히요리"
+            placeholder="예: 홍길동"
             className={fieldInputClass}
             value={data.korean_name}
             onChange={(e) => setData({ ...data, korean_name: e.target.value })}
