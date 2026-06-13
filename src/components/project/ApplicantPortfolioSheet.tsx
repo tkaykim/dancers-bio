@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Instagram, Youtube, Music2, Link2 } from "lucide-react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { VideoEmbed } from "@/components/portfolio/VideoEmbed";
@@ -42,11 +41,36 @@ function socialUrl(platform: string, raw: string): string {
   }
 }
 
+// 인라인 SVG (lucide 브랜드 아이콘은 상표 이슈로 제거됨)
 function SocialIcon({ platform }: { platform: string }) {
-  if (platform === "instagram") return <Instagram className="size-4" />;
-  if (platform === "youtube") return <Youtube className="size-4" />;
-  if (platform === "tiktok") return <Music2 className="size-4" />;
-  return <Link2 className="size-4" />;
+  const common = {
+    width: 16,
+    height: 16,
+    viewBox: "0 0 24 24",
+    "aria-hidden": true,
+  } as const;
+  if (platform === "instagram") {
+    return (
+      <svg {...common} fill="none" stroke="currentColor" strokeWidth={2}>
+        <rect x="2" y="2" width="20" height="20" rx="5" />
+        <circle cx="12" cy="12" r="4" />
+        <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+  if (platform === "youtube") {
+    return (
+      <svg {...common} fill="currentColor">
+        <path d="M21.6 7.2a2.7 2.7 0 0 0-1.9-1.9C18 4.8 12 4.8 12 4.8s-6 0-7.7.5A2.7 2.7 0 0 0 2.4 7.2 28 28 0 0 0 2 12a28 28 0 0 0 .4 4.8 2.7 2.7 0 0 0 1.9 1.9c1.7.5 7.7.5 7.7.5s6 0 7.7-.5a2.7 2.7 0 0 0 1.9-1.9A28 28 0 0 0 22 12a28 28 0 0 0-.4-4.8zM10 15V9l5 3z" />
+      </svg>
+    );
+  }
+  // tiktok / 기타 → 음표 글리프
+  return (
+    <svg {...common} fill="currentColor">
+      <path d="M14 4c.3 2 1.7 3.6 3.8 3.9v2.2c-1.4 0-2.7-.4-3.8-1.1v5.5a4.6 4.6 0 1 1-4.6-4.6c.3 0 .5 0 .8.1v2.3a2.3 2.3 0 1 0 1.6 2.2V4H14z" />
+    </svg>
+  );
 }
 
 export function ApplicantPortfolioSheet({
