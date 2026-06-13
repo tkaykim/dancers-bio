@@ -97,32 +97,47 @@ export async function sendApplicationRejectionEmail(params: {
     ``,
     `다른 캐스팅 둘러보기: https://deetz.kr/feed`,
     ``,
-    `— deetz 팀`,
-    `deetz · 한국 댄스 신을 위한 프로필 & 캐스팅 플랫폼`,
+    `deetz · 댄서 매거진 & 캐스팅 플랫폼`,
+    `deetz.kr · dancers.bio.kr@gmail.com`,
+    `Instagram instagram.com/deetz_magazine · YouTube youtube.com/@deetzmagazine`,
   ].join("\n");
 
-  const infoBox = `<div style="margin:18px 0;padding:16px 18px;background:#fafafa;border:1px solid #eee;border-radius:12px;font-size:14px;color:#222;line-height:1.8;">
-    <div>지원 프로젝트 &nbsp;<b>${titleClean ? escapeHtml(titleClean) : "-"}</b></div>${
-      reasonClean
-        ? `\n    <div style="margin-top:6px;"><span style="color:#888;">거절 사유</span> &nbsp;${escapeHtml(reasonClean)}</div>`
-        : ""
-    }
-  </div>`;
+  // 실제 발송 중인 deetz "프로필 승인" 메일과 동일 양식(560px 카드 + SNS 아이콘 푸터).
+  const reasonRow = reasonClean
+    ? `<tr><td style="vertical-align:top;width:88px;color:#6b7280;font-size:13px;padding:8px 0 0;">거절 사유</td><td style="font-size:14px;line-height:1.6;color:#33363b;padding:8px 0 0;">${escapeHtml(reasonClean)}</td></tr>`
+    : "";
 
-  const html = `<div style="max-width:480px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#111111;padding:8px 4px;">
-  <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;padding:8px 0;">deetz<span style="color:#6366f1;">.</span></div>
-  <p style="font-size:14px;line-height:1.7;color:#222;">안녕하세요 ${safeName}님,</p>
-  <p style="font-size:14px;line-height:1.7;color:#444;">deetz를 통해 지원해 주셔서 진심으로 감사합니다.</p>
-  ${infoBox}
-  <p style="font-size:14px;line-height:1.7;color:#444;">신중히 검토했지만, 아쉽게도 이번 프로젝트에서는 함께하지 못하게 되었습니다.</p>
-  <p style="font-size:14px;line-height:1.7;color:#444;">보내주신 관심과 노력에 깊이 감사드립니다.</p>
-  <p style="font-size:14px;line-height:1.7;color:#444;">더 좋은 기회로 다시 만나뵐 수 있기를 바라며, 앞으로의 활동을 진심으로 응원합니다.</p>
-  <p style="font-size:14px;line-height:1.7;color:#222;margin-top:16px;">감사합니다.</p>
-  <p style="margin:20px 0;"><a href="https://deetz.kr/feed" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 24px;border-radius:10px;">다른 캐스팅 둘러보기 →</a></p>
-  <hr style="border:none;border-top:1px solid #eeeeee;margin:24px 0;">
-  <p style="font-size:11px;color:#888;margin-bottom:2px;">— deetz 팀</p>
-  <p style="font-size:11px;color:#bbbbbb;margin-top:0;">deetz · 한국 댄스 신을 위한 프로필 &amp; 캐스팅 플랫폼</p>
-</div>`;
+  const html = `<html lang="ko"><body style="margin:0;padding:0;background:#f4f4f5;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 12px;"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #ececef;border-radius:18px;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun Gothic',Helvetica,Arial,sans-serif;">
+<tr><td style="padding:28px 32px 18px;border-bottom:1px solid #ececef;">
+  <div style="font-size:26px;font-weight:800;letter-spacing:-1px;color:#111111;line-height:1;">deetz<span style="color:#d4d4d8;">.</span></div>
+  <div style="font-size:12px;color:#6b7280;margin-top:6px;">댄서 매거진 &amp; 캐스팅 플랫폼</div></td></tr>
+<tr><td style="padding:30px 32px 8px;color:#111111;">
+  <span style="display:inline-block;background:#f1f1f3;color:#6b7280;font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;">지원 결과 안내</span>
+  <p style="font-size:18px;font-weight:700;margin:18px 0 4px;line-height:1.5;">${safeName}님, 안녕하세요.</p>
+  <p style="font-size:15px;line-height:1.75;color:#33363b;margin:0;">deetz를 통해 지원해 주셔서 진심으로 감사합니다.<br>신중히 검토했지만, 아쉽게도 이번 프로젝트에서는 함께하지 못하게 되었습니다.</p></td></tr>
+<tr><td style="padding:18px 32px 6px;">
+  <div style="background:#f6f6f7;border:1px solid #ececef;border-radius:14px;padding:16px 18px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tbody>
+    <tr><td style="vertical-align:top;width:88px;color:#6b7280;font-size:13px;">지원 프로젝트</td><td style="font-size:14px;font-weight:700;line-height:1.5;color:#111111;">${titleClean ? escapeHtml(titleClean) : "-"}</td></tr>
+    ${reasonRow}
+    </tbody></table></div></td></tr>
+<tr><td style="padding:14px 32px 6px;">
+  <p style="font-size:14px;line-height:1.75;color:#44474d;margin:0;">보내주신 관심과 노력에 깊이 감사드립니다.<br>더 좋은 기회로 다시 만나뵐 수 있기를 바라며, 앞으로의 활동을 진심으로 응원합니다.</p></td></tr>
+<tr><td style="padding:16px 32px 24px;">
+  <a href="https://deetz.kr/feed" style="display:block;background:#111111;color:#ffffff;text-decoration:none;text-align:center;font-size:15px;font-weight:700;padding:15px 0;border-radius:12px;">다른 캐스팅 둘러보기 →</a></td></tr>
+<tr><td style="padding:22px 32px 28px;border-top:1px solid #ececef;background:#fafafa;">
+  <div style="font-size:16px;font-weight:800;letter-spacing:-0.5px;color:#111111;">deetz<span style="color:#d4d4d8;">.</span></div>
+  <div style="font-size:12px;color:#6b7280;margin:6px 0 14px;">댄서 매거진 &amp; 캐스팅 플랫폼</div>
+  <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+    <td style="padding-right:10px;"><a href="https://www.youtube.com/@deetzmagazine"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/youtube.png" width="30" height="30" alt="YouTube" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
+    <td><a href="https://www.instagram.com/deetz_magazine/"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/instagram.png" width="30" height="30" alt="Instagram" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
+  </tr></table>
+  <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:14px;">
+    <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:dancers.bio.kr@gmail.com" style="color:#44474d;text-decoration:none;">dancers.bio.kr@gmail.com</a></div>
+  <div style="font-size:11px;color:#a1a1aa;margin-top:12px;line-height:1.6;">© 2026 deetz. All rights reserved.<br>이 메일은 deetz에 지원하신 주소로 발송되었습니다.</div></td></tr>
+</table></td></tr></table></body></html>`;
 
   const res = await sendGmailEmail({
     to: email,
