@@ -65,11 +65,15 @@ export function ApplicantPortfolioSheet({
   }, [open, dancerId, projectId]);
 
   const d = data?.dancer ?? null;
+  const genreSet = new Set((d?.genres ?? []).map((g) => g.trim().toLowerCase()));
+  const extraSpecialties = (d?.specialties ?? []).filter(
+    (s) => !genreSet.has(s.trim().toLowerCase()),
+  );
   const chips = [
     d?.gender,
     d?.location,
     ...(d?.genres ?? []),
-    ...(d?.specialties ?? []),
+    ...extraSpecialties,
   ].filter(Boolean) as string[];
   const decided =
     applicant?.status === "accepted" || applicant?.status === "rejected";

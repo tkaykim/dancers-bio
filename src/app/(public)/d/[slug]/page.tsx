@@ -292,27 +292,35 @@ export default async function PublicDancerPage({
         </section>
       ) : null}
 
-      {/* Tags */}
-      {(dancer.specialties?.length || dancer.genres?.length) ? (
-        <section className="flex flex-wrap gap-1.5 px-6 pt-6">
-          {(dancer.genres ?? []).map((g) => (
-            <span
-              key={`g-${g}`}
-              className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
-            >
-              {g}
-            </span>
-          ))}
-          {(dancer.specialties ?? []).map((s) => (
-            <span
-              key={`s-${s}`}
-              className="rounded-full border border-border px-3 py-1 text-xs text-ink-2"
-            >
-              {s}
-            </span>
-          ))}
-        </section>
-      ) : null}
+      {/* Tags — genres에 이미 있는 값은 specialties에서 중복 제거(대소문자 무시) */}
+      {(() => {
+        const genres = dancer.genres ?? [];
+        const genreSet = new Set(genres.map((g) => g.trim().toLowerCase()));
+        const extraSpecialties = (dancer.specialties ?? []).filter(
+          (s) => !genreSet.has(s.trim().toLowerCase()),
+        );
+        if (genres.length === 0 && extraSpecialties.length === 0) return null;
+        return (
+          <section className="flex flex-wrap gap-1.5 px-6 pt-6">
+            {genres.map((g) => (
+              <span
+                key={`g-${g}`}
+                className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+              >
+                {g}
+              </span>
+            ))}
+            {extraSpecialties.map((s) => (
+              <span
+                key={`s-${s}`}
+                className="rounded-full border border-border px-3 py-1 text-xs text-ink-2"
+              >
+                {s}
+              </span>
+            ))}
+          </section>
+        );
+      })()}
 
       {/* Portfolio file — downloadable PDF/JPG/PNG/MP4 */}
       {dancer.portfolio_file_url ? (
