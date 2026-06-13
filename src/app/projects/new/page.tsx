@@ -7,8 +7,8 @@ import { ProjectForm } from "@/components/project/ProjectForm";
 export default async function NewProjectPage() {
   const profile = await requireProfile();
 
-  // Lite: 관리자만 프로젝트 개설 가능.
-  if (!profile.is_admin) {
+  // 프로젝트 개설은 생성권한(can_create_project) 보유자 또는 슈퍼관리자.
+  if (!profile.can_create_project && !profile.is_admin) {
     return (
       <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
@@ -18,7 +18,7 @@ export default async function NewProjectPage() {
           접근 권한이 없습니다
         </h1>
         <p className="text-sm text-ink-2 leading-relaxed">
-          이 베타에서는 관리자만 캐스팅 공고를 등록할 수 있어요.
+          캐스팅 공고 등록은 프로젝트 매니저 권한이 있는 계정만 가능합니다.
           공고 등록을 원하시면 운영팀에 문의해 주세요.
         </p>
         <Link

@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin, requireUser } from "@/lib/auth/guard";
+import {
+  canManageProject,
+  isProjectOwnerOrAdmin,
+  requireCreator,
+  requireUser,
+} from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import {
   agreedPaySchema,
@@ -26,8 +31,8 @@ function localDateTimeToIso(value: string | null): string | null {
 export async function createProjectAction(
   formData: FormData,
 ): Promise<ActionResult<{ id: string; short_code: string }>> {
-  // Lite: admin only.
-  const admin = await requireAdmin();
+  // 프로젝트 생성 권한(can_create_project) 또는 슈퍼관리자. owner = 생성자 본인.
+  const creator = await requireCreator();
 
   const parsed = projectSchema.safeParse({
     title: formData.get("title"),
@@ -99,11 +104,11 @@ export async function createProjectAction(
     ? null
     : parsed.data.application_deadline ?? null;
 
-  // Lite: owner = admin 본인. allow_team_apply는 항상 false.
+  // owner = 생성자 본인. allow_team_apply는 항상 false.
   const { data: project, error } = await supabase
     .from("projects")
     .insert({
-      owner_id: admin.id,
+      owner_id: creator.id,
       title: parsed.data.title,
       description: parsed.data.description,
       visibility: parsed.data.visibility,
@@ -160,7 +165,7 @@ export async function createProjectAction(
           mime_type: a.mime ?? null,
           size_bytes: typeof a.size === "number" ? a.size : null,
           sort_order: i,
-          created_by: admin.id,
+          created_by: creator.id,
         }));
       if (rows.length > 0) {
         await supabase.from("project_attachments").insert(rows);
@@ -184,10 +189,11 @@ export async function createProjectAction(
 export async function closeProjectAction(
   formData: FormData,
 ): Promise<ActionResult> {
-  // Lite: admin only.
-  await requireAdmin();
+  await requireUser();
   const id = formData.get("id");
   if (typeof id !== "string") return { ok: false, error: "잘못된 요청입니다." };
+  if (!(await canManageProject(id)))
+    return { ok: false, error: "이 프로젝트를 관리할 권한이 없습니다." };
   const supabase = await createClient();
   const { error } = await supabase
     .from("projects")
@@ -203,10 +209,12 @@ export async function closeProjectAction(
 export async function deleteProjectAction(
   formData: FormData,
 ): Promise<ActionResult> {
-  // Lite: admin only.
-  await requireAdmin();
+  await requireUser();
   const id = formData.get("id");
   if (typeof id !== "string") return { ok: false, error: "잘못된 요청입니다." };
+  // 삭제는 소유자·슈퍼관리자만. 공동관리자는 삭제 불가.
+  if (!(await isProjectOwnerOrAdmin(id)))
+    return { ok: false, error: "삭제 권한이 없습니다. (소유자·관리자만 가능)" };
   const supabase = await createClient();
   const { error } = await supabase
     .from("projects")
@@ -222,8 +230,7 @@ export async function deleteProjectAction(
 export async function updateProjectAction(
   formData: FormData,
 ): Promise<ActionResult<{ id: string }>> {
-  // Lite: admin only.
-  await requireAdmin();
+  await requireUser();
 
   const parsed = projectUpdateSchema.safeParse({
     id: formData.get("id"),
@@ -249,6 +256,10 @@ export async function updateProjectAction(
       error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
     };
   }
+
+  // 소유자·슈퍼관리자·공동관리자만 수정 가능.
+  if (!(await canManageProject(parsed.data.id)))
+    return { ok: false, error: "이 프로젝트를 수정할 권한이 없습니다." };
 
   const supabase = await createClient();
 

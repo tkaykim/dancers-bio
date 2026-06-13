@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/auth/guard";
+import { canManageProject, requireProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 import {
@@ -26,14 +26,13 @@ export default async function ProjectEditPage({
   const identifier = classifyProjectIdentifier(idParam);
   if (!identifier) notFound();
 
-  // Lite: admin only.
-  await requireAdmin();
+  const me = await requireProfile();
   const supabase = await createClient();
 
   const baseQuery = supabase
     .from("projects")
     .select(
-      `id, short_code, title, description, visibility, status, category, genre_id,
+      `id, short_code, owner_id, title, description, visibility, status, category, genre_id,
        region_text, pay_amount, pay_type, recruitment_count,
        application_deadline, posted_by_label`,
     )
@@ -46,6 +45,10 @@ export default async function ProjectEditPage({
   ).maybeSingle();
 
   if (!project) notFound();
+  // 소유자·슈퍼관리자·공동관리자만 수정 화면 접근.
+  if (!(await canManageProject(project.id as string))) notFound();
+  // 삭제는 소유자·슈퍼관리자만.
+  const canDelete = me.is_admin || project.owner_id === me.id;
 
   const [{ data: sessions }, { data: genres }] = await Promise.all([
     supabase
@@ -86,7 +89,7 @@ export default async function ProjectEditPage({
 
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-          ↳ [관리자] 공고 수정
+          ↳ 공고 수정
         </p>
         <h1 className="text-2xl font-bold tracking-tight leading-tight">
           캐스팅 공고 수정
@@ -99,15 +102,17 @@ export default async function ProjectEditPage({
         genres={genres ?? []}
       />
 
-      <section className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-        <p className="text-xs uppercase tracking-[0.18em] text-destructive">
-          ↳ 위험 구역
-        </p>
-        <p className="text-sm text-ink-2">
-          삭제하면 피드/검색에서 즉시 사라집니다.
-        </p>
-        <DeleteProjectButton projectId={initial.id} variant="destructive" />
-      </section>
+      {canDelete ? (
+        <section className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+          <p className="text-xs uppercase tracking-[0.18em] text-destructive">
+            ↳ 위험 구역
+          </p>
+          <p className="text-sm text-ink-2">
+            삭제하면 피드/검색에서 즉시 사라집니다.
+          </p>
+          <DeleteProjectButton projectId={initial.id} variant="destructive" />
+        </section>
+      ) : null}
     </div>
   );
 }

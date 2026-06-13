@@ -1,11 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { requireUser } from "@/lib/auth/guard";
+import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { DecideButtons } from "@/components/project/DecideButtons";
 import { RecommendedDancers } from "@/components/project/RecommendedDancers";
 import { SearchAndPropose } from "@/components/project/SearchAndPropose";
+import { ManagersPanel, type ProjectManager } from "@/components/project/ManagersPanel";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 import { APPLICATION_STATUS_LABELS } from "@/lib/validation/projects";
 
@@ -81,7 +82,34 @@ export default async function ApplicantsPage({
   ).maybeSingle();
   if (!project) notFound();
   const p = project as Project;
-  if (p.owner_id !== user.id && !isAdmin) notFound();
+  // 소유자·슈퍼관리자·공동관리자만 접근.
+  if (!(await canManageProject(p.id))) notFound();
+  // 소유자·슈퍼관리자만 공동관리자를 추가/삭제할 수 있다.
+  const canEditManagers = isAdmin || p.owner_id === user.id;
+
+  // 공동관리자 명단 (profile_id FK 기준 임베드 — added_by와 구분 필요).
+  const { data: mgrRows } = await supabase
+    .from("project_managers")
+    .select(
+      "profile_id, created_at, profile:profiles!project_managers_profile_id_fkey ( display_name, avatar_url, instagram_handle )",
+    )
+    .eq("project_id", p.id)
+    .order("created_at");
+  const managers: ProjectManager[] = (mgrRows ?? []).map(
+    (r: {
+      profile_id: string;
+      profile: {
+        display_name: string | null;
+        avatar_url: string | null;
+        instagram_handle: string | null;
+      } | null;
+    }) => ({
+      profile_id: r.profile_id,
+      display_name: r.profile?.display_name ?? "(이름 없음)",
+      avatar_url: r.profile?.avatar_url ?? null,
+      instagram_handle: r.profile?.instagram_handle ?? null,
+    }),
+  );
 
   // 추천 댄서 — 매칭 RPC(SECURITY DEFINER). 소유자/admin이 아니면 빈 배열 반환.
   // 점수 수치는 반환하지 않으며 genre/location_match 불리언만 노출한다.
@@ -125,6 +153,12 @@ export default async function ApplicantsPage({
           총 {list.length}명 · 수락 {acceptedCount} / {p.recruitment_count}
         </p>
       </header>
+
+      <ManagersPanel
+        projectId={p.id}
+        canEdit={canEditManagers}
+        managers={managers}
+      />
 
       {recommended.length > 0 ? (
         <RecommendedDancers projectId={p.id} dancers={recommended} />

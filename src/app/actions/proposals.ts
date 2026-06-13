@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth/guard";
+import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { humanizeDbError } from "@/lib/db-errors";
 import { notify } from "@/lib/notify";
@@ -42,10 +42,10 @@ export async function sendDirectProposalAction(
   if (!project || project.deleted_at) {
     return { ok: false, error: "프로젝트를 찾을 수 없습니다." };
   }
-  if (project.owner_id !== user.id) {
+  if (!(await canManageProject(project.id))) {
     return {
       ok: false,
-      error: "본인이 개설한 프로젝트만 제안을 보낼 수 있습니다.",
+      error: "이 프로젝트의 제안 발송 권한이 없습니다.",
     };
   }
   if (

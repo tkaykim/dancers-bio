@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getUser } from "@/lib/auth/guard";
+import { canManageProject, getUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ApplyForm } from "@/components/project/ApplyForm";
@@ -236,6 +236,9 @@ export default async function ProjectDetailPage({
   const sessions = (sessionsData ?? []) as SessionRow[];
   const isAdmin = !!viewerProfile?.is_admin;
   const isOwner = !!user && p.owner_id === user.id;
+  // 소유자·슈퍼관리자는 즉시 true, 그 외 로그인 사용자는 공동관리자 여부 확인.
+  const canManage =
+    isOwner || isAdmin ? true : !!user && (await canManageProject(p.id));
   const hasDancer = ownDancers.length > 0;
 
   // Lite: 활성 지원만 "이미 지원 중"으로 간주. withdrawn / rejected 는 새 지원 가능.
@@ -384,7 +387,7 @@ export default async function ProjectDetailPage({
       ) : null}
 
       {/* Action area */}
-      {isOwner || isAdmin ? (
+      {canManage ? (
         <section className="flex flex-col gap-3">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 운영</p>
           <Link href={`/projects/${p.short_code}/applicants`}>
@@ -392,15 +395,13 @@ export default async function ProjectDetailPage({
               지원자 보기 →
             </Button>
           </Link>
-          {isAdmin ? (
-            <>
-              <Link href={`/projects/${p.short_code}/edit`}>
-                <Button variant="outline" className="w-full" size="lg">
-                  공고 수정
-                </Button>
-              </Link>
-              <DeleteProjectButton projectId={p.id} variant="ghost" />
-            </>
+          <Link href={`/projects/${p.short_code}/edit`}>
+            <Button variant="outline" className="w-full" size="lg">
+              공고 수정
+            </Button>
+          </Link>
+          {isOwner || isAdmin ? (
+            <DeleteProjectButton projectId={p.id} variant="ghost" />
           ) : null}
         </section>
       ) : !user ? (
