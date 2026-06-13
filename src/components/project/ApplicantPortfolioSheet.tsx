@@ -126,7 +126,6 @@ export function ApplicantPortfolioSheet({
             {applicant?.publicHref ? (
               <Link
                 href={applicant.publicHref}
-                target="_blank"
                 className="mt-0.5 text-[11px] text-primary hover:underline"
               >
                 전체 프로필 열기 →
@@ -226,37 +225,37 @@ export function ApplicantPortfolioSheet({
             ) : null}
           </>
         )}
-      </div>
 
-      {/* 결정 버튼 (시트 안에서 바로 처리) */}
-      {applicant ? (
-        <div className="sticky bottom-0 -mx-6 -mb-6 mt-2 flex gap-2 border-t border-hairline-2 bg-card px-6 py-3">
-          <Button
-            className="flex-1"
-            disabled={deciding}
-            onClick={() => onDecide("accepted")}
-          >
-            수락
-          </Button>
-          <Button
-            className="flex-1"
-            variant="outline"
-            disabled={deciding}
-            onClick={() => onDecide("rejected")}
-          >
-            거절
-          </Button>
-          {decided ? (
+        {/* 결정 버튼 — 시트 콘텐츠 흐름에 포함(시트 전체가 스크롤되도록 sticky 제거) */}
+        {applicant ? (
+          <div className="mt-1 flex gap-2 border-t border-hairline-2 pt-4">
             <Button
-              variant="ghost"
+              className="flex-1"
               disabled={deciding}
-              onClick={() => onDecide("pending")}
+              onClick={() => onDecide("accepted")}
             >
-              대기로
+              수락
             </Button>
-          ) : null}
-        </div>
-      ) : null}
+            <Button
+              className="flex-1"
+              variant="outline"
+              disabled={deciding}
+              onClick={() => onDecide("rejected")}
+            >
+              거절
+            </Button>
+            {decided ? (
+              <Button
+                variant="ghost"
+                disabled={deciding}
+                onClick={() => onDecide("pending")}
+              >
+                대기로
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </BottomSheet>
   );
 }

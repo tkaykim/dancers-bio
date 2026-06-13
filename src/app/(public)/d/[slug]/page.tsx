@@ -8,6 +8,7 @@ import { CAREER_CATEGORY_LABELS } from "@/lib/validation/portfolio";
 import { VideoThumbnail } from "@/components/portfolio/VideoEmbed";
 import { CareerGroup } from "@/components/portfolio/CareerGroup";
 import { ProfileFooterCTA } from "@/components/portfolio/ProfileFooterCTA";
+import { BackButton } from "@/components/ui/back-button";
 // parseVideoUrl is now used inside CareerGroup's dialog
 import { SendProposalDialog } from "@/components/project/SendProposalDialog";
 
@@ -184,17 +185,17 @@ export default async function PublicDancerPage({
 
   return (
     <div className="relative mx-auto w-full max-w-md">
-      {/* Back button (top-left, over hero) */}
-      <Link
-        href="/dancers"
-        aria-label="뒤로"
+      {/* Back button (top-left, over hero) — 브라우저 히스토리로 직전 페이지 복귀 */}
+      <BackButton
+        fallback="/dancers"
+        ariaLabel="뒤로"
         className="absolute left-4 top-4 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-background/70 text-foreground backdrop-blur hover:bg-background/90"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M19 12H5" />
           <path d="M12 19l-7-7 7-7" />
         </svg>
-      </Link>
+      </BackButton>
       {/* Edit button (top-right, over hero) — owner/manager/admin only */}
       {canEdit ? (
         <Link
