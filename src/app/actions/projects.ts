@@ -140,6 +140,36 @@ export async function createProjectAction(
     if (sErr) return { ok: false, error: `세션 저장 실패: ${sErr.message}` };
   }
 
+  // 참고자료 첨부 (클라이언트가 storage에 올린 메타데이터 JSON). 비치명적.
+  const attachmentsRaw = strOrNull(formData, "attachments");
+  if (attachmentsRaw) {
+    try {
+      const items = JSON.parse(attachmentsRaw) as Array<{
+        path?: string;
+        name?: string;
+        size?: number;
+        mime?: string;
+      }>;
+      const rows = items
+        .filter((a) => a && typeof a.path === "string" && typeof a.name === "string")
+        .slice(0, 10)
+        .map((a, i) => ({
+          project_id: project.id,
+          file_name: (a.name as string).slice(0, 200),
+          storage_path: a.path as string,
+          mime_type: a.mime ?? null,
+          size_bytes: typeof a.size === "number" ? a.size : null,
+          sort_order: i,
+          created_by: admin.id,
+        }));
+      if (rows.length > 0) {
+        await supabase.from("project_attachments").insert(rows);
+      }
+    } catch {
+      // malformed JSON — 무시 (프로젝트 자체는 정상 생성)
+    }
+  }
+
   revalidatePath("/feed");
   revalidatePath("/me");
   return {

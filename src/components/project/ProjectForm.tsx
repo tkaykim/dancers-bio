@@ -12,6 +12,11 @@ import {
   PROJECT_CATEGORY_ORDER,
   type ProjectCategory,
 } from "@/lib/validation/projects";
+import {
+  uploadProjectFileFromBrowser,
+  type UploadedProjectFile,
+} from "@/lib/storage/upload-project-file";
+import { formatBytes } from "@/lib/storage/dancer-portfolio-file";
 
 type Lookup = { id: string; label_ko: string }[];
 
@@ -41,6 +46,34 @@ export function ProjectForm({
   const [payDisplay, setPayDisplay] = useState<string>("");
   const [category, setCategory] = useState<ProjectCategory | "">("");
   const [isStandingPool, setIsStandingPool] = useState(false);
+  const [attachments, setAttachments] = useState<UploadedProjectFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [attachError, setAttachError] = useState<string | null>(null);
+
+  async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
+    setAttachError(null);
+    setUploading(true);
+    for (const file of files) {
+      if (attachments.length >= 10) {
+        setAttachError("첨부는 최대 10개까지 가능합니다.");
+        break;
+      }
+      const res = await uploadProjectFileFromBrowser(file);
+      if (!res.ok) {
+        setAttachError(res.error);
+        continue;
+      }
+      setAttachments((prev) => [...prev, res.file]);
+    }
+    setUploading(false);
+  }
+
+  function removeAttachment(i: number) {
+    setAttachments((prev) => prev.filter((_, idx) => idx !== i));
+  }
 
   function onPayChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/[^\d]/g, "");
@@ -75,6 +108,8 @@ export function ProjectForm({
         formData.set("pay_amount", payRaw.replace(/[^\d]/g, ""));
         // attach category (chip-based state, not a native input)
         formData.set("category", category);
+        // attach uploaded reference files (metadata JSON)
+        formData.set("attachments", JSON.stringify(attachments));
         // attach sessions
         formData.set("sessions_count", String(sessions.length));
         sessions.forEach((s, i) => {
@@ -118,6 +153,51 @@ export function ProjectForm({
           placeholder="역할, 컨셉, 의상, 자격 요건 등을 자세히 적어주세요. (10자 이상)"
           className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
         />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="project-files">참고자료 첨부 (선택)</Label>
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-ink-2 hover:border-foreground/40">
+          <input
+            id="project-files"
+            type="file"
+            multiple
+            accept=".pdf,image/*,video/mp4"
+            onChange={onPickFiles}
+            disabled={uploading}
+            className="hidden"
+          />
+          {uploading ? "업로드 중..." : "+ 파일 선택 (PDF·이미지·영상 · 최대 50MB)"}
+        </label>
+        {attachments.length > 0 ? (
+          <ul className="flex flex-col gap-1.5">
+            {attachments.map((a, i) => (
+              <li
+                key={i}
+                className="flex items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm"
+              >
+                <span className="leading-none">📄</span>
+                <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                <span className="shrink-0 text-[11px] text-ink-3">
+                  {formatBytes(a.size)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(i)}
+                  className="shrink-0 text-xs text-destructive hover:underline"
+                >
+                  제거
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {attachError ? (
+          <p className="text-xs text-destructive">{attachError}</p>
+        ) : null}
+        <p className="text-xs text-muted-foreground">
+          기획안·구성안 등 참고자료를 첨부하면 공고 상세에서 바로 열람·다운로드됩니다.
+        </p>
       </div>
 
       <div className="flex flex-col gap-2">
