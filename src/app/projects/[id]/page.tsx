@@ -8,6 +8,7 @@ import { ApplyForm } from "@/components/project/ApplyForm";
 import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 import { deadlineLabel, isExpired } from "@/lib/utils/deadline";
+import { formatBytes } from "@/lib/storage/dancer-portfolio-file";
 import {
   PAY_TYPE_LABELS,
   SESSION_TYPE_LABELS,
@@ -170,6 +171,7 @@ export default async function ProjectDetailPage({
   const [
     { data: sessionsData },
     { data: ownerProfile },
+    { data: attachmentsData },
   ] = await Promise.all([
     supabase
       .from("project_sessions")
@@ -178,7 +180,27 @@ export default async function ProjectDetailPage({
       .order("sort_order")
       .order("starts_at"),
     supabase.from("profiles").select("display_name, id").eq("id", p.owner_id).single(),
+    supabase
+      .from("project_attachments")
+      .select("id, file_name, storage_path, mime_type, size_bytes")
+      .eq("project_id", id)
+      .order("sort_order"),
   ]);
+
+  const supabaseBase = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const attachments = ((attachmentsData ?? []) as Array<{
+    id: string;
+    file_name: string;
+    storage_path: string;
+    mime_type: string | null;
+    size_bytes: number | null;
+  }>).map((a) => ({
+    ...a,
+    url: `${supabaseBase}/storage/v1/object/public/project-files/${a.storage_path
+      .split("/")
+      .map(encodeURIComponent)
+      .join("/")}`,
+  }));
 
   // 익명 방문자는 본인 관련 쿼리 스킵.
   type ViewerProfile = { is_admin: boolean | null };
@@ -301,6 +323,38 @@ export default async function ProjectDetailPage({
           <Linkify text={p.description} />
         </p>
       </section>
+
+      {attachments.length > 0 ? (
+        <section className="flex flex-col gap-2">
+          <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
+            ↳ 참고자료 ({attachments.length})
+          </p>
+          <ul className="flex flex-col gap-2">
+            {attachments.map((a) => (
+              <li key={a.id}>
+                <a
+                  href={a.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 transition hover:bg-secondary"
+                >
+                  <span className="text-lg leading-none">📄</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-foreground">
+                      {a.file_name}
+                    </span>
+                    <span className="block text-[11px] text-ink-3">
+                      {a.mime_type?.includes("pdf") ? "PDF" : a.mime_type ?? "파일"}
+                      {a.size_bytes ? ` · ${formatBytes(a.size_bytes)}` : ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs font-medium text-ink-3">열기 →</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {sessions.length > 0 ? (
         <section className="flex flex-col gap-2">
