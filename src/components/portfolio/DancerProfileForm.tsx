@@ -28,6 +28,8 @@ type Props = {
     social_instagram: string;
     social_youtube: string;
     social_tiktok: string;
+    height_cm: string;
+    shoe_size_mm: string;
   };
   isCreate: boolean;
 };
@@ -262,6 +264,34 @@ export function DancerProfileForm({
           defaultValue={defaultValues.location}
           placeholder="예: 서울"
         />
+      </Field>
+      <Field
+        label="키 · 신발 사이즈 (선택)"
+        htmlFor="height_cm"
+        hint="입력하면 캐스팅 매칭·섭외 확률이 올라가요. 키 등 신체정보는 본인과 관리자에게만 보입니다."
+      >
+        <div className="flex gap-2">
+          <Input
+            id="height_cm"
+            name="height_cm"
+            type="number"
+            inputMode="numeric"
+            min={100}
+            max={250}
+            defaultValue={defaultValues.height_cm}
+            placeholder="키 (cm)"
+          />
+          <Input
+            id="shoe_size_mm"
+            name="shoe_size_mm"
+            type="number"
+            inputMode="numeric"
+            min={180}
+            max={330}
+            defaultValue={defaultValues.shoe_size_mm}
+            placeholder="신발 (mm)"
+          />
+        </div>
       </Field>
       <Field
         label="특기 (쉼표로 구분)"

@@ -31,8 +31,9 @@ export type ApplicantPortfolio = {
     social_links: Record<string, string> | null;
   } | null;
   careers: PortfolioCareer[];
-  // 키(cm) — 민감정보(dancer_private_info). 매니저(admin·소유자·공동관리자)에게만 노출.
+  // 키(cm)·신발(mm) — 민감정보(dancer_private_info). 매니저(admin·소유자·공동관리자)에게만 노출.
   height_cm: number | null;
+  shoe_size_mm: number | null;
 };
 
 // 지원자(댄서) 포트폴리오를 심사 시트에서 lazy-load.
@@ -87,16 +88,18 @@ export async function getApplicantPortfolioAction(
   // 키(height_cm)만 service-role로 읽어 매니저에게 노출. 연락처·국적·비자 등 나머지
   // 민감정보는 절대 반환하지 않는다. (canManageProject 게이트는 위에서 통과 확인됨)
   let height_cm: number | null = null;
+  let shoe_size_mm: number | null = null;
   try {
     const admin = createAdminClient();
     const { data: priv } = await admin
       .from("dancer_private_info")
-      .select("height_cm")
+      .select("height_cm, shoe_size_mm")
       .eq("dancer_id", dancerId)
       .maybeSingle();
     height_cm = (priv?.height_cm as number | null) ?? null;
+    shoe_size_mm = (priv?.shoe_size_mm as number | null) ?? null;
   } catch {
-    height_cm = null; // service key 미설정 등 — 비치명적
+    // service key 미설정 등 — 비치명적
   }
 
   return {
@@ -105,6 +108,7 @@ export async function getApplicantPortfolioAction(
       dancer: (d ?? null) as ApplicantPortfolio["dancer"],
       careers,
       height_cm,
+      shoe_size_mm,
     },
   };
 }

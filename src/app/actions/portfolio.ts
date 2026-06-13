@@ -87,6 +87,8 @@ type DancerRow = {
   genres: string[] | null;
   profile_img: string | null;
   social_links: Record<string, string> | null;
+  height_cm: number | null;
+  shoe_size_mm: number | null;
 };
 
 export async function getOwnDancerProfile(): Promise<DancerRow | null> {
@@ -99,7 +101,18 @@ export async function getOwnDancerProfile(): Promise<DancerRow | null> {
     )
     .eq("profile_id", user.id)
     .maybeSingle();
-  return (data as DancerRow | null) ?? null;
+  if (!data) return null;
+  // 키·신발사이즈는 민감정보 테이블(dancer_private_info)에 별도 저장. 본인은 RLS로 조회 가능.
+  const { data: priv } = await supabase
+    .from("dancer_private_info")
+    .select("height_cm, shoe_size_mm")
+    .eq("dancer_id", (data as { id: string }).id)
+    .maybeSingle();
+  return {
+    ...(data as Omit<DancerRow, "height_cm" | "shoe_size_mm">),
+    height_cm: (priv?.height_cm as number | null) ?? null,
+    shoe_size_mm: (priv?.shoe_size_mm as number | null) ?? null,
+  };
 }
 
 function arrayFromForm(formData: FormData, key: string): string[] {
@@ -113,6 +126,54 @@ function arrayFromForm(formData: FormData, key: string): string[] {
 function strOrNull(formData: FormData, key: string): string | null {
   const v = (formData.get(key) ?? "").toString().trim();
   return v ? v : null;
+}
+
+// 숫자 측정값 파싱 — 범위 밖/빈값은 null.
+function numInRange(formData: FormData, key: string, min: number, max: number): number | null {
+  const v = (formData.get(key) ?? "").toString().trim();
+  if (!v) return null;
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n) || n < min || n > max) return null;
+  return n;
+}
+
+// dancer_private_info의 선택 측정값(키·신발) 저장. 본인은 RLS로 쓰기 가능.
+// 입력된 값만 갱신(미입력 필드는 기존 값 유지). 둘 다 없으면 아무것도 안 함. 비치명적.
+async function savePrivateMeasurements(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  dancerId: string,
+  m: { height_cm: number | null; shoe_size_mm: number | null },
+): Promise<void> {
+  const patch: Record<string, number> = {};
+  if (m.height_cm != null) patch.height_cm = m.height_cm;
+  if (m.shoe_size_mm != null) patch.shoe_size_mm = m.shoe_size_mm;
+  if (Object.keys(patch).length === 0) return;
+  try {
+    const { data: existing } = await supabase
+      .from("dancer_private_info")
+      .select("dancer_id")
+      .eq("dancer_id", dancerId)
+      .maybeSingle();
+    if (existing) {
+      await supabase
+        .from("dancer_private_info")
+        .update(patch)
+        .eq("dancer_id", dancerId);
+    } else {
+      await supabase
+        .from("dancer_private_info")
+        .insert({ dancer_id: dancerId, ...patch });
+    }
+  } catch (e) {
+    console.error("[savePrivateMeasurements] 실패:", e);
+  }
+}
+
+function measurementsFromForm(formData: FormData) {
+  return {
+    height_cm: numInRange(formData, "height_cm", 100, 250),
+    shoe_size_mm: numInRange(formData, "shoe_size_mm", 180, 330),
+  };
 }
 
 function buildSocialLinks(parsed: { social_instagram?: string | null; social_youtube?: string | null; social_tiktok?: string | null }) {
@@ -244,6 +305,8 @@ export async function upsertDancerProfileAction(
     }
   }
 
+  await savePrivateMeasurements(supabase, dancerId, measurementsFromForm(formData));
+
   revalidatePath("/me/portfolio");
   revalidatePath(`/me/portfolio/${dancerId}`);
   revalidatePath("/admin/dancers");
@@ -335,6 +398,8 @@ export async function createDancerProfileAction(
     return { ok: false, error: humanizeDancerError(insertError.message) };
   }
   const dancerId = inserted.id as string;
+
+  await savePrivateMeasurements(supabase, dancerId, measurementsFromForm(formData));
 
   // 매니저 플로우: 본인을 dancer_managers에 자가 삽입
   if (role === "manager") {

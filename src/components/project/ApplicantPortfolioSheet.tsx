@@ -141,6 +141,7 @@ export function ApplicantPortfolioSheet({
     string,
   ][];
   const heightCm = data?.height_cm ?? null;
+  const shoeMm = data?.shoe_size_mm ?? null;
 
   return (
     <BottomSheet
@@ -177,6 +178,11 @@ export function ApplicantPortfolioSheet({
               {heightCm ? (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                   키 {heightCm}cm
+                </span>
+              ) : null}
+              {shoeMm ? (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                  신발 {shoeMm}mm
                 </span>
               ) : null}
               {chips.slice(0, 8).map((c, i) => (

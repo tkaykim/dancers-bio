@@ -57,6 +57,8 @@ type FormState = {
   location: string;
   gender: Gender;
   bio: string;
+  height_cm: string;
+  shoe_size_mm: string;
   specialties: string[];
   genres: string[];
   social: SocialHandles;
@@ -70,6 +72,8 @@ const initialState: FormState = {
   location: "",
   gender: "",
   bio: "",
+  height_cm: "",
+  shoe_size_mm: "",
   specialties: [],
   genres: [],
   social: {},
@@ -130,6 +134,8 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
       if (data.location) fd.set("location", data.location);
       if (data.gender) fd.set("gender", data.gender);
       if (data.bio) fd.set("bio", data.bio);
+      if (data.height_cm) fd.set("height_cm", data.height_cm);
+      if (data.shoe_size_mm) fd.set("shoe_size_mm", data.shoe_size_mm);
       data.specialties.forEach((s) => fd.append("specialties", s));
       data.genres.forEach((g) => fd.append("genres", g));
       if (data.social.instagram)
@@ -377,6 +383,33 @@ function StepBasic({
               </button>
             ))}
           </div>
+        </Field>
+        <Field label="키 · 신발 사이즈 (선택)">
+          <div className="flex gap-2">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={100}
+              max={250}
+              placeholder="키 (cm)"
+              className={fieldInputClass}
+              value={data.height_cm}
+              onChange={(e) => setData({ ...data, height_cm: e.target.value })}
+            />
+            <input
+              type="number"
+              inputMode="numeric"
+              min={180}
+              max={330}
+              placeholder="신발 (mm)"
+              className={fieldInputClass}
+              value={data.shoe_size_mm}
+              onChange={(e) => setData({ ...data, shoe_size_mm: e.target.value })}
+            />
+          </div>
+          <p className="mt-1.5 text-xs text-ink-3">
+            입력하면 캐스팅 매칭·섭외 확률이 올라가요. 키 등 신체정보는 본인과 관리자에게만 보입니다.
+          </p>
         </Field>
       </div>
     </div>

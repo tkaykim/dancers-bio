@@ -25,6 +25,13 @@ export default async function MyPortfolioEditPage({
 
   if (!dancer) notFound();
 
+  // 키·신발 사이즈(민감정보) — 본인/관리자만 RLS로 조회됨.
+  const { data: priv } = await supabase
+    .from("dancer_private_info")
+    .select("height_cm, shoe_size_mm")
+    .eq("dancer_id", dancer.id)
+    .maybeSingle();
+
   // Authorization: owner OR manager OR admin
   const isOwner = dancer.profile_id === user.id;
   const { data: profile } = await supabase
@@ -89,6 +96,8 @@ export default async function MyPortfolioEditPage({
           social_instagram: extractSocialHandle(social.instagram),
           social_youtube: extractSocialHandle(social.youtube),
           social_tiktok: extractSocialHandle(social.tiktok),
+          height_cm: priv?.height_cm != null ? String(priv.height_cm) : "",
+          shoe_size_mm: priv?.shoe_size_mm != null ? String(priv.shoe_size_mm) : "",
         }}
       />
 
