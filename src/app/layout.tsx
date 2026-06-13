@@ -4,6 +4,7 @@ import "./globals.css";
 import { SessionRefresher } from "@/components/auth/SessionRefresher";
 import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
 import { ErrorReporter } from "@/components/feedback/ErrorReporter";
+import { Toaster } from "@/components/ui/sonner";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -92,6 +93,7 @@ export default function RootLayout({
         <ServiceWorkerRegister />
         <ErrorReporter />
         {children}
+        <Toaster />
       </body>
     </html>
   );

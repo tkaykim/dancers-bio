@@ -195,3 +195,48 @@ export async function decideApplicationAction(
       : undefined,
   };
 }
+
+// 일괄 처리 (거절 / 대기로 되돌리기). 수락은 정원·알림 로직 때문에 단건만 허용.
+// RLS(applications_update = can_manage_project)가 관리 불가 행을 자동 차단한다.
+export async function bulkDecideApplicationsAction(
+  formData: FormData,
+): Promise<ActionResult<{ updated: number }>> {
+  await requireUser();
+  const decision = formData.get("decision");
+  if (decision !== "rejected" && decision !== "pending") {
+    return { ok: false, error: "잘못된 요청입니다." };
+  }
+  let ids: unknown;
+  try {
+    ids = JSON.parse((formData.get("ids") ?? "[]").toString());
+  } catch {
+    return { ok: false, error: "잘못된 요청입니다." };
+  }
+  const idList = (Array.isArray(ids) ? ids : [])
+    .filter((x): x is string => typeof x === "string")
+    .slice(0, 200);
+  if (idList.length === 0)
+    return { ok: false, error: "선택된 지원이 없습니다." };
+
+  const supabase = await createClient();
+  const update =
+    decision === "pending"
+      ? { status: "pending" as const, responded_at: null }
+      : { status: "rejected" as const, responded_at: new Date().toISOString() };
+
+  const { data, error } = await supabase
+    .from("applications")
+    .update(update)
+    .in("id", idList)
+    // 취소·만료된 지원은 건드리지 않는다.
+    .in("status", ["pending", "accepted", "rejected", "declined"])
+    .select("id, project_id");
+  if (error) return { ok: false, error: humanizeDbError(error.message) };
+
+  const rows = (data ?? []) as { id: string; project_id: string }[];
+  const projectIds = new Set(rows.map((r) => r.project_id));
+  for (const pid of projectIds) {
+    revalidatePath(`/projects/${pid}/applicants`);
+  }
+  return { ok: true, data: { updated: rows.length } };
+}
