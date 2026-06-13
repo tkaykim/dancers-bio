@@ -177,6 +177,7 @@ export async function decideApplicationAction(
       await sendApplicationRejectionEmail({
         applicantId: (app.applicant_id as string | null) ?? null,
         dancerId: (app.dancer_id as string | null) ?? null,
+        projectId: (app.project_id as string | null) ?? null,
         reason,
       });
     } catch (e) {
