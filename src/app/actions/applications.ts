@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { humanizeDbError } from "@/lib/db-errors";
+import { sendApplicationRejectionEmail } from "@/lib/notify/rejection-mail";
 import { NEEDS_DANCER_ERROR } from "@/lib/lite-constants";
 import { isExpired } from "@/lib/utils/deadline";
 import type { ActionResult } from "./auth";
@@ -134,7 +135,7 @@ export async function decideApplicationAction(
   const supabase = await createClient();
   const { data: app, error: fetchErr } = await supabase
     .from("applications")
-    .select("project_id, status")
+    .select("project_id, status, applicant_id, dancer_id")
     .eq("id", application_id)
     .single();
   if (fetchErr || !app) return { ok: false, error: "지원 정보를 찾을 수 없습니다." };
@@ -169,6 +170,19 @@ export async function decideApplicationAction(
     .update(update)
     .eq("id", application_id);
   if (error) return { ok: false, error: humanizeDbError(error.message) };
+
+  // 거절 시 댄서에게 거절 안내 메일 발송(사유 있으면 포함). 비치명적 — 실패해도 거절은 유효.
+  if (decision === "rejected") {
+    try {
+      await sendApplicationRejectionEmail({
+        applicantId: (app.applicant_id as string | null) ?? null,
+        dancerId: (app.dancer_id as string | null) ?? null,
+        reason,
+      });
+    } catch (e) {
+      console.error("[reject-mail] 발송 실패:", e);
+    }
+  }
 
   let quotaReached = false;
   if (decision === "accepted") {
