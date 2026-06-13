@@ -57,7 +57,7 @@ export function ApplicantPortfolioSheet({
         setError(r.error);
         return;
       }
-      setData(r.data);
+      setData(r.data ?? null);
     });
     return () => {
       cancelled = true;
