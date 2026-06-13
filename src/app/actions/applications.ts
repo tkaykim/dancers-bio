@@ -151,10 +151,18 @@ export async function decideApplicationAction(
     return { ok: true };
   }
 
-  const update: { status: "accepted" | "rejected" | "pending"; responded_at: string | null } =
+  // 거절 사유(선택) — 거절일 때만 저장, 수락/대기복귀 시 비움.
+  const reason = (formData.get("rejection_reason") ?? "").toString().trim() || null;
+  const update: {
+    status: "accepted" | "rejected" | "pending";
+    responded_at: string | null;
+    rejection_reason: string | null;
+  } =
     decision === "pending"
-      ? { status: "pending", responded_at: null }
-      : { status: decision, responded_at: new Date().toISOString() };
+      ? { status: "pending", responded_at: null, rejection_reason: null }
+      : decision === "rejected"
+        ? { status: "rejected", responded_at: new Date().toISOString(), rejection_reason: reason }
+        : { status: "accepted", responded_at: new Date().toISOString(), rejection_reason: null };
 
   const { error } = await supabase
     .from("applications")

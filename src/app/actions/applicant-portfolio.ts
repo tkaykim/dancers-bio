@@ -2,6 +2,7 @@
 
 import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionResult } from "./auth";
 
 export type PortfolioCareer = {
@@ -27,8 +28,11 @@ export type ApplicantPortfolio = {
     specialties: string[] | null;
     portfolio_file_url: string | null;
     portfolio_file_name: string | null;
+    social_links: Record<string, string> | null;
   } | null;
   careers: PortfolioCareer[];
+  // 키(cm) — 민감정보(dancer_private_info). 매니저(admin·소유자·공동관리자)에게만 노출.
+  height_cm: number | null;
 };
 
 // 지원자(댄서) 포트폴리오를 심사 시트에서 lazy-load.
@@ -47,7 +51,7 @@ export async function getApplicantPortfolioAction(
     supabase
       .from("dancers")
       .select(
-        "id, stage_name, korean_name, slug, profile_img, bio, location, gender, genres, specialties, portfolio_file_url, portfolio_file_name",
+        "id, stage_name, korean_name, slug, profile_img, bio, location, gender, genres, specialties, portfolio_file_url, portfolio_file_name, social_links",
       )
       .eq("id", dancerId)
       .maybeSingle(),
@@ -80,11 +84,27 @@ export async function getApplicantPortfolioAction(
     is_representative: !!r.is_representative,
   }));
 
+  // 키(height_cm)만 service-role로 읽어 매니저에게 노출. 연락처·국적·비자 등 나머지
+  // 민감정보는 절대 반환하지 않는다. (canManageProject 게이트는 위에서 통과 확인됨)
+  let height_cm: number | null = null;
+  try {
+    const admin = createAdminClient();
+    const { data: priv } = await admin
+      .from("dancer_private_info")
+      .select("height_cm")
+      .eq("dancer_id", dancerId)
+      .maybeSingle();
+    height_cm = (priv?.height_cm as number | null) ?? null;
+  } catch {
+    height_cm = null; // service key 미설정 등 — 비치명적
+  }
+
   return {
     ok: true,
     data: {
       dancer: (d ?? null) as ApplicantPortfolio["dancer"],
       careers,
+      height_cm,
     },
   };
 }

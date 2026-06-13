@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Instagram, Youtube, Music2, Link2 } from "lucide-react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { VideoEmbed } from "@/components/portfolio/VideoEmbed";
@@ -17,7 +18,36 @@ export type SheetApplicant = {
   name: string;
   status: string;
   publicHref: string | null;
+  rejectionReason: string | null;
 };
+
+const SOCIAL_KEYS = ["instagram", "youtube", "tiktok", "twitter", "x"] as const;
+
+function socialUrl(platform: string, raw: string): string {
+  const v = raw.trim();
+  if (/^https?:\/\//i.test(v)) return v;
+  const h = v.replace(/^@/, "");
+  switch (platform) {
+    case "instagram":
+      return `https://instagram.com/${h}`;
+    case "youtube":
+      return `https://www.youtube.com/@${h}`;
+    case "tiktok":
+      return `https://www.tiktok.com/@${h}`;
+    case "twitter":
+    case "x":
+      return `https://x.com/${h}`;
+    default:
+      return v;
+  }
+}
+
+function SocialIcon({ platform }: { platform: string }) {
+  if (platform === "instagram") return <Instagram className="size-4" />;
+  if (platform === "youtube") return <Youtube className="size-4" />;
+  if (platform === "tiktok") return <Music2 className="size-4" />;
+  return <Link2 className="size-4" />;
+}
 
 export function ApplicantPortfolioSheet({
   open,
@@ -79,6 +109,14 @@ export function ApplicantPortfolioSheet({
     applicant?.status === "accepted" || applicant?.status === "rejected";
   const videos = (data?.careers ?? []).filter((c) => c.link);
   const otherCareers = (data?.careers ?? []).filter((c) => !c.link);
+  const social = (d?.social_links ?? {}) as Record<string, string>;
+  const socialEntries = SOCIAL_KEYS.map(
+    (k) => [k, social[k]] as [string, string | undefined],
+  ).filter(([, v]) => typeof v === "string" && v.trim().length > 0) as [
+    string,
+    string,
+  ][];
+  const heightCm = data?.height_cm ?? null;
 
   return (
     <BottomSheet
@@ -111,15 +149,34 @@ export function ApplicantPortfolioSheet({
                 </span>
               ) : null}
             </p>
-            {chips.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
-                {chips.slice(0, 8).map((c, i) => (
-                  <span
-                    key={i}
-                    className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-ink-2"
+            <div className="flex flex-wrap items-center gap-1">
+              {heightCm ? (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                  키 {heightCm}cm
+                </span>
+              ) : null}
+              {chips.slice(0, 8).map((c, i) => (
+                <span
+                  key={i}
+                  className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-ink-2"
+                >
+                  {c}
+                </span>
+              ))}
+            </div>
+            {socialEntries.length > 0 ? (
+              <div className="mt-0.5 flex flex-wrap gap-1.5">
+                {socialEntries.map(([platform, raw]) => (
+                  <a
+                    key={platform}
+                    href={socialUrl(platform, raw)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={platform}
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-ink-2 transition-colors hover:bg-secondary hover:text-foreground"
                   >
-                    {c}
-                  </span>
+                    <SocialIcon platform={platform} />
+                  </a>
                 ))}
               </div>
             ) : null}
@@ -133,6 +190,12 @@ export function ApplicantPortfolioSheet({
             ) : null}
           </div>
         </div>
+
+        {applicant?.status === "rejected" && applicant.rejectionReason ? (
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            거절 사유: {applicant.rejectionReason}
+          </p>
+        ) : null}
 
         {d?.bio ? (
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2">

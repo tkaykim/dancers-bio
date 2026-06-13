@@ -20,6 +20,7 @@ type Application = {
   source: "apply" | "direct_proposal";
   cover_message: string | null;
   created_at: string;
+  rejection_reason: string | null;
   applicant: { id: string; display_name: string; avatar_url: string | null } | null;
   dancer:
     | {
@@ -126,7 +127,7 @@ export default async function ApplicantsPage({
   const { data: rows } = await supabase
     .from("applications")
     .select(
-      `id, status, source, cover_message, created_at,
+      `id, status, source, cover_message, created_at, rejection_reason,
        applicant:profiles!applications_applicant_id_fkey ( id, display_name, avatar_url ),
        dancer:dancers!applications_dancer_id_fkey ( id, stage_name, korean_name, slug, profile_img, genres, location ),
        team:teams!applications_team_id_fkey ( id, team_name, slug, profile_img )`,
@@ -168,6 +169,7 @@ export default async function ApplicantsPage({
       dancerId: a.dancer?.id ?? null,
       genres: (a.dancer?.genres ?? []) as string[],
       location: a.dancer?.location ?? null,
+      rejection_reason: a.rejection_reason ?? null,
     };
   });
 

@@ -15,6 +15,7 @@ import {
   ApplicantPortfolioSheet,
   type SheetApplicant,
 } from "@/components/project/ApplicantPortfolioSheet";
+import { RejectReasonDialog } from "@/components/project/RejectReasonDialog";
 
 export type ConsoleApplicant = {
   id: string;
@@ -30,6 +31,7 @@ export type ConsoleApplicant = {
   dancerId: string | null;
   genres: string[];
   location: string | null;
+  rejection_reason: string | null;
 };
 
 type Tab = "pending" | "accepted" | "rejected" | "all";
@@ -58,6 +60,7 @@ export function ApplicantsConsole({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [sheetId, setSheetId] = useState<string | null>(null);
+  const [rejectId, setRejectId] = useState<string | null>(null);
 
   const counts = useMemo(() => {
     let pending = 0,
@@ -108,29 +111,46 @@ export function ApplicantsConsole({
       name: a.name,
       status: a.status,
       publicHref: a.publicHref,
+      rejectionReason: a.rejection_reason,
     };
   }, [items, sheetId]);
 
-  function setStatusLocal(id: string, status: string) {
-    setItems((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status } : a)),
-    );
+  function patchItem(id: string, patch: Partial<ConsoleApplicant>) {
+    setItems((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
   }
 
-  async function decide(
+  // 거절은 사유 입력 다이얼로그를 먼저 띄운다. 수락/대기는 즉시 처리.
+  function requestDecide(
     id: string,
     decision: "accepted" | "rejected" | "pending",
   ) {
+    if (decision === "rejected") {
+      setSheetId(null); // 시트 닫고 사유 다이얼로그만 표시(중첩 방지)
+      setRejectId(id);
+      return;
+    }
+    applyDecide(id, decision, null);
+  }
+
+  async function applyDecide(
+    id: string,
+    decision: "accepted" | "rejected" | "pending",
+    reason: string | null,
+  ) {
     setBusy(true);
     const prev = items.find((a) => a.id === id)?.status;
-    setStatusLocal(id, decision); // 낙관적 업데이트
+    patchItem(id, {
+      status: decision,
+      rejection_reason: decision === "rejected" ? reason : null,
+    }); // 낙관적 업데이트
     const fd = new FormData();
     fd.set("application_id", id);
     fd.set("decision", decision);
+    if (decision === "rejected" && reason) fd.set("rejection_reason", reason);
     const r = await decideApplicationAction(fd);
     setBusy(false);
     if (!r.ok) {
-      if (prev) setStatusLocal(id, prev); // 롤백
+      if (prev) patchItem(id, { status: prev }); // 롤백
       toast.error(r.error);
       return;
     }
@@ -179,7 +199,7 @@ export function ApplicantsConsole({
       toast.error(r.error);
       return;
     }
-    ids.forEach((id) => setStatusLocal(id, decision));
+    ids.forEach((id) => patchItem(id, { status: decision }));
     setSelected(new Set());
     toast.success(`${r.data?.updated ?? ids.length}명 처리했습니다`);
   }
@@ -376,6 +396,12 @@ export function ApplicantsConsole({
                       </span>
                     ))}
                   </div>
+                  {(a.status === "rejected" || a.status === "declined") &&
+                  a.rejection_reason ? (
+                    <p className="mt-0.5 truncate text-[11px] italic text-ink-3">
+                      거절 사유: {a.rejection_reason}
+                    </p>
+                  ) : null}
                 </div>
                 <span
                   className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium sm:inline ${
@@ -394,7 +420,7 @@ export function ApplicantsConsole({
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => decide(a.id, "accepted")}
+                      onClick={() => requestDecide(a.id, "accepted")}
                       className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground disabled:opacity-50"
                     >
                       수락
@@ -404,7 +430,7 @@ export function ApplicantsConsole({
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => decide(a.id, "rejected")}
+                      onClick={() => requestDecide(a.id, "rejected")}
                       className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-ink-2 hover:bg-secondary disabled:opacity-50"
                     >
                       거절
@@ -413,7 +439,7 @@ export function ApplicantsConsole({
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => decide(a.id, "pending")}
+                      onClick={() => requestDecide(a.id, "pending")}
                       className="rounded-full px-2.5 py-1 text-[11px] text-ink-3 hover:bg-secondary disabled:opacity-50"
                     >
                       대기로
@@ -433,7 +459,18 @@ export function ApplicantsConsole({
         applicant={sheetApplicant}
         deciding={busy}
         onDecide={(decision) => {
-          if (sheetId) decide(sheetId, decision);
+          if (sheetId) requestDecide(sheetId, decision);
+        }}
+      />
+
+      <RejectReasonDialog
+        open={rejectId !== null}
+        onOpenChange={(o) => !o && setRejectId(null)}
+        busy={busy}
+        onConfirm={(reason) => {
+          const id = rejectId;
+          setRejectId(null);
+          if (id) applyDecide(id, "rejected", reason);
         }}
       />
     </div>
