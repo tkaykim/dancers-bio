@@ -94,8 +94,10 @@ export async function sendApplicationRejectionEmail(params: {
     `더 좋은 기회로 다시 만나뵐 수 있기를 바라며, 앞으로의 활동을 진심으로 응원합니다.`,
     ``,
     `감사합니다.`,
-    `— deetz 팀`,
     ``,
+    `다른 캐스팅 둘러보기: https://deetz.kr/feed`,
+    ``,
+    `— deetz 팀`,
     `deetz · 한국 댄스 신을 위한 프로필 & 캐스팅 플랫폼`,
   ].join("\n");
 
@@ -115,9 +117,11 @@ export async function sendApplicationRejectionEmail(params: {
   <p style="font-size:14px;line-height:1.7;color:#444;">신중히 검토했지만, 아쉽게도 이번 프로젝트에서는 함께하지 못하게 되었습니다.</p>
   <p style="font-size:14px;line-height:1.7;color:#444;">보내주신 관심과 노력에 깊이 감사드립니다.</p>
   <p style="font-size:14px;line-height:1.7;color:#444;">더 좋은 기회로 다시 만나뵐 수 있기를 바라며, 앞으로의 활동을 진심으로 응원합니다.</p>
-  <p style="font-size:14px;line-height:1.7;color:#222;margin-top:16px;">감사합니다.<br>— deetz 팀</p>
+  <p style="font-size:14px;line-height:1.7;color:#222;margin-top:16px;">감사합니다.</p>
+  <p style="margin:20px 0;"><a href="https://deetz.kr/feed" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 24px;border-radius:10px;">다른 캐스팅 둘러보기 →</a></p>
   <hr style="border:none;border-top:1px solid #eeeeee;margin:24px 0;">
-  <p style="font-size:11px;color:#bbbbbb;">deetz · 한국 댄스 신을 위한 프로필 &amp; 캐스팅 플랫폼</p>
+  <p style="font-size:11px;color:#888;margin-bottom:2px;">— deetz 팀</p>
+  <p style="font-size:11px;color:#bbbbbb;margin-top:0;">deetz · 한국 댄스 신을 위한 프로필 &amp; 캐스팅 플랫폼</p>
 </div>`;
 
   const res = await sendGmailEmail({
