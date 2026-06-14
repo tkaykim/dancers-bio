@@ -34,3 +34,33 @@ export function verifyHeightToken(token: string): string | null {
     return null;
   }
 }
+
+// 일정 가능여부 응답용 토큰 — payload = `${scheduleId}:${dancerId}`
+export function makeScheduleToken(scheduleId: string, dancerId: string): string {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY 미설정");
+  const payload = `${scheduleId}:${dancerId}`;
+  return `${Buffer.from(payload, "utf8").toString("base64url")}.${sign(payload, key)}`;
+}
+
+export function verifyScheduleToken(
+  token: string,
+): { scheduleId: string; dancerId: string } | null {
+  try {
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!key || !token) return null;
+    const dot = token.lastIndexOf(".");
+    if (dot < 1) return null;
+    const payload = Buffer.from(token.slice(0, dot), "base64url").toString("utf8");
+    const sig = token.slice(dot + 1);
+    const expected = sign(payload, key);
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+    const [scheduleId, dancerId] = payload.split(":");
+    if (!scheduleId || !dancerId) return null;
+    return { scheduleId, dancerId };
+  } catch {
+    return null;
+  }
+}
