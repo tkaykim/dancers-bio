@@ -161,7 +161,7 @@ export function ProjectScheduleSurveyForm({
                     가능/불가 시간대를 입력해 주세요
                   </p>
                   {a.slots.map((s, i) => (
-                    <div key={i} className="flex items-center gap-1.5">
+                    <div key={i} className="flex flex-wrap items-center gap-1.5">
                       <input
                         type="time"
                         value={s.start}
