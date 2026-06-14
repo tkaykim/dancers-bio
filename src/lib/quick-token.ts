@@ -44,7 +44,7 @@ export function makeScheduleToken(scheduleId: string, dancerId: string): string 
 }
 
 // 단톡방 공유용 일정 토큰 — 특정 댄서 없이 일정만 식별(payload = `sg:${scheduleId}`).
-// 응답자는 페이지에서 본인 이메일로 신원확인.
+// 응답자는 페이지에서 로그인(세션)으로 신원확인.
 export function makeScheduleGroupToken(scheduleId: string): string {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY 미설정");
