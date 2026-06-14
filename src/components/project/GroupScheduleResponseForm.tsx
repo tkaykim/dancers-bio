@@ -1,13 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { submitGroupScheduleResponseAction } from "@/app/actions/project-schedules";
+import { submitGroupScheduleResponseAuthedAction } from "@/app/actions/project-schedules";
 
 type Status = "available" | "partial" | "unavailable";
 type Slot = { start: string; end: string; kind: "available" | "unavailable" };
 
-export function GroupScheduleResponseForm({ token }: { token: string }) {
-  const [email, setEmail] = useState("");
+export function GroupScheduleResponseForm({
+  token,
+  responderName,
+}: {
+  token: string;
+  responderName?: string | null;
+}) {
   const [status, setStatus] = useState<Status | null>(null);
   const [slots, setSlots] = useState<Slot[]>([
     { start: "", end: "", kind: "available" },
@@ -35,10 +40,6 @@ export function GroupScheduleResponseForm({ token }: { token: string }) {
   ];
 
   function submit() {
-    if (!email.trim()) {
-      setError("지원하실 때 사용한 이메일을 입력해 주세요.");
-      return;
-    }
     if (!status) {
       setError("참석 가능 여부를 선택해 주세요.");
       return;
@@ -46,13 +47,12 @@ export function GroupScheduleResponseForm({ token }: { token: string }) {
     setError(null);
     const fd = new FormData();
     fd.set("token", token);
-    fd.set("email", email.trim());
     fd.set("status", status);
     if (status === "partial")
       fd.set("time_slots", JSON.stringify(slots.filter((s) => s.start && s.end)));
     if (note.trim()) fd.set("note", note.trim());
     startTransition(async () => {
-      const r = await submitGroupScheduleResponseAction(fd);
+      const r = await submitGroupScheduleResponseAuthedAction(fd);
       if (!r.ok) {
         setError(r.error);
         return;
@@ -63,23 +63,11 @@ export function GroupScheduleResponseForm({ token }: { token: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="email" className="text-sm font-medium">
-          지원하실 때 사용한 이메일
-        </label>
-        <input
-          id="email"
-          type="email"
-          inputMode="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="example@email.com"
-          className="h-12 rounded-xl border border-border bg-background px-4 text-base placeholder:text-ink-3"
-        />
-        <p className="text-[11px] text-ink-3">
-          본인 확인용입니다. 지원 시 쓰신 이메일과 같아야 응답이 저장돼요.
+      {responderName ? (
+        <p className="rounded-xl border border-border bg-secondary/40 px-4 py-3 text-sm">
+          <span className="font-semibold">{responderName}</span>님으로 응답합니다.
         </p>
-      </div>
+      ) : null}
 
       <div className="grid grid-cols-3 gap-2">
         {OPTIONS.map((o) => (

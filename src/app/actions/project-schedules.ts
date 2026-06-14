@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { canManageProject, requireUser } from "@/lib/auth/guard";
+import { canManageProject, getUser, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveDancerIdForUserInProject } from "@/lib/schedule/resolve";
 import {
   makeScheduleToken,
   verifyScheduleToken,
@@ -153,16 +154,15 @@ export async function submitScheduleResponseAction(
   return { ok: true };
 }
 
-// 단톡방 공유 링크용: 본인 이메일로 신원확인 후 응답 (로그인 없음)
-export async function submitGroupScheduleResponseAction(
+// 단톡방 공유 링크용: 로그인된 본인 계정으로 신원확인 후 응답 (이메일 입력 없음)
+export async function submitGroupScheduleResponseAuthedAction(
   fd: FormData,
 ): Promise<ActionResult> {
   const token = (fd.get("token") ?? "").toString();
   const scheduleId = verifyScheduleGroupToken(token);
   if (!scheduleId) return { ok: false, error: "링크가 유효하지 않습니다." };
-  const email = (fd.get("email") ?? "").toString().trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email))
-    return { ok: false, error: "지원하실 때 쓰신 이메일을 정확히 입력해 주세요." };
+  const user = await getUser();
+  if (!user) return { ok: false, error: "로그인이 필요합니다." };
   const status = (fd.get("status") ?? "").toString();
   if (!["available", "partial", "unavailable"].includes(status))
     return { ok: false, error: "응답을 선택해 주세요." };
@@ -175,49 +175,16 @@ export async function submitGroupScheduleResponseAction(
     .maybeSingle();
   if (!sch) return { ok: false, error: "일정을 찾을 수 없습니다." };
 
-  // 이메일 → 이 프로젝트의 지원자(dancer) 매칭
-  let dancerId: string | null = null;
-  const { data: uid } = await admin.rpc("admin_user_id_by_email", {
-    p_email: email,
-  });
-  if (uid) {
-    const { data: app } = await admin
-      .from("applications")
-      .select("dancer_id")
-      .eq("project_id", sch.project_id)
-      .eq("applicant_id", uid)
-      .not("dancer_id", "is", null)
-      .is("archived_at", null)
-      .limit(1)
-      .maybeSingle();
-    if (app?.dancer_id) dancerId = app.dancer_id as string;
-  }
-  if (!dancerId) {
-    const { data: apps } = await admin
-      .from("applications")
-      .select("dancer_id")
-      .eq("project_id", sch.project_id)
-      .not("dancer_id", "is", null)
-      .is("archived_at", null);
-    const ids = [
-      ...new Set((apps ?? []).map((a: { dancer_id: string }) => a.dancer_id)),
-    ];
-    if (ids.length > 0) {
-      const { data: pv } = await admin
-        .from("dancer_private_info")
-        .select("dancer_id")
-        .in("dancer_id", ids)
-        .ilike("email", email)
-        .limit(1)
-        .maybeSingle();
-      if (pv?.dancer_id) dancerId = pv.dancer_id as string;
-    }
-  }
+  // 로그인 세션 → 이 프로젝트의 지원자(dancer) 매칭
+  const dancerId = await resolveDancerIdForUserInProject(
+    sch.project_id as string,
+    user.id,
+  );
   if (!dancerId)
     return {
       ok: false,
       error:
-        "이 프로젝트에 지원한 기록을 찾지 못했어요. 지원하실 때 사용한 이메일이 맞는지 확인해 주세요.",
+        "이 프로젝트에 지원한 기록이 없어요. 지원하신 계정으로 로그인했는지 확인해 주세요.",
     };
 
   let time_slots: unknown = null;
