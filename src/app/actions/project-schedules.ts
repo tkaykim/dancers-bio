@@ -149,6 +149,97 @@ export async function submitScheduleResponseAction(
   return { ok: true };
 }
 
+// 단톡방 공유 링크용: 본인 이메일로 신원확인 후 응답 (로그인 없음)
+export async function submitGroupScheduleResponseAction(
+  fd: FormData,
+): Promise<ActionResult> {
+  const token = (fd.get("token") ?? "").toString();
+  const scheduleId = verifyScheduleGroupToken(token);
+  if (!scheduleId) return { ok: false, error: "링크가 유효하지 않습니다." };
+  const email = (fd.get("email") ?? "").toString().trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email))
+    return { ok: false, error: "지원하실 때 쓰신 이메일을 정확히 입력해 주세요." };
+  const status = (fd.get("status") ?? "").toString();
+  if (!["available", "partial", "unavailable"].includes(status))
+    return { ok: false, error: "응답을 선택해 주세요." };
+
+  const admin = createAdminClient();
+  const { data: sch } = await admin
+    .from("project_schedules")
+    .select("project_id")
+    .eq("id", scheduleId)
+    .maybeSingle();
+  if (!sch) return { ok: false, error: "일정을 찾을 수 없습니다." };
+
+  // 이메일 → 이 프로젝트의 지원자(dancer) 매칭
+  let dancerId: string | null = null;
+  const { data: uid } = await admin.rpc("admin_user_id_by_email", {
+    p_email: email,
+  });
+  if (uid) {
+    const { data: app } = await admin
+      .from("applications")
+      .select("dancer_id")
+      .eq("project_id", sch.project_id)
+      .eq("applicant_id", uid)
+      .not("dancer_id", "is", null)
+      .is("archived_at", null)
+      .limit(1)
+      .maybeSingle();
+    if (app?.dancer_id) dancerId = app.dancer_id as string;
+  }
+  if (!dancerId) {
+    const { data: apps } = await admin
+      .from("applications")
+      .select("dancer_id")
+      .eq("project_id", sch.project_id)
+      .not("dancer_id", "is", null)
+      .is("archived_at", null);
+    const ids = [
+      ...new Set((apps ?? []).map((a: { dancer_id: string }) => a.dancer_id)),
+    ];
+    if (ids.length > 0) {
+      const { data: pv } = await admin
+        .from("dancer_private_info")
+        .select("dancer_id")
+        .in("dancer_id", ids)
+        .ilike("email", email)
+        .limit(1)
+        .maybeSingle();
+      if (pv?.dancer_id) dancerId = pv.dancer_id as string;
+    }
+  }
+  if (!dancerId)
+    return {
+      ok: false,
+      error:
+        "이 프로젝트에 지원한 기록을 찾지 못했어요. 지원하실 때 사용한 이메일이 맞는지 확인해 주세요.",
+    };
+
+  let time_slots: unknown = null;
+  const raw = (fd.get("time_slots") ?? "").toString();
+  if (raw) {
+    try {
+      time_slots = JSON.parse(raw);
+    } catch {
+      time_slots = null;
+    }
+  }
+  const { error } = await admin.from("project_schedule_responses").upsert(
+    {
+      schedule_id: scheduleId,
+      dancer_id: dancerId,
+      status,
+      time_slots: status === "partial" ? time_slots : null,
+      note: strOrNull(fd, "note"),
+      responded_at: new Date().toISOString(),
+    },
+    { onConflict: "schedule_id,dancer_id" },
+  );
+  if (error) return { ok: false, error: "저장에 실패했습니다." };
+  return { ok: true };
+}
+
 // 가능여부 요청 메일 발송. audience: 'pending_accepted'(기본, 탈락 제외) | 'test'
 export async function sendScheduleRequestsAction(
   fd: FormData,

@@ -14,6 +14,7 @@ import {
 } from "@/components/project/ApplicantsConsole";
 import { SchedulePanel, type ScheduleRow } from "@/components/project/SchedulePanel";
 import { formatWhen } from "@/lib/format-when";
+import { makeScheduleGroupToken } from "@/lib/quick-token";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 
 type Application = {
@@ -229,6 +230,7 @@ export default async function ApplicantsPage({
       label: s.label,
       whenText: formatWhen(s.starts_at, s.ends_at),
       location: s.location ?? null,
+      groupUrl: `https://deetz.kr/sr/${makeScheduleGroupToken(s.id)}`,
       ...c,
     };
   });

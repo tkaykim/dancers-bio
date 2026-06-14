@@ -43,6 +43,35 @@ export function makeScheduleToken(scheduleId: string, dancerId: string): string 
   return `${Buffer.from(payload, "utf8").toString("base64url")}.${sign(payload, key)}`;
 }
 
+// 단톡방 공유용 일정 토큰 — 특정 댄서 없이 일정만 식별(payload = `sg:${scheduleId}`).
+// 응답자는 페이지에서 본인 이메일로 신원확인.
+export function makeScheduleGroupToken(scheduleId: string): string {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY 미설정");
+  const payload = `sg:${scheduleId}`;
+  return `${Buffer.from(payload, "utf8").toString("base64url")}.${sign(payload, key)}`;
+}
+
+export function verifyScheduleGroupToken(token: string): string | null {
+  try {
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!key || !token) return null;
+    const dot = token.lastIndexOf(".");
+    if (dot < 1) return null;
+    const payload = Buffer.from(token.slice(0, dot), "base64url").toString("utf8");
+    const sig = token.slice(dot + 1);
+    const expected = sign(payload, key);
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+    if (!payload.startsWith("sg:")) return null;
+    const scheduleId = payload.slice(3);
+    return scheduleId || null;
+  } catch {
+    return null;
+  }
+}
+
 export function verifyScheduleToken(
   token: string,
 ): { scheduleId: string; dancerId: string } | null {
