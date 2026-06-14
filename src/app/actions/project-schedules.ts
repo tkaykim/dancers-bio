@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { makeScheduleToken, verifyScheduleToken } from "@/lib/quick-token";
+import {
+  makeScheduleToken,
+  verifyScheduleToken,
+  verifyScheduleGroupToken,
+} from "@/lib/quick-token";
 import { buildScheduleRequestEmail } from "@/lib/notify/schedule-mail";
 import { formatWhen } from "@/lib/format-when";
 import { sendGmailEmail } from "@/lib/gmail";
