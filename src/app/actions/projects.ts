@@ -145,6 +145,43 @@ export async function createProjectAction(
     if (sErr) return { ok: false, error: `세션 저장 실패: ${sErr.message}` };
   }
 
+  // 후보 일정 (가능여부 조사용 project_schedules) — 비치명적.
+  const schedCount = Number(formData.get("schedules_count") ?? 0);
+  if (schedCount > 0) {
+    const toIso = (v: string | null) => {
+      if (!v) return null;
+      const d = new Date(v);
+      return Number.isNaN(d.getTime()) ? null : d.toISOString();
+    };
+    const schedRows: Array<{
+      project_id: string;
+      label: string;
+      starts_at: string | null;
+      ends_at: string | null;
+      location: string | null;
+      note: string | null;
+      sort_order: number;
+      created_by: string;
+    }> = [];
+    for (let i = 0; i < schedCount; i++) {
+      const label = strOrNull(formData, `schedules[${i}][label]`);
+      if (!label) continue;
+      schedRows.push({
+        project_id: project.id as string,
+        label,
+        starts_at: toIso(strOrNull(formData, `schedules[${i}][starts_at]`)),
+        ends_at: toIso(strOrNull(formData, `schedules[${i}][ends_at]`)),
+        location: strOrNull(formData, `schedules[${i}][location]`),
+        note: strOrNull(formData, `schedules[${i}][note]`),
+        sort_order: i,
+        created_by: creator.id,
+      });
+    }
+    if (schedRows.length > 0) {
+      await supabase.from("project_schedules").insert(schedRows);
+    }
+  }
+
   // 참고자료 첨부 (클라이언트가 storage에 올린 메타데이터 JSON). 비치명적.
   const attachmentsRaw = strOrNull(formData, "attachments");
   if (attachmentsRaw) {

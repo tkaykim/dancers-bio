@@ -34,6 +34,23 @@ const emptySession: SessionRow = {
   role_notes: "",
 };
 
+// 후보 일정 (가능여부 조사용 — project_schedules). 확정 세션과 별개.
+type ScheduleDraft = {
+  label: string;
+  date: string;
+  start: string;
+  end: string;
+  location: string;
+};
+
+const emptyScheduleDraft: ScheduleDraft = {
+  label: "",
+  date: "",
+  start: "",
+  end: "",
+  location: "",
+};
+
 export function ProjectForm({
   genres,
 }: {
@@ -43,6 +60,7 @@ export function ProjectForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [sessions, setSessions] = useState<SessionRow[]>([{ ...emptySession }]);
+  const [schedules, setSchedules] = useState<ScheduleDraft[]>([]);
   const [payDisplay, setPayDisplay] = useState<string>("");
   const [category, setCategory] = useState<ProjectCategory | "">("");
   const [isStandingPool, setIsStandingPool] = useState(false);
@@ -99,6 +117,18 @@ export function ProjectForm({
     setSessions((prev) => prev.filter((_, idx) => idx !== i));
   }
 
+  function updateSchedule(i: number, patch: Partial<ScheduleDraft>) {
+    setSchedules((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+  }
+
+  function addSchedule() {
+    setSchedules((prev) => [...prev, { ...emptyScheduleDraft }]);
+  }
+
+  function removeSchedule(i: number) {
+    setSchedules((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
   return (
     <form
       action={(formData) => {
@@ -117,6 +147,21 @@ export function ProjectForm({
           formData.set(`sessions[${i}][starts_at]`, s.starts_at);
           formData.set(`sessions[${i}][location_name]`, s.location_name);
           formData.set(`sessions[${i}][role_notes]`, s.role_notes);
+        });
+        // attach candidate schedules (가능여부 조사용 — project_schedules)
+        const validSchedules = schedules.filter((s) => s.label.trim() && s.date);
+        formData.set("schedules_count", String(validSchedules.length));
+        validSchedules.forEach((s, i) => {
+          formData.set(`schedules[${i}][label]`, s.label.trim());
+          formData.set(
+            `schedules[${i}][starts_at]`,
+            s.start ? `${s.date}T${s.start}:00+09:00` : "",
+          );
+          formData.set(
+            `schedules[${i}][ends_at]`,
+            s.end ? `${s.date}T${s.end}:00+09:00` : "",
+          );
+          formData.set(`schedules[${i}][location]`, s.location.trim());
         });
         startTransition(async () => {
           const result = await createProjectAction(formData);
@@ -429,6 +474,77 @@ export function ProjectForm({
             />
           </div>
         ))}
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-3 rounded-xl border border-border p-4">
+        <div className="flex items-center justify-between">
+          <legend className="text-sm font-semibold">
+            후보 일정 가능여부 조사 (선택)
+          </legend>
+          <button
+            type="button"
+            onClick={addSchedule}
+            className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
+          >
+            + 추가
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          확정 전 후보 날짜를 넣어두면, 개설 후 지원자(대기·수락)에게 가능여부를
+          물어볼 수 있습니다. 단톡방 공유 링크도 일정별로 생성됩니다.
+        </p>
+        {schedules.length === 0 ? null : (
+          schedules.map((s, i) => (
+            <div
+              key={i}
+              className="flex flex-col gap-2 rounded-md border border-border bg-secondary/40 p-3"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-ink-2">#{i + 1}</span>
+                <button
+                  type="button"
+                  onClick={() => removeSchedule(i)}
+                  className="text-xs text-destructive hover:underline"
+                >
+                  제거
+                </button>
+              </div>
+              <Input
+                placeholder="일정 제목 (예: 1차 오디션 겸 연습)"
+                value={s.label}
+                onChange={(e) => updateSchedule(i, { label: e.target.value })}
+                maxLength={120}
+              />
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  value={s.date}
+                  onChange={(e) => updateSchedule(i, { date: e.target.value })}
+                  className="flex-1"
+                />
+                <Input
+                  type="time"
+                  value={s.start}
+                  onChange={(e) => updateSchedule(i, { start: e.target.value })}
+                  className="w-24"
+                />
+                <span className="self-center text-ink-3">~</span>
+                <Input
+                  type="time"
+                  value={s.end}
+                  onChange={(e) => updateSchedule(i, { end: e.target.value })}
+                  className="w-24"
+                />
+              </div>
+              <Input
+                placeholder="장소 (선택)"
+                value={s.location}
+                onChange={(e) => updateSchedule(i, { location: e.target.value })}
+                maxLength={120}
+              />
+            </div>
+          ))
+        )}
       </fieldset>
 
       <label className="flex items-center gap-2 text-sm">
