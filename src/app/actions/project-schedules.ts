@@ -5,11 +5,7 @@ import { canManageProject, getUser, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveDancerIdForUserInProject } from "@/lib/schedule/resolve";
-import {
-  makeScheduleToken,
-  verifyScheduleToken,
-  verifyScheduleGroupToken,
-} from "@/lib/quick-token";
+import { makeScheduleToken, verifyScheduleToken } from "@/lib/quick-token";
 import { buildScheduleRequestEmail } from "@/lib/notify/schedule-mail";
 import { formatWhen } from "@/lib/format-when";
 import { sendGmailEmail } from "@/lib/gmail";
@@ -155,12 +151,12 @@ export async function submitScheduleResponseAction(
 }
 
 // 단톡방 공유 링크용: 로그인된 본인 계정으로 신원확인 후 응답 (이메일 입력 없음)
+// code = project_schedules.share_code (짧은 공유 코드)
 export async function submitGroupScheduleResponseAuthedAction(
   fd: FormData,
 ): Promise<ActionResult> {
-  const token = (fd.get("token") ?? "").toString();
-  const scheduleId = verifyScheduleGroupToken(token);
-  if (!scheduleId) return { ok: false, error: "링크가 유효하지 않습니다." };
+  const code = (fd.get("code") ?? "").toString().trim();
+  if (!code) return { ok: false, error: "링크가 유효하지 않습니다." };
   const user = await getUser();
   if (!user) return { ok: false, error: "로그인이 필요합니다." };
   const status = (fd.get("status") ?? "").toString();
@@ -170,10 +166,11 @@ export async function submitGroupScheduleResponseAuthedAction(
   const admin = createAdminClient();
   const { data: sch } = await admin
     .from("project_schedules")
-    .select("project_id")
-    .eq("id", scheduleId)
+    .select("id, project_id")
+    .eq("share_code", code)
     .maybeSingle();
   if (!sch) return { ok: false, error: "일정을 찾을 수 없습니다." };
+  const scheduleId = sch.id as string;
 
   // 로그인 세션 → 이 프로젝트의 지원자(dancer) 매칭
   const dancerId = await resolveDancerIdForUserInProject(

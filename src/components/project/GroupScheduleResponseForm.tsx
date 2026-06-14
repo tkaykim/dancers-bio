@@ -7,10 +7,10 @@ type Status = "available" | "partial" | "unavailable";
 type Slot = { start: string; end: string; kind: "available" | "unavailable" };
 
 export function GroupScheduleResponseForm({
-  token,
+  code,
   responderName,
 }: {
-  token: string;
+  code: string;
   responderName?: string | null;
 }) {
   const [status, setStatus] = useState<Status | null>(null);
@@ -46,7 +46,7 @@ export function GroupScheduleResponseForm({
     }
     setError(null);
     const fd = new FormData();
-    fd.set("token", token);
+    fd.set("code", code);
     fd.set("status", status);
     if (status === "partial")
       fd.set("time_slots", JSON.stringify(slots.filter((s) => s.start && s.end)));

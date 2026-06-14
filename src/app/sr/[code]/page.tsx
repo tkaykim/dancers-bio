@@ -2,27 +2,25 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { verifyScheduleGroupToken } from "@/lib/quick-token";
 import { resolveDancerIdForUserInProject } from "@/lib/schedule/resolve";
 import { formatWhen } from "@/lib/format-when";
 import { GroupScheduleResponseForm } from "@/components/project/GroupScheduleResponseForm";
 
-// 단톡방 공유용 일정 응답 페이지. /sr/<token>
-// 신원확인 = 로그인 세션(이메일 직접 입력 X). 토큰은 "어느 일정인지"만 지정.
+// 단톡방 공유용 일정 응답 페이지. /sr/<share_code> (짧은 공유 코드)
+// 신원확인 = 로그인 세션. 코드는 "어느 일정인지"만 지정.
 export default async function GroupScheduleResponsePage({
   params,
 }: {
-  params: Promise<{ token: string }>;
+  params: Promise<{ code: string }>;
 }) {
-  const { token } = await params;
-  const scheduleId = verifyScheduleGroupToken(token);
-  if (!scheduleId) notFound();
+  const { code } = await params;
+  if (!code) notFound();
 
   const admin = createAdminClient();
   const { data: sch } = await admin
     .from("project_schedules")
-    .select("project_id, label, starts_at, ends_at, location, note")
-    .eq("id", scheduleId)
+    .select("id, project_id, label, starts_at, ends_at, location, note")
+    .eq("share_code", code)
     .maybeSingle();
   if (!sch) notFound();
 
@@ -48,6 +46,8 @@ export default async function GroupScheduleResponsePage({
       responderName = (d?.stage_name as string | null) ?? null;
     }
   }
+
+  const loginHref = `/login?next=${encodeURIComponent(`/sr/${code}`)}`;
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-10">
@@ -82,14 +82,14 @@ export default async function GroupScheduleResponsePage({
             지원하신 계정으로 로그인하시면 자동으로 본인 확인됩니다.
           </p>
           <Link
-            href={`/login?next=${encodeURIComponent(`/sr/${token}`)}`}
+            href={loginHref}
             className="flex h-12 items-center justify-center rounded-xl bg-primary text-base font-semibold text-primary-foreground"
           >
             로그인하고 응답하기
           </Link>
         </div>
       ) : dancerId ? (
-        <GroupScheduleResponseForm token={token} responderName={responderName} />
+        <GroupScheduleResponseForm code={code} responderName={responderName} />
       ) : (
         // 로그인했지만 이 프로젝트 지원자가 아님
         <div className="flex flex-col gap-3 rounded-2xl border border-warn/30 bg-warn/10 p-5 text-center">
@@ -99,10 +99,7 @@ export default async function GroupScheduleResponsePage({
           <p className="text-xs text-ink-2">
             다른 계정으로 지원하셨다면 그 계정으로 다시 로그인해 주세요.
           </p>
-          <Link
-            href={`/login?next=${encodeURIComponent(`/sr/${token}`)}`}
-            className="text-xs font-semibold text-primary underline"
-          >
+          <Link href={loginHref} className="text-xs font-semibold text-primary underline">
             다른 계정으로 로그인
           </Link>
         </div>

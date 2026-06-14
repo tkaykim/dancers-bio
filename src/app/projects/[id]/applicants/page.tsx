@@ -14,7 +14,6 @@ import {
 } from "@/components/project/ApplicantsConsole";
 import { SchedulePanel, type ScheduleRow } from "@/components/project/SchedulePanel";
 import { formatWhen } from "@/lib/format-when";
-import { makeScheduleGroupToken } from "@/lib/quick-token";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 
 type Application = {
@@ -182,7 +181,7 @@ export default async function ApplicantsPage({
   ).length;
   const { data: schedRows } = await supabase
     .from("project_schedules")
-    .select("id, label, starts_at, ends_at, location")
+    .select("id, label, starts_at, ends_at, location, share_code")
     .eq("project_id", p.id)
     .order("starts_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
@@ -192,6 +191,7 @@ export default async function ApplicantsPage({
     starts_at: string | null;
     ends_at: string | null;
     location: string | null;
+    share_code: string;
   }>;
   const respCounts: Record<
     string,
@@ -230,7 +230,7 @@ export default async function ApplicantsPage({
       label: s.label,
       whenText: formatWhen(s.starts_at, s.ends_at),
       location: s.location ?? null,
-      groupUrl: `https://deetz.kr/sr/${makeScheduleGroupToken(s.id)}`,
+      groupUrl: `https://deetz.kr/sr/${s.share_code}`,
       ...c,
     };
   });
