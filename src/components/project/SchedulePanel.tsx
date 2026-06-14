@@ -19,7 +19,6 @@ export type ScheduleRow = {
   partial: number;
   unavailable: number;
   responded: number;
-  groupUrl: string;
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -32,10 +31,12 @@ export function SchedulePanel({
   projectId,
   targetCount,
   schedules,
+  surveyUrl,
 }: {
   projectId: string;
   targetCount: number;
   schedules: ScheduleRow[];
+  surveyUrl: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -145,6 +146,24 @@ export function SchedulePanel({
         </button>
       </div>
 
+      {schedules.length > 0 ? (
+        <div className="flex items-center gap-2 rounded-xl border border-hairline-2 bg-secondary/30 p-2.5">
+          <code className="min-w-0 flex-1 truncate text-[11px] text-ink-2">
+            {surveyUrl}
+          </code>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard?.writeText(surveyUrl);
+              toast.success("단톡방 공유 링크 복사됨 (전체 일정)");
+            }}
+            className="shrink-0 rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground"
+          >
+            단톡방 링크 복사
+          </button>
+        </div>
+      ) : null}
+
       {open ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline-2 p-3">
           <input
@@ -249,16 +268,6 @@ export function SchedulePanel({
                   className="rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground disabled:opacity-50"
                 >
                   요청 메일 발송
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(s.groupUrl);
-                    toast.success("단톡방 공유 링크 복사됨");
-                  }}
-                  className="rounded-full border border-border px-3 py-1 text-[11px] text-ink-2 hover:bg-secondary"
-                >
-                  단톡방 링크 복사
                 </button>
                 <button
                   type="button"

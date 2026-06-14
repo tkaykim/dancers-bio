@@ -44,6 +44,7 @@ type Project = {
   owner_id: string;
   title: string;
   recruitment_count: number;
+  schedule_survey_code: string;
 };
 
 type RecommendedDancer = {
@@ -79,7 +80,9 @@ export default async function ApplicantsPage({
 
   const projectQuery = supabase
     .from("projects")
-    .select("id, short_code, owner_id, title, recruitment_count")
+    .select(
+      "id, short_code, owner_id, title, recruitment_count, schedule_survey_code",
+    )
     .is("deleted_at", null);
 
   const { data: project } = await (
@@ -181,7 +184,7 @@ export default async function ApplicantsPage({
   ).length;
   const { data: schedRows } = await supabase
     .from("project_schedules")
-    .select("id, label, starts_at, ends_at, location, share_code")
+    .select("id, label, starts_at, ends_at, location")
     .eq("project_id", p.id)
     .order("starts_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
@@ -191,7 +194,6 @@ export default async function ApplicantsPage({
     starts_at: string | null;
     ends_at: string | null;
     location: string | null;
-    share_code: string;
   }>;
   const respCounts: Record<
     string,
@@ -230,7 +232,6 @@ export default async function ApplicantsPage({
       label: s.label,
       whenText: formatWhen(s.starts_at, s.ends_at),
       location: s.location ?? null,
-      groupUrl: `https://deetz.kr/sr/${s.share_code}`,
       ...c,
     };
   });
@@ -259,6 +260,7 @@ export default async function ApplicantsPage({
         projectId={p.id}
         targetCount={targetCount}
         schedules={scheduleRows}
+        surveyUrl={`https://deetz.kr/sr/${p.schedule_survey_code}`}
       />
 
       {/* 세팅·초대 도구: 접힘 (본업을 가리지 않도록 아래로) */}

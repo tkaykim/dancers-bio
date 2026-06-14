@@ -150,33 +150,51 @@ export async function submitScheduleResponseAction(
   return { ok: true };
 }
 
-// 단톡방 공유 링크용: 로그인된 본인 계정으로 신원확인 후 응답 (이메일 입력 없음)
-// code = project_schedules.share_code (짧은 공유 코드)
-export async function submitGroupScheduleResponseAuthedAction(
+// 단톡방 공유 링크용: 로그인된 본인 계정으로 여러 일정 가능여부를 한 번에 제출.
+// code = projects.schedule_survey_code (프로젝트 단위 설문 코드)
+type ScheduleAnswer = {
+  schedule_id: string;
+  status: "available" | "partial" | "unavailable";
+  time_slots?: unknown;
+  note?: string | null;
+};
+
+export async function submitProjectScheduleResponsesAction(
   fd: FormData,
-): Promise<ActionResult> {
+): Promise<ActionResult<{ saved: number }>> {
   const code = (fd.get("code") ?? "").toString().trim();
   if (!code) return { ok: false, error: "링크가 유효하지 않습니다." };
   const user = await getUser();
   if (!user) return { ok: false, error: "로그인이 필요합니다." };
-  const status = (fd.get("status") ?? "").toString();
-  if (!["available", "partial", "unavailable"].includes(status))
-    return { ok: false, error: "응답을 선택해 주세요." };
+
+  let answers: ScheduleAnswer[] = [];
+  try {
+    const parsed = JSON.parse((fd.get("answers") ?? "[]").toString());
+    if (Array.isArray(parsed)) answers = parsed as ScheduleAnswer[];
+  } catch {
+    answers = [];
+  }
+  const valid = answers.filter(
+    (a) =>
+      a &&
+      typeof a.schedule_id === "string" &&
+      ["available", "partial", "unavailable"].includes(a.status),
+  );
+  if (valid.length === 0)
+    return { ok: false, error: "각 일정의 가능 여부를 선택해 주세요." };
 
   const admin = createAdminClient();
-  const { data: sch } = await admin
-    .from("project_schedules")
-    .select("id, project_id")
-    .eq("share_code", code)
+  // 코드 → 프로젝트
+  const { data: project } = await admin
+    .from("projects")
+    .select("id")
+    .eq("schedule_survey_code", code)
     .maybeSingle();
-  if (!sch) return { ok: false, error: "일정을 찾을 수 없습니다." };
-  const scheduleId = sch.id as string;
+  if (!project) return { ok: false, error: "설문을 찾을 수 없습니다." };
+  const projectId = project.id as string;
 
   // 로그인 세션 → 이 프로젝트의 지원자(dancer) 매칭
-  const dancerId = await resolveDancerIdForUserInProject(
-    sch.project_id as string,
-    user.id,
-  );
+  const dancerId = await resolveDancerIdForUserInProject(projectId, user.id);
   if (!dancerId)
     return {
       ok: false,
@@ -184,28 +202,32 @@ export async function submitGroupScheduleResponseAuthedAction(
         "이 프로젝트에 지원한 기록이 없어요. 지원하신 계정으로 로그인했는지 확인해 주세요.",
     };
 
-  let time_slots: unknown = null;
-  const raw = (fd.get("time_slots") ?? "").toString();
-  if (raw) {
-    try {
-      time_slots = JSON.parse(raw);
-    } catch {
-      time_slots = null;
-    }
-  }
-  const { error } = await admin.from("project_schedule_responses").upsert(
-    {
-      schedule_id: scheduleId,
+  // 이 프로젝트에 실제 존재하는 일정만 허용 (타프로젝트 일정 위조 방지)
+  const { data: schRows } = await admin
+    .from("project_schedules")
+    .select("id")
+    .eq("project_id", projectId);
+  const allowed = new Set((schRows ?? []).map((s: { id: string }) => s.id));
+
+  const now = new Date().toISOString();
+  const rows = valid
+    .filter((a) => allowed.has(a.schedule_id))
+    .map((a) => ({
+      schedule_id: a.schedule_id,
       dancer_id: dancerId,
-      status,
-      time_slots: status === "partial" ? time_slots : null,
-      note: strOrNull(fd, "note"),
-      responded_at: new Date().toISOString(),
-    },
-    { onConflict: "schedule_id,dancer_id" },
-  );
+      status: a.status,
+      time_slots: a.status === "partial" ? (a.time_slots ?? null) : null,
+      note: (a.note ?? "").toString().trim() || null,
+      responded_at: now,
+    }));
+  if (rows.length === 0)
+    return { ok: false, error: "유효한 일정이 없습니다." };
+
+  const { error } = await admin
+    .from("project_schedule_responses")
+    .upsert(rows, { onConflict: "schedule_id,dancer_id" });
   if (error) return { ok: false, error: "저장에 실패했습니다." };
-  return { ok: true };
+  return { ok: true, data: { saved: rows.length } };
 }
 
 // 가능여부 요청 메일 발송. audience: 'pending_accepted'(기본, 탈락 제외) | 'test'

@@ -4,11 +4,16 @@ import { getUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveDancerIdForUserInProject } from "@/lib/schedule/resolve";
 import { formatWhen } from "@/lib/format-when";
-import { GroupScheduleResponseForm } from "@/components/project/GroupScheduleResponseForm";
+import {
+  ProjectScheduleSurveyForm,
+  type SurveyItem,
+} from "@/components/project/ProjectScheduleSurveyForm";
 
-// 단톡방 공유용 일정 응답 페이지. /sr/<share_code> (짧은 공유 코드)
-// 신원확인 = 로그인 세션. 코드는 "어느 일정인지"만 지정.
-export default async function GroupScheduleResponsePage({
+type Slot = { start: string; end: string; kind: "available" | "unavailable" };
+
+// 단톡방 공유용 일정 가능여부 설문. /sr/<schedule_survey_code> (프로젝트 단위)
+// 신원확인 = 로그인 세션. 코드는 "어느 프로젝트 설문인지"만 지정.
+export default async function ScheduleSurveyPage({
   params,
 }: {
   params: Promise<{ code: string }>;
@@ -17,26 +22,35 @@ export default async function GroupScheduleResponsePage({
   if (!code) notFound();
 
   const admin = createAdminClient();
-  const { data: sch } = await admin
-    .from("project_schedules")
-    .select("id, project_id, label, starts_at, ends_at, location, note")
-    .eq("share_code", code)
+  const { data: project } = await admin
+    .from("projects")
+    .select("id, title")
+    .eq("schedule_survey_code", code)
+    .is("deleted_at", null)
     .maybeSingle();
-  if (!sch) notFound();
+  if (!project) notFound();
+  const projectId = project.id as string;
 
-  const whenText = formatWhen(
-    sch.starts_at as string | null,
-    sch.ends_at as string | null,
-  );
+  const { data: schedRows } = await admin
+    .from("project_schedules")
+    .select("id, label, starts_at, ends_at, location, note")
+    .eq("project_id", projectId)
+    .order("starts_at", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true });
+  const schedules = (schedRows ?? []) as Array<{
+    id: string;
+    label: string;
+    starts_at: string | null;
+    ends_at: string | null;
+    location: string | null;
+    note: string | null;
+  }>;
 
   const user = await getUser();
   let dancerId: string | null = null;
   let responderName: string | null = null;
   if (user) {
-    dancerId = await resolveDancerIdForUserInProject(
-      sch.project_id as string,
-      user.id,
-    );
+    dancerId = await resolveDancerIdForUserInProject(projectId, user.id);
     if (dancerId) {
       const { data: d } = await admin
         .from("dancers")
@@ -47,10 +61,49 @@ export default async function GroupScheduleResponsePage({
     }
   }
 
+  // 기존 응답 프리필 (있으면)
+  const prior: Record<
+    string,
+    { status: SurveyItem["status"]; timeSlots: Slot[] | null; note: string | null }
+  > = {};
+  if (dancerId && schedules.length > 0) {
+    const { data: resp } = await admin
+      .from("project_schedule_responses")
+      .select("schedule_id, status, time_slots, note")
+      .eq("dancer_id", dancerId)
+      .in(
+        "schedule_id",
+        schedules.map((s) => s.id),
+      );
+    for (const r of (resp ?? []) as Array<{
+      schedule_id: string;
+      status: SurveyItem["status"];
+      time_slots: Slot[] | null;
+      note: string | null;
+    }>) {
+      prior[r.schedule_id] = {
+        status: r.status,
+        timeSlots: r.time_slots,
+        note: r.note,
+      };
+    }
+  }
+
+  const items: SurveyItem[] = schedules.map((s) => ({
+    id: s.id,
+    label: s.label,
+    whenText: formatWhen(s.starts_at, s.ends_at),
+    location: s.location ?? null,
+    note: s.note ?? null,
+    status: prior[s.id]?.status ?? null,
+    timeSlots: prior[s.id]?.timeSlots ?? null,
+    responseNote: prior[s.id]?.note ?? null,
+  }));
+
   const loginHref = `/login?next=${encodeURIComponent(`/sr/${code}`)}`;
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-10">
+    <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
       <div className="flex flex-col gap-2">
         <div className="text-2xl font-extrabold tracking-tight">
           deetz<span className="text-primary">.</span>
@@ -58,40 +111,50 @@ export default async function GroupScheduleResponsePage({
         <h1 className="text-xl font-bold leading-tight">
           일정 참석 가능 여부를 알려주세요
         </h1>
+        <p className="text-sm text-ink-2">{project.title as string}</p>
       </div>
 
-      <div className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-4">
-        <p className="text-sm font-bold">{sch.label as string}</p>
-        <p className="text-sm text-ink-2">{whenText}</p>
-        {sch.location ? (
-          <p className="text-sm text-ink-2">📍 {sch.location as string}</p>
-        ) : null}
-        {sch.note ? (
-          <p className="mt-1 whitespace-pre-wrap text-xs text-ink-3">
-            {sch.note as string}
-          </p>
-        ) : null}
-      </div>
-
-      {!user ? (
-        // 비로그인 → 로그인 유도 (로그인 후 이 페이지로 복귀)
-        <div className="flex flex-col gap-3">
-          <p className="text-sm text-ink-2">
-            응답하려면 deetz 로그인이 필요합니다.
-            <br />
-            지원하신 계정으로 로그인하시면 자동으로 본인 확인됩니다.
-          </p>
-          <Link
-            href={loginHref}
-            className="flex h-12 items-center justify-center rounded-xl bg-primary text-base font-semibold text-primary-foreground"
-          >
-            로그인하고 응답하기
-          </Link>
-        </div>
+      {schedules.length === 0 ? (
+        <p className="rounded-2xl border border-border bg-card p-5 text-center text-sm text-ink-2">
+          아직 등록된 후보 일정이 없습니다.
+        </p>
+      ) : !user ? (
+        <>
+          <ul className="flex flex-col gap-2">
+            {items.map((it) => (
+              <li
+                key={it.id}
+                className="flex flex-col gap-0.5 rounded-2xl border border-border bg-card p-4"
+              >
+                <p className="text-sm font-bold">{it.label}</p>
+                <p className="text-xs text-ink-2">{it.whenText}</p>
+                {it.location ? (
+                  <p className="text-xs text-ink-3">📍 {it.location}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-ink-2">
+              응답하려면 deetz 로그인이 필요합니다.
+              <br />
+              지원하신 계정으로 로그인하시면 자동으로 본인 확인됩니다.
+            </p>
+            <Link
+              href={loginHref}
+              className="flex h-12 items-center justify-center rounded-xl bg-primary text-base font-semibold text-primary-foreground"
+            >
+              로그인하고 응답하기
+            </Link>
+          </div>
+        </>
       ) : dancerId ? (
-        <GroupScheduleResponseForm code={code} responderName={responderName} />
+        <ProjectScheduleSurveyForm
+          code={code}
+          responderName={responderName}
+          items={items}
+        />
       ) : (
-        // 로그인했지만 이 프로젝트 지원자가 아님
         <div className="flex flex-col gap-3 rounded-2xl border border-warn/30 bg-warn/10 p-5 text-center">
           <p className="text-sm font-semibold">
             이 프로젝트에 지원한 기록이 없어요.

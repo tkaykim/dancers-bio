@@ -43,7 +43,7 @@ export function makeScheduleToken(scheduleId: string, dancerId: string): string 
   return `${Buffer.from(payload, "utf8").toString("base64url")}.${sign(payload, key)}`;
 }
 
-// (단톡방 공유는 토큰 대신 project_schedules.share_code 짧은 코드 사용 — /sr/<code>)
+// (단톡방 공유는 토큰 대신 projects.schedule_survey_code 짧은 코드 사용 — /sr/<code>, 프로젝트 전체 일정 일괄 응답)
 
 export function verifyScheduleToken(
   token: string,
