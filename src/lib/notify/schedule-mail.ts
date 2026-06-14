@@ -43,7 +43,7 @@ export function buildScheduleRequestEmail(params: {
       (s) => `<div style="border:1px solid #ececef;border-radius:12px;padding:12px 14px;margin-bottom:8px;">
 <div style="font-size:14px;font-weight:700;color:#111;">${esc(s.label)}</div>
 <div style="font-size:13px;color:#33363b;margin-top:3px;">${esc(s.whenText)}</div>
-${s.locationText ? `<div style="font-size:13px;color:#6b7280;margin-top:2px;">📍 ${esc(s.locationText)}</div>` : ""}
+${s.locationText ? `<div style="font-size:13px;color:#6b7280;margin-top:4px;"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/mappin.png" width="12" height="12" alt="장소" style="vertical-align:-1px;margin-right:4px;">${esc(s.locationText)}</div>` : ""}
 </div>`,
     )
     .join("");

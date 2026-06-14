@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { MapPin } from "lucide-react";
 import { getUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveDancerIdForUserInProject } from "@/lib/schedule/resolve";
@@ -129,7 +130,10 @@ export default async function ScheduleSurveyPage({
                 <p className="text-sm font-bold">{it.label}</p>
                 <p className="text-xs text-ink-2">{it.whenText}</p>
                 {it.location ? (
-                  <p className="text-xs text-ink-3">📍 {it.location}</p>
+                  <p className="flex items-center gap-1 text-xs text-ink-3">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    {it.location}
+                  </p>
                 ) : null}
               </li>
             ))}

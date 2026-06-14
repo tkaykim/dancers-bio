@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { MapPin } from "lucide-react";
 import { toast } from "sonner";
 import {
   createScheduleAction,
@@ -247,7 +248,10 @@ export function SchedulePanel({
                   <p className="text-sm font-semibold">{s.label}</p>
                   <p className="text-xs text-ink-2">{s.whenText}</p>
                   {s.location ? (
-                    <p className="text-xs text-ink-3">📍 {s.location}</p>
+                    <p className="flex items-center gap-1 text-xs text-ink-3">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      {s.location}
+                    </p>
                   ) : null}
                 </div>
                 <button

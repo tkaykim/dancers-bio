@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { MapPin } from "lucide-react";
 import {
   submitProjectScheduleResponsesAction,
   submitProjectScheduleResponsesByTokenAction,
@@ -146,7 +147,10 @@ export function ProjectScheduleSurveyForm({
                 <p className="text-sm font-bold">{it.label}</p>
                 <p className="text-xs text-ink-2">{it.whenText}</p>
                 {it.location ? (
-                  <p className="text-xs text-ink-3">📍 {it.location}</p>
+                  <p className="flex items-center gap-1 text-xs text-ink-3">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    {it.location}
+                  </p>
                 ) : null}
               </div>
 
