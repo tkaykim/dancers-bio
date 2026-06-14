@@ -102,7 +102,7 @@ export function ScheduleResponseForm({
                     p.map((x, j) => (j === i ? { ...x, start: e.target.value } : x)),
                   )
                 }
-                className="h-9 flex-1 rounded-lg border border-border bg-background px-2 text-sm"
+                className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-2 text-sm"
               />
               <span className="text-ink-3">~</span>
               <input
@@ -113,7 +113,7 @@ export function ScheduleResponseForm({
                     p.map((x, j) => (j === i ? { ...x, end: e.target.value } : x)),
                   )
                 }
-                className="h-9 flex-1 rounded-lg border border-border bg-background px-2 text-sm"
+                className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-2 text-sm"
               />
               <select
                 value={s.kind}
