@@ -70,6 +70,45 @@ export async function deleteScheduleAction(fd: FormData): Promise<ActionResult> 
   return { ok: true };
 }
 
+// 특정 일정의 응답자 명단 (관리자용)
+export async function getScheduleRespondersAction(
+  scheduleId: string,
+): Promise<
+  ActionResult<
+    Array<{ dancer_id: string; name: string; status: string; note: string | null }>
+  >
+> {
+  await requireUser();
+  const supabase = await createClient();
+  // RLS(psr_select)가 관리권한 보장
+  const { data, error } = await supabase
+    .from("project_schedule_responses")
+    .select(
+      "dancer_id, status, note, dancer:dancers!project_schedule_responses_dancer_id_fkey ( stage_name )",
+    )
+    .eq("schedule_id", scheduleId)
+    .order("status");
+  if (error) return { ok: false, error: error.message };
+  const rows = (data ?? []) as unknown as Array<{
+    dancer_id: string;
+    status: string;
+    note: string | null;
+    dancer: { stage_name: string | null } | { stage_name: string | null }[] | null;
+  }>;
+  return {
+    ok: true,
+    data: rows.map((r) => {
+      const dn = Array.isArray(r.dancer) ? r.dancer[0] ?? null : r.dancer;
+      return {
+        dancer_id: r.dancer_id,
+        name: dn?.stage_name ?? "(이름 없음)",
+        status: r.status,
+        note: r.note,
+      };
+    }),
+  };
+}
+
 // 지원자 응답 제출 (토큰 매직링크, 로그인 없음)
 export async function submitScheduleResponseAction(
   fd: FormData,

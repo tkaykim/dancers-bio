@@ -12,6 +12,8 @@ import {
   ApplicantsConsole,
   type ConsoleApplicant,
 } from "@/components/project/ApplicantsConsole";
+import { SchedulePanel, type ScheduleRow } from "@/components/project/SchedulePanel";
+import { formatWhen } from "@/lib/format-when";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 
 type Application = {
@@ -173,6 +175,64 @@ export default async function ApplicantsPage({
     };
   });
 
+  // 일정 가능여부 — 후보 일정 + 응답 집계
+  const targetCount = applicants.filter(
+    (a) => a.status === "pending" || a.status === "accepted",
+  ).length;
+  const { data: schedRows } = await supabase
+    .from("project_schedules")
+    .select("id, label, starts_at, ends_at, location")
+    .eq("project_id", p.id)
+    .order("starts_at", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true });
+  const schedList = (schedRows ?? []) as Array<{
+    id: string;
+    label: string;
+    starts_at: string | null;
+    ends_at: string | null;
+    location: string | null;
+  }>;
+  const respCounts: Record<
+    string,
+    { available: number; partial: number; unavailable: number; responded: number }
+  > = {};
+  if (schedList.length > 0) {
+    const { data: resp } = await supabase
+      .from("project_schedule_responses")
+      .select("schedule_id, status")
+      .in(
+        "schedule_id",
+        schedList.map((s) => s.id),
+      );
+    for (const r of (resp ?? []) as { schedule_id: string; status: string }[]) {
+      const x = (respCounts[r.schedule_id] ??= {
+        available: 0,
+        partial: 0,
+        unavailable: 0,
+        responded: 0,
+      });
+      x.responded++;
+      if (r.status === "available") x.available++;
+      else if (r.status === "partial") x.partial++;
+      else if (r.status === "unavailable") x.unavailable++;
+    }
+  }
+  const scheduleRows: ScheduleRow[] = schedList.map((s) => {
+    const c = respCounts[s.id] ?? {
+      available: 0,
+      partial: 0,
+      unavailable: 0,
+      responded: 0,
+    };
+    return {
+      id: s.id,
+      label: s.label,
+      whenText: formatWhen(s.starts_at, s.ends_at),
+      location: s.location ?? null,
+      ...c,
+    };
+  });
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-8">
       <Link
@@ -191,6 +251,12 @@ export default async function ApplicantsPage({
         projectId={p.id}
         recruitmentCount={p.recruitment_count}
         initial={applicants}
+      />
+
+      <SchedulePanel
+        projectId={p.id}
+        targetCount={targetCount}
+        schedules={scheduleRows}
       />
 
       {/* 세팅·초대 도구: 접힘 (본업을 가리지 않도록 아래로) */}
