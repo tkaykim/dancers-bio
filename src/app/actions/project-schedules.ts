@@ -5,7 +5,10 @@ import { canManageProject, getUser, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveDancerIdForUserInProject } from "@/lib/schedule/resolve";
-import { makeScheduleToken, verifyScheduleToken } from "@/lib/quick-token";
+import {
+  makeProjectSurveyToken,
+  verifyProjectSurveyToken,
+} from "@/lib/quick-token";
 import { buildScheduleRequestEmail } from "@/lib/notify/schedule-mail";
 import { formatWhen } from "@/lib/format-when";
 import { sendGmailEmail } from "@/lib/gmail";
@@ -110,48 +113,7 @@ export async function getScheduleRespondersAction(
   };
 }
 
-// 지원자 응답 제출 (토큰 매직링크, 로그인 없음)
-export async function submitScheduleResponseAction(
-  fd: FormData,
-): Promise<ActionResult> {
-  const token = (fd.get("token") ?? "").toString();
-  const v = verifyScheduleToken(token);
-  if (!v) return { ok: false, error: "링크가 유효하지 않습니다." };
-  const status = (fd.get("status") ?? "").toString();
-  if (!["available", "partial", "unavailable"].includes(status))
-    return { ok: false, error: "응답을 선택해 주세요." };
-
-  let time_slots: unknown = null;
-  const raw = (fd.get("time_slots") ?? "").toString();
-  if (raw) {
-    try {
-      time_slots = JSON.parse(raw);
-    } catch {
-      time_slots = null;
-    }
-  }
-  const note = strOrNull(fd, "note");
-
-  const admin = createAdminClient();
-  const { error } = await admin
-    .from("project_schedule_responses")
-    .upsert(
-      {
-        schedule_id: v.scheduleId,
-        dancer_id: v.dancerId,
-        status,
-        time_slots: status === "partial" ? time_slots : null,
-        note,
-        responded_at: new Date().toISOString(),
-      },
-      { onConflict: "schedule_id,dancer_id" },
-    );
-  if (error) return { ok: false, error: "저장에 실패했습니다." };
-  return { ok: true };
-}
-
-// 단톡방 공유 링크용: 로그인된 본인 계정으로 여러 일정 가능여부를 한 번에 제출.
-// code = projects.schedule_survey_code (프로젝트 단위 설문 코드)
+// 여러 일정 응답을 한 (projectId, dancerId)로 일괄 upsert. 코드/토큰 경로 공용.
 type ScheduleAnswer = {
   schedule_id: string;
   status: "available" | "partial" | "unavailable";
@@ -159,14 +121,7 @@ type ScheduleAnswer = {
   note?: string | null;
 };
 
-export async function submitProjectScheduleResponsesAction(
-  fd: FormData,
-): Promise<ActionResult<{ saved: number }>> {
-  const code = (fd.get("code") ?? "").toString().trim();
-  if (!code) return { ok: false, error: "링크가 유효하지 않습니다." };
-  const user = await getUser();
-  if (!user) return { ok: false, error: "로그인이 필요합니다." };
-
+function parseAnswers(fd: FormData): ScheduleAnswer[] {
   let answers: ScheduleAnswer[] = [];
   try {
     const parsed = JSON.parse((fd.get("answers") ?? "[]").toString());
@@ -174,34 +129,20 @@ export async function submitProjectScheduleResponsesAction(
   } catch {
     answers = [];
   }
-  const valid = answers.filter(
+  return answers.filter(
     (a) =>
       a &&
       typeof a.schedule_id === "string" &&
       ["available", "partial", "unavailable"].includes(a.status),
   );
-  if (valid.length === 0)
-    return { ok: false, error: "각 일정의 가능 여부를 선택해 주세요." };
+}
 
+async function upsertScheduleAnswers(
+  projectId: string,
+  dancerId: string,
+  answers: ScheduleAnswer[],
+): Promise<ActionResult<{ saved: number }>> {
   const admin = createAdminClient();
-  // 코드 → 프로젝트
-  const { data: project } = await admin
-    .from("projects")
-    .select("id")
-    .eq("schedule_survey_code", code)
-    .maybeSingle();
-  if (!project) return { ok: false, error: "설문을 찾을 수 없습니다." };
-  const projectId = project.id as string;
-
-  // 로그인 세션 → 이 프로젝트의 지원자(dancer) 매칭
-  const dancerId = await resolveDancerIdForUserInProject(projectId, user.id);
-  if (!dancerId)
-    return {
-      ok: false,
-      error:
-        "이 프로젝트에 지원한 기록이 없어요. 지원하신 계정으로 로그인했는지 확인해 주세요.",
-    };
-
   // 이 프로젝트에 실제 존재하는 일정만 허용 (타프로젝트 일정 위조 방지)
   const { data: schRows } = await admin
     .from("project_schedules")
@@ -210,7 +151,7 @@ export async function submitProjectScheduleResponsesAction(
   const allowed = new Set((schRows ?? []).map((s: { id: string }) => s.id));
 
   const now = new Date().toISOString();
-  const rows = valid
+  const rows = answers
     .filter((a) => allowed.has(a.schedule_id))
     .map((a) => ({
       schedule_id: a.schedule_id,
@@ -220,8 +161,7 @@ export async function submitProjectScheduleResponsesAction(
       note: (a.note ?? "").toString().trim() || null,
       responded_at: now,
     }));
-  if (rows.length === 0)
-    return { ok: false, error: "유효한 일정이 없습니다." };
+  if (rows.length === 0) return { ok: false, error: "유효한 일정이 없습니다." };
 
   const { error } = await admin
     .from("project_schedule_responses")
@@ -230,29 +170,96 @@ export async function submitProjectScheduleResponsesAction(
   return { ok: true, data: { saved: rows.length } };
 }
 
-// 가능여부 요청 메일 발송. audience: 'pending_accepted'(기본, 탈락 제외) | 'test'
-export async function sendScheduleRequestsAction(
+// 메일 개인 매직링크용: 토큰으로 본인 식별, 로그인 없이 전체 일정 일괄 제출.
+export async function submitProjectScheduleResponsesByTokenAction(
+  fd: FormData,
+): Promise<ActionResult<{ saved: number }>> {
+  const token = (fd.get("token") ?? "").toString();
+  const v = verifyProjectSurveyToken(token);
+  if (!v) return { ok: false, error: "링크가 유효하지 않습니다." };
+  const answers = parseAnswers(fd);
+  if (answers.length === 0)
+    return { ok: false, error: "각 일정의 가능 여부를 선택해 주세요." };
+  return upsertScheduleAnswers(v.projectId, v.dancerId, answers);
+}
+
+// 단톡방 공유 링크용: 로그인된 본인 계정으로 여러 일정 가능여부를 한 번에 제출.
+// code = projects.schedule_survey_code (프로젝트 단위 설문 코드)
+export async function submitProjectScheduleResponsesAction(
+  fd: FormData,
+): Promise<ActionResult<{ saved: number }>> {
+  const code = (fd.get("code") ?? "").toString().trim();
+  if (!code) return { ok: false, error: "링크가 유효하지 않습니다." };
+  const user = await getUser();
+  if (!user) return { ok: false, error: "로그인이 필요합니다." };
+  const answers = parseAnswers(fd);
+  if (answers.length === 0)
+    return { ok: false, error: "각 일정의 가능 여부를 선택해 주세요." };
+
+  const admin = createAdminClient();
+  const { data: project } = await admin
+    .from("projects")
+    .select("id")
+    .eq("schedule_survey_code", code)
+    .maybeSingle();
+  if (!project) return { ok: false, error: "설문을 찾을 수 없습니다." };
+  const projectId = project.id as string;
+
+  const dancerId = await resolveDancerIdForUserInProject(projectId, user.id);
+  if (!dancerId)
+    return {
+      ok: false,
+      error:
+        "이 프로젝트에 지원한 기록이 없어요. 지원하신 계정으로 로그인했는지 확인해 주세요.",
+    };
+
+  return upsertScheduleAnswers(projectId, dancerId, answers);
+}
+
+// 가능여부 요청 메일 발송 (프로젝트 단위). 사람당 한 통에 전체 일정 + 개인 매직링크.
+// 메일 버튼 → /s/<token> (로그인 생략, 토큰으로 본인 식별) → 단톡방 설문과 동일 UI.
+export async function sendProjectScheduleRequestsAction(
   fd: FormData,
 ): Promise<ActionResult<{ sent: number; skipped: number }>> {
   await requireUser();
-  const scheduleId = (fd.get("schedule_id") ?? "").toString().trim();
-  if (!scheduleId) return { ok: false, error: "잘못된 요청입니다." };
+  const projectId = (fd.get("project_id") ?? "").toString().trim();
+  if (!projectId) return { ok: false, error: "잘못된 요청입니다." };
+  if (!(await canManageProject(projectId)))
+    return { ok: false, error: "권한이 없습니다." };
 
   const admin = createAdminClient();
-  const { data: sch } = await admin
-    .from("project_schedules")
-    .select("id, project_id, label, starts_at, ends_at, location")
-    .eq("id", scheduleId)
+  const { data: project } = await admin
+    .from("projects")
+    .select("title")
+    .eq("id", projectId)
     .maybeSingle();
-  if (!sch) return { ok: false, error: "일정을 찾을 수 없습니다." };
-  if (!(await canManageProject(sch.project_id as string)))
-    return { ok: false, error: "권한이 없습니다." };
+  if (!project) return { ok: false, error: "프로젝트를 찾을 수 없습니다." };
+
+  const { data: schRows } = await admin
+    .from("project_schedules")
+    .select("label, starts_at, ends_at, location")
+    .eq("project_id", projectId)
+    .order("starts_at", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true });
+  const schedules = (schRows ?? []) as Array<{
+    label: string;
+    starts_at: string | null;
+    ends_at: string | null;
+    location: string | null;
+  }>;
+  if (schedules.length === 0)
+    return { ok: false, error: "발송할 후보 일정이 없습니다." };
+  const mailSchedules = schedules.map((s) => ({
+    label: s.label,
+    whenText: formatWhen(s.starts_at, s.ends_at),
+    locationText: s.location ?? null,
+  }));
 
   // 대상: 탈락 제외(대기+수락) 지원자, 댄서별 중복 제거
   const { data: apps } = await admin
     .from("applications")
     .select("dancer_id, applicant_id, status")
-    .eq("project_id", sch.project_id)
+    .eq("project_id", projectId)
     .is("archived_at", null)
     .in("status", ["pending", "accepted"])
     .not("dancer_id", "is", null);
@@ -264,14 +271,12 @@ export async function sendScheduleRequestsAction(
     return true;
   });
 
-  const whenText = formatWhen(
-    sch.starts_at as string | null,
-    sch.ends_at as string | null,
-  );
   let sent = 0;
   let skipped = 0;
-  for (const a of targets as Array<{ dancer_id: string; applicant_id: string | null }>) {
-    // 이름 + 이메일 확보
+  for (const a of targets as Array<{
+    dancer_id: string;
+    applicant_id: string | null;
+  }>) {
     const { data: d } = await admin
       .from("dancers")
       .select("stage_name, profile_id")
@@ -283,17 +288,20 @@ export async function sendScheduleRequestsAction(
       const { data: u } = await admin.auth.admin.getUserById(recipientId);
       email = u?.user?.email ?? null;
     }
-    if (!email || !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email) || /\.con$/i.test(email)) {
+    if (
+      !email ||
+      !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email) ||
+      /\.con$/i.test(email)
+    ) {
       skipped++;
       continue;
     }
     const name = (d?.stage_name as string) ?? "지원자";
-    const url = `${SITE}/s/${makeScheduleToken(scheduleId, a.dancer_id)}`;
+    const url = `${SITE}/s/${makeProjectSurveyToken(projectId, a.dancer_id)}`;
     const mail = buildScheduleRequestEmail({
       name,
-      scheduleLabel: sch.label as string,
-      whenText,
-      locationText: (sch.location as string | null) ?? null,
+      projectTitle: project.title as string,
+      schedules: mailSchedules,
       url,
     });
     const r = await sendGmailEmail({ to: email, ...mail });

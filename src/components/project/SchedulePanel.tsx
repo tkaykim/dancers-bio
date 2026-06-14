@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   createScheduleAction,
   deleteScheduleAction,
-  sendScheduleRequestsAction,
+  sendProjectScheduleRequestsAction,
   getScheduleRespondersAction,
 } from "@/app/actions/project-schedules";
 
@@ -84,17 +84,21 @@ export function SchedulePanel({
     });
   }
 
-  function send(id: string) {
+  function sendAll() {
+    if (schedules.length === 0) {
+      toast.error("먼저 후보 일정을 추가해 주세요.");
+      return;
+    }
     if (
       !confirm(
-        `이 일정의 참석 가능여부 요청 메일을 발송할까요?\n대상: 탈락 제외 지원자(대기+수락) ${targetCount}명\n(발신 dancers.bio.kr@gmail.com)`,
+        `전체 후보 일정(${schedules.length}개)의 참석 가능여부 요청 메일을 발송할까요?\n대상: 탈락 제외 지원자(대기+수락) ${targetCount}명 · 사람당 1통\n메일 버튼을 누르면 로그인 없이 전체 일정에 응답합니다.\n(발신 dancers.bio.kr@gmail.com)`,
       )
     )
       return;
     const fd = new FormData();
-    fd.set("schedule_id", id);
+    fd.set("project_id", projectId);
     startTransition(async () => {
-      const r = await sendScheduleRequestsAction(fd);
+      const r = await sendProjectScheduleRequestsAction(fd);
       if (!r.ok) {
         toast.error(r.error);
         return;
@@ -147,19 +151,29 @@ export function SchedulePanel({
       </div>
 
       {schedules.length > 0 ? (
-        <div className="flex items-center gap-2 rounded-xl border border-hairline-2 bg-secondary/30 p-2.5">
-          <code className="min-w-0 flex-1 truncate text-[11px] text-ink-2">
-            {surveyUrl}
-          </code>
+        <div className="flex flex-col gap-2 rounded-xl border border-hairline-2 bg-secondary/30 p-2.5">
+          <div className="flex items-center gap-2">
+            <code className="min-w-0 flex-1 truncate text-[11px] text-ink-2">
+              {surveyUrl}
+            </code>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard?.writeText(surveyUrl);
+                toast.success("단톡방 공유 링크 복사됨 (전체 일정)");
+              }}
+              className="shrink-0 rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground"
+            >
+              단톡방 링크 복사
+            </button>
+          </div>
           <button
             type="button"
-            onClick={() => {
-              navigator.clipboard?.writeText(surveyUrl);
-              toast.success("단톡방 공유 링크 복사됨 (전체 일정)");
-            }}
-            className="shrink-0 rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground"
+            disabled={busy}
+            onClick={sendAll}
+            className="rounded-full border border-primary/40 bg-primary/5 px-3 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10 disabled:opacity-50"
           >
-            단톡방 링크 복사
+            ✉️ 요청 메일 발송 (대기·수락 {targetCount}명 · 사람당 전체 일정 1통)
           </button>
         </div>
       ) : null}
@@ -261,14 +275,6 @@ export function SchedulePanel({
               </div>
 
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => send(s.id)}
-                  className="rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground disabled:opacity-50"
-                >
-                  요청 메일 발송
-                </button>
                 <button
                   type="button"
                   onClick={() => toggleExpand(s.id)}

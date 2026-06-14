@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { submitProjectScheduleResponsesAction } from "@/app/actions/project-schedules";
+import {
+  submitProjectScheduleResponsesAction,
+  submitProjectScheduleResponsesByTokenAction,
+} from "@/app/actions/project-schedules";
 
 type Status = "available" | "partial" | "unavailable";
 type Slot = { start: string; end: string; kind: "available" | "unavailable" };
@@ -32,10 +35,13 @@ const OPTIONS: { v: Status; label: string }[] = [
 
 export function ProjectScheduleSurveyForm({
   code,
+  token,
   responderName,
   items,
 }: {
-  code: string;
+  // 둘 중 하나: code(로그인 설문) 또는 token(메일 개인 매직링크, 로그인 생략)
+  code?: string;
+  token?: string;
   responderName?: string | null;
   items: SurveyItem[];
 }) {
@@ -97,10 +103,16 @@ export function ProjectScheduleSurveyForm({
     }
     setError(null);
     const fd = new FormData();
-    fd.set("code", code);
     fd.set("answers", JSON.stringify(payload));
     startTransition(async () => {
-      const r = await submitProjectScheduleResponsesAction(fd);
+      let r;
+      if (token) {
+        fd.set("token", token);
+        r = await submitProjectScheduleResponsesByTokenAction(fd);
+      } else {
+        fd.set("code", code ?? "");
+        r = await submitProjectScheduleResponsesAction(fd);
+      }
       if (!r.ok) {
         setError(r.error);
         return;

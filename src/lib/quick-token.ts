@@ -35,19 +35,22 @@ export function verifyHeightToken(token: string): string | null {
   }
 }
 
-// 일정 가능여부 응답용 토큰 — payload = `${scheduleId}:${dancerId}`
-export function makeScheduleToken(scheduleId: string, dancerId: string): string {
+// 일정 가능여부 "프로젝트 단위" 개인 매직링크 토큰 — payload = `ps:${projectId}:${dancerId}`
+// 메일로 발송. 로그인 없이 본인(dancer)으로 식별돼 프로젝트 전체 일정에 응답.
+// (단톡방 공유는 토큰 대신 projects.schedule_survey_code 짧은 코드 — /sr/<code>, 로그인 필요)
+export function makeProjectSurveyToken(
+  projectId: string,
+  dancerId: string,
+): string {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY 미설정");
-  const payload = `${scheduleId}:${dancerId}`;
+  const payload = `ps:${projectId}:${dancerId}`;
   return `${Buffer.from(payload, "utf8").toString("base64url")}.${sign(payload, key)}`;
 }
 
-// (단톡방 공유는 토큰 대신 projects.schedule_survey_code 짧은 코드 사용 — /sr/<code>, 프로젝트 전체 일정 일괄 응답)
-
-export function verifyScheduleToken(
+export function verifyProjectSurveyToken(
   token: string,
-): { scheduleId: string; dancerId: string } | null {
+): { projectId: string; dancerId: string } | null {
   try {
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!key || !token) return null;
@@ -59,9 +62,9 @@ export function verifyScheduleToken(
     const a = Buffer.from(sig);
     const b = Buffer.from(expected);
     if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-    const [scheduleId, dancerId] = payload.split(":");
-    if (!scheduleId || !dancerId) return null;
-    return { scheduleId, dancerId };
+    const parts = payload.split(":");
+    if (parts[0] !== "ps" || !parts[1] || !parts[2]) return null;
+    return { projectId: parts[1], dancerId: parts[2] };
   } catch {
     return null;
   }
