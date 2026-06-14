@@ -142,6 +142,8 @@ export function ApplicantPortfolioSheet({
   ][];
   const heightCm = data?.height_cm ?? null;
   const shoeMm = data?.shoe_size_mm ?? null;
+  const cEmail = data?.contactEmail ?? null;
+  const cPhone = data?.contactPhone ?? null;
 
   return (
     <BottomSheet
@@ -220,6 +222,30 @@ export function ApplicantPortfolioSheet({
             ) : null}
           </div>
         </div>
+
+        {cEmail || cPhone ? (
+          <div className="rounded-xl border border-border bg-secondary/30 px-3 py-2.5 text-sm">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
+              연락처 (관리자 전용)
+            </p>
+            {cEmail ? (
+              <p className="leading-relaxed">
+                <span className="text-ink-3">이메일 </span>
+                <a href={`mailto:${cEmail}`} className="text-primary hover:underline">
+                  {cEmail}
+                </a>
+              </p>
+            ) : null}
+            {cPhone ? (
+              <p className="leading-relaxed">
+                <span className="text-ink-3">전화 </span>
+                <a href={`tel:${cPhone}`} className="text-primary hover:underline">
+                  {cPhone}
+                </a>
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {applicant?.status === "rejected" && applicant.rejectionReason ? (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">

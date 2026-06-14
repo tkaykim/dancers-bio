@@ -31,9 +31,11 @@ export type ApplicantPortfolio = {
     social_links: Record<string, string> | null;
   } | null;
   careers: PortfolioCareer[];
-  // 키(cm)·신발(mm) — 민감정보(dancer_private_info). 매니저(admin·소유자·공동관리자)에게만 노출.
+  // 민감정보(dancer_private_info/계정) — 매니저(admin·소유자·공동관리자)에게만 노출.
   height_cm: number | null;
   shoe_size_mm: number | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
 };
 
 // 지원자(댄서) 포트폴리오를 심사 시트에서 lazy-load.
@@ -89,15 +91,42 @@ export async function getApplicantPortfolioAction(
   // 민감정보는 절대 반환하지 않는다. (canManageProject 게이트는 위에서 통과 확인됨)
   let height_cm: number | null = null;
   let shoe_size_mm: number | null = null;
+  let contactEmail: string | null = null;
+  let contactPhone: string | null = null;
   try {
     const admin = createAdminClient();
     const { data: priv } = await admin
       .from("dancer_private_info")
-      .select("height_cm, shoe_size_mm")
+      .select("height_cm, shoe_size_mm, email, phone")
       .eq("dancer_id", dancerId)
       .maybeSingle();
     height_cm = (priv?.height_cm as number | null) ?? null;
     shoe_size_mm = (priv?.shoe_size_mm as number | null) ?? null;
+    contactEmail = (priv?.email as string | null) ?? null;
+    contactPhone = (priv?.phone as string | null) ?? null;
+
+    // 실제 지원 계정의 이메일·전화 (가장 정확) — 이 프로젝트에 지원한 행 기준
+    const { data: app } = await admin
+      .from("applications")
+      .select("applicant_id")
+      .eq("project_id", projectId)
+      .eq("dancer_id", dancerId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const acctId = (app?.applicant_id as string | null) ?? null;
+    if (acctId) {
+      const { data: u } = await admin.auth.admin.getUserById(acctId);
+      if (u?.user?.email) contactEmail = u.user.email; // 계정 이메일 우선
+      if (!contactPhone) {
+        const { data: pf } = await admin
+          .from("profiles")
+          .select("phone")
+          .eq("id", acctId)
+          .maybeSingle();
+        contactPhone = (pf?.phone as string | null) ?? null;
+      }
+    }
   } catch {
     // service key 미설정 등 — 비치명적
   }
@@ -109,6 +138,8 @@ export async function getApplicantPortfolioAction(
       careers,
       height_cm,
       shoe_size_mm,
+      contactEmail,
+      contactPhone,
     },
   };
 }
