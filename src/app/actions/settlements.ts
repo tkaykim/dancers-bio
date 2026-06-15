@@ -135,6 +135,42 @@ export async function savePayoutAccountAction(
   return { ok: true };
 }
 
+// ── 주민등록번호(외국인등록번호) 저장 (슈퍼관리자 또는 본인) ───────────────
+export async function saveResidentNumberAction(
+  fd: FormData,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  const dancerId = (fd.get("dancer_id") ?? "").toString().trim();
+  const rrn = (fd.get("resident_registration_number") ?? "")
+    .toString()
+    .replace(/\s/g, "")
+    .trim();
+  if (!dancerId) return { ok: false, error: "잘못된 요청입니다." };
+  if (!rrn) return { ok: false, error: "주민(외국인)등록번호를 입력해 주세요." };
+
+  if (!(await isAdmin(user.id))) {
+    const mine = await myDancerIds(user.id);
+    if (!mine.has(dancerId))
+      return { ok: false, error: "권한이 없습니다." };
+  }
+
+  const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("dancer_private_info")
+    .select("dancer_id")
+    .eq("dancer_id", dancerId)
+    .maybeSingle();
+  const patch = { resident_registration_number: rrn };
+  const { error } = existing
+    ? await admin.from("dancer_private_info").update(patch).eq("dancer_id", dancerId)
+    : await admin.from("dancer_private_info").insert({ dancer_id: dancerId, ...patch });
+  if (error) return { ok: false, error: "저장에 실패했습니다. 다시 시도해 주세요." };
+
+  revalidatePath("/admin/settlements");
+  revalidatePath("/me/settlements");
+  return { ok: true };
+}
+
 // ── 댄서: 출금 신청 (pending → requested). 계좌 등록 필수. ──────────────────
 export async function requestWithdrawalAction(
   fd: FormData,

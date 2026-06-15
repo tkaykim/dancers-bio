@@ -36,6 +36,7 @@ export default async function ScheduleSurveyPage({
     .from("project_schedules")
     .select("id, label, starts_at, ends_at, location, note")
     .eq("project_id", projectId)
+    .eq("collect_availability", true)
     .order("starts_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
   const schedules = (schedRows ?? []) as Array<{

@@ -42,6 +42,7 @@ export default async function AdminSettlementsPage() {
     { bank: string; number: string; holder: string } | null
   >();
   const docsById = new Map<string, { idCard: boolean; bankbook: boolean }>();
+  const rrnById = new Map<string, string | null>();
   if (dancerIds.length > 0) {
     const { data: dRows } = await admin
       .from("dancers")
@@ -56,7 +57,7 @@ export default async function AdminSettlementsPage() {
     const { data: piRows } = await admin
       .from("dancer_private_info")
       .select(
-        "dancer_id, bank_name, bank_account_number, bank_account_holder, id_card_path, bankbook_path",
+        "dancer_id, bank_name, bank_account_number, bank_account_holder, id_card_path, bankbook_path, resident_registration_number",
       )
       .in("dancer_id", dancerIds);
     for (const pi of (piRows ?? []) as Array<{
@@ -66,7 +67,9 @@ export default async function AdminSettlementsPage() {
       bank_account_holder: string | null;
       id_card_path: string | null;
       bankbook_path: string | null;
+      resident_registration_number: string | null;
     }>) {
+      rrnById.set(pi.dancer_id, pi.resident_registration_number ?? null);
       acctById.set(
         pi.dancer_id,
         pi.bank_name && pi.bank_account_number && pi.bank_account_holder
@@ -102,6 +105,7 @@ export default async function AdminSettlementsPage() {
       bankName: acct?.bank ?? null,
       accountNumber: acct?.number ?? null,
       accountHolder: acct?.holder ?? null,
+      residentNumber: rrnById.get(r.dancer_id) ?? null,
       hasIdCard: doc.idCard,
       hasBankbook: doc.bankbook,
     };

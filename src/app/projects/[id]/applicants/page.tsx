@@ -186,6 +186,7 @@ export default async function ApplicantsPage({
     .from("project_schedules")
     .select("id, label, starts_at, ends_at, location")
     .eq("project_id", p.id)
+    .eq("collect_availability", true)
     .order("starts_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
   const schedList = (schedRows ?? []) as Array<{

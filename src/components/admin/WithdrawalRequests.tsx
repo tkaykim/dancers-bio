@@ -2,11 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import {
   markSettlementPaidAction,
   setSettlementAmountAction,
   savePayoutAccountAction,
+  saveResidentNumberAction,
 } from "@/app/actions/settlements";
 import { DancerDocuments } from "@/components/settlement/DancerDocuments";
 import {
@@ -29,6 +31,7 @@ export type WithdrawalRow = {
   bankName: string | null;
   accountNumber: string | null;
   accountHolder: string | null;
+  residentNumber: string | null;
   hasIdCard: boolean;
   hasBankbook: boolean;
 };
@@ -145,14 +148,6 @@ function RequestCard({ row }: { row: WithdrawalRow }) {
 
       <SettlementAdminControls row={row} />
 
-      <DancerDocuments
-        dancerId={row.dancerId}
-        dancerName={row.dancerName}
-        showName={false}
-        docs={{ idCard: row.hasIdCard, bankbook: row.hasBankbook }}
-        compact
-      />
-
       {confirming ? (
         <div className="flex flex-col gap-2 rounded-xl bg-amber-50 p-3">
           <p className="text-xs text-amber-800">
@@ -205,13 +200,6 @@ function PendingCard({ row }: { row: WithdrawalRow }) {
         </span>
       </div>
       <SettlementAdminControls row={row} />
-      <DancerDocuments
-        dancerId={row.dancerId}
-        dancerName={row.dancerName}
-        showName={false}
-        docs={{ idCard: row.hasIdCard, bankbook: row.hasBankbook }}
-        compact
-      />
     </li>
   );
 }
@@ -227,9 +215,33 @@ function SettlementAdminControls({ row }: { row: WithdrawalRow }) {
 
   const hasAccount = !!(row.bankName && row.accountNumber && row.accountHolder);
   const [editAcct, setEditAcct] = useState(!hasAccount);
+  const [revealAcct, setRevealAcct] = useState(false);
   const [bank, setBank] = useState(row.bankName ?? "");
   const [acctNo, setAcctNo] = useState(row.accountNumber ?? "");
   const [holder, setHolder] = useState(row.accountHolder ?? "");
+
+  const hasRrn = !!row.residentNumber;
+  const [editRrn, setEditRrn] = useState(!hasRrn);
+  const [revealRrn, setRevealRrn] = useState(false);
+  const [rrn, setRrn] = useState(row.residentNumber ?? "");
+
+  function saveRrn() {
+    if (!rrn.trim()) {
+      toast.error("주민(외국인)등록번호를 입력해 주세요.");
+      return;
+    }
+    const fd = new FormData();
+    fd.set("dancer_id", row.dancerId);
+    fd.set("resident_registration_number", rrn);
+    startTransition(async () => {
+      const res = await saveResidentNumberAction(fd);
+      if (res.ok) {
+        toast.success("주민등록번호를 저장했어요.");
+        setEditRrn(false);
+        router.refresh();
+      } else toast.error(res.error);
+    });
+  }
 
   function saveAmount() {
     const fd = new FormData();
@@ -300,19 +312,23 @@ function SettlementAdminControls({ row }: { row: WithdrawalRow }) {
         <span className="text-[11px] font-medium text-ink-3">입금 계좌</span>
         {!editAcct && hasAccount ? (
           <div className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border px-3 py-2">
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">
-                {row.bankName} {row.accountNumber}
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-sm font-medium">
+                {row.bankName}{" "}
+                {revealAcct ? row.accountNumber : maskAcct(row.accountNumber ?? "")}
               </span>
               <span className="text-[11px] text-ink-3">예금주 {row.accountHolder}</span>
             </div>
-            <button
-              type="button"
-              onClick={() => setEditAcct(true)}
-              className="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs text-ink-2 active:bg-secondary"
-            >
-              수정
-            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              <EyeToggle on={revealAcct} onClick={() => setRevealAcct((v) => !v)} />
+              <button
+                type="button"
+                onClick={() => setEditAcct(true)}
+                className="rounded-lg border border-border px-2.5 py-1 text-xs text-ink-2 active:bg-secondary"
+              >
+                수정
+              </button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
@@ -363,8 +379,93 @@ function SettlementAdminControls({ row }: { row: WithdrawalRow }) {
           </div>
         )}
       </div>
+
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px] font-medium text-ink-3">
+          주민(외국인)등록번호
+        </span>
+        {!editRrn && hasRrn ? (
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border px-3 py-2">
+            <span className="truncate text-sm font-medium tabular-nums">
+              {revealRrn ? row.residentNumber : maskRrn(row.residentNumber ?? "")}
+            </span>
+            <div className="flex shrink-0 items-center gap-1">
+              <EyeToggle on={revealRrn} onClick={() => setRevealRrn((v) => !v)} />
+              <button
+                type="button"
+                onClick={() => setEditRrn(true)}
+                className="rounded-lg border border-border px-2.5 py-1 text-xs text-ink-2 active:bg-secondary"
+              >
+                수정
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-1.5">
+            <input
+              inputMode="numeric"
+              value={rrn}
+              onChange={(e) => setRrn(e.target.value)}
+              placeholder="앞 6자리-뒤 7자리"
+              disabled={busy}
+              className="h-9 flex-1 rounded-lg border border-border bg-background px-3 text-sm"
+            />
+            <button
+              type="button"
+              onClick={saveRrn}
+              disabled={busy}
+              className="h-9 shrink-0 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+            >
+              저장
+            </button>
+            {hasRrn ? (
+              <button
+                type="button"
+                onClick={() => setEditRrn(false)}
+                disabled={busy}
+                className="h-9 shrink-0 rounded-lg border border-border px-3 text-xs text-ink-2"
+              >
+                취소
+              </button>
+            ) : null}
+          </div>
+        )}
+      </div>
+
+      <DancerDocuments
+        dancerId={row.dancerId}
+        dancerName={row.dancerName}
+        showName={false}
+        docs={{ idCard: row.hasIdCard, bankbook: row.hasBankbook }}
+        compact
+      />
     </div>
   );
+}
+
+function EyeToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={on ? "가리기" : "전체 보기"}
+      className="rounded-lg border border-border px-2 py-1 text-xs text-ink-2 active:bg-secondary"
+    >
+      {on ? "가리기" : "👁"}
+    </button>
+  );
+}
+
+function maskAcct(s: string): string {
+  const t = s.replace(/\s/g, "");
+  if (t.length <= 4) return t;
+  return `${t.slice(0, 3)}${"*".repeat(Math.max(2, t.length - 6))}${t.slice(-3)}`;
+}
+
+function maskRrn(s: string): string {
+  const d = s.replace(/\D/g, "");
+  if (d.length < 7) return "*".repeat(d.length || 6);
+  return `${d.slice(0, 6)}-${d.slice(6, 7)}******`;
 }
 
 function fmtDate(iso: string | null): string {

@@ -143,11 +143,12 @@ async function upsertScheduleAnswers(
   answers: ScheduleAnswer[],
 ): Promise<ActionResult<{ saved: number }>> {
   const admin = createAdminClient();
-  // 이 프로젝트에 실제 존재하는 일정만 허용 (타프로젝트 일정 위조 방지)
+  // 이 프로젝트의 "취합 대상" 일정만 허용 (타프로젝트·비취합 확정일정 위조 방지)
   const { data: schRows } = await admin
     .from("project_schedules")
     .select("id")
-    .eq("project_id", projectId);
+    .eq("project_id", projectId)
+    .eq("collect_availability", true);
   const allowed = new Set((schRows ?? []).map((s: { id: string }) => s.id));
 
   const now = new Date().toISOString();
@@ -239,6 +240,7 @@ export async function sendProjectScheduleRequestsAction(
     .from("project_schedules")
     .select("label, starts_at, ends_at, location")
     .eq("project_id", projectId)
+    .eq("collect_availability", true)
     .order("starts_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
   const schedules = (schRows ?? []) as Array<{
