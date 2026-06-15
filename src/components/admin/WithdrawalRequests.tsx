@@ -449,9 +449,9 @@ function EyeToggle({ on, onClick }: { on: boolean; onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label={on ? "가리기" : "전체 보기"}
-      className="rounded-lg border border-border px-2 py-1 text-xs text-ink-2 active:bg-secondary"
+      className="flex h-7 w-7 items-center justify-center rounded-lg border border-border text-ink-2 active:bg-secondary"
     >
-      {on ? "가리기" : "👁"}
+      {on ? <EyeOff size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
     </button>
   );
 }
