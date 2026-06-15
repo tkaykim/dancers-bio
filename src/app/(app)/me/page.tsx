@@ -45,6 +45,11 @@ export default async function MePage() {
             title="댄서 포트폴리오"
             desc={ownDancer ? "활동명·경력·영상 편집" : "포트폴리오 만들기"}
           />
+          <SettingsRow
+            href="/me/settlements"
+            title="정산 · 출금"
+            desc="정산금액 확인 · 계좌 등록 · 출금 신청"
+          />
           {profile.is_admin ? (
             <SettingsRow
               href="/projects/new"

@@ -20,6 +20,7 @@ export default async function AdminHomePage() {
     { count: pendingTeams },
     { count: discoveredCount },
     { count: draftIngestions },
+    { count: pendingWithdrawals },
   ] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase
@@ -47,6 +48,10 @@ export default async function AdminHomePage() {
       .from("dancer_ingestions")
       .select("id", { count: "exact", head: true })
       .eq("status", "draft"),
+    supabase
+      .from("settlements")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "requested"),
   ]);
 
   return (
@@ -125,6 +130,13 @@ export default async function AdminHomePage() {
           href="/admin/llm"
           title="LLM 설정"
           desc="Anthropic / Gemini 토글 + 연결 상태 + 테스트"
+        />
+        <Tile
+          href="/admin/settlements"
+          title="정산 · 출금 처리"
+          desc="댄서 출금 신청 확인 → 통장 이체 후 완료 처리"
+          badge={pendingWithdrawals ? `${pendingWithdrawals} 대기` : undefined}
+          accent={Boolean(pendingWithdrawals)}
         />
         <Tile
           href="/admin/users"
