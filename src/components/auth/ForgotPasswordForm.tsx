@@ -142,6 +142,22 @@ export function ForgotPasswordForm() {
           >
             {pending ? "보내는 중..." : "인증코드 받기"}
           </Button>
+          <button
+            type="button"
+            onClick={() => {
+              const e = email.trim().toLowerCase();
+              if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) {
+                setError("먼저 이메일을 입력해 주세요.");
+                return;
+              }
+              setError(null);
+              setEmail(e);
+              setStep("code");
+            }}
+            className="text-xs text-ink-3 underline underline-offset-2 hover:text-foreground"
+          >
+            이미 인증코드를 받았어요 — 코드 입력하기
+          </button>
           <p className="text-center text-sm text-muted-foreground">
             <Link href="/login" className="font-medium text-foreground underline">
               ← 로그인으로
