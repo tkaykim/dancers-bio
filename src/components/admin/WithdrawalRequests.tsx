@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
@@ -12,9 +12,11 @@ import {
   sendWithdrawalRequestEmailAction,
 } from "@/app/actions/settlements";
 import { DancerDocuments } from "@/components/settlement/DancerDocuments";
+import { Drawer } from "@/components/ui/drawer";
 import {
   calcSettlement,
   formatWon,
+  SETTLEMENT_STATUS_LABEL,
   type SettlementStatus,
 } from "@/lib/settlement";
 
@@ -37,85 +39,157 @@ export type WithdrawalRow = {
   hasBankbook: boolean;
 };
 
+const STATUS_TONE: Record<SettlementStatus, string> = {
+  pending: "bg-amber-100 text-amber-700",
+  requested: "bg-blue-100 text-blue-700",
+  paid: "bg-emerald-100 text-emerald-700",
+  cancelled: "bg-secondary text-ink-3",
+};
+
 export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const requested = rows.filter((r) => r.status === "requested");
   const awaiting = rows.filter((r) => r.status === "pending");
   const paid = rows.filter((r) => r.status === "paid");
+  const selected = rows.find((r) => r.id === selectedId) ?? null;
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-ink-2">
-          출금신청 ({requested.length})
-        </h2>
-        {requested.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-card p-5 text-sm text-ink-3">
-            처리할 출금 신청이 없어요.
-          </div>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {requested.map((r) => (
-              <RequestCard key={r.id} row={r} />
-            ))}
-          </ul>
-        )}
-      </section>
+      <Section title="출금신청" count={requested.length} empty="처리할 출금 신청이 없어요.">
+        {requested.map((r) => (
+          <Row key={r.id} row={r} onOpen={() => setSelectedId(r.id)} />
+        ))}
+      </Section>
 
       {awaiting.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-bold text-ink-2">
-            정산완료 · 출금신청 전 ({awaiting.length})
-          </h2>
-          <p className="-mt-1 text-xs text-ink-3">
-            금액이 확정됐고 댄서의 출금 신청을 기다리는 중이에요. 주민번호·계좌·서류를
-            채운 뒤 ‘출금신청 안내 메일’로 댄서에게 신청을 요청할 수 있어요.
-          </p>
-          <ul className="flex flex-col gap-3">
-            {awaiting.map((r) => (
-              <PendingCard key={r.id} row={r} />
-            ))}
-          </ul>
-        </section>
+        <Section title="정산완료 · 출금신청 전" count={awaiting.length}>
+          {awaiting.map((r) => (
+            <Row key={r.id} row={r} onOpen={() => setSelectedId(r.id)} />
+          ))}
+        </Section>
       ) : null}
 
       {paid.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-bold text-ink-2">입금완료 ({paid.length})</h2>
-          <ul className="flex flex-col gap-2">
-            {paid.map((r) => {
-              const calc = calcSettlement(r.grossAmount, r.rate);
-              return (
-                <li
-                  key={r.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium">
-                      {r.dancerName} · {r.projectTitle}
-                    </span>
-                    <span className="text-xs text-ink-3">
-                      {fmtDate(r.paidAt)} 입금
-                    </span>
-                  </div>
-                  <span className="font-semibold text-emerald-600">
-                    {formatWon(calc.net)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+        <Section title="입금완료" count={paid.length}>
+          {paid.map((r) => (
+            <Row key={r.id} row={r} onOpen={() => setSelectedId(r.id)} />
+          ))}
+        </Section>
       ) : null}
+
+      <Drawer
+        open={selected !== null}
+        onOpenChange={(o) => !o && setSelectedId(null)}
+        title={selected?.dancerName ?? "정산"}
+      >
+        {selected ? (
+          <SettlementDetail row={selected} onClose={() => setSelectedId(null)} />
+        ) : null}
+      </Drawer>
     </div>
   );
 }
 
-function RequestCard({ row }: { row: WithdrawalRow }) {
+function Section({
+  title,
+  count,
+  empty,
+  children,
+}: {
+  title: string;
+  count: number;
+  empty?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="text-sm font-bold text-ink-2">
+        {title} ({count})
+      </h2>
+      {count === 0 && empty ? (
+        <div className="rounded-2xl border border-border bg-card p-5 text-sm text-ink-3">
+          {empty}
+        </div>
+      ) : (
+        <ul className="overflow-hidden rounded-2xl border border-border bg-card">
+          {children}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function Row({ row, onOpen }: { row: WithdrawalRow; onOpen: () => void }) {
+  const calc = calcSettlement(row.grossAmount, row.rate);
+  const hasAccount = !!(row.bankName && row.accountNumber && row.accountHolder);
+  const docCount = (row.hasIdCard ? 1 : 0) + (row.hasBankbook ? 1 : 0);
+  return (
+    <li className="border-b border-hairline-2 last:border-b-0">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/40 active:bg-secondary"
+      >
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-sm font-semibold">{row.dancerName}</span>
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_TONE[row.status]}`}
+            >
+              {SETTLEMENT_STATUS_LABEL[row.status]}
+            </span>
+          </div>
+          <span className="truncate text-xs text-ink-3">{row.projectTitle}</span>
+          <div className="mt-0.5 flex flex-wrap items-center gap-1">
+            <ReadyChip ok={hasAccount} label="계좌" />
+            <ReadyChip ok={!!row.residentNumber} label="주민번호" />
+            <ReadyChip ok={docCount === 2} label={`서류 ${docCount}/2`} partial={docCount === 1} />
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-0.5">
+          <span className="text-sm font-bold">{formatWon(calc.net)}</span>
+          <span className="text-[10px] text-ink-3">실수령</span>
+        </div>
+        <span className="shrink-0 text-ink-3">›</span>
+      </button>
+    </li>
+  );
+}
+
+function ReadyChip({
+  ok,
+  label,
+  partial,
+}: {
+  ok: boolean;
+  label: string;
+  partial?: boolean;
+}) {
+  const tone = ok
+    ? "bg-emerald-50 text-emerald-700"
+    : partial
+      ? "bg-amber-50 text-amber-700"
+      : "bg-secondary text-ink-3";
+  return (
+    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${tone}`}>
+      {ok ? "✓ " : ""}
+      {label}
+    </span>
+  );
+}
+
+function SettlementDetail({
+  row,
+  onClose,
+}: {
+  row: WithdrawalRow;
+  onClose: () => void;
+}) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
   const calc = calcSettlement(row.grossAmount, row.rate);
-  const hasAccount = row.bankName && row.accountNumber && row.accountHolder;
+  const hasAccount = !!(row.bankName && row.accountNumber && row.accountHolder);
 
   function markPaid() {
     const fd = new FormData();
@@ -124,6 +198,7 @@ function RequestCard({ row }: { row: WithdrawalRow }) {
       const res = await markSettlementPaidAction(fd);
       if (res.ok) {
         toast.success(`${row.dancerName} 이체 완료 처리했어요.`);
+        onClose();
         router.refresh();
       } else {
         toast.error(res.error);
@@ -131,67 +206,6 @@ function RequestCard({ row }: { row: WithdrawalRow }) {
       }
     });
   }
-
-  return (
-    <li className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-bold">{row.dancerName}</span>
-          <span className="text-xs text-ink-3">{row.projectTitle}</span>
-          <span className="text-[11px] text-ink-3">
-            신청 {fmtDate(row.requestedAt)}
-          </span>
-        </div>
-        <span className="shrink-0 rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
-          출금신청
-        </span>
-      </div>
-
-      <SettlementAdminControls row={row} />
-
-      {confirming ? (
-        <div className="flex flex-col gap-2 rounded-xl bg-amber-50 p-3">
-          <p className="text-xs text-amber-800">
-            실제로 통장에서 {formatWon(calc.net)}을 이체하셨나요? 이체 완료로
-            기록되며 댄서 화면이 입금완료로 바뀝니다.
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setConfirming(false)}
-              disabled={busy}
-              className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-ink-2"
-            >
-              아니요
-            </button>
-            <button
-              type="button"
-              onClick={markPaid}
-              disabled={busy}
-              className="flex-1 rounded-lg bg-foreground px-3 py-2 text-xs font-semibold text-background disabled:opacity-50"
-            >
-              {busy ? "처리 중…" : "네, 이체 완료"}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setConfirming(true)}
-          disabled={!hasAccount}
-          className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors active:opacity-80 disabled:opacity-50"
-        >
-          이체 완료 처리
-        </button>
-      )}
-    </li>
-  );
-}
-
-function PendingCard({ row }: { row: WithdrawalRow }) {
-  const router = useRouter();
-  const [busy, startTransition] = useTransition();
-  const hasAccount = !!(row.bankName && row.accountNumber && row.accountHolder);
 
   function sendMail() {
     const fd = new FormData();
@@ -206,30 +220,82 @@ function PendingCard({ row }: { row: WithdrawalRow }) {
   }
 
   return (
-    <li className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-bold">{row.dancerName}</span>
-          <span className="text-xs text-ink-3">{row.projectTitle}</span>
-        </div>
-        <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
-          정산완료
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-ink-3">{row.projectTitle}</span>
+        <span
+          className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_TONE[row.status]}`}
+        >
+          {SETTLEMENT_STATUS_LABEL[row.status]}
         </span>
       </div>
+
       <SettlementAdminControls row={row} />
-      <button
-        type="button"
-        onClick={sendMail}
-        disabled={busy || !hasAccount}
-        className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-ink-2 active:bg-secondary disabled:opacity-50"
-      >
-        {busy
-          ? "보내는 중…"
-          : hasAccount
-            ? "출금신청 안내 메일 보내기"
-            : "계좌 등록 후 안내 가능"}
-      </button>
-    </li>
+
+      {row.status === "requested" ? (
+        <span className="text-[11px] text-ink-3">신청 {fmtDate(row.requestedAt)}</span>
+      ) : null}
+
+      {/* 상태별 액션 */}
+      {row.status === "pending" ? (
+        <button
+          type="button"
+          onClick={sendMail}
+          disabled={busy || !hasAccount}
+          className="rounded-xl border border-border px-4 py-3 text-sm font-semibold text-ink-2 active:bg-secondary disabled:opacity-50"
+        >
+          {busy
+            ? "보내는 중…"
+            : hasAccount
+              ? "출금신청 안내 메일 보내기"
+              : "계좌 등록 후 안내 가능"}
+        </button>
+      ) : null}
+
+      {row.status === "requested" ? (
+        confirming ? (
+          <div className="flex flex-col gap-2 rounded-xl bg-amber-50 p-3">
+            <p className="text-xs text-amber-800">
+              실제로 통장에서 {formatWon(calc.net)}을 이체하셨나요? 이체 완료로
+              기록되며 댄서 화면이 입금완료로 바뀝니다.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                disabled={busy}
+                className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-ink-2"
+              >
+                아니요
+              </button>
+              <button
+                type="button"
+                onClick={markPaid}
+                disabled={busy}
+                className="flex-1 rounded-lg bg-foreground px-3 py-2 text-xs font-semibold text-background disabled:opacity-50"
+              >
+                {busy ? "처리 중…" : "네, 이체 완료"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            disabled={!hasAccount}
+            className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors active:opacity-80 disabled:opacity-50"
+          >
+            이체 완료 처리
+          </button>
+        )
+      ) : null}
+
+      {row.status === "paid" ? (
+        <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          {fmtDate(row.paidAt)} 입금완료 — {formatWon(calc.net)}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
