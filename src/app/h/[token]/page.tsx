@@ -29,7 +29,7 @@ export default async function QuickHeightPage({
   const name = (d.stage_name as string) ?? "댄서";
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-10">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 px-6 py-10">
       <div className="flex flex-col gap-2">
         <div className="text-2xl font-extrabold tracking-tight">
           deetz<span className="text-primary">.</span>

@@ -104,7 +104,7 @@ export default async function ScheduleSurveyPage({
   const loginHref = `/login?next=${encodeURIComponent(`/sr/${code}`)}`;
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-6 py-10">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-6 py-10">
       <div className="flex flex-col gap-2">
         <div className="text-2xl font-extrabold tracking-tight">
           deetz<span className="text-primary">.</span>
