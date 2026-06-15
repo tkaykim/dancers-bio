@@ -52,9 +52,12 @@ export default async function ProjectEditPage({
 
   const [{ data: sessions }, { data: genres }] = await Promise.all([
     supabase
-      .from("project_sessions")
-      .select("session_type, starts_at, location_name, role_notes, sort_order")
+      .from("project_schedules")
+      .select(
+        "session_type, starts_at, location_name:location, role_notes, sort_order",
+      )
       .eq("project_id", project.id)
+      .eq("status", "confirmed")
       .order("sort_order")
       .order("starts_at"),
     supabase.from("genres").select("id, label_ko").order("sort_order"),

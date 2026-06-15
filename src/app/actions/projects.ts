@@ -28,6 +28,41 @@ function localDateTimeToIso(value: string | null): string | null {
   return d.toISOString();
 }
 
+// 확정 일정(구 project_sessions)을 통합 테이블 project_schedules에 쓰기 위한 매퍼.
+// status='confirmed', collect_availability=false (공고 노출용 / 기본은 가능여부 취합 대상 아님).
+const SESSION_LABEL_KO: Record<string, string> = {
+  rehearsal: "연습",
+  main: "본무대",
+  filming: "촬영",
+  fitting: "피팅",
+  meeting: "미팅",
+  other: "일정",
+};
+function toConfirmedScheduleRow(
+  s: {
+    session_type: string;
+    starts_at: string;
+    ends_at: string | null;
+    location_name: string | null;
+    role_notes: string | null;
+    sort_order: number;
+  },
+  projectId: string,
+) {
+  return {
+    project_id: projectId,
+    label: SESSION_LABEL_KO[s.session_type] ?? "일정",
+    starts_at: s.starts_at,
+    ends_at: s.ends_at,
+    location: s.location_name,
+    role_notes: s.role_notes,
+    session_type: s.session_type,
+    status: "confirmed",
+    collect_availability: false,
+    sort_order: s.sort_order,
+  };
+}
+
 export async function createProjectAction(
   formData: FormData,
 ): Promise<ActionResult<{ id: string; short_code: string }>> {
@@ -140,8 +175,8 @@ export async function createProjectAction(
 
   if (sessions.length > 0) {
     const { error: sErr } = await supabase
-      .from("project_sessions")
-      .insert(sessions.map((s) => ({ ...s, project_id: project.id })));
+      .from("project_schedules")
+      .insert(sessions.map((s) => toConfirmedScheduleRow(s, project.id)));
     if (sErr) return { ok: false, error: `세션 저장 실패: ${sErr.message}` };
   }
 
@@ -382,16 +417,19 @@ export async function updateProjectAction(
     }
   }
 
+  // 확정 일정만 동기화(삭제+재삽입). ⚠ status='confirmed'로 한정 — 후보(tentative)
+  // 일정과 거기 달린 응답은 절대 건드리지 않는다.
   const { error: delErr } = await supabase
-    .from("project_sessions")
+    .from("project_schedules")
     .delete()
-    .eq("project_id", parsed.data.id);
+    .eq("project_id", parsed.data.id)
+    .eq("status", "confirmed");
   if (delErr) return { ok: false, error: `세션 갱신 실패: ${delErr.message}` };
 
   if (sessions.length > 0) {
     const { error: insErr } = await supabase
-      .from("project_sessions")
-      .insert(sessions);
+      .from("project_schedules")
+      .insert(sessions.map((s) => toConfirmedScheduleRow(s, parsed.data.id)));
     if (insErr)
       return { ok: false, error: `세션 저장 실패: ${insErr.message}` };
   }

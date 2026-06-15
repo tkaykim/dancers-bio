@@ -65,9 +65,10 @@ export default async function FeedPage() {
       : Promise.resolve({ data: [] as { id: string; display_name: string }[] }),
     projectIds.length > 0
       ? supabase
-          .from("project_sessions")
+          .from("project_schedules")
           .select("project_id, starts_at")
           .in("project_id", projectIds)
+          .eq("status", "confirmed")
       : Promise.resolve({ data: [] as { project_id: string; starts_at: string }[] }),
   ]);
 

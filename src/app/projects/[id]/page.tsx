@@ -174,9 +174,12 @@ export default async function ProjectDetailPage({
     { data: attachmentsData },
   ] = await Promise.all([
     supabase
-      .from("project_sessions")
-      .select("id, session_type, starts_at, ends_at, location_name, role_notes, sort_order")
+      .from("project_schedules")
+      .select(
+        "id, session_type, starts_at, ends_at, location_name:location, role_notes, sort_order",
+      )
       .eq("project_id", id)
+      .eq("status", "confirmed")
       .order("sort_order")
       .order("starts_at"),
     supabase.from("profiles").select("display_name, id").eq("id", p.owner_id).single(),

@@ -290,7 +290,29 @@ export async function publishIngestionAction(
     sort_order: i,
   }));
   if (sessions.length > 0) {
-    const { error: sErr } = await supabase.from("project_sessions").insert(sessions);
+    const LABEL_KO: Record<string, string> = {
+      rehearsal: "연습",
+      main: "본무대",
+      filming: "촬영",
+      fitting: "피팅",
+      meeting: "미팅",
+      other: "일정",
+    };
+    const schedRows = sessions.map((s) => ({
+      project_id: s.project_id,
+      label: LABEL_KO[s.session_type] ?? "일정",
+      starts_at: s.starts_at,
+      ends_at: s.ends_at,
+      location: s.location_name,
+      role_notes: s.role_notes,
+      session_type: s.session_type,
+      status: "confirmed",
+      collect_availability: false,
+      sort_order: s.sort_order,
+    }));
+    const { error: sErr } = await supabase
+      .from("project_schedules")
+      .insert(schedRows);
     if (sErr) {
       // project 는 만들어졌으니 진행하되 경고
       return {
