@@ -56,6 +56,22 @@ export function SignupForm() {
         />
       </div>
       <div className="flex flex-col gap-2">
+        <Label htmlFor="phone">휴대폰 번호</Label>
+        <Input
+          id="phone"
+          name="phone"
+          type="tel"
+          required
+          inputMode="tel"
+          autoComplete="tel"
+          maxLength={20}
+          placeholder="010-1234-5678"
+        />
+        <p className="text-xs text-muted-foreground">
+          캐스팅 섭외 연락에 사용됩니다.
+        </p>
+      </div>
+      <div className="flex flex-col gap-2">
         <Label htmlFor="email">이메일</Label>
         <Input
           id="email"
