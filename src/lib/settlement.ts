@@ -19,9 +19,10 @@ export function formatWon(n: number): string {
   return `${Math.round(n || 0).toLocaleString("ko-KR")}원`;
 }
 
+// 4단계 개념: 정산대기(금액 미입력=행 없음) → 정산완료(pending) → 출금신청(requested) → 입금완료(paid)
 export const SETTLEMENT_STATUS_LABEL: Record<SettlementStatus, string> = {
-  pending: "정산금액 확정",
-  requested: "출금신청 완료 · 입금대기",
+  pending: "정산완료",
+  requested: "출금신청",
   paid: "입금완료",
   cancelled: "취소됨",
 };

@@ -4,8 +4,12 @@ import { revalidatePath } from "next/cache";
 import { canManageProject, requireAdmin, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { DEFAULT_WITHHOLDING_RATE } from "@/lib/settlement";
+import { DEFAULT_WITHHOLDING_RATE, calcSettlement, formatWon } from "@/lib/settlement";
+import { sendGmailEmail } from "@/lib/gmail";
+import { buildWithdrawalRequestEmail } from "@/lib/notify/settlement-mail";
 import type { ActionResult } from "./auth";
+
+const SITE = "https://deetz.kr";
 
 function parseWon(v: FormDataEntryValue | null): number | null {
   const t = (v ?? "").toString().replace(/[,\s원]/g, "").trim();
@@ -132,6 +136,79 @@ export async function savePayoutAccountAction(
   if (error) return { ok: false, error: "저장에 실패했습니다. 다시 시도해 주세요." };
 
   revalidatePath("/me/settlements");
+  return { ok: true };
+}
+
+// ── 관리자: 출금신청 안내 메일 발송 (정산완료 → 댄서에게 신청 요청) ─────────
+export async function sendWithdrawalRequestEmailAction(
+  fd: FormData,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const settlementId = (fd.get("settlement_id") ?? "").toString().trim();
+  if (!settlementId) return { ok: false, error: "잘못된 요청입니다." };
+
+  const admin = createAdminClient();
+  const { data: s } = await admin
+    .from("settlements")
+    .select(
+      "id, project_id, dancer_id, gross_amount, withholding_rate, status, project:projects!settlements_project_id_fkey ( title )",
+    )
+    .eq("id", settlementId)
+    .maybeSingle();
+  if (!s) return { ok: false, error: "정산 내역을 찾을 수 없습니다." };
+  if (s.status !== "pending")
+    return { ok: false, error: "정산완료(출금신청 전) 건만 안내를 보낼 수 있어요." };
+
+  const proj = Array.isArray(s.project) ? s.project[0] ?? null : s.project;
+  const projectTitle = (proj?.title as string) ?? "프로젝트";
+
+  // 댄서 정보 + 수신 이메일 (지원 계정 우선 → private_info → 클레임 계정)
+  const { data: d } = await admin
+    .from("dancers")
+    .select("stage_name, profile_id")
+    .eq("id", s.dancer_id)
+    .maybeSingle();
+  const name = (d?.stage_name as string) ?? "댄서";
+
+  let email: string | null = null;
+  const { data: app } = await admin
+    .from("applications")
+    .select("applicant_id")
+    .eq("project_id", s.project_id)
+    .eq("dancer_id", s.dancer_id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const acctId = (app?.applicant_id as string | null) ?? (d?.profile_id as string | null);
+  if (acctId) {
+    const { data: u } = await admin.auth.admin.getUserById(acctId);
+    email = u?.user?.email ?? null;
+  }
+  if (!email) {
+    const { data: pi } = await admin
+      .from("dancer_private_info")
+      .select("email")
+      .eq("dancer_id", s.dancer_id)
+      .maybeSingle();
+    email = (pi?.email as string | null) ?? null;
+  }
+  if (!email || !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email) || /\.con$/i.test(email))
+    return { ok: false, error: "댄서의 이메일을 찾을 수 없어요. 계정/연락처를 확인해 주세요." };
+
+  const calc = calcSettlement(
+    s.gross_amount as number,
+    Number(s.withholding_rate),
+  );
+  const mail = buildWithdrawalRequestEmail({
+    name,
+    projectTitle,
+    grossText: formatWon(calc.gross),
+    taxText: formatWon(calc.tax),
+    netText: formatWon(calc.net),
+    url: `${SITE}/me/settlements`,
+  });
+  const r = await sendGmailEmail({ to: email, ...mail });
+  if (!r.ok) return { ok: false, error: "메일 발송에 실패했습니다." };
   return { ok: true };
 }
 

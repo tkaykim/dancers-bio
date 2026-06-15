@@ -9,6 +9,7 @@ import {
   setSettlementAmountAction,
   savePayoutAccountAction,
   saveResidentNumberAction,
+  sendWithdrawalRequestEmailAction,
 } from "@/app/actions/settlements";
 import { DancerDocuments } from "@/components/settlement/DancerDocuments";
 import {
@@ -45,7 +46,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-bold text-ink-2">
-          입금 대기 ({requested.length})
+          출금신청 ({requested.length})
         </h2>
         {requested.length === 0 ? (
           <div className="rounded-2xl border border-border bg-card p-5 text-sm text-ink-3">
@@ -63,11 +64,11 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
       {awaiting.length > 0 ? (
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-bold text-ink-2">
-            정산 대기 · 출금신청 전 ({awaiting.length})
+            정산완료 · 출금신청 전 ({awaiting.length})
           </h2>
           <p className="-mt-1 text-xs text-ink-3">
-            금액은 등록됐고 댄서의 출금 신청을 기다리는 중이에요. 매니저가 들고 있는
-            신분증·통장사본은 여기서 미리 올려둘 수 있어요.
+            금액이 확정됐고 댄서의 출금 신청을 기다리는 중이에요. 주민번호·계좌·서류를
+            채운 뒤 ‘출금신청 안내 메일’로 댄서에게 신청을 요청할 수 있어요.
           </p>
           <ul className="flex flex-col gap-3">
             {awaiting.map((r) => (
@@ -79,7 +80,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
 
       {paid.length > 0 ? (
         <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-bold text-ink-2">입금 완료 ({paid.length})</h2>
+          <h2 className="text-sm font-bold text-ink-2">입금완료 ({paid.length})</h2>
           <ul className="flex flex-col gap-2">
             {paid.map((r) => {
               const calc = calcSettlement(r.grossAmount, r.rate);
@@ -142,7 +143,7 @@ function RequestCard({ row }: { row: WithdrawalRow }) {
           </span>
         </div>
         <span className="shrink-0 rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
-          입금대기
+          출금신청
         </span>
       </div>
 
@@ -188,6 +189,22 @@ function RequestCard({ row }: { row: WithdrawalRow }) {
 }
 
 function PendingCard({ row }: { row: WithdrawalRow }) {
+  const router = useRouter();
+  const [busy, startTransition] = useTransition();
+  const hasAccount = !!(row.bankName && row.accountNumber && row.accountHolder);
+
+  function sendMail() {
+    const fd = new FormData();
+    fd.set("settlement_id", row.id);
+    startTransition(async () => {
+      const res = await sendWithdrawalRequestEmailAction(fd);
+      if (res.ok) {
+        toast.success(`${row.dancerName}에게 출금신청 안내 메일을 보냈어요.`);
+        router.refresh();
+      } else toast.error(res.error);
+    });
+  }
+
   return (
     <li className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
@@ -196,10 +213,22 @@ function PendingCard({ row }: { row: WithdrawalRow }) {
           <span className="text-xs text-ink-3">{row.projectTitle}</span>
         </div>
         <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
-          출금신청 전
+          정산완료
         </span>
       </div>
       <SettlementAdminControls row={row} />
+      <button
+        type="button"
+        onClick={sendMail}
+        disabled={busy || !hasAccount}
+        className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-ink-2 active:bg-secondary disabled:opacity-50"
+      >
+        {busy
+          ? "보내는 중…"
+          : hasAccount
+            ? "출금신청 안내 메일 보내기"
+            : "계좌 등록 후 안내 가능"}
+      </button>
     </li>
   );
 }
