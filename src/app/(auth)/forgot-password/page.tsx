@@ -16,7 +16,9 @@ export default function ForgotPasswordPage() {
           비밀번호<br />재설정
         </h1>
         <p className="text-sm text-ink-2">
-          가입할 때 사용한 이메일을 입력하면 재설정 링크를 보내드립니다.
+          가입할 때 쓰신 이메일로 6자리 인증코드를 보내드려요.
+          <br />
+          코드를 입력하고 새 비밀번호를 설정하시면 됩니다.
         </p>
       </div>
 
