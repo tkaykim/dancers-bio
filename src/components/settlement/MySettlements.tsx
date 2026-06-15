@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import {
   requestWithdrawalAction,
@@ -233,6 +234,7 @@ function AccountCard({
   const [accountHolder, setAccountHolder] = useState(
     account?.accountHolder ?? "",
   );
+  const [reveal, setReveal] = useState(false);
 
   function save() {
     if (!bankName.trim() || !accountNumber.trim() || !accountHolder.trim()) {
@@ -263,21 +265,32 @@ function AccountCard({
       ) : null}
       {!editing && account ? (
         <div className="flex items-center justify-between gap-3">
-          <div className="flex flex-col gap-0.5 text-sm">
-            <span className="font-semibold">
-              {account.bankName} {maskAccount(account.accountNumber)}
+          <div className="flex min-w-0 flex-col gap-0.5 text-sm">
+            <span className="truncate font-semibold">
+              {account.bankName}{" "}
+              {reveal ? account.accountNumber : maskAccount(account.accountNumber)}
             </span>
             <span className="text-xs text-ink-3">
               예금주 {account.accountHolder}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-ink-2 active:bg-secondary"
-          >
-            변경
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setReveal((v) => !v)}
+              aria-label={reveal ? "가리기" : "계좌번호 전체 보기"}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-ink-2 active:bg-secondary"
+            >
+              {reveal ? <EyeOff size={15} aria-hidden /> : <Eye size={15} aria-hidden />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-ink-2 active:bg-secondary"
+            >
+              변경
+            </button>
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -344,6 +357,7 @@ function WithdrawDialog({
   onDone: () => void;
 }) {
   const [busy, startTransition] = useTransition();
+  const [reveal, setReveal] = useState(false);
   const calc = calcSettlement(row.grossAmount, row.rate);
 
   function submit() {
@@ -383,12 +397,23 @@ function WithdrawDialog({
         </div>
 
         {account ? (
-          <p className="mt-3 text-sm text-ink-2">
-            <span className="font-semibold text-foreground">
-              {account.bankName} {maskAccount(account.accountNumber)}
-            </span>{" "}
-            ({account.accountHolder}) 으로 입금됩니다.
-          </p>
+          <div className="mt-3 flex items-start justify-between gap-2 text-sm text-ink-2">
+            <p className="min-w-0">
+              <span className="font-semibold text-foreground">
+                {account.bankName}{" "}
+                {reveal ? account.accountNumber : maskAccount(account.accountNumber)}
+              </span>{" "}
+              ({account.accountHolder}) 으로 입금됩니다.
+            </p>
+            <button
+              type="button"
+              onClick={() => setReveal((v) => !v)}
+              aria-label={reveal ? "가리기" : "계좌번호 전체 보기"}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border text-ink-2 active:bg-secondary"
+            >
+              {reveal ? <EyeOff size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
+            </button>
+          </div>
         ) : null}
 
         <p className="mt-3 text-xs text-ink-3">
