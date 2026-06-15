@@ -6,6 +6,7 @@ import {
   type MySettlementRow,
   type PayoutAccount,
 } from "@/components/settlement/MySettlements";
+import type { DancerDocsState } from "@/components/settlement/DancerDocuments";
 import type { SettlementStatus } from "@/lib/settlement";
 
 export default async function MySettlementsPage() {
@@ -26,6 +27,7 @@ export default async function MySettlementsPage() {
 
   let settlements: MySettlementRow[] = [];
   const accounts: Record<string, PayoutAccount | null> = {};
+  const docs: Record<string, DancerDocsState> = {};
 
   if (dancerIds.length > 0) {
     const { data: sRows } = await supabase
@@ -61,14 +63,21 @@ export default async function MySettlementsPage() {
 
     const { data: piRows } = await supabase
       .from("dancer_private_info")
-      .select("dancer_id, bank_name, bank_account_number, bank_account_holder")
+      .select(
+        "dancer_id, bank_name, bank_account_number, bank_account_holder, id_card_path, bankbook_path",
+      )
       .in("dancer_id", dancerIds);
-    for (const id of dancerIds) accounts[id] = null;
+    for (const id of dancerIds) {
+      accounts[id] = null;
+      docs[id] = { idCard: false, bankbook: false };
+    }
     for (const pi of (piRows ?? []) as Array<{
       dancer_id: string;
       bank_name: string | null;
       bank_account_number: string | null;
       bank_account_holder: string | null;
+      id_card_path: string | null;
+      bankbook_path: string | null;
     }>) {
       accounts[pi.dancer_id] =
         pi.bank_name && pi.bank_account_number && pi.bank_account_holder
@@ -78,6 +87,10 @@ export default async function MySettlementsPage() {
               accountHolder: pi.bank_account_holder,
             }
           : null;
+      docs[pi.dancer_id] = {
+        idCard: !!pi.id_card_path,
+        bankbook: !!pi.bankbook_path,
+      };
     }
   }
 
@@ -108,6 +121,7 @@ export default async function MySettlementsPage() {
         <MySettlements
           settlements={settlements}
           accounts={accounts}
+          docs={docs}
           dancerNames={Object.fromEntries(nameById)}
         />
       )}

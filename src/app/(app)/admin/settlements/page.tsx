@@ -39,6 +39,7 @@ export default async function AdminSettlementsPage() {
     string,
     { bank: string; number: string; holder: string } | null
   >();
+  const docsById = new Map<string, { idCard: boolean; bankbook: boolean }>();
   if (dancerIds.length > 0) {
     const { data: dRows } = await admin
       .from("dancers")
@@ -52,14 +53,18 @@ export default async function AdminSettlementsPage() {
 
     const { data: piRows } = await admin
       .from("dancer_private_info")
-      .select("dancer_id, bank_name, bank_account_number, bank_account_holder")
+      .select(
+        "dancer_id, bank_name, bank_account_number, bank_account_holder, id_card_path, bankbook_path",
+      )
       .in("dancer_id", dancerIds);
     for (const pi of (piRows ?? []) as Array<{
       dancer_id: string;
       bank_name: string | null;
       bank_account_number: string | null;
       bank_account_holder: string | null;
-    }>)
+      id_card_path: string | null;
+      bankbook_path: string | null;
+    }>) {
       acctById.set(
         pi.dancer_id,
         pi.bank_name && pi.bank_account_number && pi.bank_account_holder
@@ -70,13 +75,20 @@ export default async function AdminSettlementsPage() {
             }
           : null,
       );
+      docsById.set(pi.dancer_id, {
+        idCard: !!pi.id_card_path,
+        bankbook: !!pi.bankbook_path,
+      });
+    }
   }
 
   const list: WithdrawalRow[] = rows.map((r) => {
     const proj = Array.isArray(r.project) ? r.project[0] ?? null : r.project;
     const acct = acctById.get(r.dancer_id) ?? null;
+    const doc = docsById.get(r.dancer_id) ?? { idCard: false, bankbook: false };
     return {
       id: r.id,
+      dancerId: r.dancer_id,
       dancerName: nameById.get(r.dancer_id) ?? "(이름 없음)",
       projectTitle: proj?.title ?? "(공고)",
       grossAmount: r.gross_amount,
@@ -87,6 +99,8 @@ export default async function AdminSettlementsPage() {
       bankName: acct?.bank ?? null,
       accountNumber: acct?.number ?? null,
       accountHolder: acct?.holder ?? null,
+      hasIdCard: doc.idCard,
+      hasBankbook: doc.bankbook,
     };
   });
 

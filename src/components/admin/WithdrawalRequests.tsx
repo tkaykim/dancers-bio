@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { markSettlementPaidAction } from "@/app/actions/settlements";
+import { getDancerDocumentUrlAction } from "@/app/actions/dancer-documents";
 import {
   calcSettlement,
   formatWon,
@@ -12,6 +13,7 @@ import {
 
 export type WithdrawalRow = {
   id: string;
+  dancerId: string;
   dancerName: string;
   projectTitle: string;
   grossAmount: number;
@@ -22,6 +24,8 @@ export type WithdrawalRow = {
   bankName: string | null;
   accountNumber: string | null;
   accountHolder: string | null;
+  hasIdCard: boolean;
+  hasBankbook: boolean;
 };
 
 export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
@@ -149,6 +153,22 @@ function RequestCard({ row }: { row: WithdrawalRow }) {
         )}
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-ink-3">서류 대조:</span>
+        <DocButton
+          dancerId={row.dancerId}
+          docType="id_card"
+          label="신분증"
+          present={row.hasIdCard}
+        />
+        <DocButton
+          dancerId={row.dancerId}
+          docType="bankbook"
+          label="통장사본"
+          present={row.hasBankbook}
+        />
+      </div>
+
       {confirming ? (
         <div className="flex flex-col gap-2 rounded-xl bg-amber-50 p-3">
           <p className="text-xs text-amber-800">
@@ -185,6 +205,44 @@ function RequestCard({ row }: { row: WithdrawalRow }) {
         </button>
       )}
     </li>
+  );
+}
+
+function DocButton({
+  dancerId,
+  docType,
+  label,
+  present,
+}: {
+  dancerId: string;
+  docType: "id_card" | "bankbook";
+  label: string;
+  present: boolean;
+}) {
+  const [busy, startTransition] = useTransition();
+  if (!present)
+    return (
+      <span className="rounded-lg border border-dashed border-border px-2.5 py-1 text-xs text-ink-3">
+        {label} 미등록
+      </span>
+    );
+  function view() {
+    startTransition(async () => {
+      const res = await getDancerDocumentUrlAction(dancerId, docType);
+      if (res.ok && res.data)
+        window.open(res.data.url, "_blank", "noopener,noreferrer");
+      else if (!res.ok) toast.error(res.error);
+    });
+  }
+  return (
+    <button
+      type="button"
+      onClick={view}
+      disabled={busy}
+      className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-ink-2 active:bg-secondary disabled:opacity-50"
+    >
+      {busy ? "여는 중…" : `${label} 보기`}
+    </button>
   );
 }
 

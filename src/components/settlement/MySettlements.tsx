@@ -13,6 +13,10 @@ import {
   SETTLEMENT_STATUS_LABEL,
   type SettlementStatus,
 } from "@/lib/settlement";
+import {
+  DancerDocuments,
+  type DancerDocsState,
+} from "@/components/settlement/DancerDocuments";
 
 export type MySettlementRow = {
   id: string;
@@ -33,10 +37,12 @@ export type PayoutAccount = {
 export function MySettlements({
   settlements,
   accounts,
+  docs,
   dancerNames,
 }: {
   settlements: MySettlementRow[];
   accounts: Record<string, PayoutAccount | null>;
+  docs: Record<string, DancerDocsState>;
   dancerNames: Record<string, string>;
 }) {
   const router = useRouter();
@@ -55,6 +61,20 @@ export function MySettlements({
             dancerName={dancerNames[id]}
             showName={dancerIds.length > 1}
             account={accounts[id] ?? null}
+          />
+        ))}
+      </section>
+
+      {/* 정산 서류 */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-bold text-ink-2">정산 서류</h2>
+        {dancerIds.map((id) => (
+          <DancerDocuments
+            key={id}
+            dancerId={id}
+            dancerName={dancerNames[id]}
+            showName={dancerIds.length > 1}
+            docs={docs[id] ?? { idCard: false, bankbook: false }}
           />
         ))}
       </section>
