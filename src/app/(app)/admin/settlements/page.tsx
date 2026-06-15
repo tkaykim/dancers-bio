@@ -15,7 +15,7 @@ export default async function AdminSettlementsPage() {
   const { data: sRows } = await admin
     .from("settlements")
     .select(
-      "id, dancer_id, gross_amount, withholding_rate, status, requested_at, paid_at, project:projects!settlements_project_id_fkey ( title )",
+      "id, project_id, dancer_id, gross_amount, withholding_rate, status, requested_at, paid_at, project:projects!settlements_project_id_fkey ( title )",
     )
     .in("status", ["pending", "requested", "paid"])
     .order("requested_at", { ascending: false, nullsFirst: false })
@@ -23,6 +23,7 @@ export default async function AdminSettlementsPage() {
 
   type Row = {
     id: string;
+    project_id: string;
     dancer_id: string;
     gross_amount: number;
     withholding_rate: number;
@@ -89,6 +90,7 @@ export default async function AdminSettlementsPage() {
     const doc = docsById.get(r.dancer_id) ?? { idCard: false, bankbook: false };
     return {
       id: r.id,
+      projectId: r.project_id,
       dancerId: r.dancer_id,
       dancerName: nameById.get(r.dancer_id) ?? "(이름 없음)",
       projectTitle: proj?.title ?? "(공고)",

@@ -19,6 +19,16 @@ function strOrNull(fd: FormData, k: string): string | null {
   return v ? v : null;
 }
 
+async function isAdmin(userId: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", userId)
+    .maybeSingle();
+  return data?.is_admin === true;
+}
+
 // 로그인 사용자가 "본인 댄서로서" 다룰 수 있는 dancer_id 집합 (profile_id = uid).
 async function myDancerIds(userId: string): Promise<Set<string>> {
   const admin = createAdminClient();
@@ -102,9 +112,12 @@ export async function savePayoutAccountAction(
   if (!bank_name || !bank_account_number || !bank_account_holder)
     return { ok: false, error: "은행·계좌번호·예금주를 모두 입력해 주세요." };
 
-  const mine = await myDancerIds(user.id);
-  if (!mine.has(dancerId))
-    return { ok: false, error: "본인 댄서 프로필만 계좌를 등록할 수 있습니다." };
+  // 본인 댄서 또는 슈퍼관리자(담당자가 사진 보고 대신 입력)만 허용.
+  if (!(await isAdmin(user.id))) {
+    const mine = await myDancerIds(user.id);
+    if (!mine.has(dancerId))
+      return { ok: false, error: "본인 댄서 프로필만 계좌를 등록할 수 있습니다." };
+  }
 
   const admin = createAdminClient();
   const { data: existing } = await admin

@@ -13,11 +13,6 @@ import {
   type ConsoleApplicant,
 } from "@/components/project/ApplicantsConsole";
 import { SchedulePanel, type ScheduleRow } from "@/components/project/SchedulePanel";
-import {
-  SettlementPanel,
-  type SettlementApplicant,
-} from "@/components/project/SettlementPanel";
-import type { SettlementStatus } from "@/lib/settlement";
 import { formatWhen } from "@/lib/format-when";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 
@@ -241,43 +236,6 @@ export default async function ApplicantsPage({
     };
   });
 
-  // 정산 — 합격(수락) 댄서 + 기존 정산금액/상태
-  const { data: settleRows } = await supabase
-    .from("settlements")
-    .select("dancer_id, gross_amount, status")
-    .eq("project_id", p.id);
-  const settleByDancer = new Map<
-    string,
-    { gross_amount: number; status: SettlementStatus }
-  >();
-  for (const r of (settleRows ?? []) as Array<{
-    dancer_id: string;
-    gross_amount: number;
-    status: SettlementStatus;
-  }>) {
-    settleByDancer.set(r.dancer_id, {
-      gross_amount: r.gross_amount,
-      status: r.status,
-    });
-  }
-  const seenSettle = new Set<string>();
-  const settlementApplicants: SettlementApplicant[] = applicants
-    .filter((a) => a.status === "accepted" && a.dancerId && !a.isTeam)
-    .filter((a) => {
-      if (seenSettle.has(a.dancerId!)) return false;
-      seenSettle.add(a.dancerId!);
-      return true;
-    })
-    .map((a) => {
-      const s = settleByDancer.get(a.dancerId!);
-      return {
-        dancerId: a.dancerId!,
-        name: a.name,
-        grossAmount: s?.gross_amount ?? null,
-        status: s?.status ?? null,
-      };
-    });
-
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-8">
       <Link
@@ -304,8 +262,6 @@ export default async function ApplicantsPage({
         schedules={scheduleRows}
         surveyUrl={`https://deetz.kr/sr/${p.schedule_survey_code}`}
       />
-
-      <SettlementPanel projectId={p.id} applicants={settlementApplicants} />
 
       {/* 세팅·초대 도구: 접힘 (본업을 가리지 않도록 아래로) */}
       <details className="group rounded-2xl border border-border bg-card">

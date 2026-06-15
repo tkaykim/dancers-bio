@@ -36,6 +36,8 @@ export type ApplicantPortfolio = {
   shoe_size_mm: number | null;
   contactEmail: string | null;
   contactPhone: string | null;
+  // 정산 — 이 프로젝트×댄서의 확정 금액/상태 (없으면 null)
+  settlement: { gross_amount: number; status: string } | null;
 };
 
 // 지원자(댄서) 포트폴리오를 심사 시트에서 lazy-load.
@@ -93,8 +95,18 @@ export async function getApplicantPortfolioAction(
   let shoe_size_mm: number | null = null;
   let contactEmail: string | null = null;
   let contactPhone: string | null = null;
+  let settlement: { gross_amount: number; status: string } | null = null;
   try {
     const admin = createAdminClient();
+    const { data: st } = await admin
+      .from("settlements")
+      .select("gross_amount, status")
+      .eq("project_id", projectId)
+      .eq("dancer_id", dancerId)
+      .maybeSingle();
+    settlement = st
+      ? { gross_amount: st.gross_amount as number, status: st.status as string }
+      : null;
     const { data: priv } = await admin
       .from("dancer_private_info")
       .select("height_cm, shoe_size_mm, email, phone")
@@ -140,6 +152,7 @@ export async function getApplicantPortfolioAction(
       shoe_size_mm,
       contactEmail,
       contactPhone,
+      settlement,
     },
   };
 }

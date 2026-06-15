@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { VideoEmbed } from "@/components/portfolio/VideoEmbed";
@@ -10,6 +12,8 @@ import {
   getApplicantPortfolioAction,
   type ApplicantPortfolio,
 } from "@/app/actions/applicant-portfolio";
+import { setSettlementAmountAction } from "@/app/actions/settlements";
+import { calcSettlement, formatWon } from "@/lib/settlement";
 
 export type SheetApplicant = {
   applicationId: string;
@@ -42,6 +46,75 @@ function socialUrl(platform: string, raw: string): string {
 }
 
 // 인라인 SVG (lucide 브랜드 아이콘은 상표 이슈로 제거됨)
+function SettlementField({
+  projectId,
+  dancerId,
+  initialAmount,
+  status,
+}: {
+  projectId: string;
+  dancerId: string;
+  initialAmount: number | null;
+  status: string | null;
+}) {
+  const router = useRouter();
+  const [busy, startTransition] = useTransition();
+  const [value, setValue] = useState(
+    initialAmount != null ? String(initialAmount) : "",
+  );
+  const locked = status === "paid";
+  const num = Number(value.replace(/[,\s]/g, ""));
+  const preview = Number.isFinite(num) && num > 0 ? calcSettlement(num) : null;
+
+  function save() {
+    const fd = new FormData();
+    fd.set("project_id", projectId);
+    fd.set("dancer_id", dancerId);
+    fd.set("gross_amount", value);
+    startTransition(async () => {
+      const res = await setSettlementAmountAction(fd);
+      if (res.ok) {
+        toast.success("정산금액을 저장했어요.");
+        router.refresh();
+      } else toast.error(res.error);
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-border bg-secondary/30 p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
+        정산금액 (세전, 원)
+      </p>
+      <div className="flex items-center gap-2">
+        <input
+          inputMode="numeric"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="예: 400000"
+          disabled={locked || busy}
+          className="h-9 flex-1 rounded-lg border border-border bg-background px-3 text-sm placeholder:text-ink-3 disabled:opacity-60"
+        />
+        <button
+          type="button"
+          onClick={save}
+          disabled={locked || busy || !value.trim()}
+          className="h-9 shrink-0 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {busy ? "저장 중…" : "저장"}
+        </button>
+      </div>
+      {preview ? (
+        <p className="text-[11px] text-ink-3">
+          원천징수 3.3% −{formatWon(preview.tax)} · 실수령 {formatWon(preview.net)}
+        </p>
+      ) : null}
+      {locked ? (
+        <p className="text-[11px] text-ink-3">입금완료된 건은 수정할 수 없어요.</p>
+      ) : null}
+    </div>
+  );
+}
+
 function SocialIcon({ platform }: { platform: string }) {
   const common = {
     width: 16,
@@ -344,6 +417,16 @@ export function ApplicantPortfolioSheet({
             ) : null}
           </>
         )}
+
+        {/* 정산금액 — 수락된 지원자에게만. 사람을 보는 자리에서 바로 입력. */}
+        {applicant?.status === "accepted" && dancerId ? (
+          <SettlementField
+            projectId={projectId}
+            dancerId={dancerId}
+            initialAmount={data?.settlement?.gross_amount ?? null}
+            status={data?.settlement?.status ?? null}
+          />
+        ) : null}
 
         {/* 결정 버튼 — 시트 콘텐츠 흐름에 포함(시트 전체가 스크롤되도록 sticky 제거) */}
         {applicant ? (

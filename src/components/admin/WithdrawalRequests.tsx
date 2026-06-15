@@ -3,7 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { markSettlementPaidAction } from "@/app/actions/settlements";
+import {
+  markSettlementPaidAction,
+  setSettlementAmountAction,
+  savePayoutAccountAction,
+} from "@/app/actions/settlements";
 import { DancerDocuments } from "@/components/settlement/DancerDocuments";
 import {
   calcSettlement,
@@ -13,6 +17,7 @@ import {
 
 export type WithdrawalRow = {
   id: string;
+  projectId: string;
   dancerId: string;
   dancerName: string;
   projectTitle: string;
@@ -138,38 +143,7 @@ function RequestCard({ row }: { row: WithdrawalRow }) {
         </span>
       </div>
 
-      <div className="flex flex-col gap-1 rounded-xl bg-secondary/60 p-3 text-xs text-ink-2">
-        <div className="flex justify-between">
-          <span>세전</span>
-          <span className="font-medium">{formatWon(calc.gross)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>원천징수 ({(calc.rate * 100).toFixed(1)}%)</span>
-          <span className="font-medium">− {formatWon(calc.tax)}</span>
-        </div>
-        <div className="my-1 border-t border-hairline-2" />
-        <div className="flex justify-between">
-          <span className="font-semibold text-foreground">실입금액</span>
-          <span className="text-base font-bold text-foreground">
-            {formatWon(calc.net)}
-          </span>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-dashed border-border p-3 text-sm">
-        {hasAccount ? (
-          <div className="flex flex-col gap-0.5">
-            <span className="font-semibold">
-              {row.bankName} {row.accountNumber}
-            </span>
-            <span className="text-xs text-ink-3">예금주 {row.accountHolder}</span>
-          </div>
-        ) : (
-          <span className="text-xs text-red-600">
-            계좌 정보가 없어요. 댄서에게 계좌 등록을 요청하세요.
-          </span>
-        )}
-      </div>
+      <SettlementAdminControls row={row} />
 
       <DancerDocuments
         dancerId={row.dancerId}
@@ -219,7 +193,6 @@ function RequestCard({ row }: { row: WithdrawalRow }) {
 }
 
 function PendingCard({ row }: { row: WithdrawalRow }) {
-  const calc = calcSettlement(row.grossAmount, row.rate);
   return (
     <li className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
@@ -231,12 +204,7 @@ function PendingCard({ row }: { row: WithdrawalRow }) {
           출금신청 전
         </span>
       </div>
-      <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-3 py-2 text-xs text-ink-2">
-        <span>세전 {formatWon(calc.gross)}</span>
-        <span className="font-semibold text-foreground">
-          실수령 {formatWon(calc.net)}
-        </span>
-      </div>
+      <SettlementAdminControls row={row} />
       <DancerDocuments
         dancerId={row.dancerId}
         dancerName={row.dancerName}
@@ -245,6 +213,157 @@ function PendingCard({ row }: { row: WithdrawalRow }) {
         compact
       />
     </li>
+  );
+}
+
+function SettlementAdminControls({ row }: { row: WithdrawalRow }) {
+  const router = useRouter();
+  const [busy, startTransition] = useTransition();
+  const locked = row.status === "paid";
+
+  const [amount, setAmount] = useState(String(row.grossAmount));
+  const num = Number(amount.replace(/[,\s]/g, ""));
+  const preview = Number.isFinite(num) && num > 0 ? calcSettlement(num) : null;
+
+  const hasAccount = !!(row.bankName && row.accountNumber && row.accountHolder);
+  const [editAcct, setEditAcct] = useState(!hasAccount);
+  const [bank, setBank] = useState(row.bankName ?? "");
+  const [acctNo, setAcctNo] = useState(row.accountNumber ?? "");
+  const [holder, setHolder] = useState(row.accountHolder ?? "");
+
+  function saveAmount() {
+    const fd = new FormData();
+    fd.set("project_id", row.projectId);
+    fd.set("dancer_id", row.dancerId);
+    fd.set("gross_amount", amount);
+    startTransition(async () => {
+      const res = await setSettlementAmountAction(fd);
+      if (res.ok) {
+        toast.success("정산금액을 저장했어요.");
+        router.refresh();
+      } else toast.error(res.error);
+    });
+  }
+
+  function saveAccount() {
+    if (!bank.trim() || !acctNo.trim() || !holder.trim()) {
+      toast.error("은행·계좌번호·예금주를 모두 입력해 주세요.");
+      return;
+    }
+    const fd = new FormData();
+    fd.set("dancer_id", row.dancerId);
+    fd.set("bank_name", bank);
+    fd.set("bank_account_number", acctNo);
+    fd.set("bank_account_holder", holder);
+    startTransition(async () => {
+      const res = await savePayoutAccountAction(fd);
+      if (res.ok) {
+        toast.success("계좌를 저장했어요.");
+        setEditAcct(false);
+        router.refresh();
+      } else toast.error(res.error);
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px] font-medium text-ink-3">정산금액 (세전, 원)</span>
+        <div className="flex items-center gap-2">
+          <input
+            inputMode="numeric"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            disabled={locked || busy}
+            className="h-9 flex-1 rounded-lg border border-border bg-background px-3 text-sm disabled:opacity-60"
+          />
+          <button
+            type="button"
+            onClick={saveAmount}
+            disabled={locked || busy || !amount.trim()}
+            className="h-9 shrink-0 rounded-lg border border-border px-3 text-xs font-medium text-ink-2 active:bg-secondary disabled:opacity-50"
+          >
+            저장
+          </button>
+        </div>
+        {preview ? (
+          <p className="text-[11px] text-ink-3">
+            원천징수 3.3% −{formatWon(preview.tax)} ·{" "}
+            <span className="font-semibold text-foreground">
+              실입금액 {formatWon(preview.net)}
+            </span>
+          </p>
+        ) : null}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px] font-medium text-ink-3">입금 계좌</span>
+        {!editAcct && hasAccount ? (
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border px-3 py-2">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">
+                {row.bankName} {row.accountNumber}
+              </span>
+              <span className="text-[11px] text-ink-3">예금주 {row.accountHolder}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditAcct(true)}
+              className="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs text-ink-2 active:bg-secondary"
+            >
+              수정
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <input
+              value={bank}
+              onChange={(e) => setBank(e.target.value)}
+              placeholder="은행 (예: 국민은행)"
+              disabled={busy}
+              className="h-9 rounded-lg border border-border bg-background px-3 text-sm"
+            />
+            <div className="flex gap-1.5">
+              <input
+                inputMode="numeric"
+                value={acctNo}
+                onChange={(e) => setAcctNo(e.target.value)}
+                placeholder="계좌번호"
+                disabled={busy}
+                className="h-9 flex-1 rounded-lg border border-border bg-background px-3 text-sm"
+              />
+              <input
+                value={holder}
+                onChange={(e) => setHolder(e.target.value)}
+                placeholder="예금주"
+                disabled={busy}
+                className="h-9 w-24 rounded-lg border border-border bg-background px-3 text-sm"
+              />
+            </div>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={saveAccount}
+                disabled={busy}
+                className="h-9 flex-1 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                계좌 저장
+              </button>
+              {hasAccount ? (
+                <button
+                  type="button"
+                  onClick={() => setEditAcct(false)}
+                  disabled={busy}
+                  className="h-9 rounded-lg border border-border px-3 text-xs text-ink-2"
+                >
+                  취소
+                </button>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
