@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { markSettlementPaidAction } from "@/app/actions/settlements";
-import { getDancerDocumentUrlAction } from "@/app/actions/dancer-documents";
+import { DancerDocuments } from "@/components/settlement/DancerDocuments";
 import {
   calcSettlement,
   formatWon,
@@ -29,27 +29,45 @@ export type WithdrawalRow = {
 };
 
 export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
-  const pending = rows.filter((r) => r.status === "requested");
+  const requested = rows.filter((r) => r.status === "requested");
+  const awaiting = rows.filter((r) => r.status === "pending");
   const paid = rows.filter((r) => r.status === "paid");
 
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-bold text-ink-2">
-          입금 대기 ({pending.length})
+          입금 대기 ({requested.length})
         </h2>
-        {pending.length === 0 ? (
+        {requested.length === 0 ? (
           <div className="rounded-2xl border border-border bg-card p-5 text-sm text-ink-3">
             처리할 출금 신청이 없어요.
           </div>
         ) : (
           <ul className="flex flex-col gap-3">
-            {pending.map((r) => (
+            {requested.map((r) => (
               <RequestCard key={r.id} row={r} />
             ))}
           </ul>
         )}
       </section>
+
+      {awaiting.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-bold text-ink-2">
+            정산 대기 · 출금신청 전 ({awaiting.length})
+          </h2>
+          <p className="-mt-1 text-xs text-ink-3">
+            금액은 등록됐고 댄서의 출금 신청을 기다리는 중이에요. 매니저가 들고 있는
+            신분증·통장사본은 여기서 미리 올려둘 수 있어요.
+          </p>
+          <ul className="flex flex-col gap-3">
+            {awaiting.map((r) => (
+              <PendingCard key={r.id} row={r} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {paid.length > 0 ? (
         <section className="flex flex-col gap-3">
@@ -153,21 +171,13 @@ function RequestCard({ row }: { row: WithdrawalRow }) {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-ink-3">서류 대조:</span>
-        <DocButton
-          dancerId={row.dancerId}
-          docType="id_card"
-          label="신분증"
-          present={row.hasIdCard}
-        />
-        <DocButton
-          dancerId={row.dancerId}
-          docType="bankbook"
-          label="통장사본"
-          present={row.hasBankbook}
-        />
-      </div>
+      <DancerDocuments
+        dancerId={row.dancerId}
+        dancerName={row.dancerName}
+        showName={false}
+        docs={{ idCard: row.hasIdCard, bankbook: row.hasBankbook }}
+        compact
+      />
 
       {confirming ? (
         <div className="flex flex-col gap-2 rounded-xl bg-amber-50 p-3">
@@ -208,41 +218,33 @@ function RequestCard({ row }: { row: WithdrawalRow }) {
   );
 }
 
-function DocButton({
-  dancerId,
-  docType,
-  label,
-  present,
-}: {
-  dancerId: string;
-  docType: "id_card" | "bankbook";
-  label: string;
-  present: boolean;
-}) {
-  const [busy, startTransition] = useTransition();
-  if (!present)
-    return (
-      <span className="rounded-lg border border-dashed border-border px-2.5 py-1 text-xs text-ink-3">
-        {label} 미등록
-      </span>
-    );
-  function view() {
-    startTransition(async () => {
-      const res = await getDancerDocumentUrlAction(dancerId, docType);
-      if (res.ok && res.data)
-        window.open(res.data.url, "_blank", "noopener,noreferrer");
-      else if (!res.ok) toast.error(res.error);
-    });
-  }
+function PendingCard({ row }: { row: WithdrawalRow }) {
+  const calc = calcSettlement(row.grossAmount, row.rate);
   return (
-    <button
-      type="button"
-      onClick={view}
-      disabled={busy}
-      className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-ink-2 active:bg-secondary disabled:opacity-50"
-    >
-      {busy ? "여는 중…" : `${label} 보기`}
-    </button>
+    <li className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-bold">{row.dancerName}</span>
+          <span className="text-xs text-ink-3">{row.projectTitle}</span>
+        </div>
+        <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
+          출금신청 전
+        </span>
+      </div>
+      <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-3 py-2 text-xs text-ink-2">
+        <span>세전 {formatWon(calc.gross)}</span>
+        <span className="font-semibold text-foreground">
+          실수령 {formatWon(calc.net)}
+        </span>
+      </div>
+      <DancerDocuments
+        dancerId={row.dancerId}
+        dancerName={row.dancerName}
+        showName={false}
+        docs={{ idCard: row.hasIdCard, bankbook: row.hasBankbook }}
+        compact
+      />
+    </li>
   );
 }
 

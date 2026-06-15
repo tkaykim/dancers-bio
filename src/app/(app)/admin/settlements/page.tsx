@@ -17,8 +17,9 @@ export default async function AdminSettlementsPage() {
     .select(
       "id, dancer_id, gross_amount, withholding_rate, status, requested_at, paid_at, project:projects!settlements_project_id_fkey ( title )",
     )
-    .in("status", ["requested", "paid"])
-    .order("requested_at", { ascending: false, nullsFirst: false });
+    .in("status", ["pending", "requested", "paid"])
+    .order("requested_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
 
   type Row = {
     id: string;
@@ -110,9 +111,9 @@ export default async function AdminSettlementsPage() {
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 관리자</p>
         <h1 className="text-2xl font-bold tracking-tight leading-tight">정산 · 출금 처리</h1>
         <p className="text-sm text-ink-3">
-          댄서가 출금 신청한 건이에요. 실제 통장에서 이체한 뒤 &lsquo;이체 완료
-          처리&rsquo;를 누르면 댄서 화면이 입금완료로 바뀝니다. (이 화면은 이체를
-          대신하지 않습니다.)
+          댄서가 출금 신청한 건을 처리하고, 신분증·통장사본을 직접 올리거나 대조할 수
+          있어요. 실제 통장에서 이체한 뒤 &lsquo;이체 완료 처리&rsquo;를 누르면 댄서
+          화면이 입금완료로 바뀝니다. (이 화면은 이체를 대신하지 않습니다.)
         </p>
       </header>
       <WithdrawalRequests rows={list} />

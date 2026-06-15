@@ -25,12 +25,24 @@ export function DancerDocuments({
   dancerName,
   showName,
   docs,
+  compact = false,
 }: {
   dancerId: string;
   dancerName: string;
   showName: boolean;
   docs: DancerDocsState;
+  // compact: 카드/헤더 없이 행만 (관리자 카드 안에 내장할 때)
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <div className="flex flex-col gap-2 rounded-xl border border-dashed border-border p-3">
+        <span className="text-xs font-medium text-ink-3">정산 서류</span>
+        <DocRow dancerId={dancerId} docType="id_card" present={docs.idCard} />
+        <DocRow dancerId={dancerId} docType="bankbook" present={docs.bankbook} />
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
       {showName ? (
