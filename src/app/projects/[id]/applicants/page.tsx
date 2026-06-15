@@ -13,6 +13,7 @@ import {
   type ConsoleApplicant,
 } from "@/components/project/ApplicantsConsole";
 import { SchedulePanel, type ScheduleRow } from "@/components/project/SchedulePanel";
+import { WithdrawalLinkPanel } from "@/components/project/WithdrawalLinkPanel";
 import { formatWhen } from "@/lib/format-when";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 
@@ -45,6 +46,7 @@ type Project = {
   title: string;
   recruitment_count: number;
   schedule_survey_code: string;
+  settlement_share_code: string;
 };
 
 type RecommendedDancer = {
@@ -81,7 +83,7 @@ export default async function ApplicantsPage({
   const projectQuery = supabase
     .from("projects")
     .select(
-      "id, short_code, owner_id, title, recruitment_count, schedule_survey_code",
+      "id, short_code, owner_id, title, recruitment_count, schedule_survey_code, settlement_share_code",
     )
     .is("deleted_at", null);
 
@@ -263,6 +265,8 @@ export default async function ApplicantsPage({
         schedules={scheduleRows}
         surveyUrl={`https://deetz.kr/sr/${p.schedule_survey_code}`}
       />
+
+      <WithdrawalLinkPanel url={`https://deetz.kr/w/${p.settlement_share_code}`} />
 
       {/* 세팅·초대 도구: 접힘 (본업을 가리지 않도록 아래로) */}
       <details className="group rounded-2xl border border-border bg-card">
