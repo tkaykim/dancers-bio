@@ -62,8 +62,8 @@ export function ForgotPasswordForm() {
 
   function verifyAndSet() {
     const token = code.replace(/\s/g, "");
-    if (!/^\d{6}$/.test(token)) {
-      setError("메일로 받은 6자리 코드를 입력해 주세요.");
+    if (!/^\d{6,8}$/.test(token)) {
+      setError("메일로 받은 숫자 인증코드를 입력해 주세요.");
       return;
     }
     if (pw.length < 8) {
@@ -156,15 +156,15 @@ export function ForgotPasswordForm() {
             </p>
           ) : null}
           <div className="flex flex-col gap-2">
-            <Label htmlFor="code">인증코드 (6자리)</Label>
+            <Label htmlFor="code">인증코드</Label>
             <Input
               id="code"
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
+              maxLength={8}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ""))}
-              placeholder="메일로 받은 6자리 숫자"
+              placeholder="메일로 받은 숫자 코드"
             />
           </div>
           <div className="flex flex-col gap-2">
