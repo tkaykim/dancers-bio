@@ -36,17 +36,20 @@ export function ManagersPanel({
 
   const existingIds = new Set(managers.map((m) => m.profile_id));
 
-  const search = useCallback((q: string) => {
-    setQuery(q);
-    if (q.trim().length < 1) {
-      setResults([]);
-      return;
-    }
-    startSearch(async () => {
-      const r = await searchManagerCandidatesAction(q.trim());
-      if (r.ok && r.data) setResults(r.data);
-    });
-  }, []);
+  const search = useCallback(
+    (q: string) => {
+      setQuery(q);
+      if (q.trim().length < 1) {
+        setResults([]);
+        return;
+      }
+      startSearch(async () => {
+        const r = await searchManagerCandidatesAction(q.trim(), projectId);
+        if (r.ok && r.data) setResults(r.data);
+      });
+    },
+    [projectId],
+  );
 
   function add(profileId: string) {
     setError(null);
@@ -169,7 +172,7 @@ export function ManagersPanel({
             type="text"
             value={query}
             onChange={(e) => search(e.target.value)}
-            placeholder="이름 또는 인스타 핸들로 검색..."
+            placeholder="이름 · 이메일 · 인스타 핸들로 검색..."
             autoFocus
             className="h-10 rounded-lg border border-border bg-background px-3 text-sm placeholder:text-ink-3"
           />
@@ -205,6 +208,11 @@ export function ManagersPanel({
                       <p className="truncate text-sm font-medium">
                         {c.display_name}
                       </p>
+                      {c.email ? (
+                        <p className="truncate text-[11px] text-ink-3">
+                          {c.email}
+                        </p>
+                      ) : null}
                       {c.instagram_handle ? (
                         <p className="truncate text-[11px] text-ink-3">
                           @{c.instagram_handle}

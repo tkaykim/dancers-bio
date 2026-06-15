@@ -6,6 +6,7 @@ import {
   requireUser,
 } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionResult } from "./auth";
 
 export type ManagerCandidate = {
@@ -13,24 +14,31 @@ export type ManagerCandidate = {
   display_name: string;
   avatar_url: string | null;
   instagram_handle: string | null;
+  email: string | null;
 };
 
-// 공동관리자로 추가할 "기존 가입 계정" 검색 (이름 또는 인스타 핸들).
+// 공동관리자로 추가할 "기존 가입 계정" 검색 (이름·인스타 핸들·이메일).
+// 이메일 검색은 auth.users 조회라 계정 열거 위험 → 소유자·슈퍼관리자만 허용.
 export async function searchManagerCandidatesAction(
   query: string,
+  projectId: string,
 ): Promise<ActionResult<ManagerCandidate[]>> {
   await requireUser();
+  const pid = (projectId ?? "").trim();
+  if (!pid) return { ok: false, error: "잘못된 요청입니다." };
+  if (!(await isProjectOwnerOrAdmin(pid)))
+    return { ok: false, error: "검색 권한이 없습니다." };
+
   const term = (query ?? "").trim();
   if (term.length < 1) return { ok: true, data: [] };
   const safe = term.replace(/[%_,]/g, "");
   if (!safe) return { ok: true, data: [] };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, display_name, avatar_url, instagram_handle")
-    .or(`display_name.ilike.%${safe}%,instagram_handle.ilike.%${safe}%`)
-    .limit(8);
+  // 서비스롤 전용 RPC로 이름·인스타·이메일 동시 검색.
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("admin_search_manager_candidates", {
+    p_term: safe,
+  });
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: (data ?? []) as unknown as ManagerCandidate[] };
 }
