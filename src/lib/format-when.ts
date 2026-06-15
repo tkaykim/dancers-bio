@@ -1,9 +1,11 @@
 const WDAY = ["일", "월", "화", "수", "목", "금", "토"];
 
 // ISO → "6월 18일(수) 16:00~21:00" (KST). ends 없으면 시작만.
+// timeTbd=true 면 시간 미정 — 날짜만 "6월 18일(수) · 시간 미정".
 export function formatWhen(
   startsAt: string | null,
   endsAt: string | null,
+  timeTbd = false,
 ): string {
   if (!startsAt) return "일정 미정";
   const s = new Date(startsAt);
@@ -12,6 +14,7 @@ export function formatWhen(
   const mo = kst.getUTCMonth() + 1;
   const da = kst.getUTCDate();
   const wd = WDAY[kst.getUTCDay()];
+  if (timeTbd) return `${mo}월 ${da}일(${wd}) · 시간 미정`;
   const hh = String(kst.getUTCHours()).padStart(2, "0");
   const mm = String(kst.getUTCMinutes()).padStart(2, "0");
   let out = `${mo}월 ${da}일(${wd}) ${hh}:${mm}`;

@@ -58,7 +58,8 @@ function toConfirmedScheduleRow(
     role_notes: s.role_notes,
     session_type: s.session_type,
     status: "confirmed",
-    collect_availability: false,
+    collect_availability: true, // 통합: 모든 일정이 가능여부 조사 대상
+    time_tbd: false,
     sort_order: s.sort_order,
   };
 }
@@ -371,68 +372,9 @@ export async function updateProjectAction(
     return { ok: false, error: updErr.message };
   }
 
-  // Sync sessions via full delete + re-insert (no FK refs to project_sessions.id).
-  const count = Number(formData.get("sessions_count") ?? 0);
-  type SessionInsert = {
-    project_id: string;
-    session_type:
-      | "rehearsal"
-      | "main"
-      | "filming"
-      | "fitting"
-      | "meeting"
-      | "other";
-    starts_at: string;
-    ends_at: string | null;
-    location_name: string | null;
-    role_notes: string | null;
-    sort_order: number;
-  };
-  const sessions: SessionInsert[] = [];
-  for (let i = 0; i < count; i++) {
-    const startsRaw = strOrNull(formData, `sessions[${i}][starts_at]`);
-    const startsIso = localDateTimeToIso(startsRaw);
-    if (!startsIso) continue;
-    const endsIso = localDateTimeToIso(
-      strOrNull(formData, `sessions[${i}][ends_at]`),
-    );
-    const sParsed = sessionSchema.safeParse({
-      session_type: (formData.get(`sessions[${i}][type]`) ?? "main").toString(),
-      starts_at: startsIso,
-      ends_at: endsIso,
-      location_name: strOrNull(formData, `sessions[${i}][location_name]`),
-      role_notes: strOrNull(formData, `sessions[${i}][role_notes]`),
-      sort_order: i,
-    });
-    if (sParsed.success) {
-      sessions.push({
-        project_id: parsed.data.id,
-        session_type: sParsed.data.session_type,
-        starts_at: sParsed.data.starts_at,
-        ends_at: sParsed.data.ends_at ?? null,
-        location_name: sParsed.data.location_name ?? null,
-        role_notes: sParsed.data.role_notes ?? null,
-        sort_order: sParsed.data.sort_order,
-      });
-    }
-  }
-
-  // 확정 일정만 동기화(삭제+재삽입). ⚠ status='confirmed'로 한정 — 후보(tentative)
-  // 일정과 거기 달린 응답은 절대 건드리지 않는다.
-  const { error: delErr } = await supabase
-    .from("project_schedules")
-    .delete()
-    .eq("project_id", parsed.data.id)
-    .eq("status", "confirmed");
-  if (delErr) return { ok: false, error: `세션 갱신 실패: ${delErr.message}` };
-
-  if (sessions.length > 0) {
-    const { error: insErr } = await supabase
-      .from("project_schedules")
-      .insert(sessions.map((s) => toConfirmedScheduleRow(s, parsed.data.id)));
-    if (insErr)
-      return { ok: false, error: `세션 저장 실패: ${insErr.message}` };
-  }
+  // ⚠ 일정은 여기서 절대 건드리지 않는다(삭제·재삽입 금지).
+  // 일정 추가/삭제는 지원자 콘솔의 일정 패널에서 개별 관리 → 이미 제출된 응답 보존.
+  // (이전엔 수정 시 delete+재삽입이 응답을 날릴 위험이 있었음)
 
   revalidatePath(`/projects/${parsed.data.id}`);
   revalidatePath("/admin/projects");

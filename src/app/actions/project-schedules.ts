@@ -238,7 +238,7 @@ export async function sendProjectScheduleRequestsAction(
 
   const { data: schRows } = await admin
     .from("project_schedules")
-    .select("label, starts_at, ends_at, location")
+    .select("label, starts_at, ends_at, time_tbd")
     .eq("project_id", projectId)
     .eq("collect_availability", true)
     .order("starts_at", { ascending: true, nullsFirst: false })
@@ -247,14 +247,14 @@ export async function sendProjectScheduleRequestsAction(
     label: string;
     starts_at: string | null;
     ends_at: string | null;
-    location: string | null;
+    time_tbd: boolean;
   }>;
   if (schedules.length === 0)
-    return { ok: false, error: "발송할 후보 일정이 없습니다." };
+    return { ok: false, error: "발송할 일정이 없습니다." };
   const mailSchedules = schedules.map((s) => ({
     label: s.label,
-    whenText: formatWhen(s.starts_at, s.ends_at),
-    locationText: s.location ?? null,
+    whenText: formatWhen(s.starts_at, s.ends_at, s.time_tbd),
+    locationText: null, // 지원자 메일에는 장소 비노출 (대외비)
   }));
 
   // 대상: 탈락 제외(대기+수락) 지원자, 댄서별 중복 제거

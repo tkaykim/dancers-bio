@@ -34,7 +34,7 @@ export default async function ScheduleSurveyPage({
 
   const { data: schedRows } = await admin
     .from("project_schedules")
-    .select("id, label, starts_at, ends_at, location, note")
+    .select("id, label, starts_at, ends_at, note, time_tbd")
     .eq("project_id", projectId)
     .eq("collect_availability", true)
     .order("starts_at", { ascending: true, nullsFirst: false })
@@ -44,8 +44,8 @@ export default async function ScheduleSurveyPage({
     label: string;
     starts_at: string | null;
     ends_at: string | null;
-    location: string | null;
     note: string | null;
+    time_tbd: boolean;
   }>;
 
   const user = await getUser();
@@ -94,8 +94,8 @@ export default async function ScheduleSurveyPage({
   const items: SurveyItem[] = schedules.map((s) => ({
     id: s.id,
     label: s.label,
-    whenText: formatWhen(s.starts_at, s.ends_at),
-    location: s.location ?? null,
+    whenText: formatWhen(s.starts_at, s.ends_at, s.time_tbd),
+    location: null, // 지원자 화면에는 장소 비노출 (대외비)
     note: s.note ?? null,
     status: prior[s.id]?.status ?? null,
     timeSlots: prior[s.id]?.timeSlots ?? null,

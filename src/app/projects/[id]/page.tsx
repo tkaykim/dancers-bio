@@ -11,10 +11,10 @@ import { deadlineLabel, isExpired } from "@/lib/utils/deadline";
 import { formatBytes } from "@/lib/storage/dancer-portfolio-file";
 import {
   PAY_TYPE_LABELS,
-  SESSION_TYPE_LABELS,
   STATUS_LABELS,
   VISIBILITY_LABELS,
 } from "@/lib/validation/projects";
+import { formatWhen } from "@/lib/format-when";
 
 // 설명글 안의 http(s) URL을 클릭 가능한 링크로 변환.
 // 텍스트 조각은 React가 자동 이스케이프하므로 XSS 안전 (dangerouslySetInnerHTML 미사용).
@@ -100,11 +100,10 @@ type ProjectRow = {
 
 type SessionRow = {
   id: string;
-  session_type: keyof typeof SESSION_TYPE_LABELS;
-  starts_at: string;
+  label: string;
+  starts_at: string | null;
   ends_at: string | null;
-  location_name: string | null;
-  role_notes: string | null;
+  time_tbd: boolean;
   sort_order: number;
 };
 
@@ -115,17 +114,6 @@ type ApplicationRow = {
   dancer_id: string | null;
 };
 
-
-function fmtDateTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("ko-KR", {
-    month: "numeric",
-    day: "numeric",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 function fmtPay(p: { pay_amount: number | null; pay_type: string | null }): string {
   if (!p.pay_amount && p.pay_type !== "negotiable") return "협의";
@@ -175,13 +163,10 @@ export default async function ProjectDetailPage({
   ] = await Promise.all([
     supabase
       .from("project_schedules")
-      .select(
-        "id, session_type, starts_at, ends_at, location_name:location, role_notes, sort_order",
-      )
+      .select("id, label, starts_at, ends_at, time_tbd, sort_order")
       .eq("project_id", id)
-      .eq("status", "confirmed")
-      .order("sort_order")
-      .order("starts_at"),
+      .order("starts_at", { ascending: true, nullsFirst: false })
+      .order("sort_order"),
     supabase.from("profiles").select("display_name, id").eq("id", p.owner_id).single(),
     supabase
       .from("project_attachments")
@@ -371,18 +356,12 @@ export default async function ProjectDetailPage({
             {sessions.map((s) => (
               <li
                 key={s.id}
-                className="flex flex-col gap-1 rounded-xl border border-border bg-card p-3"
+                className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card p-3"
               >
-                <div className="flex items-center justify-between">
-                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px]">
-                    {SESSION_TYPE_LABELS[s.session_type]}
-                  </span>
-                  <span className="font-mono text-[11px] text-ink-3">
-                    {fmtDateTime(s.starts_at)}
-                  </span>
-                </div>
-                {s.location_name ? <p className="text-sm">{s.location_name}</p> : null}
-                {s.role_notes ? <p className="text-xs text-ink-3">{s.role_notes}</p> : null}
+                <span className="text-sm font-medium">{s.label}</span>
+                <span className="shrink-0 text-xs text-ink-2">
+                  {formatWhen(s.starts_at, s.ends_at, s.time_tbd)}
+                </span>
               </li>
             ))}
           </ul>

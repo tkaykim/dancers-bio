@@ -307,7 +307,8 @@ export async function publishIngestionAction(
       role_notes: s.role_notes,
       session_type: s.session_type,
       status: "confirmed",
-      collect_availability: false,
+      collect_availability: true,
+      time_tbd: false,
       sort_order: s.sort_order,
     }));
     const { error: sErr } = await supabase

@@ -186,9 +186,8 @@ export default async function ApplicantsPage({
   ).length;
   const { data: schedRows } = await supabase
     .from("project_schedules")
-    .select("id, label, starts_at, ends_at, location")
+    .select("id, label, starts_at, ends_at, location, time_tbd")
     .eq("project_id", p.id)
-    .eq("collect_availability", true)
     .order("starts_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
   const schedList = (schedRows ?? []) as Array<{
@@ -197,6 +196,7 @@ export default async function ApplicantsPage({
     starts_at: string | null;
     ends_at: string | null;
     location: string | null;
+    time_tbd: boolean;
   }>;
   const respCounts: Record<
     string,
@@ -233,7 +233,7 @@ export default async function ApplicantsPage({
     return {
       id: s.id,
       label: s.label,
-      whenText: formatWhen(s.starts_at, s.ends_at),
+      whenText: formatWhen(s.starts_at, s.ends_at, s.time_tbd),
       location: s.location ?? null,
       ...c,
     };
