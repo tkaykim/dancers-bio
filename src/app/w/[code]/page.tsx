@@ -105,7 +105,7 @@ export default async function WithdrawSharePage({
 
   const { data: s } = await admin
     .from("settlements")
-    .select("id, gross_amount, withholding_rate, status")
+    .select("id, gross_amount, withholding_rate, status, paid_at")
     .eq("project_id", projectId)
     .eq("dancer_id", dancerId)
     .maybeSingle();
@@ -137,6 +137,7 @@ export default async function WithdrawSharePage({
       grossAmount: s.gross_amount as number,
       rate: Number(s.withholding_rate),
       status: s.status as SettlementStatus,
+      paidAt: (s.paid_at as string | null) ?? null,
     },
   ];
   const accounts: Record<string, PayoutAccount | null> = {

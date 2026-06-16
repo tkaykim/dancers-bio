@@ -15,6 +15,8 @@ import {
   Bot,
   Shield,
   BarChart3,
+  Wallet,
+  Receipt,
 } from "lucide-react";
 
 type Item = {
@@ -54,6 +56,13 @@ const GROUPS: Group[] = [
       { href: "/admin/dancers/discovery", label: "발견 / 스크랩", Icon: Search },
       { href: "/admin/dancers/ingestions", label: "댄서 검수", Icon: ClipboardCheck },
       { href: "/admin/dancers/outreach", label: "아웃리치", Icon: Send },
+    ],
+  },
+  {
+    title: "정산",
+    items: [
+      { href: "/admin/settlements", label: "정산 처리", Icon: Wallet, exact: true },
+      { href: "/admin/settlements/ledger", label: "지급 장부", Icon: Receipt },
     ],
   },
   {

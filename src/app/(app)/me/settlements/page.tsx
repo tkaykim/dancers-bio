@@ -58,6 +58,7 @@ export default async function MySettlementsPage() {
         grossAmount: r.gross_amount,
         rate: Number(r.withholding_rate),
         status: r.status,
+        paidAt: r.paid_at,
       };
     });
 

@@ -27,7 +27,23 @@ export type MySettlementRow = {
   grossAmount: number;
   rate: number;
   status: SettlementStatus;
+  paidAt: string | null;
 };
+
+function fmtDateKST(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(d)
+    .replace(/\. /g, ".")
+    .replace(/\.$/, "");
+}
 
 export type PayoutAccount = {
   bankName: string;
@@ -58,17 +74,37 @@ export function MySettlements({
     0,
   );
 
+  // 올해 받은 정산 = 입금완료(paid) 건 중 올해 입금된 실수령 합계.
+  const thisYear = new Date().getFullYear();
+  const receivedThisYear = settlements.reduce((sum, s) => {
+    if (s.status !== "paid" || !s.paidAt) return sum;
+    return new Date(s.paidAt).getFullYear() === thisYear
+      ? sum + calcSettlement(s.grossAmount, s.rate).net
+      : sum;
+  }, 0);
+
   return (
     <div className="flex flex-col gap-6">
-      {/* 출금 가능 잔액 요약 */}
-      <section className="flex flex-col gap-1.5 rounded-2xl border border-border bg-gradient-to-br from-primary/10 to-card p-5">
-        <span className="text-xs font-medium text-ink-3">출금 가능 금액</span>
-        <span className="text-3xl font-extrabold tracking-tight text-foreground">
-          {formatWon(withdrawableGross)}
-        </span>
-        <span className="text-[11px] text-ink-3">
-          정산완료 {pendingRows.length}건 · 출금 시 세금 3.3% 공제 후 입금돼요
-        </span>
+      {/* 출금 가능 잔액 + 올해 받은 정산 요약 */}
+      <section className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-1 rounded-2xl border border-border bg-gradient-to-br from-primary/10 to-card p-4">
+          <span className="text-[11px] font-medium text-ink-3">출금 가능 금액</span>
+          <span className="text-2xl font-extrabold tracking-tight text-foreground">
+            {formatWon(withdrawableGross)}
+          </span>
+          <span className="text-[10px] text-ink-3">
+            정산완료 {pendingRows.length}건 · 출금 시 3.3% 세금 공제
+          </span>
+        </div>
+        <div className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-4">
+          <span className="text-[11px] font-medium text-ink-3">올해 받은 정산</span>
+          <span className="text-2xl font-extrabold tracking-tight text-foreground">
+            {formatWon(receivedThisYear)}
+          </span>
+          <span className="text-[10px] text-ink-3">
+            {thisYear}년 입금완료 실수령 기준
+          </span>
+        </div>
       </section>
 
       {/* 입금 계좌 */}
@@ -168,6 +204,7 @@ export function MySettlements({
                   {s.status === "paid" ? (
                     <p className="text-xs text-emerald-600">
                       입금이 완료되었어요.
+                      {s.paidAt ? ` · ${fmtDateKST(s.paidAt)} 입금` : ""}
                     </p>
                   ) : null}
                 </li>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -115,7 +116,15 @@ export default async function AdminSettlementsPage() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 관리자</p>
-        <h1 className="text-2xl font-bold tracking-tight leading-tight">정산 · 출금 처리</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold tracking-tight leading-tight">정산 · 출금 처리</h1>
+          <Link
+            href="/admin/settlements/ledger"
+            className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-secondary"
+          >
+            지급 장부 →
+          </Link>
+        </div>
         <p className="text-sm text-ink-3">
           댄서가 출금 신청한 건을 처리하고, 신분증·통장사본을 직접 올리거나 대조할 수
           있어요. 실제 통장에서 이체한 뒤 &lsquo;이체 완료 처리&rsquo;를 누르면 댄서
