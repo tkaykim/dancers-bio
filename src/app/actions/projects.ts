@@ -12,7 +12,6 @@ import {
   agreedPaySchema,
   projectSchema,
   projectUpdateSchema,
-  sessionSchema,
 } from "@/lib/validation/projects";
 import type { ActionResult } from "./auth";
 
@@ -26,42 +25,6 @@ function localDateTimeToIso(value: string | null): string | null {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
-}
-
-// 확정 일정(구 project_sessions)을 통합 테이블 project_schedules에 쓰기 위한 매퍼.
-// status='confirmed', collect_availability=false (공고 노출용 / 기본은 가능여부 취합 대상 아님).
-const SESSION_LABEL_KO: Record<string, string> = {
-  rehearsal: "연습",
-  main: "본무대",
-  filming: "촬영",
-  fitting: "피팅",
-  meeting: "미팅",
-  other: "일정",
-};
-function toConfirmedScheduleRow(
-  s: {
-    session_type: string;
-    starts_at: string;
-    ends_at: string | null;
-    location_name: string | null;
-    role_notes: string | null;
-    sort_order: number;
-  },
-  projectId: string,
-) {
-  return {
-    project_id: projectId,
-    label: SESSION_LABEL_KO[s.session_type] ?? "일정",
-    starts_at: s.starts_at,
-    ends_at: s.ends_at,
-    location: s.location_name,
-    role_notes: s.role_notes,
-    session_type: s.session_type,
-    status: "confirmed",
-    collect_availability: true, // 통합: 모든 일정이 가능여부 조사 대상
-    time_tbd: false,
-    sort_order: s.sort_order,
-  };
 }
 
 export async function createProjectAction(
@@ -95,41 +58,6 @@ export async function createProjectAction(
       ok: false,
       error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
     };
-  }
-
-  // Parse sessions (form encodes count + indexed entries)
-  const count = Number(formData.get("sessions_count") ?? 0);
-  const sessions: Array<{
-    session_type: "rehearsal" | "main" | "filming" | "fitting" | "meeting" | "other";
-    starts_at: string;
-    ends_at: string | null;
-    location_name: string | null;
-    role_notes: string | null;
-    sort_order: number;
-  }> = [];
-  for (let i = 0; i < count; i++) {
-    const startsRaw = strOrNull(formData, `sessions[${i}][starts_at]`);
-    const startsIso = localDateTimeToIso(startsRaw);
-    if (!startsIso) continue;
-    const endsIso = localDateTimeToIso(strOrNull(formData, `sessions[${i}][ends_at]`));
-    const sParsed = sessionSchema.safeParse({
-      session_type: (formData.get(`sessions[${i}][type]`) ?? "main").toString(),
-      starts_at: startsIso,
-      ends_at: endsIso,
-      location_name: strOrNull(formData, `sessions[${i}][location_name]`),
-      role_notes: strOrNull(formData, `sessions[${i}][role_notes]`),
-      sort_order: i,
-    });
-    if (sParsed.success) {
-      sessions.push({
-        session_type: sParsed.data.session_type,
-        starts_at: sParsed.data.starts_at,
-        ends_at: sParsed.data.ends_at ?? null,
-        location_name: sParsed.data.location_name ?? null,
-        role_notes: sParsed.data.role_notes ?? null,
-        sort_order: sParsed.data.sort_order,
-      });
-    }
   }
 
   const supabase = await createClient();
@@ -174,14 +102,7 @@ export async function createProjectAction(
     return { ok: false, error: error.message };
   }
 
-  if (sessions.length > 0) {
-    const { error: sErr } = await supabase
-      .from("project_schedules")
-      .insert(sessions.map((s) => toConfirmedScheduleRow(s, project.id)));
-    if (sErr) return { ok: false, error: `세션 저장 실패: ${sErr.message}` };
-  }
-
-  // 후보 일정 (가능여부 조사용 project_schedules) — 비치명적.
+  // 일정 (project_schedules) — 비치명적. 모든 일정이 가능여부 조사 대상.
   const schedCount = Number(formData.get("schedules_count") ?? 0);
   if (schedCount > 0) {
     const toIso = (v: string | null) => {
@@ -196,19 +117,24 @@ export async function createProjectAction(
       ends_at: string | null;
       location: string | null;
       note: string | null;
+      time_tbd: boolean;
       sort_order: number;
       created_by: string;
     }> = [];
     for (let i = 0; i < schedCount; i++) {
       const label = strOrNull(formData, `schedules[${i}][label]`);
       if (!label) continue;
+      const timeTbd = formData.get(`schedules[${i}][time_tbd]`) === "true";
       schedRows.push({
         project_id: project.id as string,
         label,
         starts_at: toIso(strOrNull(formData, `schedules[${i}][starts_at]`)),
-        ends_at: toIso(strOrNull(formData, `schedules[${i}][ends_at]`)),
+        ends_at: timeTbd
+          ? null
+          : toIso(strOrNull(formData, `schedules[${i}][ends_at]`)),
         location: strOrNull(formData, `schedules[${i}][location]`),
         note: strOrNull(formData, `schedules[${i}][note]`),
+        time_tbd: timeTbd,
         sort_order: i,
         created_by: creator.id,
       });

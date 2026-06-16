@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  SESSION_TYPE_LABELS,
   PROJECT_CATEGORY_LABELS,
   PROJECT_CATEGORY_ORDER,
   type ProjectCategory,
@@ -20,21 +19,7 @@ import { formatBytes } from "@/lib/storage/dancer-portfolio-file";
 
 type Lookup = { id: string; label_ko: string }[];
 
-type SessionRow = {
-  type: keyof typeof SESSION_TYPE_LABELS;
-  starts_at: string;
-  location_name: string;
-  role_notes: string;
-};
-
-const emptySession: SessionRow = {
-  type: "main",
-  starts_at: "",
-  location_name: "",
-  role_notes: "",
-};
-
-// 후보 일정 (가능여부 조사용 — project_schedules). 확정 세션과 별개.
+// 일정 (project_schedules). 모든 일정이 가능여부 조사 대상.
 type ScheduleDraft = {
   label: string;
   date: string;
@@ -59,7 +44,6 @@ export function ProjectForm({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [sessions, setSessions] = useState<SessionRow[]>([{ ...emptySession }]);
   const [schedules, setSchedules] = useState<ScheduleDraft[]>([]);
   const [payDisplay, setPayDisplay] = useState<string>("");
   const [category, setCategory] = useState<ProjectCategory | "">("");
@@ -105,18 +89,6 @@ export function ProjectForm({
     setPayDisplay(num.toLocaleString("ko-KR"));
   }
 
-  function updateSession(i: number, patch: Partial<SessionRow>) {
-    setSessions((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
-  }
-
-  function addSession() {
-    setSessions((prev) => [...prev, { ...emptySession }]);
-  }
-
-  function removeSession(i: number) {
-    setSessions((prev) => prev.filter((_, idx) => idx !== i));
-  }
-
   function updateSchedule(i: number, patch: Partial<ScheduleDraft>) {
     setSchedules((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   }
@@ -140,27 +112,21 @@ export function ProjectForm({
         formData.set("category", category);
         // attach uploaded reference files (metadata JSON)
         formData.set("attachments", JSON.stringify(attachments));
-        // attach sessions
-        formData.set("sessions_count", String(sessions.length));
-        sessions.forEach((s, i) => {
-          formData.set(`sessions[${i}][type]`, s.type);
-          formData.set(`sessions[${i}][starts_at]`, s.starts_at);
-          formData.set(`sessions[${i}][location_name]`, s.location_name);
-          formData.set(`sessions[${i}][role_notes]`, s.role_notes);
-        });
-        // attach candidate schedules (가능여부 조사용 — project_schedules)
+        // attach schedules (모든 일정 = 가능여부 조사 대상). 시간 비우면 time_tbd(날짜만).
         const validSchedules = schedules.filter((s) => s.label.trim() && s.date);
         formData.set("schedules_count", String(validSchedules.length));
         validSchedules.forEach((s, i) => {
+          const tbd = !s.start;
           formData.set(`schedules[${i}][label]`, s.label.trim());
           formData.set(
             `schedules[${i}][starts_at]`,
-            s.start ? `${s.date}T${s.start}:00+09:00` : "",
+            `${s.date}T${s.start || "00:00"}:00+09:00`,
           );
           formData.set(
             `schedules[${i}][ends_at]`,
-            s.end ? `${s.date}T${s.end}:00+09:00` : "",
+            !tbd && s.end ? `${s.date}T${s.end}:00+09:00` : "",
           );
+          formData.set(`schedules[${i}][time_tbd]`, tbd ? "true" : "false");
           formData.set(`schedules[${i}][location]`, s.location.trim());
         });
         startTransition(async () => {
@@ -407,80 +373,7 @@ export function ProjectForm({
 
       <fieldset className="flex flex-col gap-3 rounded-xl border border-border p-4">
         <div className="flex items-center justify-between">
-          <legend className="text-sm font-semibold">일정</legend>
-          <button
-            type="button"
-            onClick={addSession}
-            className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
-          >
-            + 추가
-          </button>
-        </div>
-        {sessions.map((s, i) => (
-          <div
-            key={i}
-            className="flex flex-col gap-2 rounded-md border border-border bg-secondary/40 p-3"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-ink-2">#{i + 1}</span>
-              {sessions.length > 1 ? (
-                <button
-                  type="button"
-                  onClick={() => removeSession(i)}
-                  className="text-xs text-destructive hover:underline"
-                >
-                  제거
-                </button>
-              ) : null}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={s.type}
-                onChange={(e) =>
-                  updateSession(i, {
-                    type: e.target.value as SessionRow["type"],
-                  })
-                }
-                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-              >
-                {Object.entries(SESSION_TYPE_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-              <Input
-                type="datetime-local"
-                value={s.starts_at}
-                onChange={(e) =>
-                  updateSession(i, { starts_at: e.target.value })
-                }
-                required
-              />
-            </div>
-            <Input
-              placeholder="장소 (선택)"
-              value={s.location_name}
-              onChange={(e) =>
-                updateSession(i, { location_name: e.target.value })
-              }
-              maxLength={120}
-            />
-            <Input
-              placeholder="역할 메모 (선택)"
-              value={s.role_notes}
-              onChange={(e) => updateSession(i, { role_notes: e.target.value })}
-              maxLength={500}
-            />
-          </div>
-        ))}
-      </fieldset>
-
-      <fieldset className="flex flex-col gap-3 rounded-xl border border-border p-4">
-        <div className="flex items-center justify-between">
-          <legend className="text-sm font-semibold">
-            후보 일정 가능여부 조사 (선택)
-          </legend>
+          <legend className="text-sm font-semibold">일정 (선택)</legend>
           <button
             type="button"
             onClick={addSchedule}
@@ -490,8 +383,9 @@ export function ProjectForm({
           </button>
         </div>
         <p className="text-xs text-muted-foreground">
-          확정 전 후보 날짜를 넣어두면, 개설 후 지원자(대기·수락)에게 가능여부를
-          물어볼 수 있습니다. 단톡방 공유 링크도 일정별로 생성됩니다.
+          연습·촬영 등 일정을 넣어두면 개설 후 지원자(대기·수락)에게 가능여부를
+          물어볼 수 있어요. 시간을 비우면 &apos;시간 미정&apos;(날짜만)으로
+          등록되고, 장소는 지원자에게 비공개입니다.
         </p>
         {schedules.length === 0 ? null : (
           schedules.map((s, i) => (
