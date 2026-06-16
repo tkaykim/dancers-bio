@@ -74,14 +74,23 @@ export function MySettlements({
     0,
   );
 
-  // 올해 받은 정산 = 입금완료(paid) 건 중 올해 입금된 실수령 합계.
+  // 받은 정산 = 입금완료(paid) 건의 실수령 — 연도별로 확인(작년치도).
   const thisYear = new Date().getFullYear();
-  const receivedThisYear = settlements.reduce((sum, s) => {
-    if (s.status !== "paid" || !s.paidAt) return sum;
-    return new Date(s.paidAt).getFullYear() === thisYear
-      ? sum + calcSettlement(s.grossAmount, s.rate).net
-      : sum;
-  }, 0);
+  const paidRows = settlements.filter((s) => s.status === "paid" && s.paidAt);
+  const availableYears = [
+    ...new Set([
+      thisYear,
+      ...paidRows.map((s) => new Date(s.paidAt as string).getFullYear()),
+    ]),
+  ].sort((a, b) => b - a);
+  const [receivedYear, setReceivedYear] = useState(thisYear);
+  const receivedForYear = paidRows.reduce(
+    (sum, s) =>
+      new Date(s.paidAt as string).getFullYear() === receivedYear
+        ? sum + calcSettlement(s.grossAmount, s.rate).net
+        : sum,
+    0,
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -97,13 +106,29 @@ export function MySettlements({
           </span>
         </div>
         <div className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-4">
-          <span className="text-[11px] font-medium text-ink-3">올해 받은 정산</span>
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[11px] font-medium text-ink-3">받은 정산</span>
+            {availableYears.length > 1 ? (
+              <select
+                value={receivedYear}
+                onChange={(e) => setReceivedYear(Number(e.target.value))}
+                aria-label="연도 선택"
+                className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-ink-2 outline-none focus:border-primary"
+              >
+                {availableYears.map((y) => (
+                  <option key={y} value={y}>
+                    {y}년
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-[10px] text-ink-3">{receivedYear}년</span>
+            )}
+          </div>
           <span className="text-2xl font-extrabold tracking-tight text-foreground">
-            {formatWon(receivedThisYear)}
+            {formatWon(receivedForYear)}
           </span>
-          <span className="text-[10px] text-ink-3">
-            {thisYear}년 입금완료 실수령 기준
-          </span>
+          <span className="text-[10px] text-ink-3">입금완료 실수령 기준</span>
         </div>
       </section>
 

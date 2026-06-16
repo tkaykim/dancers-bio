@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Download, Search } from "lucide-react";
 import { formatWon } from "@/lib/settlement";
 
@@ -61,6 +62,18 @@ export function SettlementLedger({
   to: string | null;
 }) {
   const [q, setQ] = useState("");
+  const router = useRouter();
+  const [showCustom, setShowCustom] = useState(period === "custom");
+  const [cFrom, setCFrom] = useState(from ?? "");
+  const [cTo, setCTo] = useState(to ?? "");
+
+  function applyCustom() {
+    if (!cFrom && !cTo) return;
+    const params = new URLSearchParams({ period: "custom" });
+    if (cFrom) params.set("from", cFrom);
+    if (cTo) params.set("to", cTo);
+    router.push(`/admin/settlements/ledger?${params.toString()}`);
+  }
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -136,29 +149,68 @@ export function SettlementLedger({
   return (
     <div className="flex flex-col gap-5">
       {/* 기간 탭 */}
-      <div className="flex flex-wrap gap-1.5">
-        {(["month", "year", "all"] as const).map((p) => {
-          const active = period === p;
-          return (
-            <Link
-              key={p}
-              href={`/admin/settlements/ledger?period=${p}`}
-              aria-current={active ? "page" : undefined}
-              className={
-                "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors " +
-                (active
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-border text-ink-2 hover:bg-secondary")
-              }
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {(["month", "year", "all"] as const).map((p) => {
+            const active = period === p;
+            return (
+              <Link
+                key={p}
+                href={`/admin/settlements/ledger?period=${p}`}
+                aria-current={active ? "page" : undefined}
+                className={
+                  "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors " +
+                  (active
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border text-ink-2 hover:bg-secondary")
+                }
+              >
+                {PERIOD_LABEL[p]}
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setShowCustom((v) => !v)}
+            aria-pressed={period === "custom" || showCustom}
+            className={
+              "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors " +
+              (period === "custom"
+                ? "bg-primary text-primary-foreground"
+                : "border border-border text-ink-2 hover:bg-secondary")
+            }
+          >
+            직접 선택
+          </button>
+        </div>
+
+        {showCustom ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
+            <input
+              type="date"
+              value={cFrom}
+              max={cTo || undefined}
+              onChange={(e) => setCFrom(e.target.value)}
+              className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-primary"
+            />
+            <span className="text-xs text-ink-3">~</span>
+            <input
+              type="date"
+              value={cTo}
+              min={cFrom || undefined}
+              onChange={(e) => setCTo(e.target.value)}
+              className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-primary"
+            />
+            <button
+              type="button"
+              onClick={applyCustom}
+              disabled={!cFrom && !cTo}
+              className="rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
             >
-              {PERIOD_LABEL[p]}
-            </Link>
-          );
-        })}
-        {period === "custom" ? (
-          <span className="rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground">
-            {from ?? "…"} ~ {to ?? "…"}
-          </span>
+              적용
+            </button>
+            <span className="text-[11px] text-ink-3">입금일(KST) 기준</span>
+          </div>
         ) : null}
       </div>
 
