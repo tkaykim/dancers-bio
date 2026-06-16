@@ -10,6 +10,7 @@ import {
   verifyProjectSurveyToken,
 } from "@/lib/quick-token";
 import { buildScheduleRequestEmail } from "@/lib/notify/schedule-mail";
+import { notify } from "@/lib/notify";
 import { formatWhen } from "@/lib/format-when";
 import { sendGmailEmail } from "@/lib/gmail";
 import type { ActionResult } from "./auth";
@@ -38,23 +39,102 @@ export async function createScheduleAction(
   if (!(await canManageProject(projectId)))
     return { ok: false, error: "권한이 없습니다." };
 
+  const startsRaw = strOrNull(fd, "starts_at");
+  const timeTbd = fd.get("time_tbd") === "true" || !startsRaw;
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("project_schedules")
     .insert({
       project_id: projectId,
       label,
-      starts_at: isoOrNull(strOrNull(fd, "starts_at")),
-      ends_at: isoOrNull(strOrNull(fd, "ends_at")),
+      starts_at: isoOrNull(startsRaw),
+      ends_at: timeTbd ? null : isoOrNull(strOrNull(fd, "ends_at")),
       location: strOrNull(fd, "location"),
       note: strOrNull(fd, "note"),
+      time_tbd: timeTbd,
       created_by: user.id,
     })
     .select("id")
     .single();
   if (error) return { ok: false, error: error.message };
+
+  // 새 일정 추가 → 대기·수락 지원자에게 인앱 + 웹푸시 알림 (비치명적).
+  // "일정이 추가됐어요, 가능여부를 알려주세요" — 이미 응답한 사람도 다시 인지 가능.
+  await notifyScheduleAdded(projectId, label);
+
   revalidatePath(`/projects/${projectId}/applicants`);
   return { ok: true, data: { id: data.id as string } };
+}
+
+// 일정 추가 알림: 프로젝트의 대기+수락 지원자(중복 제거)에게 in-app+push.
+async function notifyScheduleAdded(
+  projectId: string,
+  scheduleLabel: string,
+): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const [{ data: proj }, { data: apps }] = await Promise.all([
+      admin
+        .from("projects")
+        .select("title, schedule_survey_code")
+        .eq("id", projectId)
+        .maybeSingle(),
+      admin
+        .from("applications")
+        .select("applicant_id, dancer_id")
+        .eq("project_id", projectId)
+        .is("archived_at", null)
+        .in("status", ["pending", "accepted"]),
+    ]);
+    const recipientIds = new Set<string>();
+    const danceronlyIds: string[] = [];
+    for (const a of (apps ?? []) as Array<{
+      applicant_id: string | null;
+      dancer_id: string | null;
+    }>) {
+      if (a.applicant_id) recipientIds.add(a.applicant_id);
+      else if (a.dancer_id) danceronlyIds.push(a.dancer_id);
+    }
+    // applicant_id 없는 다이렉트 제안 건은 클레임 댄서 계정(profile_id)로.
+    if (danceronlyIds.length > 0) {
+      const { data: ds } = await admin
+        .from("dancers")
+        .select("profile_id")
+        .in("id", danceronlyIds)
+        .not("profile_id", "is", null);
+      for (const d of (ds ?? []) as Array<{ profile_id: string | null }>) {
+        if (d.profile_id) recipientIds.add(d.profile_id);
+      }
+    }
+    if (recipientIds.size === 0) return;
+
+    const title = (proj?.title as string) ?? "프로젝트";
+    const code = proj?.schedule_survey_code as string | null;
+    const url = code ? `/sr/${code}` : `/projects/${projectId}`;
+    await Promise.all(
+      [...recipientIds].map((rid) =>
+        notify({
+          recipientId: rid,
+          type: "project_session_reminder",
+          payload: {
+            kind: "schedule_added",
+            project_id: projectId,
+            project_title: title,
+            schedule_label: scheduleLabel,
+            url,
+          },
+          push: {
+            title: "새 일정 안내",
+            body: `${title} — 새 일정이 추가됐어요. 가능 여부를 알려주세요.`,
+            url,
+          },
+        }),
+      ),
+    );
+  } catch {
+    // 알림 실패는 무시 (일정 추가 자체는 성공).
+  }
 }
 
 export async function deleteScheduleAction(fd: FormData): Promise<ActionResult> {

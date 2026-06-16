@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  SESSION_TYPE_LABELS,
   STATUS_LABELS,
   PROJECT_CATEGORY_LABELS,
   PROJECT_CATEGORY_ORDER,
@@ -15,13 +14,6 @@ import {
 } from "@/lib/validation/projects";
 
 type Lookup = { id: string; label_ko: string }[];
-
-type SessionRow = {
-  type: keyof typeof SESSION_TYPE_LABELS;
-  starts_at: string;
-  location_name: string;
-  role_notes: string;
-};
 
 export type ProjectEditInitial = {
   id: string;
@@ -50,38 +42,14 @@ function toLocalInput(iso: string | null): string {
 
 export function ProjectEditForm({
   initial,
-  initialSessions,
   genres,
 }: {
   initial: ProjectEditInitial;
-  initialSessions: Array<{
-    session_type: keyof typeof SESSION_TYPE_LABELS;
-    starts_at: string;
-    location_name: string | null;
-    role_notes: string | null;
-  }>;
   genres: Lookup;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [sessions, setSessions] = useState<SessionRow[]>(
-    initialSessions.length > 0
-      ? initialSessions.map((s) => ({
-          type: s.session_type,
-          starts_at: toLocalInput(s.starts_at),
-          location_name: s.location_name ?? "",
-          role_notes: s.role_notes ?? "",
-        }))
-      : [
-          {
-            type: "main",
-            starts_at: "",
-            location_name: "",
-            role_notes: "",
-          },
-        ],
-  );
   const [payDisplay, setPayDisplay] = useState<string>(
     initial.pay_amount !== null ? initial.pay_amount.toLocaleString("ko-KR") : "",
   );
@@ -99,21 +67,6 @@ export function ProjectEditForm({
     setPayDisplay(Number(trimmed).toLocaleString("ko-KR"));
   }
 
-  function updateSession(i: number, patch: Partial<SessionRow>) {
-    setSessions((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
-  }
-
-  function addSession() {
-    setSessions((prev) => [
-      ...prev,
-      { type: "main", starts_at: "", location_name: "", role_notes: "" },
-    ]);
-  }
-
-  function removeSession(i: number) {
-    setSessions((prev) => prev.filter((_, idx) => idx !== i));
-  }
-
   return (
     <form
       action={(formData) => {
@@ -121,13 +74,6 @@ export function ProjectEditForm({
         const payRaw = (formData.get("pay_amount") ?? "").toString();
         formData.set("pay_amount", payRaw.replace(/[^\d]/g, ""));
         formData.set("category", category);
-        formData.set("sessions_count", String(sessions.length));
-        sessions.forEach((s, i) => {
-          formData.set(`sessions[${i}][type]`, s.type);
-          formData.set(`sessions[${i}][starts_at]`, s.starts_at);
-          formData.set(`sessions[${i}][location_name]`, s.location_name);
-          formData.set(`sessions[${i}][role_notes]`, s.role_notes);
-        });
         startTransition(async () => {
           const result = await updateProjectAction(formData);
           if (!result.ok) {
@@ -316,76 +262,12 @@ export function ProjectEditForm({
         </div>
       </div>
 
-      <fieldset className="flex flex-col gap-3 rounded-xl border border-border p-4">
-        <div className="flex items-center justify-between">
-          <legend className="text-sm font-semibold">일정</legend>
-          <button
-            type="button"
-            onClick={addSession}
-            className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
-          >
-            + 추가
-          </button>
-        </div>
-        {sessions.map((s, i) => (
-          <div
-            key={i}
-            className="flex flex-col gap-2 rounded-md border border-border bg-secondary/40 p-3"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-ink-2">#{i + 1}</span>
-              {sessions.length > 1 ? (
-                <button
-                  type="button"
-                  onClick={() => removeSession(i)}
-                  className="text-xs text-destructive hover:underline"
-                >
-                  제거
-                </button>
-              ) : null}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={s.type}
-                onChange={(e) =>
-                  updateSession(i, {
-                    type: e.target.value as SessionRow["type"],
-                  })
-                }
-                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-              >
-                {Object.entries(SESSION_TYPE_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-              <Input
-                type="datetime-local"
-                value={s.starts_at}
-                onChange={(e) =>
-                  updateSession(i, { starts_at: e.target.value })
-                }
-                required
-              />
-            </div>
-            <Input
-              placeholder="장소 (선택)"
-              value={s.location_name}
-              onChange={(e) =>
-                updateSession(i, { location_name: e.target.value })
-              }
-              maxLength={120}
-            />
-            <Input
-              placeholder="역할 메모 (선택)"
-              value={s.role_notes}
-              onChange={(e) => updateSession(i, { role_notes: e.target.value })}
-              maxLength={500}
-            />
-          </div>
-        ))}
-      </fieldset>
+      <div className="rounded-xl border border-dashed border-border bg-secondary/20 p-4 text-xs leading-relaxed text-ink-2">
+        <p className="mb-1 text-sm font-semibold text-foreground">일정</p>
+        일정 추가·삭제·시간 변경은 <b>지원자 콘솔의 「일정 가능여부」</b>에서
+        관리합니다. (여기서 수정하지 않습니다 — 이미 받은 지원자 응답을 보호하기
+        위함)
+      </div>
 
       {error ? (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">

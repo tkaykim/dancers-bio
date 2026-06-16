@@ -8,14 +8,6 @@ import {
   type ProjectEditInitial,
 } from "@/components/project/ProjectEditForm";
 import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
-import type { SESSION_TYPE_LABELS } from "@/lib/validation/projects";
-
-type SessionRow = {
-  session_type: keyof typeof SESSION_TYPE_LABELS;
-  starts_at: string;
-  location_name: string | null;
-  role_notes: string | null;
-};
 
 export default async function ProjectEditPage({
   params,
@@ -50,18 +42,10 @@ export default async function ProjectEditPage({
   // 삭제는 소유자·슈퍼관리자만.
   const canDelete = me.is_admin || project.owner_id === me.id;
 
-  const [{ data: sessions }, { data: genres }] = await Promise.all([
-    supabase
-      .from("project_schedules")
-      .select(
-        "session_type, starts_at, location_name:location, role_notes, sort_order",
-      )
-      .eq("project_id", project.id)
-      .eq("status", "confirmed")
-      .order("sort_order")
-      .order("starts_at"),
-    supabase.from("genres").select("id, label_ko").order("sort_order"),
-  ]);
+  const { data: genres } = await supabase
+    .from("genres")
+    .select("id, label_ko")
+    .order("sort_order");
 
   const initial: ProjectEditInitial = {
     id: project.id as string,
@@ -99,11 +83,7 @@ export default async function ProjectEditPage({
         </h1>
       </header>
 
-      <ProjectEditForm
-        initial={initial}
-        initialSessions={(sessions ?? []) as SessionRow[]}
-        genres={genres ?? []}
-      />
+      <ProjectEditForm initial={initial} genres={genres ?? []} />
 
       {canDelete ? (
         <section className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4">

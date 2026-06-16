@@ -60,11 +60,14 @@ export function SchedulePanel({
       toast.error("일정 제목과 날짜를 입력해 주세요.");
       return;
     }
+    // 시간 비우면 '시간 미정'(날짜만). 날짜는 항상 보냄(00:00 KST 기준 저장).
+    const tbd = !start;
     const fd = new FormData();
     fd.set("project_id", projectId);
     fd.set("label", label.trim());
-    if (date && start) fd.set("starts_at", `${date}T${start}:00+09:00`);
-    if (date && end) fd.set("ends_at", `${date}T${end}:00+09:00`);
+    fd.set("starts_at", `${date}T${start || "00:00"}:00+09:00`);
+    if (!tbd && end) fd.set("ends_at", `${date}T${end}:00+09:00`);
+    if (tbd) fd.set("time_tbd", "true");
     if (location.trim()) fd.set("location", location.trim());
     if (note.trim()) fd.set("note", note.trim());
     startTransition(async () => {
@@ -208,10 +211,14 @@ export function SchedulePanel({
               className="h-10 w-24 rounded-lg border border-border bg-background px-2 text-sm"
             />
           </div>
+          <p className="-mt-1 text-[11px] text-ink-3">
+            시간을 비우면 &apos;시간 미정&apos;(날짜만)으로 등록됩니다. 추가 시
+            대기·수락 지원자에게 알림이 갑니다.
+          </p>
           <input
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            placeholder="장소 (선택)"
+            placeholder="장소 (선택, 지원자에겐 비공개)"
             className="h-10 rounded-lg border border-border bg-background px-3 text-sm"
           />
           <textarea
