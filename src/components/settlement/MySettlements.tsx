@@ -50,8 +50,27 @@ export function MySettlements({
   const [confirm, setConfirm] = useState<MySettlementRow | null>(null);
   const dancerIds = Object.keys(dancerNames);
 
+  // 출금 가능 잔액 = 정산완료(pending) 건의 세전 금액 합계.
+  // (출금신청·입금완료 건은 이미 처리 중/완료라 잔액에서 제외)
+  const pendingRows = settlements.filter((s) => s.status === "pending");
+  const withdrawableGross = pendingRows.reduce(
+    (sum, s) => sum + calcSettlement(s.grossAmount, s.rate).gross,
+    0,
+  );
+
   return (
     <div className="flex flex-col gap-6">
+      {/* 출금 가능 잔액 요약 */}
+      <section className="flex flex-col gap-1.5 rounded-2xl border border-border bg-gradient-to-br from-primary/10 to-card p-5">
+        <span className="text-xs font-medium text-ink-3">출금 가능 금액</span>
+        <span className="text-3xl font-extrabold tracking-tight text-foreground">
+          {formatWon(withdrawableGross)}
+        </span>
+        <span className="text-[11px] text-ink-3">
+          정산완료 {pendingRows.length}건 · 출금 시 세금 3.3% 공제 후 입금돼요
+        </span>
+      </section>
+
       {/* 입금 계좌 */}
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-bold text-ink-2">입금 계좌</h2>
@@ -108,18 +127,21 @@ export function MySettlements({
                     <StatusBadge status={s.status} />
                   </div>
 
-                  <div className="flex flex-col gap-1 rounded-xl bg-secondary/60 p-3 text-xs text-ink-2">
-                    <Line label="세전 금액" value={formatWon(calc.gross)} />
-                    <Line
-                      label={`원천징수 (${(calc.rate * 100).toFixed(1)}%)`}
-                      value={`− ${formatWon(calc.tax)}`}
-                    />
-                    <div className="my-1 border-t border-hairline-2" />
-                    <Line
-                      label="실수령액"
-                      value={formatWon(calc.net)}
-                      strong
-                    />
+                  <div className="flex flex-col gap-1 rounded-xl bg-secondary/60 p-3">
+                    <div className="flex items-end justify-between">
+                      <span className="text-xs text-ink-3">정산 금액 (세전)</span>
+                      <span className="text-lg font-bold text-foreground">
+                        {formatWon(calc.gross)}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-ink-3">
+                      세금 {(calc.rate * 100).toFixed(1)}%(−{formatWon(calc.tax)})
+                      {s.status === "paid"
+                        ? ` 공제 후 ${formatWon(calc.net)} 입금 완료`
+                        : s.status === "requested"
+                          ? ` 공제 후 ${formatWon(calc.net)} 입금 예정`
+                          : ` 공제 후 ${formatWon(calc.net)} 입금돼요`}
+                    </p>
                   </div>
 
                   {s.status === "pending" ? (
@@ -387,13 +409,26 @@ function WithdrawDialog({
         <p className="mt-1 text-sm text-ink-2">{row.projectTitle}</p>
 
         <div className="mt-4 flex flex-col gap-1 rounded-xl bg-secondary/60 p-3 text-xs text-ink-2">
-          <Line label="세전 금액" value={formatWon(calc.gross)} />
+          <Line label="정산 금액 (세전)" value={formatWon(calc.gross)} />
           <Line
-            label={`원천징수 (${(calc.rate * 100).toFixed(1)}%)`}
+            label={`세금 원천징수 (${(calc.rate * 100).toFixed(1)}%)`}
             value={`− ${formatWon(calc.tax)}`}
           />
           <div className="my-1 border-t border-hairline-2" />
           <Line label="실입금액" value={formatWon(calc.net)} strong />
+        </div>
+
+        <div className="mt-3 rounded-xl bg-blue-50 p-3 text-[11px] leading-relaxed">
+          <p className="font-semibold text-blue-800">
+            원천징수 3.3%는 플랫폼 수수료가 아니에요.
+          </p>
+          <p className="mt-1 text-blue-700">
+            국세청에 납부되는 세금이에요 (소득세 3% + 지방소득세 0.3%).
+          </p>
+          <p className="mt-1 text-blue-700">
+            deetz가 댄서님 대신 원천징수·신고하고, 매년 5월 종합소득세 신고 때
+            환급받으실 수도 있어요.
+          </p>
         </div>
 
         {account ? (
