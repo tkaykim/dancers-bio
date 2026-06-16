@@ -3,6 +3,17 @@
 > 한국 댄스 신을 위한 구인구직 + 포트폴리오 모바일 웹앱.
 > 자세한 product/플랜은 `~/.claude/plans/stateful-gathering-quiche.md` 참조.
 
+## ⛳ 배포 정본 (헷갈리지 말 것 — 2026-06-16 정리)
+
+- **GitHub 레포 = `tkaykim/dancers-bio` 하나뿐.** (로컬 `dev/dancers-bio`, 기본/프로덕션 브랜치 = **`main`**)
+- **실서비스 = Vercel 프로젝트 `dancers-bio-lite`** (prj_tC6sAcqbq30e5GJyZ2eu1IXe9p7G), `main` 브랜치 배포.
+  - 커스텀 도메인 전부 여기: **deetz.kr / www.deetz.kr / dancers.bio / www.dancers.bio / my.dancers.bio**.
+  - ⚠️ "lite"는 **Vercel 프로젝트 이름일 뿐** — git 브랜치 아님. (예전 `lite` 브랜치는 삭제함)
+- **`main`에 push → `dancers-bio-lite` 자동 빌드 → 실서비스 반영.** 그게 전부.
+- 헷갈리는 잔재(정리 완료): Vercel `dancers-bio` 프로젝트는 같은 레포 중복이라 **git 연결 해제함**(빌드 안 됨). `dancersbio` 프로젝트는 *다른 레포*(tkaykim/dancersbio, 옛 Capacitor 변형)라 무관.
+- 로컬 `dev/dancers-bio-lite` 폴더는 deetz 코드 아님(무관한 `proposal/` 내용) — 작업은 항상 `dev/dancers-bio`에서.
+- 배포 확인: Vercel MCP `list_deployments(projectId="dancers-bio-lite")` 또는 도메인 매핑은 REST `/v9/projects/<p>/domains`.
+
 ## 스택
 
 - **Next.js 16 (App Router)** + React 19 + TypeScript strict
