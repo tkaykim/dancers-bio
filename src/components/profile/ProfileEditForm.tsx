@@ -13,6 +13,7 @@ type Props = {
   defaultValues: {
     display_name: string;
     bio: string | null;
+    phone: string | null;
   };
   onSaved?: () => void;
 };
@@ -64,6 +65,22 @@ export function ProfileEditForm({ userId, defaultValues, onSaved }: Props) {
           maxLength={50}
           required
         />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="phone">휴대폰 번호</Label>
+        <Input
+          id="phone"
+          name="phone"
+          type="tel"
+          inputMode="numeric"
+          defaultValue={defaultValues.phone ?? ""}
+          placeholder="010-1234-5678"
+          maxLength={20}
+        />
+        <p className="text-xs text-muted-foreground">
+          섭외·정산 연락용. 입력하면 매니저에게만 보입니다.
+        </p>
       </div>
 
       <div className="flex flex-col gap-2">

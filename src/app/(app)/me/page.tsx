@@ -14,7 +14,7 @@ export default async function MePage() {
   const supabase = await createClient();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, display_name, avatar_url, bio, is_admin")
+    .select("id, display_name, avatar_url, bio, is_admin, phone")
     .eq("id", user.id)
     .single();
 
@@ -35,6 +35,7 @@ export default async function MePage() {
         displayName={profile.display_name ?? ""}
         bio={profile.bio}
         avatarUrl={profile.avatar_url}
+        phone={profile.phone ?? null}
       />
 
       <section className="flex flex-col gap-2">

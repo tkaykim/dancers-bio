@@ -10,9 +10,16 @@ type Props = {
   displayName: string;
   bio: string | null;
   avatarUrl: string | null;
+  phone: string | null;
 };
 
-export function ProfileCard({ userId, displayName, bio, avatarUrl }: Props) {
+export function ProfileCard({
+  userId,
+  displayName,
+  bio,
+  avatarUrl,
+  phone,
+}: Props) {
   const [editing, setEditing] = useState(false);
 
   if (editing) {
@@ -30,7 +37,7 @@ export function ProfileCard({ userId, displayName, bio, avatarUrl }: Props) {
         </div>
         <ProfileEditForm
           userId={userId}
-          defaultValues={{ display_name: displayName, bio }}
+          defaultValues={{ display_name: displayName, bio, phone }}
           onSaved={() => setEditing(false)}
         />
       </div>
