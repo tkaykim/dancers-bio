@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_WITHHOLDING_RATE, calcSettlement, formatWon } from "@/lib/settlement";
 import { sendGmailEmail } from "@/lib/gmail";
 import { buildWithdrawalRequestEmail } from "@/lib/notify/settlement-mail";
+import { notify } from "@/lib/notify";
 import type { ActionResult } from "./auth";
 
 const SITE = "https://deetz.kr";
@@ -41,6 +42,65 @@ async function myDancerIds(userId: string): Promise<Set<string>> {
     .select("id")
     .eq("profile_id", userId);
   return new Set((data ?? []).map((d: { id: string }) => d.id as string));
+}
+
+// 댄서 출금신청 → 경영지원실(슈퍼관리자 전원)에게 인앱 + 웹푸시 알림 (비치명적).
+// 담당자가 코크핏을 열어보지 않아도 "처리할 출금 신청이 들어왔다"를 즉시 인지.
+async function notifyAdminsWithdrawalRequested(
+  settlementId: string,
+): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const { data: s } = await admin
+      .from("settlements")
+      .select("dancer_id, project_id, gross_amount, withholding_rate")
+      .eq("id", settlementId)
+      .maybeSingle();
+    if (!s) return;
+
+    const [{ data: d }, { data: p }, { data: admins }] = await Promise.all([
+      admin.from("dancers").select("stage_name").eq("id", s.dancer_id).maybeSingle(),
+      admin.from("projects").select("title").eq("id", s.project_id).maybeSingle(),
+      admin.from("profiles").select("id").eq("is_admin", true),
+    ]);
+    const ids = (admins ?? []).map((a: { id: string }) => a.id as string);
+    if (ids.length === 0) return;
+
+    const name = (d?.stage_name as string) ?? "댄서";
+    const title = (p?.title as string) ?? "프로젝트";
+    const net = calcSettlement(
+      s.gross_amount as number,
+      Number(s.withholding_rate),
+    ).net;
+    const url = "/admin/settlements";
+
+    await Promise.all(
+      ids.map((rid) =>
+        notify({
+          recipientId: rid,
+          type: "settlement_withdrawal_requested",
+          payload: {
+            kind: "withdrawal_requested",
+            settlement_id: settlementId,
+            dancer_name: name,
+            project_title: title,
+            net_amount: net,
+            url,
+          },
+          push: {
+            title: "출금 신청 접수",
+            body: `${name}님이 '${title}' 정산 출금을 신청했어요 (${formatWon(net)} 입금 예정).`,
+            url,
+          },
+        }),
+      ),
+    );
+  } catch (err) {
+    console.error(
+      "[notifyAdminsWithdrawalRequested] failed (non-fatal):",
+      err,
+    );
+  }
 }
 
 // ── 매니저: 합격 댄서에게 세전 정산금액 등록/수정 ──────────────────────────
@@ -288,6 +348,9 @@ export async function requestWithdrawalAction(
     .update({ status: "requested", requested_at: new Date().toISOString() })
     .eq("id", settlementId);
   if (error) return { ok: false, error: "신청에 실패했습니다. 다시 시도해 주세요." };
+
+  // 경영지원실(슈퍼관리자)에게 출금신청 접수 알림 (비치명적).
+  await notifyAdminsWithdrawalRequested(settlementId);
 
   revalidatePath("/me/settlements");
   revalidatePath("/admin/settlements");

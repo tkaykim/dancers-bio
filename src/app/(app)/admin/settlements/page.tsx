@@ -121,6 +121,10 @@ export default async function AdminSettlementsPage() {
           있어요. 실제 통장에서 이체한 뒤 &lsquo;이체 완료 처리&rsquo;를 누르면 댄서
           화면이 입금완료로 바뀝니다. (이 화면은 이체를 대신하지 않습니다.)
         </p>
+        <p className="text-xs text-ink-3">
+          표시 금액은 실수령(원천징수 3.3% 공제 후)이에요. 3.3%는 플랫폼 수수료가
+          아니라 국세청에 납부되는 세금(소득세 3% + 지방소득세 0.3%)입니다.
+        </p>
       </header>
       <WithdrawalRequests rows={list} />
     </div>

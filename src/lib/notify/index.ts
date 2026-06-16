@@ -14,7 +14,8 @@ export type NotificationType =
   | "direct_proposal_declined"
   | "creator_permission_granted"
   | "creator_permission_revoked"
-  | "project_session_reminder";
+  | "project_session_reminder"
+  | "settlement_withdrawal_requested";
 
 type NotifyParams = {
   recipientId: string;
