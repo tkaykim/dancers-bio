@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canManageProject, getUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Button } from "@/components/ui/button";
 import { ApplyForm } from "@/components/project/ApplyForm";
 import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
@@ -156,12 +157,15 @@ export default async function ProjectDetailPage({
   // Internal route segment: canonical UUID. Outbound links prefer short_code.
   const id = p.id;
 
+  // 일정은 admin 클라이언트로 조회 — 비로그인/비공개 프로젝트에서도 날짜·라벨이 보이게 하되,
+  // location(장소)은 SELECT에서 제외해 대외비를 유지한다. RLS는 그대로 둬서 직접 API 조회로도 장소가 새지 않음.
+  const admin = createAdminClient();
   const [
     { data: sessionsData },
     { data: ownerProfile },
     { data: attachmentsData },
   ] = await Promise.all([
-    supabase
+    admin
       .from("project_schedules")
       .select("id, label, starts_at, ends_at, time_tbd, sort_order")
       .eq("project_id", id)
