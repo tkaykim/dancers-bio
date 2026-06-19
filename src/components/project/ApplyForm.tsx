@@ -12,12 +12,18 @@ export function ApplyForm({
   projectId,
   projectShortCode,
   hasDancer,
+  recruitmentChannelId,
+  recruitmentChannelName,
+  recruitmentChannelCode,
 }: {
   /** UUID — server action에 전달되는 canonical id. */
   projectId: string;
   /** 6자 short_code — returnTo URL 등 외부 노출용. */
   projectShortCode: string;
   hasDancer: boolean;
+  recruitmentChannelId?: string | null;
+  recruitmentChannelName?: string | null;
+  recruitmentChannelCode?: string | null;
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
@@ -25,7 +31,11 @@ export function ApplyForm({
   const [pending, startTransition] = useTransition();
 
   if (needsDancer) {
-    const returnTo = encodeURIComponent(`/projects/${projectShortCode}?apply=1`);
+    const params = new URLSearchParams({ apply: "1" });
+    if (recruitmentChannelCode) params.set("channel", recruitmentChannelCode);
+    const returnTo = encodeURIComponent(
+      `/projects/${projectShortCode}?${params.toString()}`,
+    );
     return (
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
         <p className="text-sm text-ink-2">
@@ -49,6 +59,9 @@ export function ApplyForm({
       action={(formData) => {
         setMessage(null);
         formData.set("project_id", projectId);
+        if (recruitmentChannelId) {
+          formData.set("recruitment_channel_id", recruitmentChannelId);
+        }
         startTransition(async () => {
           const result = await applyToProjectAction(formData);
           if (!result.ok) {
@@ -68,6 +81,11 @@ export function ApplyForm({
       <Label htmlFor="cover_message" className="text-xs uppercase tracking-[0.14em] text-ink-3">
         ↳ 한 줄 자기소개 (선택)
       </Label>
+      {recruitmentChannelName ? (
+        <p className="rounded-lg bg-secondary/60 px-3 py-2 text-xs text-ink-2">
+          모집채널: <span className="font-medium">{recruitmentChannelName}</span>
+        </p>
+      ) : null}
       <textarea
         id="cover_message"
         name="cover_message"

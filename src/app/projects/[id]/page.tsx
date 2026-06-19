@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { canManageProject, getUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -10,6 +10,10 @@ import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 import { deadlineLabel, isExpired } from "@/lib/utils/deadline";
 import { formatBytes } from "@/lib/storage/dancer-portfolio-file";
+import {
+  NDOL_UNIFIED_PARENT_SHORT_CODE,
+  isNdolUnifiedLegacyShortCode,
+} from "@/lib/ops/ndol-unification";
 import {
   PAY_TYPE_LABELS,
   STATUS_LABELS,
@@ -115,6 +119,14 @@ type ApplicationRow = {
   dancer_id: string | null;
 };
 
+type RecruitmentChannelRow = {
+  id: string;
+  project_id: string;
+  name: string;
+  share_code: string;
+  status: string;
+};
+
 
 function fmtPay(p: { pay_amount: number | null; pay_type: string | null }): string {
   if (!p.pay_amount && p.pay_type !== "negotiable") return "협의";
@@ -124,12 +136,21 @@ function fmtPay(p: { pay_amount: number | null; pay_type: string | null }): stri
 
 export default async function ProjectDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ channel?: string | string[] }>;
 }) {
   const { id: idParam } = await params;
+  const { channel: channelParam } = await searchParams;
   const identifier = classifyProjectIdentifier(idParam);
   if (!identifier) notFound();
+  const channelCode =
+    typeof channelParam === "string"
+      ? channelParam.trim()
+      : Array.isArray(channelParam)
+        ? channelParam[0]?.trim() ?? ""
+        : "";
 
   // 익명도 비공개 프로젝트 상세를 열람할 수 있도록 getUser. 지원 시점에만 로그인 유도.
   const user = await getUser();
@@ -160,10 +181,27 @@ export default async function ProjectDetailPage({
   // 일정은 admin 클라이언트로 조회 — 비로그인/비공개 프로젝트에서도 날짜·라벨이 보이게 하되,
   // location(장소)은 SELECT에서 제외해 대외비를 유지한다. RLS는 그대로 둬서 직접 API 조회로도 장소가 새지 않음.
   const admin = createAdminClient();
+
+  if (isNdolUnifiedLegacyShortCode(p.short_code)) {
+    const { data: legacyChannel } = await admin
+      .from("recruitment_channels")
+      .select("share_code, status")
+      .eq("legacy_project_id", p.id)
+      .maybeSingle();
+    if (legacyChannel?.share_code && legacyChannel.status === "active") {
+      redirect(
+        `/projects/${NDOL_UNIFIED_PARENT_SHORT_CODE}?channel=${encodeURIComponent(
+          legacyChannel.share_code as string,
+        )}`,
+      );
+    }
+  }
+
   const [
     { data: sessionsData },
     { data: ownerProfile },
     { data: attachmentsData },
+    { data: channelData },
   ] = await Promise.all([
     admin
       .from("project_schedules")
@@ -177,7 +215,19 @@ export default async function ProjectDetailPage({
       .select("id, file_name, storage_path, mime_type, size_bytes")
       .eq("project_id", id)
       .order("sort_order"),
+    channelCode
+      ? admin
+          .from("recruitment_channels")
+          .select("id, project_id, name, share_code, status")
+          .eq("project_id", id)
+          .eq("share_code", channelCode)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
+  const activeRecruitmentChannel =
+    channelData && (channelData as RecruitmentChannelRow).status === "active"
+      ? (channelData as RecruitmentChannelRow)
+      : null;
 
   const supabaseBase = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const attachments = ((attachmentsData ?? []) as Array<{
@@ -249,6 +299,11 @@ export default async function ProjectDetailPage({
   const closedMsg = expired
     ? "지원 마감일이 지났습니다."
     : "현재 모집이 닫혀 있습니다.";
+  const applyParams = new URLSearchParams({ apply: "1" });
+  if (activeRecruitmentChannel) {
+    applyParams.set("channel", activeRecruitmentChannel.share_code);
+  }
+  const applyReturnPath = `/projects/${p.short_code}?${applyParams.toString()}`;
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
@@ -397,14 +452,14 @@ export default async function ProjectDetailPage({
               지원하려면 로그인 또는 회원가입이 필요해요.
             </p>
             <Link
-              href={`/login?redirect=${encodeURIComponent(`/projects/${p.short_code}?apply=1`)}`}
+              href={`/login?redirect=${encodeURIComponent(applyReturnPath)}`}
             >
               <Button className="w-full" size="lg">
                 로그인하고 지원하기 →
               </Button>
             </Link>
             <Link
-              href={`/signup?redirect=${encodeURIComponent(`/projects/${p.short_code}?apply=1`)}`}
+              href={`/signup?redirect=${encodeURIComponent(applyReturnPath)}`}
             >
               <Button variant="outline" className="w-full" size="lg">
                 회원가입
@@ -432,6 +487,9 @@ export default async function ProjectDetailPage({
               projectId={p.id}
               projectShortCode={p.short_code}
               hasDancer={hasDancer}
+              recruitmentChannelId={activeRecruitmentChannel?.id ?? null}
+              recruitmentChannelName={activeRecruitmentChannel?.name ?? null}
+              recruitmentChannelCode={activeRecruitmentChannel?.share_code ?? null}
             />
           ) : !applyOpen ? (
             <p className="rounded-xl border border-border bg-card p-4 text-sm text-ink-3">

@@ -12,6 +12,14 @@ import {
   ApplicantsConsole,
   type ConsoleApplicant,
 } from "@/components/project/ApplicantsConsole";
+import {
+  RecruitmentChannelsPanel,
+  type RecruitmentChannel,
+} from "@/components/project/RecruitmentChannelsPanel";
+import {
+  ProjectEventsPanel,
+  type ProjectEventRow,
+} from "@/components/project/ProjectEventsPanel";
 import { SchedulePanel, type ScheduleRow } from "@/components/project/SchedulePanel";
 import { WithdrawalLinkPanel } from "@/components/project/WithdrawalLinkPanel";
 import { formatWhen } from "@/lib/format-when";
@@ -24,6 +32,7 @@ type Application = {
   cover_message: string | null;
   created_at: string;
   rejection_reason: string | null;
+  recruitment_channel_id: string | null;
   applicant: { id: string; display_name: string; avatar_url: string | null } | null;
   dancer:
     | {
@@ -59,6 +68,52 @@ type RecommendedDancer = {
   profile_id: string | null;
   genre_match: boolean;
   location_match: boolean;
+};
+
+type RecruitmentChannelRow = {
+  id: string;
+  name: string;
+  share_code: string;
+  legacy_project_id: string | null;
+  channel_type: string;
+  status: string;
+  manager_label: string | null;
+};
+
+type RecruitmentChannelMemberRow = {
+  channel_id: string;
+  profile_id: string;
+  role: string;
+  profile:
+    | {
+        display_name: string | null;
+        avatar_url: string | null;
+        instagram_handle: string | null;
+      }
+    | Array<{
+        display_name: string | null;
+        avatar_url: string | null;
+        instagram_handle: string | null;
+      }>
+    | null;
+};
+
+type ProjectEventDbRow = {
+  id: string;
+  name: string;
+  event_type: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  location: string | null;
+  status: string;
+  ops_code: string;
+  public_pass_code: string;
+};
+
+type EventParticipantLite = {
+  event_id: string;
+  attendance_status: string;
+  onsite_status: string;
 };
 
 export default async function ApplicantsPage({
@@ -124,6 +179,51 @@ export default async function ApplicantsPage({
     };
   });
 
+  const { data: channelRowsRaw } = await supabase
+    .from("recruitment_channels")
+    .select("id, name, share_code, legacy_project_id, channel_type, status, manager_label")
+    .eq("project_id", p.id)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  const channelRows = (channelRowsRaw ?? []) as RecruitmentChannelRow[];
+  const applicationProjectIds = Array.from(
+    new Set([
+      p.id,
+      ...channelRows
+        .map((channel) => channel.legacy_project_id)
+        .filter((id): id is string => !!id),
+    ]),
+  );
+  const channelIds = channelRows.map((ch) => ch.id);
+  const { data: channelMemberRowsRaw } =
+    channelIds.length > 0
+      ? await supabase
+          .from("recruitment_channel_members")
+          .select(
+            "channel_id, profile_id, role, profile:profiles!recruitment_channel_members_profile_id_fkey ( display_name, avatar_url, instagram_handle )",
+          )
+          .in("channel_id", channelIds)
+          .order("created_at", { ascending: true })
+      : { data: [] };
+  const channelMembersById = new Map<
+    string,
+    RecruitmentChannel["members"]
+  >();
+  for (const row of (channelMemberRowsRaw ?? []) as unknown as RecruitmentChannelMemberRow[]) {
+    const profile = Array.isArray(row.profile)
+      ? row.profile[0] ?? null
+      : row.profile;
+    const list = channelMembersById.get(row.channel_id) ?? [];
+    list.push({
+      profile_id: row.profile_id,
+      role: row.role,
+      display_name: profile?.display_name ?? "(이름 없음)",
+      avatar_url: profile?.avatar_url ?? null,
+      instagram_handle: profile?.instagram_handle ?? null,
+    });
+    channelMembersById.set(row.channel_id, list);
+  }
+
   // 추천 댄서 — 매칭 RPC(SECURITY DEFINER). 소유자/admin이 아니면 빈 배열 반환.
   const { data: matchData } = await supabase.rpc("match_dancers_for_project", {
     p_id: p.id,
@@ -134,16 +234,33 @@ export default async function ApplicantsPage({
   const { data: rows } = await supabase
     .from("applications")
     .select(
-      `id, status, source, cover_message, created_at, rejection_reason,
+      `id, status, source, cover_message, created_at, rejection_reason, recruitment_channel_id,
        applicant:profiles!applications_applicant_id_fkey ( id, display_name, avatar_url ),
        dancer:dancers!applications_dancer_id_fkey ( id, stage_name, korean_name, slug, profile_img, genres, location ),
        team:teams!applications_team_id_fkey ( id, team_name, slug, profile_img )`,
     )
-    .eq("project_id", p.id)
+    .in("project_id", applicationProjectIds)
     .is("archived_at", null)
     .order("created_at", { ascending: false });
 
   const list = (rows ?? []) as unknown as Application[];
+  const channelById = new Map(channelRows.map((ch) => [ch.id, ch]));
+  const channelStats = new Map<
+    string,
+    { applicantCount: number; acceptedCount: number; pendingCount: number }
+  >();
+  for (const app of list) {
+    if (!app.recruitment_channel_id) continue;
+    const stats = channelStats.get(app.recruitment_channel_id) ?? {
+      applicantCount: 0,
+      acceptedCount: 0,
+      pendingCount: 0,
+    };
+    stats.applicantCount++;
+    if (app.status === "accepted") stats.acceptedCount++;
+    if (app.status === "pending") stats.pendingCount++;
+    channelStats.set(app.recruitment_channel_id, stats);
+  }
 
   const applicants: ConsoleApplicant[] = list.map((a) => {
     const isTeam = !!a.team;
@@ -177,6 +294,22 @@ export default async function ApplicantsPage({
       genres: (a.dancer?.genres ?? []) as string[],
       location: a.dancer?.location ?? null,
       rejection_reason: a.rejection_reason ?? null,
+      recruitmentChannelId: a.recruitment_channel_id ?? null,
+      recruitmentChannelName: a.recruitment_channel_id
+        ? channelById.get(a.recruitment_channel_id)?.name ?? null
+        : null,
+    };
+  });
+  const recruitmentChannels: RecruitmentChannel[] = channelRows.map((channel) => {
+    const stats = channelStats.get(channel.id) ?? {
+      applicantCount: 0,
+      acceptedCount: 0,
+      pendingCount: 0,
+    };
+    return {
+      ...channel,
+      ...stats,
+      members: channelMembersById.get(channel.id) ?? [],
     };
   });
 
@@ -239,6 +372,49 @@ export default async function ApplicantsPage({
     };
   });
 
+  const { data: eventRowsRaw } = await supabase
+    .from("project_events")
+    .select(
+      "id, name, event_type, starts_at, ends_at, location, status, ops_code, public_pass_code",
+    )
+    .eq("project_id", p.id)
+    .order("starts_at", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true });
+  const eventRows = (eventRowsRaw ?? []) as ProjectEventDbRow[];
+  const eventIds = eventRows.map((event) => event.id);
+  const { data: eventParticipantRowsRaw } =
+    eventIds.length > 0
+      ? await supabase
+          .from("event_participants")
+          .select("event_id, attendance_status, onsite_status")
+          .in("event_id", eventIds)
+      : { data: [] };
+  const eventStats = new Map<
+    string,
+    { participantCount: number; checkedInCount: number; finalistCount: number }
+  >();
+  for (const row of (eventParticipantRowsRaw ?? []) as EventParticipantLite[]) {
+    const stats = eventStats.get(row.event_id) ?? {
+      participantCount: 0,
+      checkedInCount: 0,
+      finalistCount: 0,
+    };
+    stats.participantCount++;
+    if (row.attendance_status === "checked_in") stats.checkedInCount++;
+    if (row.onsite_status === "finalist" || row.onsite_status === "hold") {
+      stats.finalistCount++;
+    }
+    eventStats.set(row.event_id, stats);
+  }
+  const projectEvents: ProjectEventRow[] = eventRows.map((event) => {
+    const stats = eventStats.get(event.id) ?? {
+      participantCount: 0,
+      checkedInCount: 0,
+      finalistCount: 0,
+    };
+    return { ...event, ...stats };
+  });
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-8">
       <Link
@@ -257,6 +433,10 @@ export default async function ApplicantsPage({
         projectId={p.id}
         recruitmentCount={p.recruitment_count}
         initial={applicants}
+        channels={recruitmentChannels.map((channel) => ({
+          id: channel.id,
+          name: channel.name,
+        }))}
       />
 
       <SchedulePanel
@@ -282,6 +462,12 @@ export default async function ApplicantsPage({
             canEdit={canEditManagers}
             managers={managers}
           />
+          <RecruitmentChannelsPanel
+            projectId={p.id}
+            canEdit={true}
+            channels={recruitmentChannels}
+          />
+          <ProjectEventsPanel projectId={p.id} events={projectEvents} />
           {recommended.length > 0 ? (
             <RecommendedDancers projectId={p.id} dancers={recommended} />
           ) : null}

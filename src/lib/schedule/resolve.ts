@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getProjectApplicationScopeIds } from "@/lib/ops/project-application-scope";
 
 // 로그인한 사용자가 이 프로젝트의 지원자인지 확인하고, 매칭되는 dancer_id를 반환.
 // 단톡방 공유 일정 링크(/sr)에서 이메일 입력 없이 세션으로 신원확인하기 위함.
@@ -10,12 +11,13 @@ export async function resolveDancerIdForUserInProject(
   userId: string,
 ): Promise<string | null> {
   const admin = createAdminClient();
+  const projectScopeIds = await getProjectApplicationScopeIds(admin, projectId);
 
   // ① 본인 계정으로 직접 지원한 건 (탈락자는 일정조사 대상에서 제외)
   const { data: app } = await admin
     .from("applications")
     .select("dancer_id")
-    .eq("project_id", projectId)
+    .in("project_id", projectScopeIds)
     .eq("applicant_id", userId)
     .not("dancer_id", "is", null)
     .neq("status", "rejected")
@@ -34,7 +36,7 @@ export async function resolveDancerIdForUserInProject(
     const { data: app2 } = await admin
       .from("applications")
       .select("dancer_id")
-      .eq("project_id", projectId)
+      .in("project_id", projectScopeIds)
       .in("dancer_id", ids)
       .neq("status", "rejected")
       .is("archived_at", null)

@@ -102,6 +102,17 @@ export async function createProjectAction(
     return { ok: false, error: error.message };
   }
 
+  // 신규 프로젝트는 기본 모집채널을 자동 생성한다. 기존 short_code 링크는 그대로
+  // 유지하고, 채널별 배포가 필요할 때 /c/[share_code] 링크를 사용한다.
+  await supabase.from("recruitment_channels").insert({
+    project_id: project.id,
+    name: "기본 모집",
+    channel_type: "general",
+    manager_label: "프로젝트 관리자",
+    sort_order: 0,
+    created_by: creator.id,
+  });
+
   // 일정 (project_schedules) — 비치명적. 모든 일정이 가능여부 조사 대상.
   const schedCount = Number(formData.get("schedules_count") ?? 0);
   if (schedCount > 0) {

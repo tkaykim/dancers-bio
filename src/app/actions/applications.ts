@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { humanizeDbError } from "@/lib/db-errors";
 import { sendApplicationRejectionEmail } from "@/lib/notify/rejection-mail";
 import { NEEDS_DANCER_ERROR } from "@/lib/lite-constants";
@@ -21,6 +22,9 @@ export async function applyToProjectAction(
     return { ok: false, error: "잘못된 요청입니다." };
   }
   const cover_message = (formData.get("cover_message") ?? "").toString().trim();
+  const requestedChannelId = (formData.get("recruitment_channel_id") ?? "")
+    .toString()
+    .trim();
 
   const supabase = await createClient();
   const { data: project } = await supabase
@@ -44,6 +48,27 @@ export async function applyToProjectAction(
     return { ok: false, error: "지원 마감일이 지났습니다." };
   }
 
+  let recruitment_channel_id: string | null = null;
+  if (requestedChannelId) {
+    const admin = createAdminClient();
+    const { data: channel, error: channelError } = await admin
+      .from("recruitment_channels")
+      .select("id, project_id, status")
+      .eq("id", requestedChannelId)
+      .maybeSingle();
+    if (channelError) {
+      return { ok: false, error: "모집채널 확인에 실패했습니다." };
+    }
+    if (
+      !channel ||
+      channel.project_id !== project_id ||
+      channel.status !== "active"
+    ) {
+      return { ok: false, error: "유효하지 않은 모집채널입니다." };
+    }
+    recruitment_channel_id = channel.id as string;
+  }
+
   // 본인 own dancer 1개 조회 (multi-dancer는 Lite에서 미지원 — 가장 오래된 1개)
   const { data: ownDancers } = await supabase
     .from("dancers")
@@ -65,6 +90,7 @@ export async function applyToProjectAction(
     source: "apply" as const,
     status: "pending" as const,
     cover_message: cover_message || null,
+    recruitment_channel_id,
   });
 
   if (error) {
@@ -135,7 +161,7 @@ export async function decideApplicationAction(
   const supabase = await createClient();
   const { data: app, error: fetchErr } = await supabase
     .from("applications")
-    .select("project_id, status, applicant_id, dancer_id")
+    .select("project_id, status, applicant_id, dancer_id, recruitment_channel_id")
     .eq("id", application_id)
     .single();
   if (fetchErr || !app) return { ok: false, error: "지원 정보를 찾을 수 없습니다." };
@@ -211,6 +237,17 @@ export async function decideApplicationAction(
 
   revalidatePath(`/projects/${app.project_id}/applicants`);
   revalidatePath(`/projects/${app.project_id}`);
+  if (app.recruitment_channel_id) {
+    const { data: channel } = await supabase
+      .from("recruitment_channels")
+      .select("project_id")
+      .eq("id", app.recruitment_channel_id)
+      .maybeSingle();
+    if (channel?.project_id && channel.project_id !== app.project_id) {
+      revalidatePath(`/projects/${channel.project_id}/applicants`);
+      revalidatePath(`/projects/${channel.project_id}`);
+    }
+  }
   return {
     ok: true,
     data: quotaReached
@@ -253,11 +290,31 @@ export async function bulkDecideApplicationsAction(
     .in("id", idList)
     // 취소·만료된 지원은 건드리지 않는다.
     .in("status", ["pending", "accepted", "rejected", "declined"])
-    .select("id, project_id");
+    .select("id, project_id, recruitment_channel_id");
   if (error) return { ok: false, error: humanizeDbError(error.message) };
 
-  const rows = (data ?? []) as { id: string; project_id: string }[];
+  const rows = (data ?? []) as {
+    id: string;
+    project_id: string;
+    recruitment_channel_id: string | null;
+  }[];
   const projectIds = new Set(rows.map((r) => r.project_id));
+  const channelIds = Array.from(
+    new Set(
+      rows
+        .map((r) => r.recruitment_channel_id)
+        .filter((id): id is string => !!id),
+    ),
+  );
+  if (channelIds.length > 0) {
+    const { data: channels } = await supabase
+      .from("recruitment_channels")
+      .select("project_id")
+      .in("id", channelIds);
+    for (const channel of (channels ?? []) as Array<{ project_id: string }>) {
+      projectIds.add(channel.project_id);
+    }
+  }
   for (const pid of projectIds) {
     revalidatePath(`/projects/${pid}/applicants`);
   }

@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 export function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectRaw = searchParams.get("redirect");
+  const redirectRaw = searchParams.get("redirect") ?? searchParams.get("next");
   const redirectParam =
     redirectRaw && redirectRaw.startsWith("/") && !redirectRaw.startsWith("//")
       ? redirectRaw

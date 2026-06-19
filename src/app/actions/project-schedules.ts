@@ -13,6 +13,7 @@ import { buildScheduleRequestEmail } from "@/lib/notify/schedule-mail";
 import { notify } from "@/lib/notify";
 import { formatWhen } from "@/lib/format-when";
 import { sendGmailEmail } from "@/lib/gmail";
+import { getProjectApplicationScopeIds } from "@/lib/ops/project-application-scope";
 import type { ActionResult } from "./auth";
 
 const SITE = "https://deetz.kr";
@@ -74,6 +75,7 @@ async function notifyScheduleAdded(
 ): Promise<void> {
   try {
     const admin = createAdminClient();
+    const projectScopeIds = await getProjectApplicationScopeIds(admin, projectId);
     const [{ data: proj }, { data: apps }] = await Promise.all([
       admin
         .from("projects")
@@ -83,7 +85,7 @@ async function notifyScheduleAdded(
       admin
         .from("applications")
         .select("applicant_id, dancer_id")
-        .eq("project_id", projectId)
+        .in("project_id", projectScopeIds)
         .is("archived_at", null)
         .in("status", ["pending", "accepted"]),
     ]);
@@ -309,6 +311,7 @@ export async function sendProjectScheduleRequestsAction(
     return { ok: false, error: "권한이 없습니다." };
 
   const admin = createAdminClient();
+  const projectScopeIds = await getProjectApplicationScopeIds(admin, projectId);
   const { data: project } = await admin
     .from("projects")
     .select("title")
@@ -341,7 +344,7 @@ export async function sendProjectScheduleRequestsAction(
   const { data: apps } = await admin
     .from("applications")
     .select("dancer_id, applicant_id, status")
-    .eq("project_id", projectId)
+    .in("project_id", projectScopeIds)
     .is("archived_at", null)
     .in("status", ["pending", "accepted"])
     .not("dancer_id", "is", null);

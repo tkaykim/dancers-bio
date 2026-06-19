@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -32,9 +31,12 @@ export type ConsoleApplicant = {
   genres: string[];
   location: string | null;
   rejection_reason: string | null;
+  recruitmentChannelId: string | null;
+  recruitmentChannelName: string | null;
 };
 
 type Tab = "pending" | "accepted" | "rejected" | "all";
+type ChannelFilter = "all" | "none" | string;
 
 const STATUS_BADGE: Record<string, string> = {
   pending: "bg-secondary text-ink-2",
@@ -46,14 +48,17 @@ export function ApplicantsConsole({
   projectId,
   recruitmentCount,
   initial,
+  channels = [],
 }: {
   projectId: string;
   recruitmentCount: number;
   initial: ConsoleApplicant[];
+  channels?: Array<{ id: string; name: string }>;
 }) {
   const router = useRouter();
   const [items, setItems] = useState<ConsoleApplicant[]>(initial);
   const [tab, setTab] = useState<Tab>("pending");
+  const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all");
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState<string | null>(null);
   const [sortNewest, setSortNewest] = useState(true);
@@ -80,6 +85,22 @@ export function ApplicantsConsole({
     return Array.from(s).slice(0, 12);
   }, [items]);
 
+  const channelCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    let none = 0;
+    for (const item of items) {
+      if (!item.recruitmentChannelId) {
+        none++;
+        continue;
+      }
+      counts.set(
+        item.recruitmentChannelId,
+        (counts.get(item.recruitmentChannelId) ?? 0) + 1,
+      );
+    }
+    return { counts, none };
+  }, [items]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     let list = items.filter((a) => {
@@ -87,8 +108,16 @@ export function ApplicantsConsole({
       if (tab === "accepted" && a.status !== "accepted") return false;
       if (tab === "rejected" && a.status !== "rejected" && a.status !== "declined")
         return false;
+      if (channelFilter === "none" && a.recruitmentChannelId) return false;
+      if (
+        channelFilter !== "all" &&
+        channelFilter !== "none" &&
+        a.recruitmentChannelId !== channelFilter
+      )
+        return false;
       if (q) {
-        const hay = `${a.name} ${a.korean_name ?? ""}`.toLowerCase();
+        const hay =
+          `${a.name} ${a.korean_name ?? ""} ${a.recruitmentChannelName ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       if (genre && !a.genres.includes(genre)) return false;
@@ -100,7 +129,7 @@ export function ApplicantsConsole({
         : x.created_at.localeCompare(y.created_at),
     );
     return list;
-  }, [items, tab, query, genre, sortNewest]);
+  }, [items, tab, channelFilter, query, genre, sortNewest]);
 
   const sheetApplicant: SheetApplicant | null = useMemo(() => {
     const a = items.find((i) => i.id === sheetId);
@@ -266,7 +295,7 @@ export function ApplicantsConsole({
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="이름으로 검색…"
+          placeholder="이름·모집채널로 검색…"
           className="h-9 flex-1 rounded-lg border border-border bg-background px-3 text-sm placeholder:text-ink-3"
         />
         <button
@@ -277,6 +306,38 @@ export function ApplicantsConsole({
           {sortNewest ? "최신순" : "오래된순"}
         </button>
       </div>
+
+      {channels.length > 0 || channelCounts.none > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          <FilterChip
+            active={channelFilter === "all"}
+            onClick={() => setChannelFilter("all")}
+          >
+            전체 채널
+          </FilterChip>
+          {channels.map((channel) => (
+            <FilterChip
+              key={channel.id}
+              active={channelFilter === channel.id}
+              onClick={() =>
+                setChannelFilter(channelFilter === channel.id ? "all" : channel.id)
+              }
+            >
+              {channel.name} {channelCounts.counts.get(channel.id) ?? 0}
+            </FilterChip>
+          ))}
+          {channelCounts.none > 0 ? (
+            <FilterChip
+              active={channelFilter === "none"}
+              onClick={() =>
+                setChannelFilter(channelFilter === "none" ? "all" : "none")
+              }
+            >
+              채널 없음 {channelCounts.none}
+            </FilterChip>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* 장르 필터 */}
       {allGenres.length > 0 ? (
@@ -384,6 +445,11 @@ export function ApplicantsConsole({
                     ) : null}
                   </p>
                   <div className="flex flex-wrap items-center gap-1">
+                    {a.recruitmentChannelName ? (
+                      <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                        {a.recruitmentChannelName}
+                      </span>
+                    ) : null}
                     {a.location ? (
                       <span className="text-[11px] text-ink-3">{a.location}</span>
                     ) : null}

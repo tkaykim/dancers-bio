@@ -1,22 +1,15 @@
+import type { CSSProperties, ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionRefresher } from "@/components/auth/SessionRefresher";
 import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
 import { ErrorReporter } from "@/components/feedback/ErrorReporter";
 import { Toaster } from "@/components/ui/sonner";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
+const fontVariables = {
+  "--font-inter": "-apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+  "--font-jetbrains-mono": 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+} as CSSProperties;
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://dancers.bio"),
@@ -49,7 +42,7 @@ export const viewport: Viewport = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   // GEO/AEO: schema.org JSON-LD (Organization + WebSite)
   const SITE = "https://dancers.bio";
@@ -79,7 +72,8 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className={`${inter.variable} ${jetbrainsMono.variable} h-full`}
+      className="h-full"
+      style={fontVariables}
     >
       <head>
         <link

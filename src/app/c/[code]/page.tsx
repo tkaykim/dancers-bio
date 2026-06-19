@@ -1,0 +1,31 @@
+import { notFound, redirect } from "next/navigation";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+export default async function RecruitmentChannelEntryPage({
+  params,
+}: {
+  params: Promise<{ code: string }>;
+}) {
+  const { code } = await params;
+  const shareCode = (code ?? "").trim();
+  if (!shareCode) notFound();
+
+  const admin = createAdminClient();
+  const { data: channel } = await admin
+    .from("recruitment_channels")
+    .select("project_id, share_code, status")
+    .eq("share_code", shareCode)
+    .maybeSingle();
+
+  if (!channel || channel.status !== "active") notFound();
+
+  const { data: project } = await admin
+    .from("projects")
+    .select("short_code, deleted_at")
+    .eq("id", channel.project_id as string)
+    .maybeSingle();
+
+  if (!project || project.deleted_at) notFound();
+
+  redirect(`/projects/${project.short_code}?channel=${encodeURIComponent(shareCode)}`);
+}
