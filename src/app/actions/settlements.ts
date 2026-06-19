@@ -390,3 +390,35 @@ export async function markSettlementPaidAction(
   revalidatePath("/me/settlements");
   return { ok: true };
 }
+
+// ── 관리자: 여러 건 일괄 입금완료 처리 ─────────────────────────────────────
+export async function markSettlementsPaidAction(
+  fd: FormData,
+): Promise<ActionResult<{ updated: number }>> {
+  const admin_profile = await requireAdmin();
+  let ids: string[] = [];
+  try {
+    const p = JSON.parse((fd.get("ids") ?? "[]").toString());
+    if (Array.isArray(p)) ids = p.filter((x) => typeof x === "string");
+  } catch {
+    ids = [];
+  }
+  if (ids.length === 0) return { ok: false, error: "선택된 건이 없습니다." };
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("settlements")
+    .update({
+      status: "paid",
+      paid_at: new Date().toISOString(),
+      paid_by: admin_profile.id,
+    })
+    .in("id", ids)
+    .neq("status", "paid")
+    .select("id");
+  if (error) return { ok: false, error: "처리에 실패했습니다. 다시 시도해 주세요." };
+
+  revalidatePath("/admin/settlements");
+  revalidatePath("/me/settlements");
+  return { ok: true, data: { updated: (data ?? []).length } };
+}

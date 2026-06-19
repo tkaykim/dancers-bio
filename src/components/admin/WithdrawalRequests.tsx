@@ -6,6 +6,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import {
   markSettlementPaidAction,
+  markSettlementsPaidAction,
   setSettlementAmountAction,
   savePayoutAccountAction,
   saveResidentNumberAction,
@@ -47,24 +48,130 @@ const STATUS_TONE: Record<SettlementStatus, string> = {
 };
 
 export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [bulkBusy, startBulk] = useTransition();
   const requested = rows.filter((r) => r.status === "requested");
   const awaiting = rows.filter((r) => r.status === "pending");
   const paid = rows.filter((r) => r.status === "paid");
   const selected = rows.find((r) => r.id === selectedId) ?? null;
 
+  // 입금완료로 넘길 수 있는 건(아직 미지급 + 계좌 등록됨)만 선택 대상.
+  const payableById = new Map(
+    rows
+      .filter(
+        (r) =>
+          r.status !== "paid" &&
+          !!(r.bankName && r.accountNumber && r.accountHolder),
+      )
+      .map((r) => [r.id, r]),
+  );
+
+  function toggle(id: string) {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // 단건 입금완료 (리스트 행 빠른 처리)
+  function markOne(r: WithdrawalRow) {
+    const calc = calcSettlement(r.grossAmount, r.rate);
+    if (
+      !confirm(
+        `${r.dancerName}님 ${formatWon(calc.net)} 입금완료로 처리할까요?\n실제 통장 이체를 마친 뒤 눌러 주세요.`,
+      )
+    )
+      return;
+    const fd = new FormData();
+    fd.set("settlement_id", r.id);
+    startBulk(async () => {
+      const res = await markSettlementPaidAction(fd);
+      if (res.ok) {
+        toast.success(`${r.dancerName} 입금완료 처리했어요.`);
+        router.refresh();
+      } else toast.error(res.error);
+    });
+  }
+
+  // 일괄 입금완료
+  function markBulk() {
+    const ids = [...checked].filter((id) => payableById.has(id));
+    if (ids.length === 0) return;
+    if (
+      !confirm(
+        `선택한 ${ids.length}명을 입금완료로 처리할까요?\n실제 이체를 모두 마친 뒤 눌러 주세요.`,
+      )
+    )
+      return;
+    const fd = new FormData();
+    fd.set("ids", JSON.stringify(ids));
+    startBulk(async () => {
+      const res = await markSettlementsPaidAction(fd);
+      if (res.ok) {
+        toast.success(`${res.data?.updated ?? ids.length}명 입금완료 처리했어요.`);
+        setChecked(new Set());
+        router.refresh();
+      } else toast.error(res.error);
+    });
+  }
+
   return (
     <div className="flex flex-col gap-6">
+      {checked.size > 0 ? (
+        <div className="sticky top-2 z-10 flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3">
+          <span className="text-sm font-semibold">{checked.size}명 선택됨</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setChecked(new Set())}
+              className="rounded-lg px-3 py-1.5 text-xs text-ink-2 hover:bg-secondary"
+            >
+              해제
+            </button>
+            <button
+              type="button"
+              onClick={markBulk}
+              disabled={bulkBusy}
+              className="rounded-lg bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+            >
+              {bulkBusy ? "처리 중…" : "일괄 입금완료"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <Section title="출금신청" count={requested.length} empty="처리할 출금 신청이 없어요.">
         {requested.map((r) => (
-          <Row key={r.id} row={r} onOpen={() => setSelectedId(r.id)} />
+          <Row
+            key={r.id}
+            row={r}
+            onOpen={() => setSelectedId(r.id)}
+            payable={payableById.has(r.id)}
+            checked={checked.has(r.id)}
+            onToggle={() => toggle(r.id)}
+            onMarkPaid={() => markOne(r)}
+            busy={bulkBusy}
+          />
         ))}
       </Section>
 
       {awaiting.length > 0 ? (
         <Section title="정산완료 · 출금신청 전" count={awaiting.length}>
           {awaiting.map((r) => (
-            <Row key={r.id} row={r} onOpen={() => setSelectedId(r.id)} />
+            <Row
+              key={r.id}
+              row={r}
+              onOpen={() => setSelectedId(r.id)}
+              payable={payableById.has(r.id)}
+              checked={checked.has(r.id)}
+              onToggle={() => toggle(r.id)}
+              onMarkPaid={() => markOne(r)}
+              busy={bulkBusy}
+            />
           ))}
         </Section>
       ) : null}
@@ -119,16 +226,45 @@ function Section({
   );
 }
 
-function Row({ row, onOpen }: { row: WithdrawalRow; onOpen: () => void }) {
+function Row({
+  row,
+  onOpen,
+  payable,
+  checked,
+  onToggle,
+  onMarkPaid,
+  busy,
+}: {
+  row: WithdrawalRow;
+  onOpen: () => void;
+  payable?: boolean;
+  checked?: boolean;
+  onToggle?: () => void;
+  onMarkPaid?: () => void;
+  busy?: boolean;
+}) {
   const calc = calcSettlement(row.grossAmount, row.rate);
   const hasAccount = !!(row.bankName && row.accountNumber && row.accountHolder);
   const docCount = (row.hasIdCard ? 1 : 0) + (row.hasBankbook ? 1 : 0);
   return (
-    <li className="border-b border-hairline-2 last:border-b-0">
+    <li
+      className={`flex items-center gap-2 border-b border-hairline-2 px-3 last:border-b-0 ${
+        checked ? "bg-primary/5" : ""
+      }`}
+    >
+      {payable ? (
+        <input
+          type="checkbox"
+          checked={!!checked}
+          onChange={onToggle}
+          aria-label="선택"
+          className="size-4 shrink-0 accent-primary"
+        />
+      ) : null}
       <button
         type="button"
         onClick={onOpen}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/40 active:bg-secondary"
+        className="flex min-w-0 flex-1 items-center gap-3 py-3 text-left transition-colors hover:bg-secondary/40"
       >
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <div className="flex items-center gap-2">
@@ -150,8 +286,19 @@ function Row({ row, onOpen }: { row: WithdrawalRow; onOpen: () => void }) {
           <span className="text-sm font-bold">{formatWon(calc.net)}</span>
           <span className="text-[10px] text-ink-3">실수령</span>
         </div>
-        <span className="shrink-0 text-ink-3">›</span>
       </button>
+      {payable && onMarkPaid ? (
+        <button
+          type="button"
+          onClick={onMarkPaid}
+          disabled={busy}
+          className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground active:opacity-80 disabled:opacity-50"
+        >
+          입금완료
+        </button>
+      ) : (
+        <span className="shrink-0 text-ink-3">›</span>
+      )}
     </li>
   );
 }
@@ -236,28 +383,13 @@ function SettlementDetail({
         <span className="text-[11px] text-ink-3">신청 {fmtDate(row.requestedAt)}</span>
       ) : null}
 
-      {/* 상태별 액션 */}
-      {row.status === "pending" ? (
-        <button
-          type="button"
-          onClick={sendMail}
-          disabled={busy || !hasAccount}
-          className="rounded-xl border border-border px-4 py-3 text-sm font-semibold text-ink-2 active:bg-secondary disabled:opacity-50"
-        >
-          {busy
-            ? "보내는 중…"
-            : hasAccount
-              ? "출금신청 안내 메일 보내기"
-              : "계좌 등록 후 안내 가능"}
-        </button>
-      ) : null}
-
-      {row.status === "requested" ? (
+      {/* 핵심 액션: 입금완료 처리 — 정산완료·출금신청 공통 */}
+      {row.status !== "paid" ? (
         confirming ? (
           <div className="flex flex-col gap-2 rounded-xl bg-amber-50 p-3">
             <p className="text-xs text-amber-800">
-              실제로 통장에서 {formatWon(calc.net)}을 이체하셨나요? 이체 완료로
-              기록되며 댄서 화면이 입금완료로 바뀝니다.
+              실제로 통장에서 {formatWon(calc.net)}을 이체하셨나요? 입금완료로
+              기록되며 댄서 화면도 입금완료로 바뀝니다.
             </p>
             <div className="flex gap-2">
               <button
@@ -274,7 +406,7 @@ function SettlementDetail({
                 disabled={busy}
                 className="flex-1 rounded-lg bg-foreground px-3 py-2 text-xs font-semibold text-background disabled:opacity-50"
               >
-                {busy ? "처리 중…" : "네, 이체 완료"}
+                {busy ? "처리 중…" : "네, 입금완료"}
               </button>
             </div>
           </div>
@@ -285,9 +417,21 @@ function SettlementDetail({
             disabled={!hasAccount}
             className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors active:opacity-80 disabled:opacity-50"
           >
-            이체 완료 처리
+            {hasAccount ? "입금완료 처리" : "계좌 등록 후 처리 가능"}
           </button>
         )
+      ) : null}
+
+      {/* 보조: 정산완료면 댄서에게 출금신청 안내 메일(선택) */}
+      {row.status === "pending" ? (
+        <button
+          type="button"
+          onClick={sendMail}
+          disabled={busy || !hasAccount}
+          className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-ink-2 active:bg-secondary disabled:opacity-50"
+        >
+          {busy ? "처리 중…" : "출금신청 안내 메일 보내기 (선택)"}
+        </button>
       ) : null}
 
       {row.status === "paid" ? (
