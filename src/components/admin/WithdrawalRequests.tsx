@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import {
+  buildTransferFileAction,
   markSettlementPaidAction,
   markSettlementsPaidAction,
   setSettlementAmountAction,
@@ -13,6 +14,8 @@ import {
   sendWithdrawalRequestEmailAction,
 } from "@/app/actions/settlements";
 import { DancerDocuments } from "@/components/settlement/DancerDocuments";
+import { BankPicker } from "@/components/settlement/BankPicker";
+import { matchBank, type Bank } from "@/lib/banks";
 import { Drawer } from "@/components/ui/drawer";
 import {
   calcSettlement,
@@ -97,6 +100,36 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
     });
   }
 
+  // 선택 건 → 우리은행 다계좌이체 파일(.xls) 다운로드.
+  // 다운로드 후 사람이 우리WON비즈에 업로드·OTP 승인 → 그 다음 '일괄 입금완료'로 기록.
+  function downloadTransferFile() {
+    const ids = [...checked].filter((id) => payableById.has(id));
+    if (ids.length === 0) return;
+    const fd = new FormData();
+    fd.set("ids", JSON.stringify(ids));
+    startBulk(async () => {
+      const res = await buildTransferFileAction(fd);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      const { filename, base64, included, skipped } = res.data!;
+      const bin = atob(base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "application/vnd.ms-excel" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(
+        `다계좌이체 파일 ${included}건 생성${skipped > 0 ? ` · ${skipped}건 제외(계좌 미등록/입금완료)` : ""}`,
+      );
+    });
+  }
+
   // 일괄 입금완료
   function markBulk() {
     const ids = [...checked].filter((id) => payableById.has(id));
@@ -131,6 +164,14 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
               className="rounded-lg px-3 py-1.5 text-xs text-ink-2 hover:bg-secondary"
             >
               해제
+            </button>
+            <button
+              type="button"
+              onClick={downloadTransferFile}
+              disabled={bulkBusy}
+              className="rounded-lg border border-primary/40 bg-card px-4 py-1.5 text-xs font-semibold text-primary disabled:opacity-50"
+            >
+              다계좌이체 파일
             </button>
             <button
               type="button"
@@ -455,7 +496,7 @@ function SettlementAdminControls({ row }: { row: WithdrawalRow }) {
   const hasAccount = !!(row.bankName && row.accountNumber && row.accountHolder);
   const [editAcct, setEditAcct] = useState(!hasAccount);
   const [revealAcct, setRevealAcct] = useState(false);
-  const [bank, setBank] = useState(row.bankName ?? "");
+  const [bank, setBank] = useState<Bank | null>(matchBank(row.bankName));
   const [acctNo, setAcctNo] = useState(row.accountNumber ?? "");
   const [holder, setHolder] = useState(row.accountHolder ?? "");
 
@@ -497,13 +538,14 @@ function SettlementAdminControls({ row }: { row: WithdrawalRow }) {
   }
 
   function saveAccount() {
-    if (!bank.trim() || !acctNo.trim() || !holder.trim()) {
+    if (!bank || !acctNo.trim() || !holder.trim()) {
       toast.error("은행·계좌번호·예금주를 모두 입력해 주세요.");
       return;
     }
     const fd = new FormData();
     fd.set("dancer_id", row.dancerId);
-    fd.set("bank_name", bank);
+    fd.set("bank_name", bank.transfer);
+    fd.set("bank_code", bank.code);
     fd.set("bank_account_number", acctNo);
     fd.set("bank_account_holder", holder);
     startTransition(async () => {
@@ -571,13 +613,7 @@ function SettlementAdminControls({ row }: { row: WithdrawalRow }) {
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
-            <input
-              value={bank}
-              onChange={(e) => setBank(e.target.value)}
-              placeholder="은행 (예: 국민은행)"
-              disabled={busy}
-              className="h-9 rounded-lg border border-border bg-background px-3 text-sm"
-            />
+            <BankPicker value={bank} onChange={setBank} disabled={busy} />
             <div className="flex gap-1.5">
               <input
                 inputMode="numeric"

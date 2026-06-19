@@ -1,5 +1,6 @@
 "use server";
 
+import * as XLSX from "xlsx";
 import { revalidatePath } from "next/cache";
 import { canManageProject, requireAdmin, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
@@ -22,6 +23,31 @@ function parseWon(v: FormDataEntryValue | null): number | null {
 function strOrNull(fd: FormData, k: string): string | null {
   const v = (fd.get(k) ?? "").toString().trim();
   return v ? v : null;
+}
+
+// 보내는분 통장표시 메모: 우리 통장에 찍힐 식별 문구(프로젝트+댄서).
+// 통장표시는 길이 제한이 있어, 댄서명은 보존하고 프로젝트명은 남는 길이만큼만.
+function transferMemo(project: string, dancer: string): string {
+  const MAX = 14;
+  const d = (dancer ?? "").replace(/\s/g, "");
+  const p = (project ?? "").replace(/\s/g, "");
+  const room = Math.max(0, MAX - d.length);
+  return (p.slice(0, room) + d).slice(0, MAX);
+}
+
+// 파일명 타임스탬프 (KST yyyyMMdd_HHmm).
+function kstStamp(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const g = (t: string) => parts.find((x) => x.type === t)?.value ?? "";
+  return `${g("year")}${g("month")}${g("day")}_${g("hour")}${g("minute")}`;
 }
 
 async function isAdmin(userId: string): Promise<boolean> {
@@ -170,7 +196,12 @@ export async function savePayoutAccountAction(
   const user = await requireUser();
   const dancerId = (fd.get("dancer_id") ?? "").toString().trim();
   const bank_name = strOrNull(fd, "bank_name");
-  const bank_account_number = strOrNull(fd, "bank_account_number");
+  const bank_code = strOrNull(fd, "bank_code");
+  // 계좌번호는 하이픈·공백 제거(대량이체 파일은 숫자만).
+  const bank_account_number = (fd.get("bank_account_number") ?? "")
+    .toString()
+    .replace(/[\s-]/g, "")
+    .trim() || null;
   const bank_account_holder = strOrNull(fd, "bank_account_holder");
   if (!dancerId) return { ok: false, error: "잘못된 요청입니다." };
   if (!bank_name || !bank_account_number || !bank_account_holder)
@@ -189,13 +220,14 @@ export async function savePayoutAccountAction(
     .select("dancer_id")
     .eq("dancer_id", dancerId)
     .maybeSingle();
-  const patch = { bank_name, bank_account_number, bank_account_holder };
+  const patch = { bank_name, bank_code, bank_account_number, bank_account_holder };
   const { error } = existing
     ? await admin.from("dancer_private_info").update(patch).eq("dancer_id", dancerId)
     : await admin.from("dancer_private_info").insert({ dancer_id: dancerId, ...patch });
   if (error) return { ok: false, error: "저장에 실패했습니다. 다시 시도해 주세요." };
 
   revalidatePath("/me/settlements");
+  revalidatePath("/admin/settlements");
   return { ok: true };
 }
 
@@ -421,4 +453,106 @@ export async function markSettlementsPaidAction(
   revalidatePath("/admin/settlements");
   revalidatePath("/me/settlements");
   return { ok: true, data: { updated: (data ?? []).length } };
+}
+
+// ── 관리자: 선택한 정산 건 → 우리은행 '다계좌이체' 업로드 파일(.xls) 생성 ─────
+// [GRIGO] 다계좌이체양식.xls 와 동일한 6열 구조(헤더 없음):
+//   A 입금은행 / B 입금계좌번호 / C 이체금액(실수령) / D 보내는분 통장표시 / E 받는분 통장표시 / F 집금(CMS)번호
+// 실제 이체는 사람이 우리WON비즈에 업로드 → OTP 승인. 이 액션은 파일만 만든다(돈 안 나감).
+export async function buildTransferFileAction(
+  fd: FormData,
+): Promise<
+  ActionResult<{
+    filename: string;
+    base64: string;
+    included: number;
+    skipped: number;
+  }>
+> {
+  await requireAdmin();
+  let ids: string[] = [];
+  try {
+    const p = JSON.parse((fd.get("ids") ?? "[]").toString());
+    if (Array.isArray(p)) ids = p.filter((x) => typeof x === "string");
+  } catch {
+    ids = [];
+  }
+  if (ids.length === 0) return { ok: false, error: "선택된 건이 없습니다." };
+
+  const admin = createAdminClient();
+  const { data: sRows } = await admin
+    .from("settlements")
+    .select(
+      "id, dancer_id, gross_amount, withholding_rate, status, project:projects!settlements_project_id_fkey ( title )",
+    )
+    .in("id", ids);
+  if (!sRows || sRows.length === 0)
+    return { ok: false, error: "정산 내역을 찾을 수 없습니다." };
+
+  const dancerIds = [...new Set(sRows.map((r) => r.dancer_id as string))];
+  const [{ data: dRows }, { data: piRows }] = await Promise.all([
+    admin.from("dancers").select("id, stage_name").in("id", dancerIds),
+    admin
+      .from("dancer_private_info")
+      .select("dancer_id, bank_name, bank_account_number, bank_account_holder")
+      .in("dancer_id", dancerIds),
+  ]);
+  const nameById = new Map(
+    (dRows ?? []).map((d) => [d.id as string, (d.stage_name as string) ?? ""]),
+  );
+  const acctById = new Map(
+    (piRows ?? []).map((p) => [p.dancer_id as string, p]),
+  );
+
+  const rows: (string | number)[][] = [];
+  let skipped = 0;
+  for (const s of sRows) {
+    if (s.status === "paid") {
+      skipped++;
+      continue;
+    }
+    const acct = acctById.get(s.dancer_id as string);
+    const accountNumber = (acct?.bank_account_number ?? "")
+      .toString()
+      .replace(/[\s-]/g, "");
+    if (!acct?.bank_name || !accountNumber || !acct?.bank_account_holder) {
+      skipped++;
+      continue;
+    }
+    const net = calcSettlement(
+      s.gross_amount as number,
+      Number(s.withholding_rate),
+    ).net;
+    const proj = Array.isArray(s.project) ? s.project[0] ?? null : s.project;
+    const projectTitle = (proj?.title as string) ?? "";
+    const dancerName = nameById.get(s.dancer_id as string) ?? "";
+    rows.push([
+      acct.bank_name as string, // A 입금은행
+      accountNumber, // B 입금계좌번호 (숫자만, 문자열 — 앞 0 보존)
+      net, // C 이체금액 = 실수령액(세전−3.3%)
+      transferMemo(projectTitle, dancerName), // D 보내는분 통장표시
+      "", // E 받는분 통장표시
+      "", // F 집금(CMS)번호
+    ]);
+  }
+  if (rows.length === 0)
+    return {
+      ok: false,
+      error: "이체할 수 있는 건이 없어요(계좌 미등록 또는 이미 입금완료).",
+    };
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+  const base64 = XLSX.write(wb, { type: "base64", bookType: "biff8" });
+
+  return {
+    ok: true,
+    data: {
+      filename: `deetz_다계좌이체_${kstStamp()}.xls`,
+      base64,
+      included: rows.length,
+      skipped,
+    },
+  };
 }

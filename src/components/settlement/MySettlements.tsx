@@ -18,6 +18,8 @@ import {
   DancerDocuments,
   type DancerDocsState,
 } from "@/components/settlement/DancerDocuments";
+import { BankPicker } from "@/components/settlement/BankPicker";
+import { matchBank, type Bank } from "@/lib/banks";
 
 export type MySettlementRow = {
   id: string;
@@ -311,7 +313,7 @@ function AccountCard({
   const router = useRouter();
   const [editing, setEditing] = useState(!account);
   const [busy, startTransition] = useTransition();
-  const [bankName, setBankName] = useState(account?.bankName ?? "");
+  const [bank, setBank] = useState<Bank | null>(matchBank(account?.bankName));
   const [accountNumber, setAccountNumber] = useState(
     account?.accountNumber ?? "",
   );
@@ -321,13 +323,14 @@ function AccountCard({
   const [reveal, setReveal] = useState(false);
 
   function save() {
-    if (!bankName.trim() || !accountNumber.trim() || !accountHolder.trim()) {
+    if (!bank || !accountNumber.trim() || !accountHolder.trim()) {
       toast.error("은행·계좌번호·예금주를 모두 입력해 주세요.");
       return;
     }
     const fd = new FormData();
     fd.set("dancer_id", dancerId);
-    fd.set("bank_name", bankName);
+    fd.set("bank_name", bank.transfer);
+    fd.set("bank_code", bank.code);
     fd.set("bank_account_number", accountNumber);
     fd.set("bank_account_holder", accountHolder);
     startTransition(async () => {
@@ -378,13 +381,7 @@ function AccountCard({
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <input
-            value={bankName}
-            onChange={(e) => setBankName(e.target.value)}
-            placeholder="은행 (예: 국민은행)"
-            disabled={busy}
-            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-          />
+          <BankPicker value={bank} onChange={setBank} disabled={busy} />
           <input
             inputMode="numeric"
             value={accountNumber}
