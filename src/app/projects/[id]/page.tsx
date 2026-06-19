@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { canManageProject, getUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -10,10 +10,6 @@ import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 import { deadlineLabel, isExpired } from "@/lib/utils/deadline";
 import { formatBytes } from "@/lib/storage/dancer-portfolio-file";
-import {
-  NDOL_UNIFIED_PARENT_SHORT_CODE,
-  isNdolUnifiedLegacyShortCode,
-} from "@/lib/ops/ndol-unification";
 import {
   PAY_TYPE_LABELS,
   STATUS_LABELS,
@@ -122,6 +118,7 @@ type ApplicationRow = {
 type RecruitmentChannelRow = {
   id: string;
   project_id: string;
+  legacy_project_id: string | null;
   name: string;
   share_code: string;
   status: string;
@@ -182,21 +179,6 @@ export default async function ProjectDetailPage({
   // location(장소)은 SELECT에서 제외해 대외비를 유지한다. RLS는 그대로 둬서 직접 API 조회로도 장소가 새지 않음.
   const admin = createAdminClient();
 
-  if (isNdolUnifiedLegacyShortCode(p.short_code)) {
-    const { data: legacyChannel } = await admin
-      .from("recruitment_channels")
-      .select("share_code, status")
-      .eq("legacy_project_id", p.id)
-      .maybeSingle();
-    if (legacyChannel?.share_code && legacyChannel.status === "active") {
-      redirect(
-        `/projects/${NDOL_UNIFIED_PARENT_SHORT_CODE}?channel=${encodeURIComponent(
-          legacyChannel.share_code as string,
-        )}`,
-      );
-    }
-  }
-
   const [
     { data: sessionsData },
     { data: ownerProfile },
@@ -218,15 +200,17 @@ export default async function ProjectDetailPage({
     channelCode
       ? admin
           .from("recruitment_channels")
-          .select("id, project_id, name, share_code, status")
-          .eq("project_id", id)
+          .select("id, project_id, legacy_project_id, name, share_code, status")
           .eq("share_code", channelCode)
+          .eq("status", "active")
           .maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
+  const channel = (channelData ?? null) as RecruitmentChannelRow | null;
   const activeRecruitmentChannel =
-    channelData && (channelData as RecruitmentChannelRow).status === "active"
-      ? (channelData as RecruitmentChannelRow)
+    channel &&
+    (channel.project_id === id || channel.legacy_project_id === id)
+      ? channel
       : null;
 
   const supabaseBase = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";

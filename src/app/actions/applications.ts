@@ -53,17 +53,17 @@ export async function applyToProjectAction(
     const admin = createAdminClient();
     const { data: channel, error: channelError } = await admin
       .from("recruitment_channels")
-      .select("id, project_id, status")
+      .select("id, project_id, legacy_project_id, status")
       .eq("id", requestedChannelId)
       .maybeSingle();
     if (channelError) {
       return { ok: false, error: "모집채널 확인에 실패했습니다." };
     }
-    if (
-      !channel ||
-      channel.project_id !== project_id ||
-      channel.status !== "active"
-    ) {
+    const channelProjectId = (channel?.project_id as string | null) ?? null;
+    const legacyProjectId = (channel?.legacy_project_id as string | null) ?? null;
+    const matchesProject =
+      channelProjectId === project_id || legacyProjectId === project_id;
+    if (!channel || !matchesProject || channel.status !== "active") {
       return { ok: false, error: "유효하지 않은 모집채널입니다." };
     }
     recruitment_channel_id = channel.id as string;

@@ -13,16 +13,19 @@ export default async function RecruitmentChannelEntryPage({
   const admin = createAdminClient();
   const { data: channel } = await admin
     .from("recruitment_channels")
-    .select("project_id, share_code, status")
+    .select("project_id, legacy_project_id, share_code, status")
     .eq("share_code", shareCode)
     .maybeSingle();
 
   if (!channel || channel.status !== "active") notFound();
+  const targetProjectId =
+    ((channel.legacy_project_id as string | null) ?? null) ||
+    (channel.project_id as string);
 
   const { data: project } = await admin
     .from("projects")
     .select("short_code, deleted_at")
-    .eq("id", channel.project_id as string)
+    .eq("id", targetProjectId)
     .maybeSingle();
 
   if (!project || project.deleted_at) notFound();
