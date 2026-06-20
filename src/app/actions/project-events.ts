@@ -18,6 +18,22 @@ function iso(value: string | null): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+const ATTENDANCE_STATUSES = new Set([
+  "not_arrived",
+  "checked_in",
+  "no_show",
+  "self_withdrawn",
+]);
+
+const ONSITE_STATUSES = new Set([
+  "waiting",
+  "watching",
+  "hold",
+  "eliminated",
+  "finalist",
+  "self_withdrawn",
+]);
+
 export async function createProjectEventAction(
   formData: FormData,
 ): Promise<
@@ -145,6 +161,92 @@ export async function seedEventParticipantsFromAcceptedAction(
       inserted,
       existing: existingCount ?? 0,
       total: candidates.length,
+    },
+  };
+}
+
+export async function updateEventParticipantOpsAction(
+  formData: FormData,
+): Promise<
+  ActionResult<{
+    id: string;
+    attendance_status: string;
+    onsite_status: string;
+    checked_in_at: string | null;
+    eliminated_at: string | null;
+    note: string;
+    updated_at: string;
+  }>
+> {
+  const opsCode = text(formData, "ops_code", 80);
+  const participantId = text(formData, "participant_id", 80);
+  const attendanceStatus = text(formData, "attendance_status", 40) ?? "not_arrived";
+  const onsiteStatus = text(formData, "onsite_status", 40) ?? "waiting";
+  const note = text(formData, "note", 1000) ?? "";
+
+  if (!opsCode || !participantId) {
+    return { ok: false, error: "운영일정과 참가자를 확인해 주세요." };
+  }
+  if (!ATTENDANCE_STATUSES.has(attendanceStatus)) {
+    return { ok: false, error: "출석 상태를 확인해 주세요." };
+  }
+  if (!ONSITE_STATUSES.has(onsiteStatus)) {
+    return { ok: false, error: "현장 상태를 확인해 주세요." };
+  }
+
+  const admin = createAdminClient();
+  const { data: event } = await admin
+    .from("project_events")
+    .select("id")
+    .eq("ops_code", opsCode)
+    .maybeSingle();
+  if (!event) return { ok: false, error: "운영일정을 찾을 수 없습니다." };
+
+  const { data: participant } = await admin
+    .from("event_participants")
+    .select("id, event_id, checked_in_at, eliminated_at")
+    .eq("id", participantId)
+    .eq("event_id", event.id as string)
+    .maybeSingle();
+  if (!participant) return { ok: false, error: "참가자를 찾을 수 없습니다." };
+
+  const now = new Date().toISOString();
+  const nextCheckedInAt =
+    attendanceStatus === "checked_in"
+      ? ((participant.checked_in_at as string | null) ?? now)
+      : null;
+  const nextEliminatedAt =
+    onsiteStatus === "eliminated" || onsiteStatus === "self_withdrawn"
+      ? ((participant.eliminated_at as string | null) ?? now)
+      : null;
+
+  const { data, error } = await admin
+    .from("event_participants")
+    .update({
+      attendance_status: attendanceStatus,
+      onsite_status: onsiteStatus,
+      note,
+      checked_in_at: nextCheckedInAt,
+      eliminated_at: nextEliminatedAt,
+    })
+    .eq("id", participantId)
+    .eq("event_id", event.id as string)
+    .select("id, attendance_status, onsite_status, checked_in_at, eliminated_at, note, updated_at")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/ops/events/${opsCode}`);
+  return {
+    ok: true,
+    data: data as {
+      id: string;
+      attendance_status: string;
+      onsite_status: string;
+      checked_in_at: string | null;
+      eliminated_at: string | null;
+      note: string;
+      updated_at: string;
     },
   };
 }
