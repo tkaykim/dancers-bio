@@ -286,11 +286,13 @@ export function EventOpsClient({
         acc[row.outreach_status] += 1;
         acc[row.attendance_status] += 1;
         acc[row.onsite_status] += 1;
+        if (row.bib_code) acc.bibAssigned += 1;
         if (row.settlement_eligible) acc.settlementEligible += 1;
         return acc;
       },
       {
         total: 0,
+        bibAssigned: 0,
         pending: 0,
         no_answer: 0,
         unavailable: 0,
@@ -455,15 +457,28 @@ export function EventOpsClient({
           </div>
         </header>
 
-        <section className="grid gap-2 md:grid-cols-4 lg:grid-cols-7">
-          <Stat label="전체" value={stats.total} />
-          <Stat label="진행가능" value={stats.available + stats.done} />
-          <Stat label="미처리" value={stats.pending} />
-          <Stat label="진행불가" value={stats.unavailable} />
-          <Stat label="출석" value={stats.checked_in} />
-          <Stat label="보류/최종" value={stats.hold + stats.finalist} />
-          <Stat label="탈락/포기" value={stats.eliminated + stats.self_withdrawn} />
-        </section>
+        {mode === "onsite" ? (
+          <section className="grid grid-cols-4 gap-2 lg:grid-cols-8">
+            <Stat label="번호표" value={stats.bibAssigned} tone="good" />
+            <Stat label="출석" value={stats.checked_in} tone="good" />
+            <Stat label="미도착" value={stats.not_arrived} />
+            <Stat label="노쇼" value={stats.no_show} tone="bad" />
+            <Stat label="대기" value={stats.waiting} />
+            <Stat label="보류" value={stats.hold} />
+            <Stat label="탈락" value={stats.eliminated} tone="bad" />
+            <Stat label="최종후보" value={stats.finalist} tone="good" />
+          </section>
+        ) : (
+          <section className="grid gap-2 md:grid-cols-4 lg:grid-cols-7">
+            <Stat label="전체" value={stats.total} />
+            <Stat label="진행가능" value={stats.available + stats.done} tone="good" />
+            <Stat label="미처리" value={stats.pending} />
+            <Stat label="진행불가" value={stats.unavailable} tone="bad" />
+            <Stat label="출석" value={stats.checked_in} />
+            <Stat label="보류/최종" value={stats.hold + stats.finalist} />
+            <Stat label="탈락/포기" value={stats.eliminated + stats.self_withdrawn} tone="bad" />
+          </section>
+        )}
 
         <section className="flex flex-col gap-2 border border-black/10 bg-white p-2 lg:flex-row lg:items-center">
           <div className="grid grid-cols-2 gap-1 rounded-lg bg-[#f0eee8] p-1 text-sm font-bold lg:w-64">
@@ -914,11 +929,21 @@ function Bib({ code }: { code: string | null }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: number;
+  tone?: "neutral" | "good" | "bad";
+}) {
+  const valueClass =
+    tone === "good" ? "text-emerald-600" : tone === "bad" ? "text-red-600" : "text-[#17140f]";
   return (
     <div className="border border-black/10 bg-white p-3">
       <p className="text-xs font-bold text-black/40">{label}</p>
-      <p className="mt-1 text-2xl font-black">{value}</p>
+      <p className={`mt-1 text-2xl font-black ${valueClass}`}>{value}</p>
     </div>
   );
 }
