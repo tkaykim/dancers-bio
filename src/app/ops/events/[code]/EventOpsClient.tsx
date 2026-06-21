@@ -547,6 +547,8 @@ export function EventOpsClient({
           <div className="flex flex-wrap gap-2">
             <ToolLink href={`/ops/events/${event.ops_code}/labels`} label="번호표 라벨" />
             <ToolLink href={`/ops/events/${event.ops_code}/passes`} label="QR 패스" />
+            <ToolLink href={`/ops/events/${event.ops_code}/poster`} label="입구 QR 포스터" />
+            <ToolLink href={`/ops/events/${event.ops_code}/pass`} label="셀프 접수" />
           </div>
         </header>
 
