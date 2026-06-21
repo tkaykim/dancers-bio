@@ -43,3 +43,12 @@ next-env.d.ts
 # Claude Code local state (project agents/commands are kept; worktrees + local settings are not)
 .claude/worktrees/
 .claude/settings.local.json
+
+# Codex local artifacts — MUST NOT live in repo root.
+# A 619MB .codex-logs/ here made Turbopack hang during `next build`/`next dev`
+# (Turbopack scans the project tree; the huge log dir stalled directory traversal).
+# Keep Codex logs OUTSIDE the project; this ignore is just a safety net.
+.codex-logs/
+_probe.cjs
+_authgen.cjs
+_full_email.html
