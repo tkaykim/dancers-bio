@@ -289,11 +289,24 @@ export function EventOpsClient({
         acc[row.onsite_status] += 1;
         if (row.bib_code) acc.bibAssigned += 1;
         if (row.settlement_eligible) acc.settlementEligible += 1;
+        const g = row.dancer?.gender;
+        if (g === "male") acc.male += 1;
+        else if (g === "female") acc.female += 1;
+        if (row.outreach_status === "available" || row.outreach_status === "done") {
+          if (g === "male") acc.availableMale += 1;
+          else if (g === "female") acc.availableFemale += 1;
+          else acc.availableEtc += 1;
+        }
         return acc;
       },
       {
         total: 0,
         bibAssigned: 0,
+        male: 0,
+        female: 0,
+        availableMale: 0,
+        availableFemale: 0,
+        availableEtc: 0,
         pending: 0,
         no_answer: 0,
         unavailable: 0,
@@ -470,14 +483,18 @@ export function EventOpsClient({
             <Stat label="최종후보" value={stats.finalist} tone="good" />
           </section>
         ) : (
-          <section className="grid gap-2 md:grid-cols-4 lg:grid-cols-7">
-            <Stat label="전체" value={stats.total} />
-            <Stat label="진행가능" value={stats.available + stats.done} tone="good" />
+          <section className="grid grid-cols-3 gap-2 lg:grid-cols-6">
+            <Stat
+              label="진행가능 확보"
+              value={stats.available + stats.done}
+              tone="good"
+              sub={`남 ${stats.availableMale} · 여 ${stats.availableFemale}${stats.availableEtc ? ` · 기타 ${stats.availableEtc}` : ""}`}
+            />
+            <Stat label="전체" value={stats.total} sub={`남 ${stats.male} · 여 ${stats.female}`} />
             <Stat label="미처리" value={stats.pending} />
+            <Stat label="연락안받음" value={stats.no_answer} />
             <Stat label="진행불가" value={stats.unavailable} tone="bad" />
-            <Stat label="출석" value={stats.checked_in} />
-            <Stat label="보류/최종" value={stats.hold + stats.finalist} />
-            <Stat label="탈락/포기" value={stats.eliminated + stats.self_withdrawn} tone="bad" />
+            <Stat label="연락금지" value={stats.do_not_contact} tone="bad" />
           </section>
         )}
 
@@ -527,11 +544,14 @@ export function EventOpsClient({
         </section>
 
         {mode === "onsite" ? (
-          <QrPanel
-            rows={participants}
-            updateParticipant={updateParticipant}
-            setQuery={setQuery}
-          />
+          <>
+            <OnsiteGuide />
+            <QrPanel
+              rows={participants}
+              updateParticipant={updateParticipant}
+              setQuery={setQuery}
+            />
+          </>
         ) : null}
 
         {rows.length === 0 ? (
@@ -560,6 +580,24 @@ export function EventOpsClient({
         <ProfileSheet row={profileRow} onClose={() => setProfileRow(null)} />
       ) : null}
     </main>
+  );
+}
+
+function OnsiteGuide() {
+  return (
+    <section className="border border-black/10 bg-white p-3 text-xs font-bold text-black/55">
+      <p className="text-black/70">현장 운영 순서</p>
+      <ol className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+        <li>① 도착 → 출석을 <b className="text-emerald-700">출석</b>으로</li>
+        <li>② 옷의 번호표와 운영판 번호 일치 확인</li>
+        <li>③ 클라이언트 제외 인원 → <b className="text-red-600">탈락</b></li>
+        <li>④ 판단 보류 → <b className="text-sky-700">보류</b>, 남길 인원 → <b className="text-emerald-700">최종</b></li>
+      </ol>
+      <p className="mt-1.5 text-black/45">
+        ※ 진행불가였던 인원은 <b>연락 운영</b>에서 상태를{" "}
+        <b className="text-emerald-700">진행가능</b>으로 바꾸면 번호표·QR 대상에 자동 포함됩니다.
+      </p>
+    </section>
   );
 }
 
@@ -1106,10 +1144,12 @@ function Stat({
   label,
   value,
   tone = "neutral",
+  sub,
 }: {
   label: string;
   value: number;
   tone?: "neutral" | "good" | "bad";
+  sub?: string;
 }) {
   const valueClass =
     tone === "good" ? "text-emerald-600" : tone === "bad" ? "text-red-600" : "text-[#17140f]";
@@ -1117,6 +1157,7 @@ function Stat({
     <div className="border border-black/10 bg-white p-3">
       <p className="text-xs font-bold text-black/40">{label}</p>
       <p className={`mt-1 text-2xl font-black ${valueClass}`}>{value}</p>
+      {sub ? <p className="mt-0.5 text-[11px] font-bold text-black/40">{sub}</p> : null}
     </div>
   );
 }
