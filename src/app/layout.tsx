@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SessionRefresher } from "@/components/auth/SessionRefresher";
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
 import { ErrorReporter } from "@/components/feedback/ErrorReporter";
 import { Toaster } from "@/components/ui/sonner";
@@ -10,6 +11,18 @@ const fontVariables = {
   "--font-inter": "-apple-system, BlinkMacSystemFont, system-ui, sans-serif",
   "--font-jetbrains-mono": 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
 } as CSSProperties;
+
+const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
+const naverSiteVerification = process.env.NEXT_PUBLIC_NAVER_SITE_VERIFICATION?.trim();
+const verification: Metadata["verification"] =
+  googleSiteVerification || naverSiteVerification
+    ? {
+        ...(googleSiteVerification ? { google: googleSiteVerification } : {}),
+        ...(naverSiteVerification
+          ? { other: { "naver-site-verification": naverSiteVerification } }
+          : {}),
+      }
+    : undefined;
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://deetz.kr"),
@@ -24,6 +37,7 @@ export const metadata: Metadata = {
     icon: "/icon-192.png",
     apple: "/icon-192.png",
   },
+  verification,
   openGraph: {
     title: "deetz | 댄서 섭외·안무 제작 플랫폼",
     description:
@@ -95,6 +109,7 @@ export default function RootLayout({
         <ServiceWorkerRegister />
         <ErrorReporter />
         {children}
+        <GoogleAnalytics />
         <Toaster />
       </body>
     </html>
