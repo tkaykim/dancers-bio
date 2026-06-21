@@ -258,6 +258,7 @@ export function EventOpsClient({
   const [attendance, setAttendance] = useState<AttendanceStatus | "all">("all");
   const [onsite, setOnsite] = useState<OnsiteStatus | "all">("all");
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [profileRow, setProfileRow] = useState<EventOpsParticipant | null>(null);
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -543,6 +544,7 @@ export function EventOpsClient({
             busy={busy}
             patchParticipant={patchParticipant}
             updateOutreach={updateOutreach}
+            onOpenProfile={setProfileRow}
           />
         ) : (
           <OnsiteTable
@@ -550,9 +552,13 @@ export function EventOpsClient({
             busy={busy}
             patchParticipant={patchParticipant}
             updateParticipant={updateParticipant}
+            onOpenProfile={setProfileRow}
           />
         )}
       </div>
+      {profileRow ? (
+        <ProfileSheet row={profileRow} onClose={() => setProfileRow(null)} />
+      ) : null}
     </main>
   );
 }
@@ -766,11 +772,13 @@ function ContactTable({
   busy,
   patchParticipant,
   updateOutreach,
+  onOpenProfile,
 }: {
   rows: EventOpsParticipant[];
   busy: Record<string, boolean>;
   patchParticipant: (id: string, patch: Partial<EventOpsParticipant>) => void;
   updateOutreach: (row: EventOpsParticipant, status?: OutreachStatus, method?: string, note?: string) => void;
+  onOpenProfile: (row: EventOpsParticipant) => void;
 }) {
   return (
     <section className="overflow-x-auto border border-black/10 bg-white">
@@ -793,7 +801,7 @@ function ContactTable({
             return (
               <tr key={row.id} className="border-t border-black/10 align-top">
                 <td className="px-3 py-2"><Bib code={row.bib_code} /></td>
-                <td className="px-3 py-2"><Person row={row} /></td>
+                <td className="px-3 py-2"><Person row={row} onOpenProfile={onOpenProfile} /></td>
                 <td className="px-3 py-2 text-xs font-bold text-black/55">{row.channel?.name ?? "-"}</td>
                 <td className="px-3 py-2"><ContactLinks row={row} /></td>
                 <td className="px-3 py-2">
@@ -853,11 +861,13 @@ function OnsiteTable({
   busy,
   patchParticipant,
   updateParticipant,
+  onOpenProfile,
 }: {
   rows: EventOpsParticipant[];
   busy: Record<string, boolean>;
   patchParticipant: (id: string, patch: Partial<EventOpsParticipant>) => void;
   updateParticipant: (row: EventOpsParticipant, attendance?: AttendanceStatus, onsite?: OnsiteStatus, note?: string) => void;
+  onOpenProfile: (row: EventOpsParticipant) => void;
 }) {
   return (
     <section className="overflow-x-auto border border-black/10 bg-white">
@@ -880,7 +890,7 @@ function OnsiteTable({
             return (
               <tr key={row.id} className="border-t border-black/10 align-top">
                 <td className="px-3 py-2"><Bib code={row.bib_code} /></td>
-                <td className="px-3 py-2"><Person row={row} /></td>
+                <td className="px-3 py-2"><Person row={row} onOpenProfile={onOpenProfile} /></td>
                 <td className="px-3 py-2 text-xs font-bold text-black/55">{row.channel?.name ?? "-"}</td>
                 <td className="px-3 py-2">
                   <select
@@ -933,22 +943,137 @@ function OnsiteTable({
   );
 }
 
-function Person({ row }: { row: EventOpsParticipant }) {
-  const name = participantName(row);
-  const href = row.dancer?.slug || row.dancer?.id ? `/d/${row.dancer.slug ?? row.dancer.id}` : null;
+function Avatar({ row, size = "sm" }: { row: EventOpsParticipant; size?: "sm" | "lg" }) {
+  const box = size === "lg" ? "h-12 w-12" : "h-8 w-8";
+  if (row.dancer?.profile_img) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img
+        src={row.dancer.profile_img}
+        alt=""
+        className={`${box} shrink-0 rounded-full object-cover`}
+      />
+    );
+  }
   return (
-    <div className="min-w-0">
-      {href ? (
-        <Link href={href} target="_blank" className="inline-flex max-w-[220px] truncate font-black hover:underline">
-          {name}
-        </Link>
-      ) : (
-        <p className="truncate font-black">{name}</p>
-      )}
-      <p className="truncate text-xs font-bold text-black/45">
-        {realName(row) ? `${realName(row)} · ` : ""}
-        {genderLabel(row.dancer?.gender)}
-      </p>
+    <span
+      className={`${box} flex shrink-0 items-center justify-center rounded-full bg-black/10 text-xs font-black`}
+    >
+      {participantName(row).slice(0, 1)}
+    </span>
+  );
+}
+
+function Person({
+  row,
+  onOpenProfile,
+}: {
+  row: EventOpsParticipant;
+  onOpenProfile: (row: EventOpsParticipant) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpenProfile(row)}
+      className="flex min-w-0 items-center gap-2 text-left"
+    >
+      <Avatar row={row} />
+      <span className="min-w-0">
+        <span className="block max-w-[200px] truncate font-black hover:underline">
+          {participantName(row)}
+        </span>
+        <span className="block truncate text-xs font-bold text-black/45">
+          {realName(row) ? `${realName(row)} · ` : ""}
+          {genderLabel(row.dancer?.gender)}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function ProfileSheet({
+  row,
+  onClose,
+}: {
+  row: EventOpsParticipant;
+  onClose: () => void;
+}) {
+  const social = (row.dancer?.social_links ?? {}) as Record<string, string>;
+  const instagram = instagramLabel(row.contact_instagram) || instagramLabel(social.instagram ?? null);
+  const fullHref =
+    row.dancer?.slug || row.dancer?.id ? `/d/${row.dancer.slug ?? row.dancer.id}` : null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-t-2xl border border-black/10 bg-white p-5 sm:rounded-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center gap-3">
+          <Avatar row={row} size="lg" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-lg font-black">{participantName(row)}</p>
+            <p className="truncate text-xs font-bold text-black/55">
+              {realName(row) ? `${realName(row)} · ` : ""}
+              {genderLabel(row.dancer?.gender)} · {row.channel?.name ?? "-"}
+              {row.bib_code ? ` · ${row.bib_code}` : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-lg border border-black/10 px-3 py-1.5 text-xs font-bold hover:bg-black/5"
+          >
+            닫기
+          </button>
+        </div>
+        <div className="mt-4 flex flex-col gap-2 text-sm font-bold">
+          {row.contact_phone ? (
+            <a href={phoneHref(row.contact_phone)} className="hover:underline">
+              📞 {row.contact_phone}
+            </a>
+          ) : null}
+          {instagram ? (
+            <a
+              href={`https://instagram.com/${instagram}`}
+              target="_blank"
+              rel="noreferrer"
+              className="hover:underline"
+            >
+              📷 @{instagram}
+            </a>
+          ) : null}
+          {row.contact_email ? (
+            <a href={`mailto:${row.contact_email}`} className="hover:underline">
+              ✉️ {row.contact_email}
+            </a>
+          ) : null}
+          {social.youtube ? (
+            <a href={social.youtube} target="_blank" rel="noreferrer" className="hover:underline">
+              ▶️ YouTube
+            </a>
+          ) : null}
+          {social.tiktok ? (
+            <a href={social.tiktok} target="_blank" rel="noreferrer" className="hover:underline">
+              🎵 TikTok
+            </a>
+          ) : null}
+          {!row.contact_phone && !instagram && !row.contact_email ? (
+            <span className="text-black/35">등록된 연락처가 없습니다.</span>
+          ) : null}
+        </div>
+        {fullHref ? (
+          <Link
+            href={fullHref}
+            target="_blank"
+            className="mt-4 block rounded-lg bg-black px-4 py-2.5 text-center text-sm font-bold text-white"
+          >
+            전체 프로필 보기
+          </Link>
+        ) : null}
+      </div>
     </div>
   );
 }
