@@ -569,10 +569,12 @@ function QrPanel({
   const [manual, setManual] = useState("");
   const [cameraStatus, setCameraStatus] = useState<CameraStatus>("idle");
   const [scanError, setScanError] = useState<string | null>(null);
-  const [lastResult, setLastResult] = useState<string | null>(null);
+  const [result, setResult] = useState<{ row: EventOpsParticipant; already: boolean } | null>(null);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const frameRef = useRef<number | null>(null);
+  const lastScanRef = useRef<{ value: string; ts: number }>({ value: "", ts: 0 });
 
   const stopCamera = useCallback(() => {
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
@@ -586,20 +588,42 @@ function QrPanel({
 
   const handleValue = useCallback(
     (value: string) => {
-      const row = findByScanValue(rows, value);
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      // 같은 값 2초 내 재인식 무시 (연속 스캔 중복 방지)
+      const now = Date.now();
+      if (lastScanRef.current.value === trimmed && now - lastScanRef.current.ts < 2000) return;
+      lastScanRef.current = { value: trimmed, ts: now };
+
+      // 테스트 QR: 명단 변경 없이 스캐너 동작만 확인 (예: TEST:ODH)
+      if (/^test:/i.test(trimmed)) {
+        const label = trimmed.slice(5).toUpperCase() || "TEST";
+        setTestMsg(`테스트 QR 인식됨 (${label}) — 명단은 변경되지 않습니다`);
+        setScanError(null);
+        setResult(null);
+        navigator.vibrate?.(60);
+        toast.success(`테스트 QR 인식: ${label}`);
+        return;
+      }
+
+      const row = findByScanValue(rows, trimmed);
       if (!row) {
-        setScanError("운영 명단에서 대상을 찾지 못했습니다.");
+        setScanError("운영 명단에서 QR 대상을 찾지 못했습니다.");
+        setResult(null);
+        setTestMsg(null);
         toast.error("운영 명단에서 대상을 찾지 못했습니다.");
         return;
       }
       setScanError(null);
+      setTestMsg(null);
       setQuery(row.bib_code ?? participantName(row));
-      if (row.attendance_status !== "checked_in") {
-        updateParticipant(row, "checked_in", row.onsite_status, row.note);
-      }
-      const message = `${row.bib_code ?? "-"} ${participantName(row)} 출석 처리`;
-      setLastResult(message);
-      toast.success(message);
+      navigator.vibrate?.(120);
+      const already = row.attendance_status === "checked_in";
+      if (!already) updateParticipant(row, "checked_in", row.onsite_status, row.note);
+      setResult({ row, already });
+      toast.success(
+        `${row.bib_code ?? "-"} ${participantName(row)} ${already ? "이미 출석" : "출석 처리"}`,
+      );
     },
     [rows, setQuery, updateParticipant],
   );
@@ -634,11 +658,7 @@ function QrPanel({
         try {
           const codes = await detector.detect(video);
           const value = codes[0]?.rawValue;
-          if (value) {
-            handleValue(value);
-            stopCamera();
-            return;
-          }
+          if (value) handleValue(value);
         } catch {
           setScanError("QR을 읽는 중 문제가 발생했습니다.");
         }
@@ -707,8 +727,36 @@ function QrPanel({
           </p>
         </div>
       ) : null}
+      {result ? (
+        <div
+          className={`mt-3 flex items-center gap-3 rounded-lg border p-3 ${
+            result.already ? "border-amber-300 bg-amber-50" : "border-emerald-300 bg-emerald-50"
+          }`}
+        >
+          <Bib code={result.row.bib_code} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-black">{participantName(result.row)}</p>
+            <p className="truncate text-xs font-bold text-black/55">
+              {realName(result.row) ? `${realName(result.row)} · ` : ""}
+              {genderLabel(result.row.dancer?.gender)} · {result.row.channel?.name ?? "-"}
+            </p>
+            <p className={`text-xs font-black ${result.already ? "text-amber-700" : "text-emerald-700"}`}>
+              {result.already ? "이미 출석 처리된 인원입니다" : "출석 처리 완료"}
+            </p>
+          </div>
+          {result.row.dancer?.slug || result.row.dancer?.id ? (
+            <Link
+              href={`/d/${result.row.dancer.slug ?? result.row.dancer.id}`}
+              target="_blank"
+              className="shrink-0 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-bold hover:bg-black/5"
+            >
+              프로필
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
+      {testMsg ? <p className="mt-2 text-sm font-bold text-sky-700">{testMsg}</p> : null}
       {scanError ? <p className="mt-2 text-sm font-bold text-red-600">{scanError}</p> : null}
-      {lastResult ? <p className="mt-2 text-sm font-bold text-emerald-700">{lastResult}</p> : null}
     </section>
   );
 }
