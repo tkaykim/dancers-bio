@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
@@ -123,6 +124,26 @@ const CONTACT_METHODS: Array<{ key: ContactMethod; label: string }> = [
   { key: "instagram", label: "인스타그램" },
   { key: "kakao", label: "카카오" },
   { key: "other", label: "기타" },
+];
+
+const GENDER_OPTIONS: Array<{ key: "all" | "male" | "female"; label: string }> = [
+  { key: "all", label: "전체 성별" },
+  { key: "male", label: "남" },
+  { key: "female", label: "여" },
+];
+
+// 회의용 보기 프리셋 — 클라이언트 미팅에서 빠르게 거르는 조합 (원본 회의용 보기 적응)
+const CONTACT_PRESETS: Array<{
+  label: string;
+  status: OutreachStatus | "all";
+  gender: "all" | "male" | "female";
+}> = [
+  { label: "전체", status: "all", gender: "all" },
+  { label: "진행가능", status: "available", gender: "all" },
+  { label: "진행가능·남", status: "available", gender: "male" },
+  { label: "진행불가", status: "unavailable", gender: "all" },
+  { label: "진행불가·남", status: "unavailable", gender: "male" },
+  { label: "미처리", status: "pending", gender: "all" },
 ];
 
 function formatWhen(startsAt: string | null, endsAt: string | null): string {
@@ -251,15 +272,37 @@ export function EventOpsClient({
   project: EventOpsProject | null;
   participants: EventOpsParticipant[];
 }) {
+  const router = useRouter();
   const [participants, setParticipants] = useState(initialParticipants);
   const [mode, setMode] = useState<OpsMode>("contact");
   const [query, setQuery] = useState("");
   const [contactStatus, setContactStatus] = useState<OutreachStatus | "all">("all");
   const [attendance, setAttendance] = useState<AttendanceStatus | "all">("all");
   const [onsite, setOnsite] = useState<OnsiteStatus | "all">("all");
+  const [gender, setGender] = useState<"all" | "male" | "female">("all");
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [profileRow, setProfileRow] = useState<EventOpsParticipant | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const [, startTransition] = useTransition();
+
+  // 서버에서 새 데이터가 오면 동기화 (자동 새로고침 후). 입력/저장 중이면 위에서 건너뜀.
+  useEffect(() => {
+    setParticipants(initialParticipants);
+  }, [initialParticipants]);
+
+  // 7초 자동 새로고침 — 다른 운영자의 변경을 실시간 반영. 입력/저장 중에는 건너뜀.
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const timer = setInterval(() => {
+      const active = document.activeElement;
+      const typing =
+        active instanceof HTMLElement &&
+        ["INPUT", "SELECT", "TEXTAREA"].includes(active.tagName);
+      const saving = Object.values(busy).some(Boolean);
+      if (!typing && !saving) router.refresh();
+    }, 7000);
+    return () => clearInterval(timer);
+  }, [autoRefresh, busy, router]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -327,15 +370,21 @@ export function EventOpsClient({
     );
   }, [participants]);
 
+  const matchGender = useCallback(
+    (row: EventOpsParticipant) => gender === "all" || row.dancer?.gender === gender,
+    [gender],
+  );
+
   const contactRows = useMemo(() => {
     const q = normalize(query);
     return participants
       .filter((row) => {
         if (contactStatus !== "all" && row.outreach_status !== contactStatus) return false;
+        if (!matchGender(row)) return false;
         return !q || searchText(row).includes(q);
       })
       .sort((a, b) => bibSortValue(a.bib_code) - bibSortValue(b.bib_code));
-  }, [contactStatus, participants, query]);
+  }, [contactStatus, matchGender, participants, query]);
 
   const onsiteRows = useMemo(() => {
     const q = normalize(query);
@@ -343,10 +392,11 @@ export function EventOpsClient({
       .filter((row) => {
         if (attendance !== "all" && row.attendance_status !== attendance) return false;
         if (onsite !== "all" && row.onsite_status !== onsite) return false;
+        if (!matchGender(row)) return false;
         return !q || searchText(row).includes(q);
       })
       .sort((a, b) => bibSortValue(a.bib_code) - bibSortValue(b.bib_code));
-  }, [attendance, onsite, participants, query]);
+  }, [attendance, matchGender, onsite, participants, query]);
 
   function updateOutreach(
     row: EventOpsParticipant,
@@ -541,7 +591,50 @@ export function EventOpsClient({
               />
             </>
           )}
+          <Filter
+            value={gender}
+            onChange={(value) => setGender(value as "all" | "male" | "female")}
+            options={GENDER_OPTIONS}
+          />
+          <button
+            type="button"
+            onClick={() => setAutoRefresh((value) => !value)}
+            title="7초마다 다른 운영자의 변경을 자동 반영"
+            className={`h-9 shrink-0 rounded-lg border px-3 text-xs font-bold ${
+              autoRefresh
+                ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                : "border-black/10 bg-white text-black/45"
+            }`}
+          >
+            {autoRefresh ? "● 자동 새로고침" : "○ 자동 새로고침"}
+          </button>
         </section>
+
+        {mode === "contact" ? (
+          <section className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-xs font-bold text-black/40">회의용 보기</span>
+            {CONTACT_PRESETS.map((preset) => {
+              const active = contactStatus === preset.status && gender === preset.gender;
+              return (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => {
+                    setContactStatus(preset.status);
+                    setGender(preset.gender);
+                  }}
+                  className={`h-8 rounded-full border px-3 text-xs font-bold ${
+                    active
+                      ? "border-black bg-black text-white"
+                      : "border-black/10 bg-white text-black/55 hover:bg-black/5"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
+          </section>
+        ) : null}
 
         {mode === "onsite" ? (
           <>
