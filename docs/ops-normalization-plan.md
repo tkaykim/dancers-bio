@@ -149,6 +149,8 @@ Existing NDOL URLs and tables remain readable.
 Applied migration:
 
 - `db/migrations/20260619_002_ops_normalization_foundation.sql`
+- `db/migrations/20260620_001_channel_member_decision_permissions.sql`
+- `db/migrations/20260621_001_event_participants_channel_ops_rls.sql`
 
 Implemented app surface:
 
@@ -163,7 +165,9 @@ Implemented app surface:
 - Project managers can create reusable operation events from the applicant console.
 - Accepted applicants can be copied into `event_participants` per event without changing application status.
 - Generic event ops URL: `/ops/events/[ops_code]`
-- Generic event ops page currently provides read-only participant/attendance/onsite summary. Check-in, QR scan, and onsite decision writes should be added on this surface next.
+- Generic event ops page provides contact operation, attendance, QR/manual check-in, onsite decision, labels, and QR pass surfaces.
+- Channel managers with decision permission can manage their own channel outreach tasks and event participants.
+- Event staff with `admin`, `checkin`, or `floor_manager` role can update event participant state for the assigned event.
 
 Compatibility:
 
@@ -171,6 +175,28 @@ Compatibility:
 - Existing NDOL ops URLs and `ops_ndol_contacts` remain untouched.
 - Existing projects without channel rows continue to work; managers can add channels manually.
 - Future projects get the default channel automatically and can add more channels from the applicant console.
+
+## 2026-06-21 RLS Debug Note
+
+The normalized event data for test project `ndolt1` was present and correctly keyed.
+
+The test event had 134 `event_participants`, 134 bib codes, 134 pass tokens, and 134 outreach tasks.
+
+The false "0명" symptom was caused by the wrong verification path and an RLS write gap, not by missing rows.
+
+`outreach_tasks` already allowed `can_manage_recruitment_channel(recruitment_channel_id)`.
+
+`event_participants_manage` only checked `can_manage_project_event(event_id)` on write checks.
+
+That blocked channel managers and non-admin event staff from updating attendance or onsite state.
+
+`20260621_001_event_participants_channel_ops_rls.sql` adds the channel manager and event staff write paths to `event_participants`.
+
+Verification used SQL policy/function inspection and a simulated channel-manager `auth.uid()` context.
+
+Do not use Codex sandbox local `next dev` render checks as the source of truth for this route.
+
+Use SQL/typecheck in Codex, then Vercel Preview or Claude Code browser verification for real render/RLS session testing.
 
 ## Non-Negotiables
 

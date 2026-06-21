@@ -220,22 +220,22 @@ export function ProjectListView({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 lg:gap-3">
       {/* Search */}
       <Input
         type="search"
         placeholder="제목·주최자·지역 검색"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        className="h-9"
+        className="h-9 lg:h-11"
       />
 
       {/* Filter section */}
-      <div className="rounded-lg border border-border bg-card/50">
+      <div className="rounded-lg border border-border bg-card/50 lg:rounded-xl">
         <button
           type="button"
           onClick={() => setFilterOpen((v) => !v)}
-          className="flex w-full items-center justify-between px-3 py-2 text-left"
+          className="flex w-full items-center justify-between px-3 py-2 text-left lg:px-4 lg:py-3"
         >
           <span className="flex items-center gap-2">
             <span className="text-xs font-semibold">필터</span>
@@ -270,7 +270,7 @@ export function ProjectListView({
         </button>
 
         {filterOpen ? (
-          <div className="flex flex-col gap-3 border-t border-border px-3 py-3">
+          <div className="flex flex-col gap-3 border-t border-border px-3 py-3 lg:px-4">
             {availableCats.length > 0 ? (
               <FilterGroup label="종류">
                 {availableCats.map((c) => (
@@ -346,10 +346,10 @@ export function ProjectListView({
       </div>
 
       {/* Header row */}
-      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-border px-2 py-1.5 text-[10px] uppercase tracking-wider text-ink-3">
+      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-border px-2 py-1.5 text-[10px] uppercase tracking-wider text-ink-3 lg:grid-cols-[minmax(0,1fr)_120px_72px] lg:px-4 lg:py-2">
         <span>공고</span>
-        <span className="w-16 text-right">페이</span>
-        <span className="w-10 text-right">마감</span>
+        <span className="w-16 text-right lg:w-[120px]">페이</span>
+        <span className="w-10 text-right lg:w-[72px]">마감</span>
       </div>
 
       {filtered.length === 0 ? (
@@ -423,7 +423,7 @@ function ProjectRow({
   const masked = project.visibility === "private" && !isAdmin;
 
   const rowClass =
-    "grid grid-cols-[1fr_auto_auto] items-center gap-2 px-2 py-2 transition-colors";
+    "grid grid-cols-[1fr_auto_auto] items-center gap-2 px-2 py-2 transition-colors lg:grid-cols-[minmax(0,1fr)_120px_72px] lg:px-4 lg:py-3";
   const linkClass = `${rowClass} hover:bg-secondary`;
   const plainClass = `${rowClass} cursor-default`;
 
@@ -441,11 +441,11 @@ function ProjectRow({
               상시 모집
             </span>
           ) : null}
-          <div className="truncate text-sm font-medium leading-tight">
+          <div className="truncate text-sm font-medium leading-tight lg:text-[15px]">
             {masked ? "비공개 공고" : project.title}
           </div>
         </div>
-        <div className="mt-0.5 truncate text-[10px] text-ink-3">
+        <div className="mt-0.5 truncate text-[10px] text-ink-3 lg:mt-1 lg:text-xs">
           {masked
             ? "링크를 받은 사람만 열람 가능"
             : [
@@ -459,11 +459,11 @@ function ProjectRow({
                 .join(" · ") || "—"}
         </div>
       </div>
-      <span className="w-16 text-right font-mono text-[11px]">
+      <span className="w-16 text-right font-mono text-[11px] lg:w-[120px] lg:text-sm">
         {masked ? "—" : formatPayShort(project)}
       </span>
       <span
-        className={`w-10 text-right font-mono text-[11px] ${urgent ? "text-destructive" : "text-ink-3"}`}
+        className={`w-10 text-right font-mono text-[11px] lg:w-[72px] lg:text-sm ${urgent ? "text-destructive" : "text-ink-3"}`}
       >
         {standing
           ? "상시"

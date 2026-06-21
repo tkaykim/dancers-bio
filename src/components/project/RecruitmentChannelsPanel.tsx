@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, Copy, ExternalLink, Plus, Users } from "lucide-react";
+import { Archive, Copy, ExternalLink, Plus, ShieldCheck, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   addRecruitmentChannelMemberAction,
@@ -11,6 +11,7 @@ import {
   createRecruitmentChannelAction,
   removeRecruitmentChannelMemberAction,
   searchRecruitmentChannelMemberCandidatesAction,
+  updateRecruitmentChannelMemberPermissionsAction,
 } from "@/app/actions/recruitment-channels";
 import type { ManagerCandidate } from "@/app/actions/project-managers";
 
@@ -20,6 +21,8 @@ export type RecruitmentChannelMember = {
   display_name: string;
   avatar_url: string | null;
   instagram_handle: string | null;
+  can_view_applicants: boolean;
+  can_decide_applications: boolean;
 };
 
 export type RecruitmentChannel = {
@@ -59,6 +62,7 @@ export function RecruitmentChannelsPanel({
   const [memberChannelId, setMemberChannelId] = useState<string | null>(null);
   const [memberQuery, setMemberQuery] = useState("");
   const [memberResults, setMemberResults] = useState<ManagerCandidate[]>([]);
+  const [newMemberCanDecide, setNewMemberCanDecide] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [searching, startSearch] = useTransition();
   const [creating, startCreate] = useTransition();
@@ -121,6 +125,7 @@ export function RecruitmentChannelsPanel({
     const fd = new FormData();
     fd.set("channel_id", memberChannelId);
     fd.set("profile_id", profileId);
+    fd.set("can_decide_applications", newMemberCanDecide ? "true" : "false");
     addRecruitmentChannelMemberAction(fd).then((result) => {
       setBusyId(null);
       if (!result.ok) {
@@ -130,6 +135,28 @@ export function RecruitmentChannelsPanel({
       toast.success("담당자를 추가했습니다");
       setMemberQuery("");
       setMemberResults([]);
+      setNewMemberCanDecide(false);
+      router.refresh();
+    });
+  }
+
+  function updateMemberPermission(
+    channelId: string,
+    profileId: string,
+    canDecideApplications: boolean,
+  ) {
+    setBusyId(`${channelId}:${profileId}:permission`);
+    const fd = new FormData();
+    fd.set("channel_id", channelId);
+    fd.set("profile_id", profileId);
+    fd.set("can_decide_applications", canDecideApplications ? "true" : "false");
+    updateRecruitmentChannelMemberPermissionsAction(fd).then((result) => {
+      setBusyId(null);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("담당자 권한을 변경했습니다");
       router.refresh();
     });
   }
@@ -307,6 +334,7 @@ export function RecruitmentChannelsPanel({
                             );
                             setMemberQuery("");
                             setMemberResults([]);
+                            setNewMemberCanDecide(false);
                           }}
                           className="text-xs text-primary hover:underline"
                         >
@@ -345,6 +373,36 @@ export function RecruitmentChannelsPanel({
                                 </p>
                               ) : null}
                             </div>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={member.can_decide_applications}
+                              disabled={
+                                !canEdit ||
+                                busyId ===
+                                  `${channel.id}:${member.profile_id}:permission`
+                              }
+                              onClick={() =>
+                                updateMemberPermission(
+                                  channel.id,
+                                  member.profile_id,
+                                  !member.can_decide_applications,
+                                )
+                              }
+                              className={`inline-flex h-7 shrink-0 items-center gap-1 rounded-full border px-2 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                                member.can_decide_applications
+                                  ? "border-primary/40 bg-primary/10 text-primary"
+                                  : "border-border bg-secondary/40 text-ink-3"
+                              }`}
+                              title={
+                                member.can_decide_applications
+                                  ? "승인/거절 권한 있음"
+                                  : "명단 보기만 가능"
+                              }
+                            >
+                              <ShieldCheck className="size-3" />
+                              {member.can_decide_applications ? "승인 가능" : "보기만"}
+                            </button>
                             {canEdit ? (
                               <button
                                 type="button"
@@ -375,6 +433,25 @@ export function RecruitmentChannelsPanel({
                           placeholder="이름 · 이메일 · 인스타 핸들로 검색"
                           className="h-9 rounded-lg border border-border bg-card px-3 text-sm"
                         />
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={newMemberCanDecide}
+                          onClick={() => setNewMemberCanDecide((v) => !v)}
+                          className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+                            newMemberCanDecide
+                              ? "border-primary/40 bg-primary/10 text-primary"
+                              : "border-border bg-card text-ink-2"
+                          }`}
+                        >
+                          <span className="inline-flex items-center gap-1.5 font-medium">
+                            <ShieldCheck className="size-3.5" />
+                            승인/거절 권한
+                          </span>
+                          <span className="text-[11px]">
+                            {newMemberCanDecide ? "켬" : "끔"}
+                          </span>
+                        </button>
                         {searching ? (
                           <p className="py-2 text-center text-xs text-ink-3">
                             검색 중...

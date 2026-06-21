@@ -34,6 +34,97 @@ const ONSITE_STATUSES = new Set([
   "self_withdrawn",
 ]);
 
+const OUTREACH_STATUSES = new Set([
+  "pending",
+  "no_answer",
+  "unavailable",
+  "available",
+  "do_not_contact",
+  "done",
+]);
+
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+function buildBibCode(index: number) {
+  const groupIndex = Math.floor(index / 30);
+  const group = String.fromCharCode(65 + groupIndex);
+  const number = String((index % 30) + 1).padStart(2, "0");
+  return `${group}-${number}`;
+}
+
+async function syncEventOperations(
+  admin: AdminClient,
+  {
+    eventId,
+    projectId,
+    userId,
+  }: { eventId: string; projectId: string; userId: string },
+) {
+  const { data: participants } = await admin
+    .from("event_participants")
+    .select("id, dancer_id, application_id, recruitment_channel_id, bib_code, created_at")
+    .eq("event_id", eventId)
+    .order("created_at", { ascending: true });
+
+  const rows = (participants ?? []) as Array<{
+    id: string;
+    dancer_id: string;
+    application_id: string | null;
+    recruitment_channel_id: string | null;
+    bib_code: string | null;
+  }>;
+
+  const usedBibCodes = new Set(
+    rows.map((row) => row.bib_code).filter((value): value is string => !!value),
+  );
+  let cursor = 0;
+
+  for (const row of rows) {
+    if (row.bib_code) continue;
+
+    let nextCode = buildBibCode(cursor);
+    while (usedBibCodes.has(nextCode)) {
+      cursor += 1;
+      nextCode = buildBibCode(cursor);
+    }
+
+    usedBibCodes.add(nextCode);
+    cursor += 1;
+    await admin
+      .from("event_participants")
+      .update({ bib_code: nextCode })
+      .eq("id", row.id);
+  }
+
+  const { data: existingTasks } = await admin
+    .from("outreach_tasks")
+    .select("dancer_id")
+    .eq("event_id", eventId);
+  const existingDancerIds = new Set(
+    ((existingTasks ?? []) as Array<{ dancer_id: string | null }>)
+      .map((task) => task.dancer_id)
+      .filter((value): value is string => !!value),
+  );
+
+  const taskRows = rows
+    .filter((row) => row.dancer_id && !existingDancerIds.has(row.dancer_id))
+    .map((row) => ({
+      project_id: projectId,
+      recruitment_channel_id: row.recruitment_channel_id,
+      event_id: eventId,
+      application_id: row.application_id,
+      dancer_id: row.dancer_id,
+      contact_method: "phone",
+      status: "pending",
+      priority: 0,
+      created_by: userId,
+    }));
+
+  if (taskRows.length > 0) {
+    await admin.from("outreach_tasks").insert(taskRows);
+  }
+}
+
 export async function createProjectEventAction(
   formData: FormData,
 ): Promise<
@@ -89,7 +180,7 @@ export async function seedEventParticipantsFromAcceptedAction(
   const supabase = await createClient();
   const { data: event } = await supabase
     .from("project_events")
-    .select("id, project_id")
+    .select("id, project_id, ops_code")
     .eq("id", eventId)
     .maybeSingle();
   if (!event) return { ok: false, error: "운영일정을 찾을 수 없습니다." };
@@ -107,7 +198,8 @@ export async function seedEventParticipantsFromAcceptedAction(
     .in("project_id", projectScopeIds)
     .eq("status", "accepted")
     .is("archived_at", null)
-    .not("dancer_id", "is", null);
+    .not("dancer_id", "is", null)
+    .order("created_at", { ascending: true });
   if (appError) return { ok: false, error: appError.message };
 
   const uniqueByDancer = new Map<
@@ -153,8 +245,11 @@ export async function seedEventParticipantsFromAcceptedAction(
 
   if (error) return { ok: false, error: error.message };
 
+  await syncEventOperations(admin, { eventId, projectId, userId: user.id });
+
   const inserted = insertedRows?.length ?? 0;
   revalidatePath(`/projects/${projectId}/applicants`);
+  revalidatePath(`/ops/events/${event.ops_code as string}`);
   return {
     ok: true,
     data: {
@@ -246,6 +341,110 @@ export async function updateEventParticipantOpsAction(
       checked_in_at: string | null;
       eliminated_at: string | null;
       note: string;
+      updated_at: string;
+    },
+  };
+}
+
+export async function updateEventParticipantGenderAction(
+  formData: FormData,
+): Promise<ActionResult<{ dancer_id: string; gender: string | null }>> {
+  const opsCode = text(formData, "ops_code", 80);
+  const participantId = text(formData, "participant_id", 80);
+  const genderRaw = (formData.get("gender") ?? "").toString().trim();
+  const gender = genderRaw === "male" || genderRaw === "female" ? genderRaw : null;
+
+  if (!opsCode || !participantId) {
+    return { ok: false, error: "운영일정과 참가자를 확인해 주세요." };
+  }
+
+  const admin = createAdminClient();
+  const { data: event } = await admin
+    .from("project_events")
+    .select("id")
+    .eq("ops_code", opsCode)
+    .maybeSingle();
+  if (!event) return { ok: false, error: "운영일정을 찾을 수 없습니다." };
+
+  const { data: participant } = await admin
+    .from("event_participants")
+    .select("dancer_id")
+    .eq("id", participantId)
+    .eq("event_id", event.id as string)
+    .maybeSingle();
+  if (!participant?.dancer_id) {
+    return { ok: false, error: "참가자를 찾을 수 없습니다." };
+  }
+
+  const { error } = await admin
+    .from("dancers")
+    .update({ gender })
+    .eq("id", participant.dancer_id as string);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/ops/events/${opsCode}`);
+  return { ok: true, data: { dancer_id: participant.dancer_id as string, gender } };
+}
+
+export async function updateEventOutreachTaskAction(
+  formData: FormData,
+): Promise<
+  ActionResult<{
+    id: string;
+    status: string;
+    contact_method: string;
+    last_contacted_at: string | null;
+    result_note: string;
+    updated_at: string;
+  }>
+> {
+  const opsCode = text(formData, "ops_code", 80);
+  const taskId = text(formData, "task_id", 80);
+  const status = text(formData, "status", 40) ?? "pending";
+  const contactMethod = text(formData, "contact_method", 40) ?? "phone";
+  const resultNote = text(formData, "result_note", 1000) ?? "";
+
+  if (!opsCode || !taskId) {
+    return { ok: false, error: "운영일정과 연락 대상을 확인해 주세요." };
+  }
+  if (!OUTREACH_STATUSES.has(status)) {
+    return { ok: false, error: "연락 상태를 확인해 주세요." };
+  }
+
+  const admin = createAdminClient();
+  const { data: event } = await admin
+    .from("project_events")
+    .select("id")
+    .eq("ops_code", opsCode)
+    .maybeSingle();
+  if (!event) return { ok: false, error: "운영일정을 찾을 수 없습니다." };
+
+  const nextLastContactedAt =
+    status === "pending" ? null : new Date().toISOString();
+  const { data, error } = await admin
+    .from("outreach_tasks")
+    .update({
+      status,
+      contact_method: contactMethod,
+      result_note: resultNote,
+      last_contacted_at: nextLastContactedAt,
+    })
+    .eq("id", taskId)
+    .eq("event_id", event.id as string)
+    .select("id, status, contact_method, last_contacted_at, result_note, updated_at")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/ops/events/${opsCode}`);
+  return {
+    ok: true,
+    data: data as {
+      id: string;
+      status: string;
+      contact_method: string;
+      last_contacted_at: string | null;
+      result_note: string;
       updated_at: string;
     },
   };

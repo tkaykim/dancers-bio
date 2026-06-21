@@ -1,0 +1,1926 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>6/18 남자아이돌 오디션 운영 브리프</title>
+  <style>
+    :root { color-scheme: light; --ink:#171717; --muted:#6b7280; --line:#e5e7eb; --soft:#f6f7f9; --brand:#111; --good:#0f766e; --warn:#b45309; --bad:#b91c1c; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #fff; color: var(--ink); font-family: "Apple SD Gothic Neo", "Malgun Gothic", Arial, sans-serif; line-height: 1.55; }
+    .page { max-width: 1280px; margin: 0 auto; padding: 28px 28px 56px; }
+    header { border-bottom: 2px solid var(--ink); padding-bottom: 18px; margin-bottom: 22px; }
+    h1 { margin: 0; font-size: 28px; letter-spacing: 0; }
+    .meta { margin-top: 8px; color: var(--muted); font-size: 13px; }
+    .notice { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--line); background: var(--soft); border-radius: 8px; font-size: 13px; }
+    .cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+    .card { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: #fff; }
+    .card .label { color: var(--muted); font-size: 12px; }
+    .card .value { font-size: 28px; font-weight: 800; margin-top: 4px; }
+    .card .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .plan { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px; margin-bottom: 24px; }
+    .panel { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: #fff; }
+    .panel h2 { margin: 0 0 10px; font-size: 18px; }
+    .panel ol, .panel ul { margin: 0; padding-left: 20px; }
+    .panel li { margin: 6px 0; }
+    section { margin-top: 28px; break-inside: avoid; }
+    .section-head { display: flex; justify-content: space-between; gap: 16px; align-items: end; border-bottom: 1px solid var(--line); padding-bottom: 10px; margin-bottom: 10px; }
+    .section-head h2 { margin: 0; font-size: 20px; }
+    .section-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .count { font-size: 22px; font-weight: 800; white-space: nowrap; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 980px; }
+    th { background: #f9fafb; text-align: left; border-bottom: 1px solid var(--line); padding: 9px 10px; white-space: nowrap; }
+    td { border-bottom: 1px solid #f0f1f3; padding: 8px 10px; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    .num { color: var(--muted); width: 42px; text-align: right; }
+    .muted { color: var(--muted); font-size: 11px; margin-top: 2px; }
+    .pill { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; background: #fff; white-space: nowrap; }
+    .contact-primary { font-weight: 700; color: var(--brand); text-decoration: none; }
+    .contact-detail { color: var(--muted); font-size: 11px; margin-top: 3px; }
+    .contact-detail a { color: var(--muted); }
+    .project-link { color: var(--brand); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:8px; margin: 18px 0 10px; padding: 10px; border:1px solid var(--line); border-radius:8px; background:#fafafa; position: sticky; top: 0; z-index: 3; }
+    .toolbar .group { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding-right:10px; border-right:1px solid var(--line); }
+    .toolbar .group:last-child { border-right:none; }
+    .toolbar-label { color: var(--muted); font-size: 12px; font-weight: 700; margin-right: 2px; }
+    .toolbar button { border:1px solid var(--line); background:#fff; color:#111; border-radius:999px; padding:8px 12px; font: inherit; font-size: 13px; cursor:pointer; }
+    .toolbar button.active { background:#111; color:#fff; border-color:#111; }
+    body.view-confirmed section:not([data-view="confirmed"]),
+    body.view-accepted-unknown section:not([data-view="accepted-unknown"]),
+    body.view-pending-unknown section:not([data-view="pending-unknown"]),
+    body.view-recovery section:not([data-view="recovery"]) { display:none; }
+    body.gender-male tr[data-gender]:not([data-gender="male"]),
+    body.gender-female tr[data-gender]:not([data-gender="female"]),
+    body.gender-unknown tr[data-gender]:not([data-gender="unknown"]) { display:none; }
+    body.gender-male tbody:not(:has(tr[data-gender="male"])),
+    body.gender-female tbody:not(:has(tr[data-gender="female"])),
+    body.gender-unknown tbody:not(:has(tr[data-gender="unknown"])) { min-height: 44px; display: table-row-group; }
+    .tag-good { color: var(--good); font-weight: 800; }
+    .tag-warn { color: var(--warn); font-weight: 800; }
+    @media print {
+      .page { max-width: none; padding: 18mm 12mm; }
+      .cards, .plan { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .toolbar { position: static; }
+      .table-wrap { overflow: visible; }
+      table { min-width: 0; font-size: 10px; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <h1>6/18 남자아이돌 오디션 운영 브리프</h1>
+      <div class="meta">생성: 2026. 6. 17. PM 8:38:07 · 기준 일정: 2026년 6월 18일 16:00-21:00 · 내부 운영/클라이언트 미팅용</div>
+      <div class="notice">개인 연락처가 포함된 내부 자료입니다. 외부 전달 시 상세 명단 영역은 제외하거나 화면 공유 범위를 제한해 주세요.</div>
+    </header>
+
+    <div class="cards">
+      <div class="card"><div class="label">확정 참석 가능</div><div class="value">47</div><div class="sub">남 10 · 여 36 · 미기재 1</div></div>
+      <div class="card"><div class="label">DB 기준 가능</div><div class="value">44</div><div class="sub">추가 섭외 3명 포함</div></div>
+      <div class="card"><div class="label">남성 확보</div><div class="value">10</div><div class="sub">남자 목표 40명 기준</div></div>
+      <div class="card"><div class="label">70명 목표 부족분</div><div class="value">23</div><div class="sub">최소 확보 필요 인원</div></div>
+      <div class="card"><div class="label">80명 목표 부족분</div><div class="value">33</div><div class="sub">상한 목표 기준</div></div>
+      <div class="card"><div class="label">승인 미확인 풀</div><div class="value">39</div><div class="sub">남 5 · 여 34</div></div>
+    </div>
+
+    <div class="plan">
+      <div class="panel">
+        <h2>운영 판단</h2>
+        <ol>
+          <li>확정 참석 가능자는 <b>47명</b>입니다. DB 기준 44명과 대표님 추가 섭외 3명을 합산했습니다.</li>
+          <li>70명 기준 <b>23명</b>, 80명 기준 <b>33명</b>이 부족합니다.</li>
+          <li>가장 먼저 연락할 풀은 <b>승인된 사람 + 일정 미확인 39명</b>입니다. 이 중 남성 5명은 최우선 연락 대상입니다.</li>
+          <li>승인 미확인 풀에서 23명 이상 가능 확인이 나오면 70명 목표를 충족합니다.</li>
+          <li>그래도 부족하면 pending 미확인 24명을 영상 빠른 검토 후 예비 투입합니다.</li>
+          <li>이미 16-21 불가 안내를 받은 60명은 회신 모니터링 대상입니다. 일정 조정 가능 회신이 오면 즉시 확정 후보로 회수합니다.</li>
+        </ol>
+      </div>
+      <div class="panel">
+        <h2>PM 미션</h2>
+        <ul>
+          <li><b>1차:</b> 승인 미확인자에게 전화 우선 연락. 질문은 “내일 15:50 도착, 16:00-21:00 전체 참석 가능하신가요?”로 통일합니다.</li>
+          <li><b>2차:</b> 전화 부재 시 인스타 DM, 없으면 이메일로 동일 문구를 보냅니다.</li>
+          <li><b>남성 우선:</b> 남성 후보는 가능 여부 확인 즉시 확정 명단에 반영합니다.</li>
+          <li><b>회신 모니터링:</b> 일정 조정 가능 회신은 별도 스프레드시트/메모에 즉시 기록합니다.</li>
+          <li><b>마감 판단:</b> 70명 미만이면 pending 미확인자 검토를 바로 시작합니다.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="toolbar" aria-label="명단 보기 전환">
+      <div class="group">
+        <span class="toolbar-label">상태</span>
+        <button type="button" class="active" data-view-filter="all">전체</button>
+        <button type="button" data-view-filter="confirmed">확정 가능</button>
+        <button type="button" data-view-filter="accepted-unknown">일정확인 1순위</button>
+        <button type="button" data-view-filter="pending-unknown">예비 검토</button>
+        <button type="button" data-view-filter="recovery">회신 모니터링</button>
+      </div>
+      <div class="group">
+        <span class="toolbar-label">성별</span>
+        <button type="button" class="active" data-gender-filter="all">전체</button>
+        <button type="button" data-gender-filter="male">남</button>
+        <button type="button" data-gender-filter="female">여</button>
+        <button type="button" data-gender-filter="unknown">미기재</button>
+      </div>
+    </div>
+
+    <section data-view="confirmed">
+    <div class="section-head">
+      <div>
+        <h2>내일 확정 참석 가능 명단</h2>
+        <p>현재 DB에서 6/18 16:00-21:00 전체 가능으로 확인된 명단과 대표님 추가 섭외 인원을 합친 명단입니다.</p>
+      </div>
+      <div class="count">47명</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th><th>이름</th><th>프로젝트</th><th>상태</th><th>성별</th><th>일정</th><th>우선 연락처</th>
+        </tr></thead>
+        <tbody><tr data-gender="male">
+    <td class="num">1</td>
+    <td><b>정원우</b></td>
+    <td>대표님 추가 섭외</td>
+    <td><span class="pill">확정</span></td>
+    <td>남</td>
+    <td>16-21 가능</td>
+    <td><span class="contact-primary">없음: -</span><div class="contact-detail">-</div></td>
+    
+  </tr>
+<tr data-gender="male">
+    <td class="num">2</td>
+    <td><b>최장우</b></td>
+    <td>대표님 추가 섭외</td>
+    <td><span class="pill">확정</span></td>
+    <td>남</td>
+    <td>16-21 가능</td>
+    <td><span class="contact-primary">없음: -</span><div class="contact-detail">-</div></td>
+    
+  </tr>
+<tr data-gender="male">
+    <td class="num">3</td>
+    <td><b>Joo.O</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/phj_0404" target="_blank" rel="noreferrer">인스타: phj_0404</a><div class="contact-detail"><a href="https://instagram.com/phj_0404" target="_blank" rel="noreferrer">인스타 phj_0404</a> · <a href="mailto:rtrtyeeiop@gmail.com">이메일 rtrtyeeiop@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="male">
+    <td class="num">4</td>
+    <td><b>김진념</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/jin_nyeomm" target="_blank" rel="noreferrer">인스타: jin_nyeomm</a><div class="contact-detail"><a href="https://instagram.com/jin_nyeomm" target="_blank" rel="noreferrer">인스타 jin_nyeomm</a> · <a href="mailto:j01024868021@gmail.com">이메일 j01024868021@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="male">
+    <td class="num">5</td>
+    <td><b>kuma</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/i.kuma.u" target="_blank" rel="noreferrer">인스타: i.kuma.u</a><div class="contact-detail"><a href="https://instagram.com/i.kuma.u" target="_blank" rel="noreferrer">인스타 i.kuma.u</a> · <a href="mailto:hyeontjdgus724@gmail.com">이메일 hyeontjdgus724@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="male">
+    <td class="num">6</td>
+    <td><b>Mizuki</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/mizukkiz" target="_blank" rel="noreferrer">인스타: mizukkiz</a><div class="contact-detail"><a href="https://instagram.com/mizukkiz" target="_blank" rel="noreferrer">인스타 mizukkiz</a> · <a href="mailto:vivavivav6v6v6@gmail.com">이메일 vivavivav6v6v6@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="male">
+    <td class="num">7</td>
+    <td><b>RICHIE</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/hykzzn" target="_blank" rel="noreferrer">인스타: hykzzn</a><div class="contact-detail"><a href="https://instagram.com/hykzzn" target="_blank" rel="noreferrer">인스타 hykzzn</a> · <a href="mailto:rxchiepark@gmail.com">이메일 rxchiepark@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="male">
+    <td class="num">8</td>
+    <td><b>woo</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="tel:01092832032" target="_blank" rel="noreferrer">전화: 01092832032</a><div class="contact-detail">전화 01092832032 · <a href="https://instagram.com/sisuooweaj" target="_blank" rel="noreferrer">인스타 sisuooweaj</a> · <a href="mailto:leejaewoo970206@gmail.com">이메일 leejaewoo970206@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="male">
+    <td class="num">9</td>
+    <td><b>ZIKEN</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>남</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="tel:01090610181" target="_blank" rel="noreferrer">전화: 01090610181</a><div class="contact-detail">전화 01090610181 · <a href="https://instagram.com/ziken_ee" target="_blank" rel="noreferrer">인스타 ziken_ee</a> · <a href="mailto:wodus882@naver.com">이메일 wodus882@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="male">
+    <td class="num">10</td>
+    <td><b>Kmsones</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/kmsones" target="_blank" rel="noreferrer">인스타: kmsones</a><div class="contact-detail"><a href="https://instagram.com/kmsones" target="_blank" rel="noreferrer">인스타 kmsones</a> · <a href="mailto:ansdudgml102@naver.com">이메일 ansdudgml102@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="unknown">
+    <td class="num">11</td>
+    <td><b>YENI</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>미기재</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/_yeni_._" target="_blank" rel="noreferrer">인스타: _yeni_._</a><div class="contact-detail"><a href="https://instagram.com/_yeni_._" target="_blank" rel="noreferrer">인스타 _yeni_._</a> · <a href="mailto:yeeuns63@naver.com">이메일 yeeuns63@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">12</td>
+    <td><b>양채윤</b></td>
+    <td>대표님 추가 섭외</td>
+    <td><span class="pill">확정</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><span class="contact-primary">없음: -</span><div class="contact-detail">-</div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">13</td>
+    <td><b>Dam.E</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/_dam.e_" target="_blank" rel="noreferrer">인스타: _dam.e_</a><div class="contact-detail"><a href="https://instagram.com/_dam.e_" target="_blank" rel="noreferrer">인스타 _dam.e_</a> · <a href="mailto:sinyoung431@naver.com">이메일 sinyoung431@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">14</td>
+    <td><b>Hyewon</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/hyenni_e" target="_blank" rel="noreferrer">인스타: hyenni_e</a><div class="contact-detail"><a href="https://instagram.com/hyenni_e" target="_blank" rel="noreferrer">인스타 hyenni_e</a> · <a href="mailto:hyen2325@gmail.com">이메일 hyen2325@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">15</td>
+    <td><b>Sari song</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/iamsarisong" target="_blank" rel="noreferrer">인스타: iamsarisong</a><div class="contact-detail"><a href="https://instagram.com/iamsarisong" target="_blank" rel="noreferrer">인스타 iamsarisong</a> · <a href="mailto:songcy0806@gmail.com">이메일 songcy0806@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">16</td>
+    <td><b>winter</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/winter.over" target="_blank" rel="noreferrer">인스타: winter.over</a><div class="contact-detail"><a href="https://instagram.com/winter.over" target="_blank" rel="noreferrer">인스타 winter.over</a> · <a href="mailto:soyun9839@naver.com">이메일 soyun9839@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">17</td>
+    <td><b>김서현</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/sczh0z" target="_blank" rel="noreferrer">인스타: sczh0z</a><div class="contact-detail"><a href="https://instagram.com/sczh0z" target="_blank" rel="noreferrer">인스타 sczh0z</a> · <a href="mailto:gims77702@gmail.com">이메일 gims77702@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">18</td>
+    <td><b>문채림</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/chaerimiris" target="_blank" rel="noreferrer">인스타: chaerimiris</a><div class="contact-detail"><a href="https://instagram.com/chaerimiris" target="_blank" rel="noreferrer">인스타 chaerimiris</a> · <a href="mailto:cmun947@naver.com">이메일 cmun947@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">19</td>
+    <td><b>전여진</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/wjsduwlsx" target="_blank" rel="noreferrer">인스타: wjsduwlsx</a><div class="contact-detail"><a href="https://instagram.com/wjsduwlsx" target="_blank" rel="noreferrer">인스타 wjsduwlsx</a> · <a href="mailto:yeajin031953@naver.com">이메일 yeajin031953@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">20</td>
+    <td><b>조연교</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/whdusry__" target="_blank" rel="noreferrer">인스타: whdusry__</a><div class="contact-detail"><a href="https://instagram.com/whdusry__" target="_blank" rel="noreferrer">인스타 whdusry__</a> · <a href="mailto:yeongyo1106@naver.com">이메일 yeongyo1106@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">21</td>
+    <td><b>주승현</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/ssheoni" target="_blank" rel="noreferrer">인스타: ssheoni</a><div class="contact-detail"><a href="https://instagram.com/ssheoni" target="_blank" rel="noreferrer">인스타 ssheoni</a> · <a href="mailto:sh07200@daum.net">이메일 sh07200@daum.net</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">22</td>
+    <td><b>AIN</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/_.ain._n" target="_blank" rel="noreferrer">인스타: _.ain._n</a><div class="contact-detail"><a href="https://instagram.com/_.ain._n" target="_blank" rel="noreferrer">인스타 _.ain._n</a> · <a href="mailto:heymo5549@naver.com">이메일 heymo5549@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">23</td>
+    <td><b>Chaeyeon</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/ming_gu_24" target="_blank" rel="noreferrer">인스타: ming_gu_24</a><div class="contact-detail"><a href="https://instagram.com/ming_gu_24" target="_blank" rel="noreferrer">인스타 ming_gu_24</a> · <a href="mailto:chaeyeonhan55@naver.com">이메일 chaeyeonhan55@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">24</td>
+    <td><b>Gaeun</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/gagoway_" target="_blank" rel="noreferrer">인스타: gagoway_</a><div class="contact-detail"><a href="https://instagram.com/gagoway_" target="_blank" rel="noreferrer">인스타 gagoway_</a> · <a href="mailto:kahon7942@gmail.com">이메일 kahon7942@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">25</td>
+    <td><b>gavin</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/coldiwarmple" target="_blank" rel="noreferrer">인스타: coldiwarmple</a><div class="contact-detail"><a href="https://instagram.com/coldiwarmple" target="_blank" rel="noreferrer">인스타 coldiwarmple</a> · <a href="mailto:lmonster15020518@gmail.com">이메일 lmonster15020518@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">26</td>
+    <td><b>Han A</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/hanadltka" target="_blank" rel="noreferrer">인스타: hanadltka</a><div class="contact-detail"><a href="https://instagram.com/hanadltka" target="_blank" rel="noreferrer">인스타 hanadltka</a> · <a href="mailto:parkhana3368@gmail.com">이메일 parkhana3368@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">27</td>
+    <td><b>HIPKU</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/hiphopkuromi" target="_blank" rel="noreferrer">인스타: hiphopkuromi</a><div class="contact-detail"><a href="https://instagram.com/hiphopkuromi" target="_blank" rel="noreferrer">인스타 hiphopkuromi</a> · <a href="mailto:lhs01070@naver.com">이메일 lhs01070@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">28</td>
+    <td><b>Iwon</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/i._wo_.n" target="_blank" rel="noreferrer">인스타: i._wo_.n</a><div class="contact-detail"><a href="https://instagram.com/i._wo_.n" target="_blank" rel="noreferrer">인스타 i._wo_.n</a> · <a href="mailto:gw1174@naver.com">이메일 gw1174@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">29</td>
+    <td><b>Jungmin</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/j_um.in_" target="_blank" rel="noreferrer">인스타: j_um.in_</a><div class="contact-detail"><a href="https://instagram.com/j_um.in_" target="_blank" rel="noreferrer">인스타 j_um.in_</a> · <a href="mailto:jungmin050627@gmail.com">이메일 jungmin050627@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">30</td>
+    <td><b>Kang minji</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/pminziq" target="_blank" rel="noreferrer">인스타: pminziq</a><div class="contact-detail"><a href="https://instagram.com/pminziq" target="_blank" rel="noreferrer">인스타 pminziq</a> · <a href="mailto:13tw1601@naver.com">이메일 13tw1601@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">31</td>
+    <td><b>Ko eunbee</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/eun_61111" target="_blank" rel="noreferrer">인스타: eun_61111</a><div class="contact-detail"><a href="https://instagram.com/eun_61111" target="_blank" rel="noreferrer">인스타 eun_61111</a> · <a href="mailto:koeunbee0705@naver.com">이메일 koeunbee0705@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">32</td>
+    <td><b>MARIA</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/maria._.bh01" target="_blank" rel="noreferrer">인스타: maria._.bh01</a><div class="contact-detail"><a href="https://instagram.com/maria._.bh01" target="_blank" rel="noreferrer">인스타 maria._.bh01</a> · <a href="mailto:maria12926@gmail.com">이메일 maria12926@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">33</td>
+    <td><b>Soll</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/solbee0612" target="_blank" rel="noreferrer">인스타: solbee0612</a><div class="contact-detail"><a href="https://instagram.com/solbee0612" target="_blank" rel="noreferrer">인스타 solbee0612</a> · <a href="mailto:rainbi612@gmail.com">이메일 rainbi612@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">34</td>
+    <td><b>Yun seo yeon</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/_sio_oo_" target="_blank" rel="noreferrer">인스타: _sio_oo_</a><div class="contact-detail"><a href="https://instagram.com/_sio_oo_" target="_blank" rel="noreferrer">인스타 _sio_oo_</a> · <a href="mailto:ysm3326497@naver.com">이메일 ysm3326497@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">35</td>
+    <td><b>ZANE</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/zanesszn" target="_blank" rel="noreferrer">인스타: zanesszn</a><div class="contact-detail"><a href="https://instagram.com/zanesszn" target="_blank" rel="noreferrer">인스타 zanesszn</a> · <a href="mailto:haevnee679@gmail.com">이메일 haevnee679@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">36</td>
+    <td><b>다은</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/dauu.nii" target="_blank" rel="noreferrer">인스타: dauu.nii</a><div class="contact-detail"><a href="https://instagram.com/dauu.nii" target="_blank" rel="noreferrer">인스타 dauu.nii</a> · <a href="mailto:de2853@naver.com">이메일 de2853@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">37</td>
+    <td><b>한유빈</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/h___y_b" target="_blank" rel="noreferrer">인스타: h___y_b</a><div class="contact-detail"><a href="https://instagram.com/h___y_b" target="_blank" rel="noreferrer">인스타 h___y_b</a> · <a href="mailto:bin070126@gmail.com">이메일 bin070126@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">38</td>
+    <td><b>Hyunn</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/hyunn__kr" target="_blank" rel="noreferrer">인스타: hyunn__kr</a><div class="contact-detail"><a href="https://instagram.com/hyunn__kr" target="_blank" rel="noreferrer">인스타 hyunn__kr</a> · <a href="mailto:wlgus8047@naver.com">이메일 wlgus8047@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">39</td>
+    <td><b>Jione</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/jio0ne" target="_blank" rel="noreferrer">인스타: jio0ne</a><div class="contact-detail"><a href="https://instagram.com/jio0ne" target="_blank" rel="noreferrer">인스타 jio0ne</a> · <a href="mailto:jione328@naver.com">이메일 jione328@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">40</td>
+    <td><b>Koo</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="tel:+821032347939" target="_blank" rel="noreferrer">전화: +821032347939</a><div class="contact-detail">전화 +821032347939 · <a href="https://instagram.com/koo__min__" target="_blank" rel="noreferrer">인스타 koo__min__</a> · <a href="mailto:souyk02@gmail.com">이메일 souyk02@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">41</td>
+    <td><b>kuri</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/kh_1012r" target="_blank" rel="noreferrer">인스타: kh_1012r</a><div class="contact-detail"><a href="https://instagram.com/kh_1012r" target="_blank" rel="noreferrer">인스타 kh_1012r</a> · <a href="mailto:hrim1012@naver.com">이메일 hrim1012@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">42</td>
+    <td><b>OKKU</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/sh1mok9u" target="_blank" rel="noreferrer">인스타: sh1mok9u</a><div class="contact-detail"><a href="https://instagram.com/sh1mok9u" target="_blank" rel="noreferrer">인스타 sh1mok9u</a> · <a href="mailto:tladmscopro@naver.com">이메일 tladmscopro@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">43</td>
+    <td><b>Oring</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/0__ring" target="_blank" rel="noreferrer">인스타: 0__ring</a><div class="contact-detail"><a href="https://instagram.com/0__ring" target="_blank" rel="noreferrer">인스타 0__ring</a> · <a href="mailto:0203207@naver.com">이메일 0203207@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">44</td>
+    <td><b>seohyun</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/seohyumii" target="_blank" rel="noreferrer">인스타: seohyumii</a><div class="contact-detail"><a href="https://instagram.com/seohyumii" target="_blank" rel="noreferrer">인스타 seohyumii</a> · <a href="mailto:kimseohyun1116@gmail.com">이메일 kimseohyun1116@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">45</td>
+    <td><b>Serena</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/jsheeen" target="_blank" rel="noreferrer">인스타: jsheeen</a><div class="contact-detail"><a href="https://instagram.com/jsheeen" target="_blank" rel="noreferrer">인스타 jsheeen</a> · <a href="mailto:jshaa5170@gmail.com">이메일 jshaa5170@gmail.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">46</td>
+    <td><b>Yoori kim</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/u_riya_" target="_blank" rel="noreferrer">인스타: u_riya_</a><div class="contact-detail"><a href="https://instagram.com/u_riya_" target="_blank" rel="noreferrer">인스타 u_riya_</a> · <a href="mailto:kyl2153@naver.com">이메일 kyl2153@naver.com</a></div></td>
+    
+  </tr>
+<tr data-gender="female">
+    <td class="num">47</td>
+    <td><b>Zera</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>16-21 가능</td>
+    <td><a class="contact-primary" href="https://instagram.com/yunzera_" target="_blank" rel="noreferrer">인스타: yunzera_</a><div class="contact-detail"><a href="https://instagram.com/yunzera_" target="_blank" rel="noreferrer">인스타 yunzera_</a> · <a href="mailto:yunssu6657@naver.com">이메일 yunssu6657@naver.com</a></div></td>
+    
+  </tr></tbody>
+      </table>
+    </div>
+  </section>
+    <section data-view="accepted-unknown">
+    <div class="section-head">
+      <div>
+        <h2>일정확인 연락 필요 명단 - 1순위</h2>
+        <p>매니저 검토 통과로 승인된 사람이지만 16:00-21:00 가능 여부가 아직 미확인인 명단입니다.</p>
+      </div>
+      <div class="count">39명</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th><th>이름</th><th>프로젝트</th><th>상태</th><th>성별</th><th>일정</th><th>우선 연락처</th><th>PM 미션</th>
+        </tr></thead>
+        <tbody><tr data-gender="male">
+    <td class="num">1</td>
+    <td><b>조승주</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/noirjxx" target="_blank" rel="noreferrer">인스타: noirjxx</a><div class="contact-detail"><a href="https://instagram.com/noirjxx" target="_blank" rel="noreferrer">인스타 noirjxx</a> · <a href="mailto:tmdwn1107@gmail.com">이메일 tmdwn1107@gmail.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">2</td>
+    <td><b>현태</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/hyeon_tae03" target="_blank" rel="noreferrer">인스타: hyeon_tae03</a><div class="contact-detail"><a href="https://instagram.com/hyeon_tae03" target="_blank" rel="noreferrer">인스타 hyeon_tae03</a> · <a href="mailto:hyeontae0204@gmail.com">이메일 hyeontae0204@gmail.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">3</td>
+    <td><b>donghwa</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="tel:01074622705" target="_blank" rel="noreferrer">전화: 01074622705</a><div class="contact-detail">전화 01074622705 · <a href="https://instagram.com/h_dhxa" target="_blank" rel="noreferrer">인스타 h_dhxa</a> · <a href="mailto:hunter2335@naver.com">이메일 hunter2335@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">4</td>
+    <td><b>GUN HEE</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/iam_b_gh" target="_blank" rel="noreferrer">인스타: iam_b_gh</a><div class="contact-detail"><a href="https://instagram.com/iam_b_gh" target="_blank" rel="noreferrer">인스타 iam_b_gh</a> · <a href="mailto:nymrkkk07@naver.com">이메일 nymrkkk07@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">5</td>
+    <td><b>Kmsones</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/7a0ea892-84ac-4461-b06f-18270f0c371f/applicants" target="_blank" rel="noreferrer">ndolbd</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/kmsones" target="_blank" rel="noreferrer">인스타: kmsones</a><div class="contact-detail"><a href="https://instagram.com/kmsones" target="_blank" rel="noreferrer">인스타 kmsones</a> · <a href="mailto:ansdudgml102@naver.com">이메일 ansdudgml102@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">6</td>
+    <td><b>pano</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/joo00oo00n" target="_blank" rel="noreferrer">인스타: joo00oo00n</a><div class="contact-detail"><a href="https://instagram.com/joo00oo00n" target="_blank" rel="noreferrer">인스타 joo00oo00n</a> · <a href="mailto:255173@naver.com">이메일 255173@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">7</td>
+    <td><b>구나현</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/nahyungu_" target="_blank" rel="noreferrer">인스타: nahyungu_</a><div class="contact-detail"><a href="https://instagram.com/nahyungu_" target="_blank" rel="noreferrer">인스타 nahyungu_</a> · <a href="mailto:nh2759@naver.com">이메일 nh2759@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">8</td>
+    <td><b>이연승</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/twinsinarow" target="_blank" rel="noreferrer">인스타: twinsinarow</a><div class="contact-detail"><a href="https://instagram.com/twinsinarow" target="_blank" rel="noreferrer">인스타 twinsinarow</a> · <a href="mailto:monicamila2007@gmail.com">이메일 monicamila2007@gmail.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">9</td>
+    <td><b>정다혜</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/so.ryuga" target="_blank" rel="noreferrer">인스타: so.ryuga</a><div class="contact-detail"><a href="https://instagram.com/so.ryuga" target="_blank" rel="noreferrer">인스타 so.ryuga</a> · <a href="mailto:dahye06130613@gmail.com">이메일 dahye06130613@gmail.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">10</td>
+    <td><b>정민</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/yw.nvm_" target="_blank" rel="noreferrer">인스타: yw.nvm_</a><div class="contact-detail"><a href="https://instagram.com/yw.nvm_" target="_blank" rel="noreferrer">인스타 yw.nvm_</a> · <a href="mailto:zsjm0722@gmail.com">이메일 zsjm0722@gmail.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">11</td>
+    <td><b>채빈</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/coqlsqus" target="_blank" rel="noreferrer">인스타: coqlsqus</a><div class="contact-detail"><a href="https://instagram.com/coqlsqus" target="_blank" rel="noreferrer">인스타 coqlsqus</a> · <a href="mailto:chain.bcb07120r@gmail.com">이메일 chain.bcb07120r@gmail.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">12</td>
+    <td><b>Bunn</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/_y00lv" target="_blank" rel="noreferrer">인스타: _y00lv</a><div class="contact-detail"><a href="https://instagram.com/_y00lv" target="_blank" rel="noreferrer">인스타 _y00lv</a> · <a href="mailto:y0s0y0921@naver.com">이메일 y0s0y0921@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">13</td>
+    <td><b>GUNHEE</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/_gunh22" target="_blank" rel="noreferrer">인스타: _gunh22</a><div class="contact-detail"><a href="https://instagram.com/_gunh22" target="_blank" rel="noreferrer">인스타 _gunh22</a> · <a href="mailto:gunhee060410@naver.com">이메일 gunhee060410@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">14</td>
+    <td><b>HARLEY</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/__har.ley__" target="_blank" rel="noreferrer">인스타: __har.ley__</a><div class="contact-detail"><a href="https://instagram.com/__har.ley__" target="_blank" rel="noreferrer">인스타 __har.ley__</a> · <a href="mailto:yelim050211@naver.com">이메일 yelim050211@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">15</td>
+    <td><b>JIYEON</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/xlxll.vll" target="_blank" rel="noreferrer">인스타: xlxll.vll</a><div class="contact-detail"><a href="https://instagram.com/xlxll.vll" target="_blank" rel="noreferrer">인스타 xlxll.vll</a> · <a href="mailto:kjy20071112@gmail.com">이메일 kjy20071112@gmail.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">16</td>
+    <td><b>LEE GYUBIN</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/gyubnni" target="_blank" rel="noreferrer">인스타: gyubnni</a><div class="contact-detail"><a href="https://instagram.com/gyubnni" target="_blank" rel="noreferrer">인스타 gyubnni</a> · <a href="mailto:gblee0709@naver.com">이메일 gblee0709@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">17</td>
+    <td><b>Minju Jung</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/miinxxur" target="_blank" rel="noreferrer">인스타: miinxxur</a><div class="contact-detail"><a href="https://instagram.com/miinxxur" target="_blank" rel="noreferrer">인스타 miinxxur</a> · <a href="mailto:miinxxur@naver.com">이메일 miinxxur@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">18</td>
+    <td><b>Park So Jung</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/_psssojj" target="_blank" rel="noreferrer">인스타: _psssojj</a><div class="contact-detail"><a href="https://instagram.com/_psssojj" target="_blank" rel="noreferrer">인스타 _psssojj</a> · <a href="mailto:bsojeong766@gmail.com">이메일 bsojeong766@gmail.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">19</td>
+    <td><b>Porrrri</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/_porrrrrri_" target="_blank" rel="noreferrer">인스타: _porrrrrri_</a><div class="contact-detail"><a href="https://instagram.com/_porrrrrri_" target="_blank" rel="noreferrer">인스타 _porrrrrri_</a> · <a href="mailto:enseo060904@naver.com">이메일 enseo060904@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">20</td>
+    <td><b>us</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/4cusonus_" target="_blank" rel="noreferrer">인스타: 4cusonus_</a><div class="contact-detail"><a href="https://instagram.com/4cusonus_" target="_blank" rel="noreferrer">인스타 4cusonus_</a> · <a href="mailto:an3444an@naver.com">이메일 an3444an@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">21</td>
+    <td><b>water</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/water_.ing" target="_blank" rel="noreferrer">인스타: water_.ing</a><div class="contact-detail"><a href="https://instagram.com/water_.ing" target="_blank" rel="noreferrer">인스타 water_.ing</a> · <a href="mailto:soohyun767@naver.com">이메일 soohyun767@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">22</td>
+    <td><b>Yang yeo jin</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/oilkll__" target="_blank" rel="noreferrer">인스타: oilkll__</a><div class="contact-detail"><a href="https://instagram.com/oilkll__" target="_blank" rel="noreferrer">인스타 oilkll__</a> · <a href="mailto:jessica070103@gmail.com">이메일 jessica070103@gmail.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">23</td>
+    <td><b>Yumin</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/yuminnnni" target="_blank" rel="noreferrer">인스타: yuminnnni</a><div class="contact-detail"><a href="https://instagram.com/yuminnnni" target="_blank" rel="noreferrer">인스타 yuminnnni</a> · <a href="mailto:yumin3553@icloud.com">이메일 yumin3553@icloud.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">24</td>
+    <td><b>김서하</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/7a0ea892-84ac-4461-b06f-18270f0c371f/applicants" target="_blank" rel="noreferrer">ndolbd</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/k_seeh1" target="_blank" rel="noreferrer">인스타: k_seeh1</a><div class="contact-detail"><a href="https://instagram.com/k_seeh1" target="_blank" rel="noreferrer">인스타 k_seeh1</a> · <a href="mailto:lisa7069suha@gmail.com">이메일 lisa7069suha@gmail.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">25</td>
+    <td><b>Dansy</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/7a0ea892-84ac-4461-b06f-18270f0c371f/applicants" target="_blank" rel="noreferrer">ndolbd</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/dansyyyy_" target="_blank" rel="noreferrer">인스타: dansyyyy_</a><div class="contact-detail"><a href="https://instagram.com/dansyyyy_" target="_blank" rel="noreferrer">인스타 dansyyyy_</a> · <a href="mailto:ksy787712@naver.com">이메일 ksy787712@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">26</td>
+    <td><b>FOUNTINE</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/7a0ea892-84ac-4461-b06f-18270f0c371f/applicants" target="_blank" rel="noreferrer">ndolbd</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/waterfountine" target="_blank" rel="noreferrer">인스타: waterfountine</a><div class="contact-detail"><a href="https://instagram.com/waterfountine" target="_blank" rel="noreferrer">인스타 waterfountine</a> · <a href="mailto:fountinezhao105@gmail.com">이메일 fountinezhao105@gmail.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">27</td>
+    <td><b>HAYUN</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/7a0ea892-84ac-4461-b06f-18270f0c371f/applicants" target="_blank" rel="noreferrer">ndolbd</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/yunnxx__" target="_blank" rel="noreferrer">인스타: yunnxx__</a><div class="contact-detail"><a href="https://instagram.com/yunnxx__" target="_blank" rel="noreferrer">인스타 yunnxx__</a> · <a href="mailto:0516hayun@naver.com">이메일 0516hayun@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">28</td>
+    <td><b>Ian</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/7a0ea892-84ac-4461-b06f-18270f0c371f/applicants" target="_blank" rel="noreferrer">ndolbd</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/ianeeyana" target="_blank" rel="noreferrer">인스타: ianeeyana</a><div class="contact-detail"><a href="https://instagram.com/ianeeyana" target="_blank" rel="noreferrer">인스타 ianeeyana</a> · <a href="mailto:syahn05101@naver.com">이메일 syahn05101@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">29</td>
+    <td><b>Kim Tae Hee</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/7a0ea892-84ac-4461-b06f-18270f0c371f/applicants" target="_blank" rel="noreferrer">ndolbd</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/_hihihl_" target="_blank" rel="noreferrer">인스타: _hihihl_</a><div class="contact-detail"><a href="https://instagram.com/_hihihl_" target="_blank" rel="noreferrer">인스타 _hihihl_</a> · <a href="mailto:iidily_@naver.com">이메일 iidily_@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">30</td>
+    <td><b>Mahmik</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/7a0ea892-84ac-4461-b06f-18270f0c371f/applicants" target="_blank" rel="noreferrer">ndolbd</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/b2e_mahmik" target="_blank" rel="noreferrer">인스타: b2e_mahmik</a><div class="contact-detail"><a href="https://instagram.com/b2e_mahmik" target="_blank" rel="noreferrer">인스타 b2e_mahmik</a> · <a href="mailto:mahmik117@naver.com">이메일 mahmik117@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">31</td>
+    <td><b>Nadia</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/7a0ea892-84ac-4461-b06f-18270f0c371f/applicants" target="_blank" rel="noreferrer">ndolbd</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/nadia__high" target="_blank" rel="noreferrer">인스타: nadia__high</a><div class="contact-detail"><a href="https://instagram.com/nadia__high" target="_blank" rel="noreferrer">인스타 nadia__high</a> · <a href="mailto:edyoun1225@naver.com">이메일 edyoun1225@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">32</td>
+    <td><b>Taehee</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/7a0ea892-84ac-4461-b06f-18270f0c371f/applicants" target="_blank" rel="noreferrer">ndolbd</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/taeheepark1119" target="_blank" rel="noreferrer">인스타: taeheepark1119</a><div class="contact-detail"><a href="https://instagram.com/taeheepark1119" target="_blank" rel="noreferrer">인스타 taeheepark1119</a> · <a href="mailto:thluv00@naver.com">이메일 thluv00@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">33</td>
+    <td><b>verre</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/7a0ea892-84ac-4461-b06f-18270f0c371f/applicants" target="_blank" rel="noreferrer">ndolbd</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/_verre._" target="_blank" rel="noreferrer">인스타: _verre._</a><div class="contact-detail"><a href="https://instagram.com/_verre._" target="_blank" rel="noreferrer">인스타 _verre._</a> · <a href="mailto:dldmsgp5850@naver.com">이메일 dldmsgp5850@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">34</td>
+    <td><b>Yeonjae</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/7a0ea892-84ac-4461-b06f-18270f0c371f/applicants" target="_blank" rel="noreferrer">ndolbd</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/yeonjae._.912" target="_blank" rel="noreferrer">인스타: yeonjae._.912</a><div class="contact-detail"><a href="https://instagram.com/yeonjae._.912" target="_blank" rel="noreferrer">인스타 yeonjae._.912</a> · <a href="mailto:yoyoyj04@naver.com">이메일 yoyoyj04@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">35</td>
+    <td><b>한유빈</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/h___y_b" target="_blank" rel="noreferrer">인스타: h___y_b</a><div class="contact-detail"><a href="https://instagram.com/h___y_b" target="_blank" rel="noreferrer">인스타 h___y_b</a> · <a href="mailto:bin01262@gmail.com">이메일 bin01262@gmail.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">36</td>
+    <td><b>juhyeon</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/jutaengx" target="_blank" rel="noreferrer">인스타: jutaengx</a><div class="contact-detail"><a href="https://instagram.com/jutaengx" target="_blank" rel="noreferrer">인스타 jutaengx</a> · <a href="mailto:kipptti@naver.com">이메일 kipptti@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">37</td>
+    <td><b>Lizzy</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/lizzy_eel_" target="_blank" rel="noreferrer">인스타: lizzy_eel_</a><div class="contact-detail"><a href="https://instagram.com/lizzy_eel_" target="_blank" rel="noreferrer">인스타 lizzy_eel_</a> · <a href="mailto:ljs042555@naver.com">이메일 ljs042555@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">38</td>
+    <td><b>Ming</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/ming_s20" target="_blank" rel="noreferrer">인스타: ming_s20</a><div class="contact-detail"><a href="https://instagram.com/ming_s20" target="_blank" rel="noreferrer">인스타 ming_s20</a> · <a href="mailto:bianca1120@naver.com">이메일 bianca1120@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">39</td>
+    <td><b>Yeoul</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/yeoul_kr" target="_blank" rel="noreferrer">인스타: yeoul_kr</a><div class="contact-detail"><a href="https://instagram.com/yeoul_kr" target="_blank" rel="noreferrer">인스타 yeoul_kr</a> · <a href="mailto:hongyena07@naver.com">이메일 hongyena07@naver.com</a></div></td>
+    <td>오늘 중 전화→인스타→이메일 순으로 16:00-21:00 가능 여부 확인</td>
+  </tr></tbody>
+      </table>
+    </div>
+  </section>
+    <section data-view="pending-unknown">
+    <div class="section-head">
+      <div>
+        <h2>예비 연락 명단 - 2순위</h2>
+        <p>70명 미달 시 빠른 검토 후 연락할 pending 미확인 명단입니다.</p>
+      </div>
+      <div class="count">24명</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th><th>이름</th><th>프로젝트</th><th>상태</th><th>성별</th><th>일정</th><th>우선 연락처</th><th>PM 미션</th>
+        </tr></thead>
+        <tbody><tr data-gender="female">
+    <td class="num">1</td>
+    <td><b>김보은</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/bb0eni" target="_blank" rel="noreferrer">인스타: bb0eni</a><div class="contact-detail"><a href="https://instagram.com/bb0eni" target="_blank" rel="noreferrer">인스타 bb0eni</a> · <a href="mailto:bona060719@gmail.com">이메일 bona060719@gmail.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">2</td>
+    <td><b>리예</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/r____i_uu" target="_blank" rel="noreferrer">인스타: r____i_uu</a><div class="contact-detail"><a href="https://instagram.com/r____i_uu" target="_blank" rel="noreferrer">인스타 r____i_uu</a> · <a href="mailto:billonairrr@naver.com">이메일 billonairrr@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">3</td>
+    <td><b>백소연</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/soyeoeon_" target="_blank" rel="noreferrer">인스타: soyeoeon_</a><div class="contact-detail"><a href="https://instagram.com/soyeoeon_" target="_blank" rel="noreferrer">인스타 soyeoeon_</a> · <a href="mailto:angelbsy07@gmail.com">이메일 angelbsy07@gmail.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">4</td>
+    <td><b>아현</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/a_7x8o" target="_blank" rel="noreferrer">인스타: a_7x8o</a><div class="contact-detail"><a href="https://instagram.com/a_7x8o" target="_blank" rel="noreferrer">인스타 a_7x8o</a> · <a href="mailto:rladk2492@naver.com">이메일 rladk2492@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">5</td>
+    <td><b>정원</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/ki.ooni" target="_blank" rel="noreferrer">인스타: ki.ooni</a><div class="contact-detail"><a href="https://instagram.com/ki.ooni" target="_blank" rel="noreferrer">인스타 ki.ooni</a> · <a href="mailto:kjwon5347@naver.com">이메일 kjwon5347@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">6</td>
+    <td><b>현서</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/o_hy.3ii" target="_blank" rel="noreferrer">인스타: o_hy.3ii</a><div class="contact-detail"><a href="https://instagram.com/o_hy.3ii" target="_blank" rel="noreferrer">인스타 o_hy.3ii</a> · <a href="mailto:kanghyeonseo0330@naver.com">이메일 kanghyeonseo0330@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">7</td>
+    <td><b>Beii</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/beiiliiiiiii" target="_blank" rel="noreferrer">인스타: beiiliiiiiii</a><div class="contact-detail"><a href="https://instagram.com/beiiliiiiiii" target="_blank" rel="noreferrer">인스타 beiiliiiiiii</a> · <a href="mailto:chaeun664@gmail.com">이메일 chaeun664@gmail.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">8</td>
+    <td><b>eunjoo</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/leunjuya" target="_blank" rel="noreferrer">인스타: leunjuya</a><div class="contact-detail"><a href="https://instagram.com/leunjuya" target="_blank" rel="noreferrer">인스타 leunjuya</a> · <a href="mailto:welcome050607@gmail.com">이메일 welcome050607@gmail.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">9</td>
+    <td><b>Jeon Hayoung</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/jeonhaa_o" target="_blank" rel="noreferrer">인스타: jeonhaa_o</a><div class="contact-detail"><a href="https://instagram.com/jeonhaa_o" target="_blank" rel="noreferrer">인스타 jeonhaa_o</a> · <a href="mailto:hayoung7017@naver.com">이메일 hayoung7017@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">10</td>
+    <td><b>KARU</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/hkr0n1ine" target="_blank" rel="noreferrer">인스타: hkr0n1ine</a><div class="contact-detail"><a href="https://instagram.com/hkr0n1ine" target="_blank" rel="noreferrer">인스타 hkr0n1ine</a> · <a href="mailto:alswjd2643@naver.com">이메일 alswjd2643@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">11</td>
+    <td><b>Kimsunwoo</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/kimsunw.oo" target="_blank" rel="noreferrer">인스타: kimsunw.oo</a><div class="contact-detail"><a href="https://instagram.com/kimsunw.oo" target="_blank" rel="noreferrer">인스타 kimsunw.oo</a> · <a href="mailto:buuc9064@gmail.com">이메일 buuc9064@gmail.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">12</td>
+    <td><b>KITZ</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/flkhiz" target="_blank" rel="noreferrer">인스타: flkhiz</a><div class="contact-detail"><a href="https://instagram.com/flkhiz" target="_blank" rel="noreferrer">인스타 flkhiz</a> · <a href="mailto:moonsoyeun05@naver.com">이메일 moonsoyeun05@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">13</td>
+    <td><b>Neina</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/neiiiiina" target="_blank" rel="noreferrer">인스타: neiiiiina</a><div class="contact-detail"><a href="https://instagram.com/neiiiiina" target="_blank" rel="noreferrer">인스타 neiiiiina</a> · <a href="mailto:skgus0246@naver.com">이메일 skgus0246@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">14</td>
+    <td><b>Oh chae won</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/ochyvv" target="_blank" rel="noreferrer">인스타: ochyvv</a><div class="contact-detail"><a href="https://instagram.com/ochyvv" target="_blank" rel="noreferrer">인스타 ochyvv</a> · <a href="mailto:dhcodnjs3075@naver.com">이메일 dhcodnjs3075@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">15</td>
+    <td><b>Poco</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/poco_99.9" target="_blank" rel="noreferrer">인스타: poco_99.9</a><div class="contact-detail"><a href="https://instagram.com/poco_99.9" target="_blank" rel="noreferrer">인스타 poco_99.9</a> · <a href="mailto:smsim2005@naver.com">이메일 smsim2005@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">16</td>
+    <td><b>seohyeon</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/dawnsh__" target="_blank" rel="noreferrer">인스타: dawnsh__</a><div class="contact-detail"><a href="https://instagram.com/dawnsh__" target="_blank" rel="noreferrer">인스타 dawnsh__</a> · <a href="mailto:anniie061025@gmail.com">이메일 anniie061025@gmail.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">17</td>
+    <td><b>Siyeonlee</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/ynsi__e" target="_blank" rel="noreferrer">인스타: ynsi__e</a><div class="contact-detail"><a href="https://instagram.com/ynsi__e" target="_blank" rel="noreferrer">인스타 ynsi__e</a> · <a href="mailto:linda2268@naver.com">이메일 linda2268@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">18</td>
+    <td><b>YOONJUNG</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/yoonjungyy" target="_blank" rel="noreferrer">인스타: yoonjungyy</a><div class="contact-detail"><a href="https://instagram.com/yoonjungyy" target="_blank" rel="noreferrer">인스타 yoonjungyy</a> · <a href="mailto:lyj248600@naver.com">이메일 lyj248600@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">19</td>
+    <td><b>김</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/rinunuy" target="_blank" rel="noreferrer">인스타: rinunuy</a><div class="contact-detail"><a href="https://instagram.com/rinunuy" target="_blank" rel="noreferrer">인스타 rinunuy</a> · <a href="mailto:rynwoo06@gmail.com">이메일 rynwoo06@gmail.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">20</td>
+    <td><b>김태림</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/taer1my" target="_blank" rel="noreferrer">인스타: taer1my</a><div class="contact-detail"><a href="https://instagram.com/taer1my" target="_blank" rel="noreferrer">인스타 taer1my</a> · <a href="mailto:taerrim@naver.com">이메일 taerrim@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">21</td>
+    <td><b>HAEIN</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/hxentic" target="_blank" rel="noreferrer">인스타: hxentic</a><div class="contact-detail"><a href="https://instagram.com/hxentic" target="_blank" rel="noreferrer">인스타 hxentic</a> · <a href="mailto:haein070821@naver.com">이메일 haein070821@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">22</td>
+    <td><b>HolyK</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/holy_k_" target="_blank" rel="noreferrer">인스타: holy_k_</a><div class="contact-detail"><a href="https://instagram.com/holy_k_" target="_blank" rel="noreferrer">인스타 holy_k_</a> · <a href="mailto:holy_k180402@naver.com">이메일 holy_k180402@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">23</td>
+    <td><b>MAKIZO</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/maki._zo" target="_blank" rel="noreferrer">인스타: maki._zo</a><div class="contact-detail"><a href="https://instagram.com/maki._zo" target="_blank" rel="noreferrer">인스타 maki._zo</a> · <a href="mailto:makizo0325@naver.com">이메일 makizo0325@naver.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">24</td>
+    <td><b>serelia</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>미확인</td>
+    <td><a class="contact-primary" href="https://instagram.com/cho.vb2" target="_blank" rel="noreferrer">인스타: cho.vb2</a><div class="contact-detail"><a href="https://instagram.com/cho.vb2" target="_blank" rel="noreferrer">인스타 cho.vb2</a> · <a href="mailto:cyj0123456788@gmail.com">이메일 cyj0123456788@gmail.com</a></div></td>
+    <td>70명 미달 시 영상 빠른 검토 후 예비 연락</td>
+  </tr></tbody>
+      </table>
+    </div>
+  </section>
+    <section data-view="recovery">
+    <div class="section-head">
+      <div>
+        <h2>회신 모니터링 명단</h2>
+        <p>16:00-21:00 전체 참석 불가로 안내를 보냈으나, 일정 조정 가능 회신이 오면 회수할 수 있는 후보입니다.</p>
+      </div>
+      <div class="count">60명</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th><th>이름</th><th>프로젝트</th><th>상태</th><th>성별</th><th>일정</th><th>우선 연락처</th><th>PM 미션</th>
+        </tr></thead>
+        <tbody><tr data-gender="male">
+    <td class="num">1</td>
+    <td><b>모비/MOBBY</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/o6y____" target="_blank" rel="noreferrer">인스타: o6y____</a><div class="contact-detail"><a href="https://instagram.com/o6y____" target="_blank" rel="noreferrer">인스타 o6y____</a> · <a href="mailto:jinbomin200@naver.com">이메일 jinbomin200@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">2</td>
+    <td><b>이동건</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/dongg2on_" target="_blank" rel="noreferrer">인스타: dongg2on_</a><div class="contact-detail"><a href="https://instagram.com/dongg2on_" target="_blank" rel="noreferrer">인스타 dongg2on_</a> · <a href="mailto:lee109663lee@gmail.com">이메일 lee109663lee@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">3</td>
+    <td><b>Aoaa</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/eurekaoaa" target="_blank" rel="noreferrer">인스타: eurekaoaa</a><div class="contact-detail"><a href="https://instagram.com/eurekaoaa" target="_blank" rel="noreferrer">인스타 eurekaoaa</a> · <a href="mailto:hanee0922@gmail.com">이메일 hanee0922@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">4</td>
+    <td><b>D.illain</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/7ill_d.illain" target="_blank" rel="noreferrer">인스타: 7ill_d.illain</a><div class="contact-detail"><a href="https://instagram.com/7ill_d.illain" target="_blank" rel="noreferrer">인스타 7ill_d.illain</a> · <a href="mailto:zada123@naver.com">이메일 zada123@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">5</td>
+    <td><b>Hayo</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/_hayo._" target="_blank" rel="noreferrer">인스타: _hayo._</a><div class="contact-detail"><a href="https://instagram.com/_hayo._" target="_blank" rel="noreferrer">인스타 _hayo._</a> · <a href="mailto:upa0810@naver.com">이메일 upa0810@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">6</td>
+    <td><b>Jaeseung</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/jaeseung__h" target="_blank" rel="noreferrer">인스타: jaeseung__h</a><div class="contact-detail"><a href="https://instagram.com/jaeseung__h" target="_blank" rel="noreferrer">인스타 jaeseung__h</a> · <a href="mailto:hanjs20020708@gmail.com">이메일 hanjs20020708@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">7</td>
+    <td><b>Jino</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/dojino912" target="_blank" rel="noreferrer">인스타: dojino912</a><div class="contact-detail"><a href="https://instagram.com/dojino912" target="_blank" rel="noreferrer">인스타 dojino912</a> · <a href="mailto:skfekwlsgh12@naver.com">이메일 skfekwlsgh12@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">8</td>
+    <td><b>KOZEL</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/kozeloff" target="_blank" rel="noreferrer">인스타: kozeloff</a><div class="contact-detail"><a href="https://instagram.com/kozeloff" target="_blank" rel="noreferrer">인스타 kozeloff</a> · <a href="mailto:jjh62207@naver.com">이메일 jjh62207@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">9</td>
+    <td><b>Mincastle</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/mincastle531" target="_blank" rel="noreferrer">인스타: mincastle531</a><div class="contact-detail"><a href="https://instagram.com/mincastle531" target="_blank" rel="noreferrer">인스타 mincastle531</a> · <a href="mailto:minsung5731@naver.com">이메일 minsung5731@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">10</td>
+    <td><b>RYU</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/ryuasync_" target="_blank" rel="noreferrer">인스타: ryuasync_</a><div class="contact-detail"><a href="https://instagram.com/ryuasync_" target="_blank" rel="noreferrer">인스타 ryuasync_</a> · <a href="mailto:ryuys1123@gmail.com">이메일 ryuys1123@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">11</td>
+    <td><b>TOBI</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/callme_t0bi" target="_blank" rel="noreferrer">인스타: callme_t0bi</a><div class="contact-detail"><a href="https://instagram.com/callme_t0bi" target="_blank" rel="noreferrer">인스타 callme_t0bi</a> · <a href="mailto:dytjq0817@naver.com">이메일 dytjq0817@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">12</td>
+    <td><b>Tonny</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/tonnyvibes_" target="_blank" rel="noreferrer">인스타: tonnyvibes_</a><div class="contact-detail"><a href="https://instagram.com/tonnyvibes_" target="_blank" rel="noreferrer">인스타 tonnyvibes_</a> · <a href="mailto:jun7023459@naver.com">이메일 jun7023459@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">13</td>
+    <td><b>Yang_gwang_</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/yang_gwang_" target="_blank" rel="noreferrer">인스타: yang_gwang_</a><div class="contact-detail"><a href="https://instagram.com/yang_gwang_" target="_blank" rel="noreferrer">인스타 yang_gwang_</a> · <a href="mailto:thkdtn0205@gmail.com">이메일 thkdtn0205@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">14</td>
+    <td><b>Lee hyunseok</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/h_seok41" target="_blank" rel="noreferrer">인스타: h_seok41</a><div class="contact-detail"><a href="https://instagram.com/h_seok41" target="_blank" rel="noreferrer">인스타 h_seok41</a> · <a href="mailto:hyunseok0936@gmail.com">이메일 hyunseok0936@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">15</td>
+    <td><b>Minchyo</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="tel:01075115893" target="_blank" rel="noreferrer">전화: 01075115893</a><div class="contact-detail">전화 01075115893 · <a href="https://instagram.com/nninh__" target="_blank" rel="noreferrer">인스타 nninh__</a> · <a href="mailto:minchyo1103@gmail.com">이메일 minchyo1103@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">16</td>
+    <td><b>sanghyeon</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/sanghye0n._" target="_blank" rel="noreferrer">인스타: sanghye0n._</a><div class="contact-detail"><a href="https://instagram.com/sanghye0n._" target="_blank" rel="noreferrer">인스타 sanghye0n._</a> · <a href="mailto:tkdgusrla2804@gmail.com">이메일 tkdgusrla2804@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">17</td>
+    <td><b>Song Hyunsung</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/beblvd" target="_blank" rel="noreferrer">인스타: beblvd</a><div class="contact-detail"><a href="https://instagram.com/beblvd" target="_blank" rel="noreferrer">인스타 beblvd</a> · <a href="mailto:songjad@naver.com">이메일 songjad@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">18</td>
+    <td><b>Denim</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/denim_jin_" target="_blank" rel="noreferrer">인스타: denim_jin_</a><div class="contact-detail"><a href="https://instagram.com/denim_jin_" target="_blank" rel="noreferrer">인스타 denim_jin_</a> · <a href="mailto:jin03929@naver.com">이메일 jin03929@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">19</td>
+    <td><b>Eyoun</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/_e._youn" target="_blank" rel="noreferrer">인스타: _e._youn</a><div class="contact-detail"><a href="https://instagram.com/_e._youn" target="_blank" rel="noreferrer">인스타 _e._youn</a> · <a href="mailto:lyb_0311@naver.com">이메일 lyb_0311@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="male">
+    <td class="num">20</td>
+    <td><b>Viver</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>남</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/vivermind" target="_blank" rel="noreferrer">인스타: vivermind</a><div class="contact-detail"><a href="https://instagram.com/vivermind" target="_blank" rel="noreferrer">인스타 vivermind</a> · <a href="mailto:leetaeh0307@naver.com">이메일 leetaeh0307@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">21</td>
+    <td><b>Ehvo</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/ehvo.nsty" target="_blank" rel="noreferrer">인스타: ehvo.nsty</a><div class="contact-detail"><a href="https://instagram.com/ehvo.nsty" target="_blank" rel="noreferrer">인스타 ehvo.nsty</a> · <a href="mailto:vipalswl@naver.com">이메일 vipalswl@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">22</td>
+    <td><b>hyerim</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/hye_ri__mi" target="_blank" rel="noreferrer">인스타: hye_ri__mi</a><div class="contact-detail"><a href="https://instagram.com/hye_ri__mi" target="_blank" rel="noreferrer">인스타 hye_ri__mi</a> · <a href="mailto:hyerim020904@naver.com">이메일 hyerim020904@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">23</td>
+    <td><b>Janie</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/d00804f6-865e-4deb-a444-87eafb8dbd34/applicants" target="_blank" rel="noreferrer">ndol02</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/janieinthearea" target="_blank" rel="noreferrer">인스타: janieinthearea</a><div class="contact-detail"><a href="https://instagram.com/janieinthearea" target="_blank" rel="noreferrer">인스타 janieinthearea</a> · <a href="mailto:jennyhj02@naver.com">이메일 jennyhj02@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">24</td>
+    <td><b>고서영</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/oes.ov" target="_blank" rel="noreferrer">인스타: oes.ov</a><div class="contact-detail"><a href="https://instagram.com/oes.ov" target="_blank" rel="noreferrer">인스타 oes.ov</a> · <a href="mailto:tjdud2237-@naver.com">이메일 tjdud2237-@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">25</td>
+    <td><b>곽송희</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/_juuudi__" target="_blank" rel="noreferrer">인스타: _juuudi__</a><div class="contact-detail"><a href="https://instagram.com/_juuudi__" target="_blank" rel="noreferrer">인스타 _juuudi__</a> · <a href="mailto:kwaksonghee2007@naver.com">이메일 kwaksonghee2007@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">26</td>
+    <td><b>다은</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/lildaeunnnkeem" target="_blank" rel="noreferrer">인스타: lildaeunnnkeem</a><div class="contact-detail"><a href="https://instagram.com/lildaeunnnkeem" target="_blank" rel="noreferrer">인스타 lildaeunnnkeem</a> · <a href="mailto:bddaeun07@naver.com">이메일 bddaeun07@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">27</td>
+    <td><b>서향</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/moonseoooo" target="_blank" rel="noreferrer">인스타: moonseoooo</a><div class="contact-detail"><a href="https://instagram.com/moonseoooo" target="_blank" rel="noreferrer">인스타 moonseoooo</a> · <a href="mailto:seohyangm@gmail.com">이메일 seohyangm@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">28</td>
+    <td><b>소언</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/s0eoon" target="_blank" rel="noreferrer">인스타: s0eoon</a><div class="contact-detail"><a href="https://instagram.com/s0eoon" target="_blank" rel="noreferrer">인스타 s0eoon</a> · <a href="mailto:soeon060627@naver.com">이메일 soeon060627@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">29</td>
+    <td><b>이채민</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/lmchaem" target="_blank" rel="noreferrer">인스타: lmchaem</a><div class="contact-detail"><a href="https://instagram.com/lmchaem" target="_blank" rel="noreferrer">인스타 lmchaem</a> · <a href="mailto:chaemin0705@naver.com">이메일 chaemin0705@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">30</td>
+    <td><b>효은</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/hyoeuun__" target="_blank" rel="noreferrer">인스타: hyoeuun__</a><div class="contact-detail"><a href="https://instagram.com/hyoeuun__" target="_blank" rel="noreferrer">인스타 hyoeuun__</a> · <a href="mailto:nnnhhheee_@naver.com">이메일 nnnhhheee_@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">31</td>
+    <td><b>An soyeon</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/yeoxxn.xo" target="_blank" rel="noreferrer">인스타: yeoxxn.xo</a><div class="contact-detail"><a href="https://instagram.com/yeoxxn.xo" target="_blank" rel="noreferrer">인스타 yeoxxn.xo</a> · <a href="mailto:ansoanso07@gmail.com">이메일 ansoanso07@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">32</td>
+    <td><b>B.zu</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/rug0sezu__" target="_blank" rel="noreferrer">인스타: rug0sezu__</a><div class="contact-detail"><a href="https://instagram.com/rug0sezu__" target="_blank" rel="noreferrer">인스타 rug0sezu__</a> · <a href="mailto:ghdwldb06@gmail.com">이메일 ghdwldb06@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">33</td>
+    <td><b>CUIN</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/i__cuin" target="_blank" rel="noreferrer">인스타: i__cuin</a><div class="contact-detail"><a href="https://instagram.com/i__cuin" target="_blank" rel="noreferrer">인스타 i__cuin</a> · <a href="mailto:5678zxcvdd@naver.com">이메일 5678zxcvdd@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">34</td>
+    <td><b>Jiwon</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/_now1z_" target="_blank" rel="noreferrer">인스타: _now1z_</a><div class="contact-detail"><a href="https://instagram.com/_now1z_" target="_blank" rel="noreferrer">인스타 _now1z_</a> · <a href="mailto:quinie1079@naver.com">이메일 quinie1079@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">35</td>
+    <td><b>Jiwoo</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/lovxerw" target="_blank" rel="noreferrer">인스타: lovxerw</a><div class="contact-detail"><a href="https://instagram.com/lovxerw" target="_blank" rel="noreferrer">인스타 lovxerw</a> · <a href="mailto:jiwoo3268@naver.com">이메일 jiwoo3268@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">36</td>
+    <td><b>Kimsein</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/ssyln_" target="_blank" rel="noreferrer">인스타: ssyln_</a><div class="contact-detail"><a href="https://instagram.com/ssyln_" target="_blank" rel="noreferrer">인스타 ssyln_</a> · <a href="mailto:sein0366@naver.com">이메일 sein0366@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">37</td>
+    <td><b>pilsun</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/pilsunii" target="_blank" rel="noreferrer">인스타: pilsunii</a><div class="contact-detail"><a href="https://instagram.com/pilsunii" target="_blank" rel="noreferrer">인스타 pilsunii</a> · <a href="mailto:seoyoon9914@naver.com">이메일 seoyoon9914@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">38</td>
+    <td><b>Toffee</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>부분응답 확인필요</td>
+    <td><a class="contact-primary" href="https://instagram.com/_toffee_0.0" target="_blank" rel="noreferrer">인스타: _toffee_0.0</a><div class="contact-detail"><a href="https://instagram.com/_toffee_0.0" target="_blank" rel="noreferrer">인스타 _toffee_0.0</a> · <a href="mailto:hyj060705@naver.com">이메일 hyj060705@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">39</td>
+    <td><b>Won Ye Seul</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/1onys_" target="_blank" rel="noreferrer">인스타: 1onys_</a><div class="contact-detail"><a href="https://instagram.com/1onys_" target="_blank" rel="noreferrer">인스타 1onys_</a> · <a href="mailto:wonyeseul0684@gmail.com">이메일 wonyeseul0684@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">40</td>
+    <td><b>Yoonchaerin</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/kruiiux" target="_blank" rel="noreferrer">인스타: kruiiux</a><div class="contact-detail"><a href="https://instagram.com/kruiiux" target="_blank" rel="noreferrer">인스타 kruiiux</a> · <a href="mailto:07yoon07@naver.com">이메일 07yoon07@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">41</td>
+    <td><b>yukico</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/e3c5692c-6620-486d-8ae9-d26330a74981/applicants" target="_blank" rel="noreferrer">ndol26</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/yukieeco" target="_blank" rel="noreferrer">인스타: yukieeco</a><div class="contact-detail"><a href="https://instagram.com/yukieeco" target="_blank" rel="noreferrer">인스타 yukieeco</a> · <a href="mailto:yhj800308@naver.com">이메일 yhj800308@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">42</td>
+    <td><b>지현</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/jee_h.03" target="_blank" rel="noreferrer">인스타: jee_h.03</a><div class="contact-detail"><a href="https://instagram.com/jee_h.03" target="_blank" rel="noreferrer">인스타 jee_h.03</a> · <a href="mailto:rkwlak030128@naver.com">이메일 rkwlak030128@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">43</td>
+    <td><b>Chako</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/chako.kr" target="_blank" rel="noreferrer">인스타: chako.kr</a><div class="contact-detail"><a href="https://instagram.com/chako.kr" target="_blank" rel="noreferrer">인스타 chako.kr</a> · <a href="mailto:youkkong02@naver.com">이메일 youkkong02@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">44</td>
+    <td><b>Dabi</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/da__bi_" target="_blank" rel="noreferrer">인스타: da__bi_</a><div class="contact-detail"><a href="https://instagram.com/da__bi_" target="_blank" rel="noreferrer">인스타 da__bi_</a> · <a href="mailto:hdb11033@naver.com">이메일 hdb11033@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">45</td>
+    <td><b>E 0N</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/e__0n_" target="_blank" rel="noreferrer">인스타: e__0n_</a><div class="contact-detail"><a href="https://instagram.com/e__0n_" target="_blank" rel="noreferrer">인스타 e__0n_</a> · <a href="mailto:seoeon2811@naver.com">이메일 seoeon2811@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">46</td>
+    <td><b>ENZ</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/_enz.oy_" target="_blank" rel="noreferrer">인스타: _enz.oy_</a><div class="contact-detail"><a href="https://instagram.com/_enz.oy_" target="_blank" rel="noreferrer">인스타 _enz.oy_</a> · <a href="mailto:leeyeoun2002@naver.com">이메일 leeyeoun2002@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">47</td>
+    <td><b>Heder</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/hederxx" target="_blank" rel="noreferrer">인스타: hederxx</a><div class="contact-detail"><a href="https://instagram.com/hederxx" target="_blank" rel="noreferrer">인스타 hederxx</a> · <a href="mailto:rlatpaldldpd@naver.com">이메일 rlatpaldldpd@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">48</td>
+    <td><b>Hursh</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/hushll6ch" target="_blank" rel="noreferrer">인스타: hushll6ch</a><div class="contact-detail"><a href="https://instagram.com/hushll6ch" target="_blank" rel="noreferrer">인스타 hushll6ch</a> · <a href="mailto:yuqi0212@gmail.com">이메일 yuqi0212@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">49</td>
+    <td><b>JUI</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/jui_.13" target="_blank" rel="noreferrer">인스타: jui_.13</a><div class="contact-detail"><a href="https://instagram.com/jui_.13" target="_blank" rel="noreferrer">인스타 jui_.13</a> · <a href="mailto:geeou11@gmail.com">이메일 geeou11@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">50</td>
+    <td><b>KYRA</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/rlyeong__kyra__" target="_blank" rel="noreferrer">인스타: rlyeong__kyra__</a><div class="contact-detail"><a href="https://instagram.com/rlyeong__kyra__" target="_blank" rel="noreferrer">인스타 rlyeong__kyra__</a> · <a href="mailto:2780635825@qq.com">이메일 2780635825@qq.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">51</td>
+    <td><b>LEECHI</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/__429.cm" target="_blank" rel="noreferrer">인스타: __429.cm</a><div class="contact-detail"><a href="https://instagram.com/__429.cm" target="_blank" rel="noreferrer">인스타 __429.cm</a> · <a href="mailto:coals429@naver.com">이메일 coals429@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">52</td>
+    <td><b>LYSE</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/lyse.zip_" target="_blank" rel="noreferrer">인스타: lyse.zip_</a><div class="contact-detail"><a href="https://instagram.com/lyse.zip_" target="_blank" rel="noreferrer">인스타 lyse.zip_</a> · <a href="mailto:sunwoo050504@naver.com">이메일 sunwoo050504@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">53</td>
+    <td><b>Milky</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/militarymonkeykey" target="_blank" rel="noreferrer">인스타: militarymonkeykey</a><div class="contact-detail"><a href="https://instagram.com/militarymonkeykey" target="_blank" rel="noreferrer">인스타 militarymonkeykey</a> · <a href="mailto:hyelimgim79@gmail.com">이메일 hyelimgim79@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">54</td>
+    <td><b>NOh(노흐)</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/NOhimnida" target="_blank" rel="noreferrer">인스타: NOhimnida</a><div class="contact-detail"><a href="https://instagram.com/NOhimnida" target="_blank" rel="noreferrer">인스타 NOhimnida</a> · <a href="mailto:julia2003124@naver.com">이메일 julia2003124@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">55</td>
+    <td><b>SEYOUNG</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/s__y0ee" target="_blank" rel="noreferrer">인스타: s__y0ee</a><div class="contact-detail"><a href="https://instagram.com/s__y0ee" target="_blank" rel="noreferrer">인스타 s__y0ee</a> · <a href="mailto:tpdud061@gmail.com">이메일 tpdud061@gmail.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">56</td>
+    <td><b>SIYEON</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/xilettredamour" target="_blank" rel="noreferrer">인스타: xilettredamour</a><div class="contact-detail"><a href="https://instagram.com/xilettredamour" target="_blank" rel="noreferrer">인스타 xilettredamour</a> · <a href="mailto:siyeon040127@naver.com">이메일 siyeon040127@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">57</td>
+    <td><b>Sohyboo</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/sohy_boo_5959" target="_blank" rel="noreferrer">인스타: sohy_boo_5959</a><div class="contact-detail"><a href="https://instagram.com/sohy_boo_5959" target="_blank" rel="noreferrer">인스타 sohy_boo_5959</a> · <a href="mailto:jeskey1234@naver.com">이메일 jeskey1234@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">58</td>
+    <td><b>ssong</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/ssong__._" target="_blank" rel="noreferrer">인스타: ssong__._</a><div class="contact-detail"><a href="https://instagram.com/ssong__._" target="_blank" rel="noreferrer">인스타 ssong__._</a> · <a href="mailto:songmi2380@naver.com">이메일 songmi2380@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">59</td>
+    <td><b>YEJI</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">승인된 사람</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/i_am_yeji___" target="_blank" rel="noreferrer">인스타: i_am_yeji___</a><div class="contact-detail"><a href="https://instagram.com/i_am_yeji___" target="_blank" rel="noreferrer">인스타 i_am_yeji___</a> · <a href="mailto:jon3411@naver.com">이메일 jon3411@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr>
+<tr data-gender="female">
+    <td class="num">60</td>
+    <td><b>YUJEONG</b></td>
+    <td><a class="project-link" href="https://deetz.kr/projects/b15484cb-0219-431d-8919-f0c992b50064/applicants" target="_blank" rel="noreferrer">ndolsm</a></td>
+    <td><span class="pill">대기</span></td>
+    <td>여</td>
+    <td>16-21 불가</td>
+    <td><a class="contact-primary" href="https://instagram.com/co_mxng__" target="_blank" rel="noreferrer">인스타: co_mxng__</a><div class="contact-detail"><a href="https://instagram.com/co_mxng__" target="_blank" rel="noreferrer">인스타 co_mxng__</a> · <a href="mailto:cuj040422@naver.com">이메일 cuj040422@naver.com</a></div></td>
+    <td>이미 일정 불가 안내 발송. 회신으로 조정 가능하다고 오면 확정 후보로 회수</td>
+  </tr></tbody>
+      </table>
+    </div>
+  </section>
+  </main>
+  <script>
+    const viewButtons = document.querySelectorAll("[data-view-filter]");
+    const genderButtons = document.querySelectorAll("[data-gender-filter]");
+
+    function setBodyClass(prefix, value) {
+      document.body.className = document.body.className
+        .split(" ")
+        .filter((name) => name && !name.startsWith(prefix))
+        .join(" ");
+      if (value !== "all") {
+        document.body.classList.add(prefix + value);
+      }
+    }
+
+    viewButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        viewButtons.forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        setBodyClass("view-", button.dataset.viewFilter);
+      });
+    });
+
+    genderButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        genderButtons.forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        setBodyClass("gender-", button.dataset.genderFilter);
+      });
+    });
+  </script>
+</body>
+</html>

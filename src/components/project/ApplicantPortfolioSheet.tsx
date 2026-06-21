@@ -153,6 +153,7 @@ export function ApplicantPortfolioSheet({
   applicant,
   onDecide,
   deciding,
+  canDecide = true,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -160,6 +161,7 @@ export function ApplicantPortfolioSheet({
   applicant: SheetApplicant | null;
   onDecide: (decision: "accepted" | "rejected" | "pending") => void;
   deciding: boolean;
+  canDecide?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -429,7 +431,7 @@ export function ApplicantPortfolioSheet({
         ) : null}
 
         {/* 결정 버튼 — 시트 콘텐츠 흐름에 포함(시트 전체가 스크롤되도록 sticky 제거) */}
-        {applicant ? (
+        {applicant && canDecide ? (
           <div className="mt-1 flex gap-2 border-t border-hairline-2 pt-4">
             <Button
               className="flex-1"

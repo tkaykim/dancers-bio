@@ -191,7 +191,7 @@ export function DirectoryClient({
               : "아직 등록된 팀이 없습니다."}
         </p>
       ) : (
-        <ul className="grid grid-cols-2 gap-3">
+        <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {tab === "dancers"
             ? dancers.map((d) => (
                 <li key={d.id}>
