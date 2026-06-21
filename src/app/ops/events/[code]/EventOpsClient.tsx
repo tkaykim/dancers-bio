@@ -797,6 +797,14 @@ function QrPanel({
     [rows, setQuery, updateParticipant],
   );
 
+  // 카메라 tick 루프는 startCamera 시점의 클로저를 영구 캡처하므로,
+  // 항상 최신 handleValue(=최신 rows 반영)를 호출하도록 ref로 우회한다.
+  // 이게 없으면 출석 후에도 stale rows를 봐서 같은 사람을 반복 출석 처리한다.
+  const handleValueRef = useRef(handleValue);
+  useEffect(() => {
+    handleValueRef.current = handleValue;
+  }, [handleValue]);
+
   async function startCamera() {
     const BarcodeDetectorCtor = (window as unknown as {
       BarcodeDetector?: NativeBarcodeDetectorCtor;
@@ -827,7 +835,7 @@ function QrPanel({
         try {
           const codes = await detector.detect(video);
           const value = codes[0]?.rawValue;
-          if (value) handleValue(value);
+          if (value) handleValueRef.current(value);
         } catch {
           setScanError("QR을 읽는 중 문제가 발생했습니다.");
         }
