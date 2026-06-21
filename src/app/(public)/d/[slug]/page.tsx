@@ -47,9 +47,34 @@ type DancerRow = {
   portfolio_file_name: string | null;
   portfolio_file_size_bytes: number | null;
   portfolio_file_mime: string | null;
+  approval_status: "pending" | "approved" | "rejected";
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DANCERS_BIO_ORIGIN = "https://dancers.bio";
+
+function dancerDisplayName(dancer: DancerRow): string {
+  return dancer.korean_name
+    ? `${dancer.stage_name} (${dancer.korean_name})`
+    : dancer.stage_name;
+}
+
+function dancerCanonicalUrl(dancer: DancerRow): string {
+  return dancer.slug
+    ? `${DANCERS_BIO_ORIGIN}/${dancer.slug}`
+    : `${DANCERS_BIO_ORIGIN}/d/${dancer.id}`;
+}
+
+function dancerDescription(dancer: DancerRow, careerCount?: number): string {
+  const tags = [...(dancer.genres ?? []), ...(dancer.specialties ?? [])]
+    .filter(Boolean)
+    .slice(0, 4)
+    .join(", ");
+  const base = tags
+    ? `${dancerDisplayName(dancer)} 댄서 프로필. ${tags} 경력과 영상 포트폴리오를 확인하세요.`
+    : `${dancerDisplayName(dancer)} 댄서 프로필과 영상 포트폴리오를 확인하세요.`;
+  return careerCount ? `${base} 공개 경력 ${careerCount}건.` : base;
+}
 
 async function loadDancer(slugOrId: string) {
   const supabase = await createClient();
@@ -68,9 +93,35 @@ export async function generateMetadata({
   const { slug } = await params;
   const dancer = await loadDancer(slug);
   if (!dancer) return { title: { absolute: "deetz" } };
+  const canonical = dancerCanonicalUrl(dancer);
+  const description = dancer.bio ?? dancerDescription(dancer);
+  const names = [dancer.stage_name, dancer.korean_name].filter(Boolean) as string[];
   return {
-    title: { absolute: `${dancer.stage_name} · deetz` },
-    description: dancer.bio ?? `${dancer.stage_name}의 댄서 포트폴리오`,
+    title: { absolute: `${dancerDisplayName(dancer)} | 댄서 포트폴리오 · dancers.bio` },
+    description,
+    keywords: [
+      ...names,
+      ...names.map((name) => `${name} 댄서`),
+      ...names.map((name) => `${name} 포트폴리오`),
+      ...names.map((name) => `${name} 안무가`),
+      ...(dancer.genres ?? []),
+      ...(dancer.specialties ?? []),
+    ],
+    alternates: {
+      canonical,
+    },
+    robots:
+      dancer.approval_status === "approved"
+        ? undefined
+        : { index: false, follow: false },
+    openGraph: {
+      title: `${dancerDisplayName(dancer)} | 댄서 포트폴리오`,
+      description,
+      url: canonical,
+      siteName: "dancers.bio",
+      type: "profile",
+      images: dancer.profile_img ? [{ url: dancer.profile_img }] : undefined,
+    },
   };
 }
 
@@ -159,6 +210,35 @@ export default async function PublicDancerPage({
 
   const list = (careers ?? []) as Career[];
   const social = (dancer.social_links ?? {}) as Record<string, string>;
+  const canonicalUrl = dancerCanonicalUrl(dancer);
+  const sameAs = (["instagram", "youtube", "tiktok"] as const)
+    .map((platform) =>
+      social[platform] ? normalizeSocialUrl(platform, social[platform]) : null,
+    )
+    .filter((url): url is string => Boolean(url));
+  const knowsAbout = Array.from(
+    new Set([...(dancer.genres ?? []), ...(dancer.specialties ?? [])]),
+  ).slice(0, 12);
+  const personJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "@id": `${canonicalUrl}#person`,
+    name: dancerDisplayName(dancer),
+    alternateName: [dancer.stage_name, dancer.korean_name].filter(Boolean),
+    url: canonicalUrl,
+    image: dancer.profile_img ?? undefined,
+    jobTitle: "Dancer",
+    description: dancer.bio ?? dancerDescription(dancer, list.length),
+    knowsAbout,
+    sameAs,
+    subjectOf: list.slice(0, 12).map((career) => ({
+      "@type": "CreativeWork",
+      name: career.title,
+      dateCreated: career.date,
+      description: career.details?.role ?? career.details?.description ?? undefined,
+      url: career.details?.link ?? undefined,
+    })),
+  };
   const portfolio = (dancer.portfolio ?? []).filter((p) => p?.url) as Array<{
     url: string;
     thumbnail?: string;
@@ -185,6 +265,10 @@ export default async function PublicDancerPage({
 
   return (
     <div className="relative mx-auto w-full max-w-md">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(personJsonLd) }}
+      />
       {/* Back button (top-left, over hero) — 브라우저 히스토리로 직전 페이지 복귀 */}
       <BackButton
         fallback="/dancers"

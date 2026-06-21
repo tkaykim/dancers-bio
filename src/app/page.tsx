@@ -1,65 +1,316 @@
+import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getUser } from "@/lib/auth/guard";
+import { ArrowRight, BriefcaseBusiness, CircleCheck, Search, Sparkles, UserRoundCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+export const metadata: Metadata = {
+  title: {
+    absolute: "deetz | K-POP 댄서 캐스팅 플랫폼",
+  },
+  description:
+    "deetz는 MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 플랫폼입니다.",
+  keywords: [
+    "댄서 캐스팅",
+    "댄서 섭외",
+    "댄서 구인",
+    "백댄서 섭외",
+    "안무 제작",
+    "K-POP 댄서",
+    "안무가 섭외",
+    "댄스팀 섭외",
+    "댄스 공연 섭외",
+    "MV 댄서",
+    "광고 댄서",
+    "deetz",
+  ],
+  alternates: {
+    canonical: "https://deetz.kr",
+  },
+  openGraph: {
+    title: "deetz | K-POP 댄서 캐스팅 플랫폼",
+    description:
+      "MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외를 포트폴리오 기반으로 연결합니다.",
+    url: "https://deetz.kr",
+    siteName: "deetz",
+    type: "website",
+  },
+};
+
+type Stats = {
+  dancers: number | null;
+  teams: number | null;
+  openProjects: number | null;
+};
+
+async function loadStats(): Promise<Stats> {
+  try {
+    const admin = createAdminClient();
+    const [dancers, teams, projects] = await Promise.all([
+      admin
+        .from("dancers")
+        .select("id", { count: "exact", head: true })
+        .eq("approval_status", "approved"),
+      admin
+        .from("teams")
+        .select("id", { count: "exact", head: true })
+        .eq("approval_status", "approved")
+        .eq("is_active", true),
+      admin
+        .from("projects")
+        .select("id", { count: "exact", head: true })
+        .eq("visibility", "public")
+        .eq("status", "open")
+        .is("deleted_at", null),
+    ]);
+    return {
+      dancers: dancers.count,
+      teams: teams.count,
+      openProjects: projects.count,
+    };
+  } catch {
+    return { dancers: null, teams: null, openProjects: null };
+  }
+}
+
+const useCases = [
+  "뮤직비디오와 퍼포먼스 영상 백업댄서 섭외",
+  "광고, 브랜드 캠페인, 숏폼 콘텐츠 출연 댄서 캐스팅",
+  "방송, 행사, 쇼케이스, 팬미팅 무대 댄서 모집",
+  "안무 제작, 안무가 섭외, 퍼포먼스 디렉터 연결",
+  "댄스 공연 섭외와 댄스팀 포트폴리오 확인",
+  "안무가, 디렉터, 인스트럭터, 댄스팀 포트폴리오 확인",
+];
+
+const faqs = [
+  {
+    question: "deetz는 어떤 서비스인가요?",
+    answer:
+      "deetz는 MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 캐스팅 플랫폼입니다.",
+  },
+  {
+    question: "댄서를 어떻게 섭외할 수 있나요?",
+    answer:
+      "프로젝트 유형, 일정, 지역, 페이, 필요한 장르를 정리해 공고를 만들고 지원자 포트폴리오와 경력을 확인한 뒤 적합한 댄서를 선택할 수 있습니다.",
+  },
+  {
+    question: "댄서는 deetz에서 무엇을 할 수 있나요?",
+    answer:
+      "댄서는 본인 프로필, 경력, 영상 포트폴리오를 정리하고 공개 공고에 지원하거나 캐스팅 제안을 받을 수 있습니다.",
+  },
+  {
+    question: "비공개 프로젝트도 검색에 노출되나요?",
+    answer:
+      "비공개 프로젝트는 초대 링크로만 열람되며 sitemap에서 제외되고 검색엔진에 색인되지 않도록 noindex 설정을 적용합니다.",
+  },
+];
+
+function statLabel(value: number | null, fallback: string): string {
+  return value === null ? fallback : `${value.toLocaleString("ko-KR")}+`;
+}
 
 export default async function HomePage() {
-  const user = await getUser();
-  if (user) redirect("/me");
-  // 비로그인도 앱을 둘러볼 수 있도록 캐스팅 피드로 바로 진입.
-  // 회원가입/로그인은 피드 헤더 + 공고 상세의 CTA 로 유도.
-  redirect("/feed");
+  const stats = await loadStats();
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Service",
+        "@id": "https://deetz.kr/#service",
+        name: "deetz 댄서 섭외 및 안무 제작",
+        serviceType: "Dancer booking, choreographer booking, dance team booking, and choreography production",
+        provider: { "@id": "https://deetz.kr/#organization" },
+        areaServed: "KR",
+        url: "https://deetz.kr",
+        description:
+          "MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 포트폴리오 기반으로 연결하는 플랫폼.",
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://deetz.kr/#faq",
+        mainEntity: faqs.map((faq) => ({
+          "@type": "Question",
+          name: faq.question,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: faq.answer,
+          },
+        })),
+      },
+    ],
+  };
 
   return (
-    <div className="relative mx-auto flex min-h-svh w-full max-w-md flex-col px-6 pb-10 pt-20">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          background: `radial-gradient(ellipse at 20% 10%, rgba(20,18,12,0.04), transparent 55%)`,
-        }}
+    <main className="min-h-svh bg-[#f7f5ef] text-[#171611]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <div className="flex items-baseline gap-2">
-        <h1 className="text-5xl font-extrabold tracking-tighter leading-none">
-          deetz
-        </h1>
-        <span className="h-3 w-3 rounded-full bg-primary" aria-hidden />
-      </div>
+      <section className="mx-auto grid min-h-svh max-w-6xl grid-cols-1 gap-10 px-5 pb-10 pt-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:px-8">
+        <div className="flex flex-col justify-between gap-12">
+          <nav className="flex items-center justify-between gap-4">
+            <Link href="/" className="text-2xl font-extrabold tracking-normal">
+              deetz.
+            </Link>
+            <div className="flex items-center gap-2">
+              <Link href="/dancers">
+                <Button variant="ghost" size="sm" className="rounded-full">
+                  댄서 보기
+                </Button>
+              </Link>
+              <Link href="/feed">
+                <Button size="sm" className="rounded-full">
+                  공고 보기
+                </Button>
+              </Link>
+            </div>
+          </nav>
 
-      <p className="mt-6 text-2xl font-bold tracking-tight leading-tight">
-        댄서들을 위한
-        <br />
-        캐스팅 플랫폼.
-      </p>
+          <div className="max-w-3xl">
+            <p className="inline-flex items-center gap-2 rounded-full border border-[#d8d2c3] bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6a5d]">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              K-POP dancer casting
+            </p>
+            <h1 className="mt-7 max-w-4xl text-5xl font-extrabold leading-[0.96] tracking-normal text-[#171611] [word-break:keep-all] sm:text-6xl lg:text-7xl">
+              댄서 섭외와
+              <br />
+              안무 제작을
+              <br />
+              한 곳에서.
+            </h1>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-[#4f4a40] [word-break:keep-all]">
+              deetz는 댄서, 안무가, 댄스팀의 포트폴리오와 경력을 기반으로 MV, 광고, 방송, 댄스 공연 섭외를 연결합니다.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link href="/feed">
+                <Button className="h-12 rounded-full px-6 text-base font-semibold">
+                  섭외 공고 보기
+                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
+                </Button>
+              </Link>
+              <Link href="/dancers">
+                <Button variant="outline" className="h-12 rounded-full border-[#cfc8b8] bg-white/70 px-6 text-base font-semibold">
+                  포트폴리오 둘러보기
+                </Button>
+              </Link>
+            </div>
+          </div>
 
-      <p className="mt-4 text-base leading-relaxed text-ink-2">
-        본인의 포트폴리오를 관리하고,
-        <br />
-        프로젝트에 지원하세요.
-      </p>
+          <dl className="grid max-w-3xl grid-cols-3 gap-px overflow-hidden rounded-md border border-[#d8d2c3] bg-[#d8d2c3]">
+            <div className="bg-white/75 p-4">
+              <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-[#777164]">
+                Dancers
+              </dt>
+              <dd className="mt-3 text-3xl font-extrabold">
+                {statLabel(stats.dancers, "70+")}
+              </dd>
+            </div>
+            <div className="bg-white/75 p-4">
+              <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-[#777164]">
+                Teams
+              </dt>
+              <dd className="mt-3 text-3xl font-extrabold">
+                {statLabel(stats.teams, "6+")}
+              </dd>
+            </div>
+            <div className="bg-white/75 p-4">
+              <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-[#777164]">
+                Calls
+              </dt>
+              <dd className="mt-3 text-3xl font-extrabold">
+                {statLabel(stats.openProjects, "공개")}
+              </dd>
+            </div>
+          </dl>
+        </div>
 
-      <div className="mt-auto flex flex-col gap-3 pt-12">
-        <Link href="/signup">
-          <Button className="h-14 w-full rounded-2xl text-base font-semibold">
-            시작하기
-          </Button>
-        </Link>
-        <Link href="/login">
-          <Button
-            variant="outline"
-            className="h-14 w-full rounded-2xl border-hairline-2 text-base font-medium"
-          >
-            로그인
-          </Button>
-        </Link>
-        <p className="mt-2 text-center text-xs text-ink-3">
-          이미 등록된 댄서{" "}
-          <Link href="/dancers" className="text-foreground underline">
-            포트폴리오 둘러보기
-          </Link>
-        </p>
-      </div>
-    </div>
+        <aside className="grid gap-3 lg:pt-16">
+          <div className="relative min-h-[360px] overflow-hidden rounded-md bg-[#15130f]">
+            <Image
+              src="https://img.youtube.com/vi/F9_NEqTZfaw/maxresdefault.jpg"
+              alt="deetz 댄서 캐스팅 레퍼런스 영상"
+              fill
+              priority
+              sizes="(min-width: 1024px) 420px, 100vw"
+              className="object-cover opacity-90"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+            <div className="absolute bottom-5 left-5 right-5 text-white">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/62">
+                deetz magazine
+              </p>
+              <h2 className="mt-3 text-3xl font-extrabold leading-tight tracking-normal">
+                댄서의 경력과 영상으로 판단하는 캐스팅.
+              </h2>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Link href="/dancers" className="rounded-md bg-[#1f1d18] p-5 text-white">
+              <UserRoundCheck className="h-5 w-5" aria-hidden />
+              <p className="mt-8 text-sm font-semibold leading-6 [word-break:keep-all]">
+                검증된 댄서·팀 포트폴리오를 확인하세요.
+              </p>
+            </Link>
+            <Link href="/feed" className="rounded-md bg-[#e95f37] p-5 text-[#1f140e]">
+              <BriefcaseBusiness className="h-5 w-5" aria-hidden />
+              <p className="mt-8 text-sm font-bold leading-6 [word-break:keep-all]">
+                프로젝트 공고를 열고 지원자를 비교하세요.
+              </p>
+            </Link>
+          </div>
+        </aside>
+      </section>
+
+      <section className="border-t border-[#ddd6c7] bg-white">
+        <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 lg:grid-cols-[320px_minmax(0,1fr)] lg:px-8">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#81796a]">
+              What deetz solves
+            </p>
+            <h2 className="mt-3 text-3xl font-extrabold tracking-normal [word-break:keep-all]">
+              댄서 섭외를 검색, 비교, 지원 흐름으로 바꿉니다.
+            </h2>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {useCases.map((item) => (
+              <div key={item} className="flex gap-3 rounded-md border border-[#e4ded0] p-4">
+                <CircleCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#e95f37]" aria-hidden />
+                <p className="text-sm font-semibold leading-6 text-[#343026] [word-break:keep-all]">
+                  {item}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-[#ddd6c7] bg-[#f7f5ef]">
+        <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8">
+          <div>
+            <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#81796a]">
+              <Search className="h-4 w-4" aria-hidden />
+              FAQ
+            </p>
+            <h2 className="mt-3 text-3xl font-extrabold tracking-normal [word-break:keep-all]">
+              댄서 캐스팅을 찾는 사람이 바로 이해할 수 있게 정리했습니다.
+            </h2>
+          </div>
+          <div className="grid gap-3">
+            {faqs.map((faq) => (
+              <details key={faq.question} className="rounded-md border border-[#ddd6c7] bg-white p-4">
+                <summary className="cursor-pointer text-sm font-bold">
+                  {faq.question}
+                </summary>
+                <p className="mt-3 text-sm leading-6 text-[#4f4a40]">
+                  {faq.answer}
+                </p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }

@@ -53,7 +53,7 @@ export async function generateMetadata({
   const supabase = await createClient();
   const baseQ = supabase
     .from("projects")
-    .select("title, description, status")
+    .select("title, description, status, visibility, short_code")
     .is("deleted_at", null);
   const { data: p } = await (
     identifier.kind === "uuid"
@@ -61,6 +61,19 @@ export async function generateMetadata({
       : baseQ.eq("short_code", identifier.value)
   ).maybeSingle();
   if (!p) return { title: "프로젝트를 찾을 수 없습니다" };
+  if (p.visibility === "private") {
+    return {
+      title: "비공개 프로젝트 · deetz",
+      description: "초대 링크로만 확인할 수 있는 deetz 비공개 프로젝트입니다.",
+      robots: { index: false, follow: false },
+      openGraph: {
+        title: "비공개 프로젝트 · deetz",
+        description: "초대 링크로만 확인할 수 있는 deetz 비공개 프로젝트입니다.",
+        siteName: "deetz",
+        type: "website",
+      },
+    };
+  }
   const firstLine =
     ((p.description as string | null) ?? "")
       .split("\n")
@@ -69,11 +82,15 @@ export async function generateMetadata({
   return {
     title: p.title as string,
     description: desc,
+    alternates: {
+      canonical: `/projects/${p.short_code}`,
+    },
     openGraph: {
       title: `${p.title} · deetz`,
       description: desc,
       siteName: "deetz",
       type: "article",
+      url: `/projects/${p.short_code}`,
     },
   };
 }

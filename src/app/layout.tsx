@@ -12,20 +12,23 @@ const fontVariables = {
 } as CSSProperties;
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://dancers.bio"),
+  metadataBase: new URL("https://deetz.kr"),
   title: {
-    default: "deetz — 댄서 매거진 & 캐스팅 플랫폼",
+    default: "deetz | 댄서 섭외·안무 제작 플랫폼",
     template: "%s · deetz",
   },
-  description: "댄서를 소개하는 매거진이자, 포트폴리오와 일을 잇는 캐스팅 플랫폼.",
+  description:
+    "MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 플랫폼.",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon-192.png",
     apple: "/icon-192.png",
   },
   openGraph: {
-    title: "deetz — 댄서 매거진 & 캐스팅 플랫폼",
-    description: "댄서를 소개하는 매거진이자, 포트폴리오와 일을 잇는 캐스팅 플랫폼.",
+    title: "deetz | 댄서 섭외·안무 제작 플랫폼",
+    description:
+      "MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 플랫폼.",
+    url: "https://deetz.kr",
     siteName: "deetz",
     type: "website",
   },
@@ -45,7 +48,7 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   // GEO/AEO: schema.org JSON-LD (Organization + WebSite)
-  const SITE = "https://dancers.bio";
+  const SITE = "https://deetz.kr";
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -56,8 +59,13 @@ export default function RootLayout({
         alternateName: "dancers.bio",
         url: SITE,
         email: "dancers.bio.kr@gmail.com",
-        description: "댄서를 소개하는 매거진이자 포트폴리오와 일을 잇는 캐스팅 플랫폼.",
+        description: "MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 플랫폼.",
         areaServed: "KR",
+        sameAs: [
+          "https://www.instagram.com/deetz_magazine/",
+          "https://www.youtube.com/@deetzmagazine",
+          "https://dancers.bio",
+        ],
       },
       {
         "@type": "WebSite",

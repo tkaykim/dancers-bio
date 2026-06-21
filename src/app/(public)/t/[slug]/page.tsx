@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { getProfile, getUser } from "@/lib/auth/guard";
+import { getUser } from "@/lib/auth/guard";
 import { CAREER_CATEGORY_LABELS } from "@/lib/validation/portfolio";
 import { VideoThumbnail } from "@/components/portfolio/VideoEmbed";
 import { parseVideoUrl } from "@/lib/utils/video";
@@ -40,6 +40,25 @@ type TeamRow = {
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DEETZ_ORIGIN = "https://deetz.kr";
+
+function teamDisplayName(team: TeamRow): string {
+  return team.korean_name ? `${team.team_name} (${team.korean_name})` : team.team_name;
+}
+
+function teamCanonicalUrl(team: TeamRow): string {
+  return `${DEETZ_ORIGIN}/t/${team.slug ?? team.id}`;
+}
+
+function teamDescription(team: TeamRow): string {
+  const tags = [...(team.genres ?? []), ...(team.specialties ?? [])]
+    .filter(Boolean)
+    .slice(0, 4)
+    .join(", ");
+  return tags
+    ? `${teamDisplayName(team)} 댄스팀 프로필. ${tags} 기반의 댄스팀 섭외와 공연 포트폴리오를 확인하세요.`
+    : `${teamDisplayName(team)} 댄스팀 프로필과 공연 포트폴리오를 확인하세요.`;
+}
 
 async function loadTeam(slugOrId: string) {
   const supabase = await createClient();
@@ -58,9 +77,37 @@ export async function generateMetadata({
   const { slug } = await params;
   const team = await loadTeam(slug);
   if (!team) return { title: { absolute: "deetz" } };
+  const canonical = teamCanonicalUrl(team);
+  const description = team.bio ?? teamDescription(team);
+  const names = [team.team_name, team.korean_name].filter(Boolean) as string[];
   return {
-    title: { absolute: `${team.team_name} · deetz` },
-    description: team.bio ?? `${team.team_name} 댄스팀 포트폴리오`,
+    title: { absolute: `${teamDisplayName(team)} | 댄스팀 섭외 · deetz` },
+    description,
+    keywords: [
+      ...names,
+      ...names.map((name) => `${name} 댄스팀`),
+      ...names.map((name) => `${name} 댄스팀 섭외`),
+      ...names.map((name) => `${name} 공연 섭외`),
+      "댄스팀 섭외",
+      "댄스 공연 섭외",
+      ...(team.genres ?? []),
+      ...(team.specialties ?? []),
+    ],
+    alternates: {
+      canonical,
+    },
+    robots:
+      team.approval_status === "approved" && team.is_active
+        ? undefined
+        : { index: false, follow: false },
+    openGraph: {
+      title: `${teamDisplayName(team)} | 댄스팀 섭외`,
+      description,
+      url: canonical,
+      siteName: "deetz",
+      type: "profile",
+      images: team.profile_img ? [{ url: team.profile_img }] : undefined,
+    },
   };
 }
 
@@ -75,7 +122,7 @@ export default async function PublicTeamPage({
   if (!team.is_active) notFound();
 
   const supabase = await createClient();
-  const [{ data: careers }, { data: memberRows }, viewer, viewerProfile, { data: teamLead }] = await Promise.all([
+  const [{ data: careers }, { data: memberRows }, viewer, { data: teamLead }] = await Promise.all([
     supabase
       .from("careers")
       .select("id, type, title, date, details, is_representative")
@@ -91,7 +138,6 @@ export default async function PublicTeamPage({
       .eq("team_id", team.id)
       .order("sort_order", { ascending: true }),
     getUser(),
-    getProfile(),
     supabase.from("teams").select("lead_profile_id").eq("id", team.id).maybeSingle(),
   ]);
 
@@ -116,6 +162,33 @@ export default async function PublicTeamPage({
 
   const list = (careers ?? []) as Career[];
   const social = (team.social_links ?? {}) as Record<string, string>;
+  const canonicalUrl = teamCanonicalUrl(team);
+  const sameAs = Object.values(social)
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .map((value) => value.trim())
+    .filter((value) => /^https?:\/\//i.test(value));
+  const knowsAbout = Array.from(
+    new Set([...(team.genres ?? []), ...(team.specialties ?? [])]),
+  ).slice(0, 12);
+  const teamJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": `${canonicalUrl}#team`,
+    name: teamDisplayName(team),
+    alternateName: [team.team_name, team.korean_name].filter(Boolean),
+    url: canonicalUrl,
+    image: team.profile_img ?? undefined,
+    description: team.bio ?? teamDescription(team),
+    knowsAbout,
+    sameAs,
+    subjectOf: list.slice(0, 12).map((career) => ({
+      "@type": "CreativeWork",
+      name: career.title,
+      dateCreated: career.date,
+      description: career.details?.role ?? career.details?.description ?? undefined,
+      url: career.details?.link ?? undefined,
+    })),
+  };
   const portfolio = (team.portfolio ?? []).filter((p) => p?.url) as Array<{
     url: string;
     thumbnail?: string;
@@ -154,6 +227,10 @@ export default async function PublicTeamPage({
 
   return (
     <div className="relative mx-auto w-full max-w-md">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(teamJsonLd) }}
+      />
       {/* Back button (top-left, over hero) */}
       <Link
         href="/dancers?tab=teams"
