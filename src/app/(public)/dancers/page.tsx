@@ -40,12 +40,12 @@ export default async function DirectoryPage({
   ]);
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
+    <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8 lg:max-w-none lg:px-0 lg:py-0">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
           ↳ 디렉토리
         </p>
-        <h1 className="text-2xl font-bold tracking-tight leading-tight">
+        <h1 className="text-2xl font-bold leading-tight tracking-normal lg:text-5xl">
           댄서 / 팀 찾기
         </h1>
       </header>

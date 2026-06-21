@@ -48,10 +48,39 @@ export async function getApplicantPortfolioAction(
 ): Promise<ActionResult<ApplicantPortfolio>> {
   await requireUser();
   if (!projectId || !dancerId) return { ok: false, error: "잘못된 요청입니다." };
-  if (!(await canManageProject(projectId)))
-    return { ok: false, error: "권한이 없습니다." };
 
   const supabase = await createClient();
+  const canManageWholeProject = await canManageProject(projectId);
+  let canViewChannelApplicant = false;
+  if (!canManageWholeProject) {
+    const { data: visibleApps } = await supabase
+      .from("applications")
+      .select("id, project_id, recruitment_channel_id")
+      .eq("dancer_id", dancerId)
+      .not("recruitment_channel_id", "is", null)
+      .is("archived_at", null)
+      .limit(20);
+    const channelIds = Array.from(
+      new Set(
+        ((visibleApps ?? []) as Array<{ recruitment_channel_id: string | null }>)
+          .map((app) => app.recruitment_channel_id)
+          .filter((id): id is string => !!id),
+      ),
+    );
+    if (channelIds.length > 0) {
+      const { data: visibleChannels } = await supabase
+        .from("recruitment_channels")
+        .select("id")
+        .in("id", channelIds)
+        .eq("project_id", projectId)
+        .limit(1);
+      canViewChannelApplicant = (visibleChannels?.length ?? 0) > 0;
+    }
+  }
+
+  if (!canManageWholeProject && !canViewChannelApplicant)
+    return { ok: false, error: "권한이 없습니다." };
+
   const [{ data: d }, { data: c }] = await Promise.all([
     supabase
       .from("dancers")

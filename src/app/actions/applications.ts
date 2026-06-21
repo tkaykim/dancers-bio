@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth/guard";
+import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { humanizeDbError } from "@/lib/db-errors";
@@ -212,7 +212,8 @@ export async function decideApplicationAction(
   }
 
   let quotaReached = false;
-  if (decision === "accepted") {
+  const canManageWholeProject = await canManageProject(app.project_id as string);
+  if (decision === "accepted" && canManageWholeProject) {
     const [{ data: project }, { count: acceptedNow }] = await Promise.all([
       supabase
         .from("projects")

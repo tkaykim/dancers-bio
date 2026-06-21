@@ -11,6 +11,10 @@ function cleanText(value: FormDataEntryValue | null, max = 120): string {
   return (value ?? "").toString().trim().slice(0, max);
 }
 
+function cleanBool(value: FormDataEntryValue | null): boolean {
+  return value === "on" || value === "true" || value === "1";
+}
+
 async function loadChannelProject(channelId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -125,6 +129,9 @@ export async function addRecruitmentChannelMemberAction(
   const user = await requireUser();
   const channelId = cleanText(formData.get("channel_id"), 80);
   const profileId = cleanText(formData.get("profile_id"), 80);
+  const canDecideApplications = cleanBool(
+    formData.get("can_decide_applications"),
+  );
   if (!channelId || !profileId) {
     return { ok: false, error: "잘못된 요청입니다." };
   }
@@ -139,7 +146,9 @@ export async function addRecruitmentChannelMemberAction(
   const { error } = await supabase.from("recruitment_channel_members").insert({
     channel_id: channelId,
     profile_id: profileId,
-    role: "manager",
+    role: canDecideApplications ? "manager" : "viewer",
+    can_view_applicants: true,
+    can_decide_applications: canDecideApplications,
     added_by: user.id,
   });
   if (error) {
@@ -148,6 +157,42 @@ export async function addRecruitmentChannelMemberAction(
     }
     return { ok: false, error: error.message };
   }
+
+  revalidatePath(`/projects/${channel.project_id}/applicants`);
+  revalidatePath(`/channels/${channel.share_code}/applicants`);
+  return { ok: true };
+}
+
+export async function updateRecruitmentChannelMemberPermissionsAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireUser();
+  const channelId = cleanText(formData.get("channel_id"), 80);
+  const profileId = cleanText(formData.get("profile_id"), 80);
+  const canDecideApplications = cleanBool(
+    formData.get("can_decide_applications"),
+  );
+  if (!channelId || !profileId) {
+    return { ok: false, error: "잘못된 요청입니다." };
+  }
+
+  const channel = await loadChannelProject(channelId);
+  if (!channel) return { ok: false, error: "모집채널을 찾을 수 없습니다." };
+  if (!(await canManageProject(channel.project_id))) {
+    return { ok: false, error: "담당자 권한을 수정할 권한이 없습니다." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("recruitment_channel_members")
+    .update({
+      role: canDecideApplications ? "manager" : "viewer",
+      can_view_applicants: true,
+      can_decide_applications: canDecideApplications,
+    })
+    .eq("channel_id", channelId)
+    .eq("profile_id", profileId);
+  if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/projects/${channel.project_id}/applicants`);
   revalidatePath(`/channels/${channel.share_code}/applicants`);

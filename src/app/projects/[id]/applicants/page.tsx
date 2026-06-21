@@ -84,6 +84,8 @@ type RecruitmentChannelMemberRow = {
   channel_id: string;
   profile_id: string;
   role: string;
+  can_view_applicants: boolean | null;
+  can_decide_applications: boolean | null;
   profile:
     | {
         display_name: string | null;
@@ -200,7 +202,7 @@ export default async function ApplicantsPage({
       ? await supabase
           .from("recruitment_channel_members")
           .select(
-            "channel_id, profile_id, role, profile:profiles!recruitment_channel_members_profile_id_fkey ( display_name, avatar_url, instagram_handle )",
+            "channel_id, profile_id, role, can_view_applicants, can_decide_applications, profile:profiles!recruitment_channel_members_profile_id_fkey ( display_name, avatar_url, instagram_handle )",
           )
           .in("channel_id", channelIds)
           .order("created_at", { ascending: true })
@@ -220,6 +222,8 @@ export default async function ApplicantsPage({
       display_name: profile?.display_name ?? "(이름 없음)",
       avatar_url: profile?.avatar_url ?? null,
       instagram_handle: profile?.instagram_handle ?? null,
+      can_view_applicants: row.can_view_applicants ?? true,
+      can_decide_applications: row.can_decide_applications ?? false,
     });
     channelMembersById.set(row.channel_id, list);
   }

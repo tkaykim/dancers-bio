@@ -1,11 +1,83 @@
 import type { MetadataRoute } from "next";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const SITE = "https://dancers.bio";
+export const revalidate = 3600;
 
-// 정적 핵심 페이지. 공개 댄서 프로필(/u/[id]) 동적 sitemap은 다음 단계(DB 조회)에서 추가.
-export default function sitemap(): MetadataRoute.Sitemap {
+type SitemapRow = {
+  slug?: string | null;
+  short_code?: string | null;
+  created_at?: string | null;
+};
+
+function lastModified(row: SitemapRow, fallback: Date): Date {
+  return row.created_at ? new Date(row.created_at) : fallback;
+}
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  return [
+  const staticPages: MetadataRoute.Sitemap = [
     { url: `${SITE}/`, lastModified: now, changeFrequency: "daily", priority: 1 },
   ];
+
+  try {
+    const admin = createAdminClient();
+    const [dancersRes, teamsRes, projectsRes] = await Promise.all([
+      admin
+        .from("dancers")
+        .select("slug, created_at")
+        .eq("approval_status", "approved")
+        .not("slug", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1000),
+      admin
+        .from("teams")
+        .select("slug, created_at")
+        .eq("approval_status", "approved")
+        .eq("is_active", true)
+        .not("slug", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(300),
+      admin
+        .from("projects")
+        .select("short_code, created_at")
+        .eq("visibility", "public")
+        .in("status", ["open", "completed"])
+        .is("deleted_at", null)
+        .not("short_code", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(500),
+    ]);
+
+    const dancerPages: MetadataRoute.Sitemap = ((dancersRes.data ?? []) as SitemapRow[])
+      .filter((row) => row.slug)
+      .map((row) => ({
+        url: `${SITE}/d/${row.slug}`,
+        lastModified: lastModified(row, now),
+        changeFrequency: "weekly",
+        priority: 0.8,
+      }));
+
+    const teamPages: MetadataRoute.Sitemap = ((teamsRes.data ?? []) as SitemapRow[])
+      .filter((row) => row.slug)
+      .map((row) => ({
+        url: `${SITE}/t/${row.slug}`,
+        lastModified: lastModified(row, now),
+        changeFrequency: "weekly",
+        priority: 0.7,
+      }));
+
+    const projectPages: MetadataRoute.Sitemap = ((projectsRes.data ?? []) as SitemapRow[])
+      .filter((row) => row.short_code)
+      .map((row) => ({
+        url: `${SITE}/projects/${row.short_code}`,
+        lastModified: lastModified(row, now),
+        changeFrequency: "daily",
+        priority: 0.9,
+      }));
+
+    return [...staticPages, ...dancerPages, ...teamPages, ...projectPages];
+  } catch {
+    return staticPages;
+  }
 }

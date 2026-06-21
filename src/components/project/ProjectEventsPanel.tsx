@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarClock, Copy, ExternalLink, Users } from "lucide-react";
+import { CalendarClock, Copy, ExternalLink, Printer, QrCode, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   createProjectEventAction,
@@ -217,6 +218,8 @@ export function ProjectEventsPanel({
         <ul className="flex flex-col gap-2">
           {events.map((event) => {
             const opsUrl = `${origin}/ops/events/${event.ops_code}`;
+            const labelsUrl = `${opsUrl}/labels`;
+            const passesUrl = `${opsUrl}/passes`;
             return (
               <li key={event.id} className="rounded-xl border border-border p-3">
                 <div className="flex flex-col gap-3">
@@ -266,7 +269,28 @@ export function ProjectEventsPanel({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 rounded-lg border border-hairline-2 bg-background px-2 py-2 text-xs">
+                  <div className="grid gap-2 text-xs lg:grid-cols-3">
+                    <EventToolLink
+                      label="운영판"
+                      href={opsUrl}
+                      onCopy={() => copy(opsUrl)}
+                      icon={<ExternalLink className="size-3.5" />}
+                    />
+                    <EventToolLink
+                      label="번호표 라벨"
+                      href={labelsUrl}
+                      onCopy={() => copy(labelsUrl)}
+                      icon={<Printer className="size-3.5" />}
+                    />
+                    <EventToolLink
+                      label="QR 패스"
+                      href={passesUrl}
+                      onCopy={() => copy(passesUrl)}
+                      icon={<QrCode className="size-3.5" />}
+                    />
+                  </div>
+
+                  <div className="hidden items-center gap-2 rounded-lg border border-hairline-2 bg-background px-2 py-2 text-xs">
                     <code className="min-w-0 flex-1 truncate text-ink-2">
                       {opsUrl}
                     </code>
@@ -295,5 +319,52 @@ export function ProjectEventsPanel({
         </ul>
       )}
     </section>
+  );
+}
+
+function EventToolLink({
+  label,
+  href,
+  icon,
+  onCopy,
+}: {
+  label: string;
+  href: string;
+  icon: ReactNode;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-hairline-2 bg-background px-2 py-2">
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] uppercase tracking-[0.12em] text-ink-3">
+          {label}
+        </p>
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="block truncate text-xs font-medium text-foreground hover:underline"
+        >
+          {href.replace(/^https?:\/\//, "")}
+        </a>
+      </div>
+      <button
+        type="button"
+        onClick={onCopy}
+        className="inline-flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-secondary"
+        aria-label={`${label} 복사`}
+      >
+        <Copy className="size-3.5" />
+      </button>
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-secondary"
+        aria-label={`${label} 열기`}
+      >
+        {icon}
+      </a>
+    </div>
   );
 }

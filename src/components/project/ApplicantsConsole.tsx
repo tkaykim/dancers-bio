@@ -49,11 +49,13 @@ export function ApplicantsConsole({
   recruitmentCount,
   initial,
   channels = [],
+  canDecide = true,
 }: {
   projectId: string;
   recruitmentCount: number;
   initial: ConsoleApplicant[];
   channels?: Array<{ id: string; name: string }>;
+  canDecide?: boolean;
 }) {
   const router = useRouter();
   const [items, setItems] = useState<ConsoleApplicant[]>(initial);
@@ -153,6 +155,7 @@ export function ApplicantsConsole({
     id: string,
     decision: "accepted" | "rejected" | "pending",
   ) {
+    if (!canDecide) return;
     if (decision === "rejected") {
       setSheetId(null); // 시트 닫고 사유 다이얼로그만 표시(중첩 방지)
       setRejectId(id);
@@ -211,6 +214,7 @@ export function ApplicantsConsole({
   }
 
   async function bulk(decision: "rejected" | "pending") {
+    if (!canDecide) return;
     const ids = Array.from(selected);
     if (ids.length === 0) return;
     if (
@@ -234,6 +238,7 @@ export function ApplicantsConsole({
   }
 
   function toggleSelect(id: string) {
+    if (!canDecide) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -243,6 +248,7 @@ export function ApplicantsConsole({
   }
 
   function selectAllVisible() {
+    if (!canDecide) return;
     setSelected((prev) => {
       const next = new Set(prev);
       const allChecked = filtered.every((a) => next.has(a.id));
@@ -358,6 +364,7 @@ export function ApplicantsConsole({
       ) : null}
 
       {/* 일괄 선택 바 */}
+      {canDecide ? (
       <div className="flex items-center justify-between gap-2 text-xs">
         <button
           type="button"
@@ -390,6 +397,7 @@ export function ApplicantsConsole({
           </div>
         ) : null}
       </div>
+      ) : null}
 
       {/* 리스트 */}
       {filtered.length === 0 ? (
@@ -408,14 +416,16 @@ export function ApplicantsConsole({
                   isSel ? "border-primary bg-primary/5" : "border-border"
                 }`}
               >
-                <input
-                  type="checkbox"
-                  checked={isSel}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={() => toggleSelect(a.id)}
-                  className="size-4 shrink-0 accent-primary"
-                  aria-label="선택"
-                />
+                {canDecide ? (
+                  <input
+                    type="checkbox"
+                    checked={isSel}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => toggleSelect(a.id)}
+                    className="size-4 shrink-0 accent-primary"
+                    aria-label="선택"
+                  />
+                ) : null}
                 {a.avatar ? (
                   <Image
                     src={a.avatar}
@@ -478,10 +488,11 @@ export function ApplicantsConsole({
                     a.status as keyof typeof APPLICATION_STATUS_LABELS
                   ] ?? a.status}
                 </span>
-                <div
-                  className="flex shrink-0 gap-1"
-                  onClick={(e) => e.stopPropagation()}
-                >
+                {canDecide ? (
+                  <div
+                    className="flex shrink-0 gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                   {a.status !== "accepted" ? (
                     <button
                       type="button"
@@ -511,7 +522,8 @@ export function ApplicantsConsole({
                       대기로
                     </button>
                   )}
-                </div>
+                  </div>
+                ) : null}
               </li>
             );
           })}
@@ -524,6 +536,7 @@ export function ApplicantsConsole({
         projectId={projectId}
         applicant={sheetApplicant}
         deciding={busy}
+        canDecide={canDecide}
         onDecide={(decision) => {
           if (sheetId) requestDecide(sheetId, decision);
         }}
