@@ -346,6 +346,46 @@ export async function updateEventParticipantOpsAction(
   };
 }
 
+export async function updateEventParticipantGenderAction(
+  formData: FormData,
+): Promise<ActionResult<{ dancer_id: string; gender: string | null }>> {
+  const opsCode = text(formData, "ops_code", 80);
+  const participantId = text(formData, "participant_id", 80);
+  const genderRaw = (formData.get("gender") ?? "").toString().trim();
+  const gender = genderRaw === "male" || genderRaw === "female" ? genderRaw : null;
+
+  if (!opsCode || !participantId) {
+    return { ok: false, error: "운영일정과 참가자를 확인해 주세요." };
+  }
+
+  const admin = createAdminClient();
+  const { data: event } = await admin
+    .from("project_events")
+    .select("id")
+    .eq("ops_code", opsCode)
+    .maybeSingle();
+  if (!event) return { ok: false, error: "운영일정을 찾을 수 없습니다." };
+
+  const { data: participant } = await admin
+    .from("event_participants")
+    .select("dancer_id")
+    .eq("id", participantId)
+    .eq("event_id", event.id as string)
+    .maybeSingle();
+  if (!participant?.dancer_id) {
+    return { ok: false, error: "참가자를 찾을 수 없습니다." };
+  }
+
+  const { error } = await admin
+    .from("dancers")
+    .update({ gender })
+    .eq("id", participant.dancer_id as string);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/ops/events/${opsCode}`);
+  return { ok: true, data: { dancer_id: participant.dancer_id as string, gender } };
+}
+
 export async function updateEventOutreachTaskAction(
   formData: FormData,
 ): Promise<

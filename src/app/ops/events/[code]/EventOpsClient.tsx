@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { toast } from "sonner";
 import {
   updateEventOutreachTaskAction,
+  updateEventParticipantGenderAction,
   updateEventParticipantOpsAction,
 } from "@/app/actions/project-events";
 import { extractEventQrCandidates } from "@/lib/ops/event-qr";
@@ -442,6 +443,34 @@ export function EventOpsClient({
     });
   }
 
+  function updateGender(
+    row: EventOpsParticipant,
+    nextGender: "male" | "female" | null,
+  ) {
+    if (!row.dancer) return;
+    const previous = participants;
+    setParticipants((prev) =>
+      prev.map((r) =>
+        r.id === row.id && r.dancer
+          ? { ...r, dancer: { ...r.dancer, gender: nextGender } }
+          : r,
+      ),
+    );
+    setBusy((prev) => ({ ...prev, [`gender:${row.id}`]: true }));
+    const fd = new FormData();
+    fd.set("ops_code", event.ops_code);
+    fd.set("participant_id", row.id);
+    fd.set("gender", nextGender ?? "");
+    startTransition(async () => {
+      const result = await updateEventParticipantGenderAction(fd);
+      setBusy((prev) => ({ ...prev, [`gender:${row.id}`]: false }));
+      if (!result.ok) {
+        setParticipants(previous);
+        toast.error(result.error);
+      }
+    });
+  }
+
   const updateParticipant = useCallback(
     (
       row: EventOpsParticipant,
@@ -657,6 +686,7 @@ export function EventOpsClient({
             busy={busy}
             patchParticipant={patchParticipant}
             updateOutreach={updateOutreach}
+            updateGender={updateGender}
             onOpenProfile={setProfileRow}
           />
         ) : (
@@ -903,22 +933,25 @@ function ContactTable({
   busy,
   patchParticipant,
   updateOutreach,
+  updateGender,
   onOpenProfile,
 }: {
   rows: EventOpsParticipant[];
   busy: Record<string, boolean>;
   patchParticipant: (id: string, patch: Partial<EventOpsParticipant>) => void;
   updateOutreach: (row: EventOpsParticipant, status?: OutreachStatus, method?: string, note?: string) => void;
+  updateGender: (row: EventOpsParticipant, gender: "male" | "female" | null) => void;
   onOpenProfile: (row: EventOpsParticipant) => void;
 }) {
   return (
     <section className="overflow-x-auto border border-black/10 bg-white">
-      <table className="w-full min-w-[1120px] border-collapse text-sm">
+      <table className="w-full min-w-[1180px] border-collapse text-sm">
         <thead className="bg-[#f0eee8] text-left text-xs text-black/55">
           <tr>
             <th className="w-24 px-3 py-2">번호</th>
             <th className="px-3 py-2">대상</th>
             <th className="w-36 px-3 py-2">채널</th>
+            <th className="w-20 px-3 py-2">성별</th>
             <th className="w-48 px-3 py-2">연락처</th>
             <th className="w-36 px-3 py-2">상태</th>
             <th className="w-28 px-3 py-2">방법</th>
@@ -934,6 +967,23 @@ function ContactTable({
                 <td className="px-3 py-2"><Bib code={row.bib_code} /></td>
                 <td className="px-3 py-2"><Person row={row} onOpenProfile={onOpenProfile} /></td>
                 <td className="px-3 py-2 text-xs font-bold text-black/55">{row.channel?.name ?? "-"}</td>
+                <td className="px-3 py-2">
+                  <select
+                    value={row.dancer?.gender ?? ""}
+                    disabled={!!busy[`gender:${row.id}`] || !row.dancer}
+                    onChange={(event) =>
+                      updateGender(
+                        row,
+                        (event.target.value || null) as "male" | "female" | null,
+                      )
+                    }
+                    className="h-8 w-16 rounded-md border border-black/10 px-1 text-xs font-bold disabled:opacity-50"
+                  >
+                    <option value="">미기입</option>
+                    <option value="male">남</option>
+                    <option value="female">여</option>
+                  </select>
+                </td>
                 <td className="px-3 py-2"><ContactLinks row={row} /></td>
                 <td className="px-3 py-2">
                   <select
