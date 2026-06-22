@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, BriefcaseBusiness, CircleCheck, Search, Sparkles, UserRoundCheck } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, CircleCheck, MessageCircle, Search, Sparkles, UserRoundCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -335,6 +335,54 @@ export default async function HomePage() {
               </Link>
               에서 확인하세요.
             </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-[#ddd6c7] bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-16 lg:px-8">
+          <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#81796a]">
+            <MessageCircle className="h-4 w-4" aria-hidden />
+            Contact
+          </p>
+          <h2 className="mt-3 max-w-3xl text-3xl font-extrabold tracking-normal [word-break:keep-all]">
+            섭외·캐스팅 문의는 편한 채널로 보내주세요.
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#4f4a40] [word-break:keep-all]">
+            프로젝트 유형, 일정, 예산, 필요한 장르를 함께 적어주시면 더 빠르게 도와드릴 수 있습니다.
+          </p>
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <a
+              href="https://pf.kakao.com/_mbpXX/chat"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#FEE500] px-6 text-base font-bold text-[#191600] transition hover:brightness-95"
+            >
+              <MessageCircle className="h-5 w-5" aria-hidden />
+              카카오톡 채널 문의
+            </a>
+            <a
+              href="https://ig.me/m/deetz.kr"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-[#cfc8b8] bg-white px-6 text-base font-semibold text-[#171611] transition hover:bg-[#f3f0e8]"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+              </svg>
+              인스타그램 DM (@deetz.kr)
+            </a>
           </div>
         </div>
       </section>
