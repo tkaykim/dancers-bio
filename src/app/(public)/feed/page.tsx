@@ -108,22 +108,26 @@ export default async function FeedPage() {
 
   const enriched = projects.map((p) => {
     const isPrivate = p.visibility === "private";
-    // 비공개 공고는 admin 외엔 short_code도 노출하지 않음 (DOM 인스펙트로도 못 찾게)
+    // 비공개 공고는 admin 외엔 제목·세부정보를 "서버에서" 마스킹해 클라이언트로 보내지 않는다.
+    // (ProjectListView가 "use client" → props가 HTML/RSC 페이로드로 직렬화되어
+    //  화면에 안 보여도 크롤러·소스보기로 실제 제목이 새던 문제를 차단.)
     const revealDetails = !isPrivate || isAdmin;
     return {
       id: p.id,
       short_code: revealDetails ? p.short_code : null,
       visibility: p.visibility,
-      title: p.title,
-      category: p.category,
-      pay_amount: p.pay_amount,
-      pay_type: p.pay_type,
+      title: revealDetails ? p.title : "비공개 공고",
+      category: revealDetails ? p.category : null,
+      pay_amount: revealDetails ? p.pay_amount : null,
+      pay_type: revealDetails ? p.pay_type : null,
       application_deadline: p.application_deadline,
       is_standing_pool: !!p.is_standing_pool,
       created_at: p.created_at,
-      owner_name: ownerMap.get(p.owner_id) ?? null,
-      genre_label: p.genre?.label_ko ?? null,
-      region_label: p.region_text ?? p.region?.label_ko ?? null,
+      owner_name: revealDetails ? (ownerMap.get(p.owner_id) ?? null) : null,
+      genre_label: revealDetails ? (p.genre?.label_ko ?? null) : null,
+      region_label: revealDetails
+        ? (p.region_text ?? p.region?.label_ko ?? null)
+        : null,
       session_count: sessionMap.get(p.id) ?? 0,
     };
   });
