@@ -188,7 +188,7 @@ export default async function HomePage() {
           <div className="max-w-3xl">
             <p className="inline-flex items-center gap-2 rounded-full border border-[#d8d2c3] bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#6f6a5d]">
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
-              K-POP dancer casting
+              Dancer casting &amp; Curation · 캐스팅, 큐레이션
             </p>
             <h1 className="mt-7 max-w-4xl text-5xl font-extrabold leading-[0.96] tracking-normal text-[#171611] [word-break:keep-all] sm:text-6xl lg:text-7xl">
               댄서 섭외와
