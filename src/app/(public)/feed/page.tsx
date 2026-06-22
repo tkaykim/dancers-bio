@@ -1,9 +1,35 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ProjectListView } from "@/components/project/ProjectListView";
 import { isExpired } from "@/lib/utils/deadline";
+
+export const metadata: Metadata = {
+  title: "댄서 섭외 공고·캐스팅 콜 | deetz(디츠)",
+  description:
+    "디츠(deetz)에 등록된 댄서 섭외·캐스팅 공고를 한 곳에서. MV, 광고, 무대, 방송, 행사 백댄서 섭외와 안무 제작, 안무가 섭외, 댄스팀 섭외 공고를 확인하고 포트폴리오로 지원하세요.",
+  keywords: [
+    "댄서 섭외 공고",
+    "댄서 캐스팅 공고",
+    "백댄서 섭외",
+    "안무가 섭외",
+    "댄스팀 섭외",
+    "댄서 구인",
+    "디츠",
+    "deetz",
+  ],
+  alternates: { canonical: "https://deetz.kr/feed" },
+  openGraph: {
+    title: "댄서 섭외 공고·캐스팅 콜 | deetz(디츠)",
+    description:
+      "MV, 광고, 무대, 방송, 행사 댄서 섭외·캐스팅 공고를 확인하고 포트폴리오로 지원하세요.",
+    url: "https://deetz.kr/feed",
+    siteName: "deetz",
+    type: "website",
+  },
+};
 
 type Row = {
   id: string;

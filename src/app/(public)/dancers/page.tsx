@@ -1,5 +1,31 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { DirectoryClient } from "@/components/directory/DirectoryClient";
+
+export const metadata: Metadata = {
+  title: "댄서·댄스팀 포트폴리오 디렉토리 | deetz(디츠)",
+  description:
+    "디츠(deetz)에서 검증된 댄서와 댄스팀의 경력·영상 포트폴리오를 확인하세요. 댄서 섭외, 댄스팀 섭외, 안무가 섭외에 맞는 프로필을 비교하고 캐스팅할 수 있는 댄서 플랫폼입니다.",
+  keywords: [
+    "댄서 포트폴리오",
+    "댄스팀 섭외",
+    "댄서 섭외",
+    "댄서 플랫폼",
+    "안무가 섭외",
+    "K-POP 댄서",
+    "디츠",
+    "deetz",
+  ],
+  alternates: { canonical: "https://deetz.kr/dancers" },
+  openGraph: {
+    title: "댄서·댄스팀 포트폴리오 디렉토리 | deetz(디츠)",
+    description:
+      "검증된 댄서·댄스팀의 경력과 영상 포트폴리오를 확인하고 댄서 섭외·캐스팅에 활용하세요.",
+    url: "https://deetz.kr/dancers",
+    siteName: "deetz",
+    type: "website",
+  },
+};
 
 const PAGE_SIZE = 24;
 
