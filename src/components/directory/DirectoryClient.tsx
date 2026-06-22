@@ -154,7 +154,7 @@ export function DirectoryClient({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex gap-1 rounded-full border border-border bg-card p-1 text-xs">
+      <div className="flex gap-1 rounded-full border border-border bg-card p-1 text-xs lg:w-fit lg:self-start">
         <TabBtn
           active={tab === "dancers"}
           onClick={() => setTab("dancers")}
@@ -167,14 +167,16 @@ export function DirectoryClient({
         />
       </div>
 
-      <Input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={tab === "teams" ? "팀명 검색" : "활동명, 한글 이름 검색"}
-        autoComplete="off"
-        type="search"
-        enterKeyHint="search"
-      />
+      <div className="w-full lg:max-w-xl">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={tab === "teams" ? "팀명 검색" : "활동명, 한글 이름 검색"}
+          autoComplete="off"
+          type="search"
+          enterKeyHint="search"
+        />
+      </div>
 
       {total > 0 && !debouncedQ ? (
         <p className="text-[11px] text-ink-3">
@@ -191,7 +193,7 @@ export function DirectoryClient({
               : "아직 등록된 팀이 없습니다."}
         </p>
       ) : (
-        <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {tab === "dancers"
             ? dancers.map((d) => (
                 <li key={d.id}>
@@ -248,7 +250,7 @@ function TabBtn({
       type="button"
       onClick={onClick}
       className={
-        "flex flex-1 items-center justify-center rounded-full px-3 py-1.5 font-medium transition-colors " +
+        "flex flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 py-1.5 font-medium transition-colors " +
         (active
           ? "bg-primary text-primary-foreground"
           : "text-ink-3 hover:text-foreground")

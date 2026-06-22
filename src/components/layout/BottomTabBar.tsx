@@ -58,7 +58,7 @@ export function BottomTabBar({
   return (
     <nav
       aria-label="Primary"
-      className="fixed bottom-0 left-1/2 z-30 w-full max-w-md -translate-x-1/2 border-t border-hairline-2 bg-background/95 pb-safe backdrop-blur-xl"
+      className="fixed bottom-0 left-1/2 z-30 w-full max-w-md -translate-x-1/2 border-t border-hairline-2 bg-background/95 pb-safe backdrop-blur-xl lg:hidden"
     >
       <ul className="grid grid-cols-4">
         {tabs.map((t) => {
