@@ -7,31 +7,36 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "deetz | K-POP 댄서 캐스팅 플랫폼",
+    absolute: "deetz(디츠) | 댄서 섭외·캐스팅·안무 제작 플랫폼",
   },
   description:
-    "deetz는 MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 플랫폼입니다.",
+    "디츠(deetz)는 MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 댄서 캐스팅 플랫폼입니다.",
   keywords: [
+    "디츠",
+    "deetz",
+    "댄서 플랫폼",
     "댄서 캐스팅",
+    "댄서 캐스팅 플랫폼",
     "댄서 섭외",
+    "댄서 섭외 플랫폼",
     "댄서 구인",
     "백댄서 섭외",
     "안무 제작",
+    "안무제작",
     "K-POP 댄서",
     "안무가 섭외",
     "댄스팀 섭외",
     "댄스 공연 섭외",
     "MV 댄서",
     "광고 댄서",
-    "deetz",
   ],
   alternates: {
     canonical: "https://deetz.kr",
   },
   openGraph: {
-    title: "deetz | K-POP 댄서 캐스팅 플랫폼",
+    title: "deetz(디츠) | 댄서 섭외·캐스팅·안무 제작 플랫폼",
     description:
-      "MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외를 포트폴리오 기반으로 연결합니다.",
+      "디츠(deetz)는 MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외를 포트폴리오 기반으로 연결합니다.",
     url: "https://deetz.kr",
     siteName: "deetz",
     type: "website",
@@ -85,9 +90,9 @@ const useCases = [
 
 const faqs = [
   {
-    question: "deetz는 어떤 서비스인가요?",
+    question: "디츠(deetz)는 어떤 서비스인가요?",
     answer:
-      "deetz는 MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 캐스팅 플랫폼입니다.",
+      "디츠(deetz)는 MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 댄서 캐스팅 플랫폼입니다.",
   },
   {
     question: "댄서를 어떻게 섭외할 수 있나요?",
@@ -181,7 +186,7 @@ export default async function HomePage() {
               한 곳에서.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-[#4f4a40] [word-break:keep-all]">
-              deetz는 댄서, 안무가, 댄스팀의 포트폴리오와 경력을 기반으로 MV, 광고, 방송, 댄스 공연 섭외를 연결합니다.
+              디츠(deetz)는 댄서, 안무가, 댄스팀의 포트폴리오와 경력을 기반으로 MV, 광고, 방송, 댄스 공연 섭외를 연결하는 댄서 섭외·캐스팅 플랫폼입니다.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link href="/feed">
