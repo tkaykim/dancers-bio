@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { guides } from "@/lib/guides";
 
 const SITE = "https://deetz.kr";
 export const revalidate = 3600;
@@ -20,6 +21,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE}/`, lastModified: now, changeFrequency: "daily", priority: 1 },
     { url: `${SITE}/feed`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
     { url: `${SITE}/dancers`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
+    { url: `${SITE}/guide`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
+    ...guides.map((g) => ({
+      url: `${SITE}/guide/${g.slug}`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    })),
   ];
 
   try {

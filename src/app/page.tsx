@@ -323,6 +323,16 @@ export default async function HomePage() {
                 </p>
               </details>
             ))}
+            <p className="mt-2 text-sm text-[#4f4a40]">
+              더 자세한 내용은{" "}
+              <Link
+                href="/guide"
+                className="font-semibold text-[#171611] underline underline-offset-4"
+              >
+                댄서 섭외·안무 제작 가이드
+              </Link>
+              에서 확인하세요.
+            </p>
           </div>
         </div>
       </section>
