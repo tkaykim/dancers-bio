@@ -1,11 +1,15 @@
-# deetz
+# deetz (디츠)
 
-> deetz는 K-POP, MV, 광고, 무대, 방송, 행사 프로젝트에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 플랫폼입니다.
+> deetz(디츠)는 K-POP, MV, 광고, 무대, 방송, 행사 프로젝트에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 댄서 캐스팅 플랫폼입니다. 서비스명은 deetz(한글 표기 디츠), 공식 도메인은 deetz.kr이며 댄서 공개 포트폴리오는 dancers.bio 도메인을 사용합니다.
 
 ## 핵심 URL
 - 공식 사이트: https://deetz.kr
 - 캐스팅 공고: https://deetz.kr/feed
 - 댄서 디렉토리: https://deetz.kr/dancers
+- 가이드 모음: https://deetz.kr/guide
+- 댄서 섭외 가이드: https://deetz.kr/guide/dancer-casting
+- 안무 제작 가이드: https://deetz.kr/guide/choreography-production
+- 댄스팀 섭외 가이드: https://deetz.kr/guide/dance-team-booking
 - 댄서 링크인바이오 도메인: https://dancers.bio
 - YouTube: https://www.youtube.com/@deetzmagazine
 - Instagram: https://www.instagram.com/deetz_magazine/

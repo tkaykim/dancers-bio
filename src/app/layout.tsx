@@ -72,6 +72,7 @@ export default function RootLayout({
         name: "deetz",
         alternateName: ["디츠", "deetz", "dancers.bio"],
         url: SITE,
+        logo: `${SITE}/icon-512.png`,
         email: "dancers.bio.kr@gmail.com",
         description: "MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 플랫폼.",
         areaServed: "KR",
