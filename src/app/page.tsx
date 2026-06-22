@@ -90,44 +90,34 @@ const useCases = [
 
 const faqs = [
   {
-    question: "디츠(deetz)는 어떤 서비스인가요?",
+    question: "deetz는 어떤 서비스인가요?",
     answer:
-      "디츠(deetz)는 MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 댄서 캐스팅 플랫폼입니다.",
+      "deetz(디츠)는 MV, 광고, 무대, 방송, 행사에 필요한 댄서와 안무가를 연결하는 댄서 캐스팅 플랫폼입니다. 검증된 댄서·댄스팀의 경력과 영상 포트폴리오를 직접 보고 섭외할 수 있습니다.",
   },
   {
-    question: "댄서를 어떻게 섭외할 수 있나요?",
+    question: "댄서나 안무가를 어떻게 섭외하나요?",
     answer:
-      "프로젝트 유형, 일정, 지역, 페이, 필요한 장르를 정리해 공고를 만들고 지원자 포트폴리오와 경력을 확인한 뒤 적합한 댄서를 선택할 수 있습니다.",
+      "프로젝트 유형, 일정, 지역, 예산, 필요한 장르를 정리해 섭외 공고를 올리면 댄서와 안무가의 지원을 받을 수 있습니다. 마음에 드는 프로필에는 직접 캐스팅 제안을 보낼 수도 있습니다.",
   },
   {
-    question: "댄서는 deetz에서 무엇을 할 수 있나요?",
+    question: "댄서 섭외 비용은 어떻게 정해지나요?",
     answer:
-      "댄서는 본인 프로필, 경력, 영상 포트폴리오를 정리하고 공개 공고에 지원하거나 캐스팅 제안을 받을 수 있습니다.",
+      "비용은 프로젝트 유형, 촬영·공연 일정, 회차, 지역, 요구 경력에 따라 달라집니다. 공고에 출연료 조건을 적거나 댄서·안무가와 직접 협의해 정하며, 포트폴리오와 경력을 확인한 뒤 합리적으로 결정할 수 있습니다.",
   },
   {
-    question: "댄서 섭외 비용은 어떻게 책정되나요?",
+    question: "안무 제작이나 안무가 섭외도 가능한가요?",
     answer:
-      "댄서 섭외 비용은 프로젝트 유형, 촬영·공연 일정, 회차, 지역, 요구 경력에 따라 달라집니다. 디츠(deetz)에서는 공고에 페이 조건을 명시하거나 댄서·안무가와 직접 협의해 결정하며, 포트폴리오와 경력을 확인한 뒤 합리적으로 캐스팅할 수 있습니다.",
+      "네. 댄서 섭외뿐 아니라 안무 제작, 안무가 섭외, 퍼포먼스 디렉터 연결까지 가능합니다. 안무가·디렉터의 작업 영상과 경력을 보고 프로젝트에 맞는 사람을 섭외할 수 있습니다.",
   },
   {
-    question: "안무 제작이나 안무가 섭외도 의뢰할 수 있나요?",
+    question: "공연이나 행사 댄스팀 섭외도 되나요?",
     answer:
-      "네. 디츠(deetz)는 댄서 섭외뿐 아니라 안무 제작, 안무가 섭외, 퍼포먼스 디렉터 연결까지 지원합니다. 안무가·디렉터의 작업 영상과 경력을 확인하고 프로젝트에 맞는 사람을 캐스팅할 수 있습니다.",
+      "무대, 행사, 쇼케이스, 팬미팅 같은 공연 댄스팀 섭외도 가능합니다. 공고를 올려 지원을 받거나, 디렉토리에서 댄스팀 포트폴리오를 보고 직접 섭외 제안을 보낼 수 있습니다.",
   },
   {
-    question: "공연이나 행사 댄스팀 섭외는 어떻게 진행되나요?",
+    question: "댄서로 활동하고 싶은데 어떻게 시작하나요?",
     answer:
-      "댄스 공연 섭외와 댄스팀 섭외는 공고를 등록해 지원을 받거나, 디렉토리에서 댄스팀 포트폴리오를 확인해 직접 캐스팅 제안을 보내는 방식으로 진행됩니다. 무대, 행사, 쇼케이스, 팬미팅 등 행사 댄서 모집에 활용할 수 있습니다.",
-  },
-  {
-    question: "광고나 뮤직비디오 댄서 캐스팅은 어떻게 하나요?",
-    answer:
-      "MV, 광고, 브랜드 캠페인, 숏폼 콘텐츠에 필요한 댄서 캐스팅은 공고를 만들어 지원자 포트폴리오를 비교하거나, 검증된 댄서·댄스팀 프로필에 직접 섭외 제안을 보내 진행할 수 있습니다.",
-  },
-  {
-    question: "비공개 프로젝트도 검색에 노출되나요?",
-    answer:
-      "비공개 프로젝트는 초대 링크로만 열람되며 sitemap에서 제외되고 검색엔진에 색인되지 않도록 noindex 설정을 적용합니다.",
+      "프로필을 만들고 경력과 영상 포트폴리오를 등록하면 공개된 섭외 공고에 지원하거나 캐스팅 제안을 받을 수 있습니다. 인스타그램 프로필에는 dancers.bio 링크로 본인 페이지를 공유할 수 있습니다.",
   },
 ];
 
@@ -263,7 +253,7 @@ export default async function HomePage() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
             <div className="absolute bottom-5 left-5 right-5 text-white">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/62">
+              <p className="text-xs font-semibold tracking-[0.2em] text-white/62">
                 deetz magazine
               </p>
               <h2 className="mt-3 text-3xl font-extrabold leading-tight tracking-normal">
@@ -291,8 +281,8 @@ export default async function HomePage() {
       <section className="border-t border-[#ddd6c7] bg-white">
         <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 lg:grid-cols-[320px_minmax(0,1fr)] lg:px-8">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#81796a]">
-              What deetz solves
+            <p className="text-xs font-semibold tracking-[0.2em] text-[#81796a]">
+              what deetz solves
             </p>
             <h2 className="mt-3 text-3xl font-extrabold tracking-normal [word-break:keep-all]">
               댄서 섭외를 검색, 비교, 지원 흐름으로 바꿉니다.

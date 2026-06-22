@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { DirectoryClient } from "@/components/directory/DirectoryClient";
 
 export const metadata: Metadata = {
-  title: "댄서·댄스팀 포트폴리오 디렉토리 | deetz(디츠)",
+  title: { absolute: "댄서·댄스팀 포트폴리오 디렉토리 | deetz(디츠)" },
   description:
     "디츠(deetz)에서 검증된 댄서와 댄스팀의 경력·영상 포트폴리오를 확인하세요. 댄서 섭외, 댄스팀 섭외, 안무가 섭외에 맞는 프로필을 비교하고 캐스팅할 수 있는 댄서 플랫폼입니다.",
   keywords: [
