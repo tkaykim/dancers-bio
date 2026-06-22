@@ -53,14 +53,16 @@ async function loadStats(): Promise<Stats> {
   try {
     const admin = createAdminClient();
     const [dancers, teams, projects] = await Promise.all([
+      // 첫 화면 규모 어필용 카운트: 승인 대기(pending) 포함 전체를 노출하되,
+      // 명시적으로 거절된(rejected) 건만 제외한다.
       admin
         .from("dancers")
         .select("id", { count: "exact", head: true })
-        .eq("approval_status", "approved"),
+        .neq("approval_status", "rejected"),
       admin
         .from("teams")
         .select("id", { count: "exact", head: true })
-        .eq("approval_status", "approved")
+        .neq("approval_status", "rejected")
         .eq("is_active", true),
       admin
         .from("projects")
