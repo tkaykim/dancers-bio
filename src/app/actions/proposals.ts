@@ -5,6 +5,7 @@ import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { humanizeDbError } from "@/lib/db-errors";
 import { notify } from "@/lib/notify";
+import { sendCastingProposalAlimtalk } from "@/lib/alimtalk/dancer-events";
 import {
   respondProposalSchema,
   sendProposalSchema,
@@ -147,6 +148,15 @@ export async function sendDirectProposalAction(
         url: "/proposals",
         tag: `proposal-${inserted!.id}`,
       },
+    });
+  }
+
+  // 캐스팅 제안 알림톡 — 개별 댄서 제안만(팀 제외), 폰 보유 시. best-effort.
+  if (!parsed.data.team_id && parsed.data.dancer_id) {
+    await sendCastingProposalAlimtalk({
+      dancerId: parsed.data.dancer_id,
+      applicationId: inserted!.id as string,
+      projectTitle: project.title as string,
     });
   }
 

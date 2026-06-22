@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { sendDancerApprovalAlimtalk } from "@/lib/alimtalk/dancer-events";
 import type { ActionResult } from "./auth";
 
 const UUID_RE =
@@ -49,6 +50,8 @@ export async function approveDancerAction(
 
   const slug = await loadSlug(id);
   revalidateAfterMutation(id, slug);
+  // 승인 알림톡 (폰 보유 시, env·템플릿 설정 후에만 실발송 / best-effort).
+  await sendDancerApprovalAlimtalk(id);
   return { ok: true };
 }
 

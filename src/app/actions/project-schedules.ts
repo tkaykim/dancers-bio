@@ -10,6 +10,7 @@ import {
   verifyProjectSurveyToken,
 } from "@/lib/quick-token";
 import { buildScheduleRequestEmail } from "@/lib/notify/schedule-mail";
+import { sendScheduleRequestAlimtalk } from "@/lib/alimtalk/dancer-events";
 import { notify } from "@/lib/notify";
 import { formatWhen } from "@/lib/format-when";
 import { sendGmailEmail } from "@/lib/gmail";
@@ -367,6 +368,17 @@ export async function sendProjectScheduleRequestsAction(
       .select("stage_name, profile_id")
       .eq("id", a.dancer_id)
       .maybeSingle();
+    const name = (d?.stage_name as string) ?? "지원자";
+    const surveyToken = makeProjectSurveyToken(projectId, a.dancer_id);
+
+    // 일정 확인 알림톡 — 폰 보유 시 발송(이메일 유무와 독립, best-effort).
+    await sendScheduleRequestAlimtalk({
+      dancerId: a.dancer_id,
+      projectId,
+      projectTitle: project.title as string,
+      token: surveyToken,
+    });
+
     let email: string | null = null;
     const recipientId = a.applicant_id ?? (d?.profile_id as string | null);
     if (recipientId) {
@@ -381,8 +393,7 @@ export async function sendProjectScheduleRequestsAction(
       skipped++;
       continue;
     }
-    const name = (d?.stage_name as string) ?? "지원자";
-    const url = `${SITE}/s/${makeProjectSurveyToken(projectId, a.dancer_id)}`;
+    const url = `${SITE}/s/${surveyToken}`;
     const mail = buildScheduleRequestEmail({
       name,
       projectTitle: project.title as string,
