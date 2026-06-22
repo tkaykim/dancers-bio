@@ -27,7 +27,7 @@ export function humanizeDbError(message: string | null | undefined): string {
 
   // team_members_protect_lead
   if (m.includes("Cannot remove team lead from members")) {
-    return "팀장은 멤버에서 직접 제외할 수 없습니다. 팀장을 이양하거나 팀을 해체하세요.";
+    return "리더는 멤버에서 직접 제외할 수 없습니다. 리더를 위임하거나 팀을 해체하세요.";
   }
 
   // verification RPC

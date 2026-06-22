@@ -74,14 +74,11 @@ function humanizeTeamError(message: string): string {
   if (message.includes("teams_slug_key") || (message.toLowerCase().includes("duplicate") && message.includes("slug"))) {
     return "이미 사용 중인 slug입니다. 다른 값을 입력해 주세요.";
   }
-  if (
-    message.includes("team_members_team_profile_unique") ||
-    message.includes("team_members_team_dancer_unique")
-  ) {
+  if (message.includes("team_members_team_dancer_unique")) {
     return "이미 등록된 멤버입니다.";
   }
   if (message.includes("Cannot remove team lead")) {
-    return "팀장은 멤버에서 직접 제외할 수 없습니다. 팀장을 이양하거나 팀을 해체하세요.";
+    return "리더는 멤버에서 직접 제외할 수 없습니다. 리더를 위임하거나 팀을 해체하세요.";
   }
   return message;
 }
@@ -92,10 +89,13 @@ export async function createTeamAction(
   const user = await requireUser();
   const supabase = await createClient();
 
+  // multi-dancer 안전(R3): 한 profile이 여러 dancer를 가질 수 있으므로
+  // maybeSingle() 단독은 다중 행에서 에러. limit(1)로 첫 행만.
   const { data: dancer } = await supabase
     .from("dancers")
     .select("id")
     .eq("profile_id", user.id)
+    .limit(1)
     .maybeSingle();
   if (!dancer) {
     return { ok: false, error: "팀을 만들려면 먼저 댄서 프로필이 필요합니다." };

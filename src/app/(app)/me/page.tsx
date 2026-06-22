@@ -8,7 +8,8 @@ import { ProfileCard } from "@/components/profile/ProfileCard";
 import { PushPrompt } from "@/components/layout/PushPrompt";
 import { BugReportRow } from "@/components/feedback/BugReport";
 
-// Lite: 팀·받은 제안·creator 권한 신청 CTA 모두 제거. 관리자만 프로젝트 개설.
+// Lite: 받은 제안·creator 권한 신청 CTA 제거, 관리자만 프로젝트 개설.
+// 팀 기능은 재활성화됨(댄서 프로필 보유 시 "내 팀" 노출).
 export default async function MePage() {
   const user = await requireUser();
   const supabase = await createClient();
@@ -46,6 +47,13 @@ export default async function MePage() {
             title="댄서 포트폴리오"
             desc={ownDancer ? "활동명·경력·영상 편집" : "포트폴리오 만들기"}
           />
+          {ownDancer ? (
+            <SettingsRow
+              href="/me/teams"
+              title="내 팀"
+              desc="팀 프로필 · 멤버 관리"
+            />
+          ) : null}
           <SettingsRow
             href="/me/settlements"
             title="정산 · 출금"

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   addTeamMemberAction,
@@ -20,6 +22,8 @@ export type TeamMemberRow = {
   display_name: string | null;
   joined_at: string;
   dancer_label: string | null;
+  avatar_url: string | null;
+  slug: string | null;
 };
 
 type Props = {
@@ -27,6 +31,38 @@ type Props = {
   leadProfileId: string;
   members: TeamMemberRow[];
 };
+
+function HighlightAvatar({
+  src,
+  label,
+  isLead,
+}: {
+  src: string | null;
+  label: string;
+  isLead: boolean;
+}) {
+  const ring = isLead
+    ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+    : "ring-1 ring-border";
+  if (src) {
+    return (
+      <Image
+        src={src}
+        alt={label}
+        width={56}
+        height={56}
+        className={`h-14 w-14 rounded-full object-cover ${ring}`}
+      />
+    );
+  }
+  return (
+    <div
+      className={`flex h-14 w-14 items-center justify-center rounded-full bg-secondary text-base font-semibold ${ring}`}
+    >
+      {label.slice(0, 1)}
+    </div>
+  );
+}
 
 export function TeamMembersManager({ teamId, leadProfileId, members }: Props) {
   const router = useRouter();
@@ -43,54 +79,70 @@ export function TeamMembersManager({ teamId, leadProfileId, members }: Props) {
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold">현재 멤버</h2>
-        <ul className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">현재 멤버</h2>
+          <span className="font-mono text-[11px] text-muted-foreground">{members.length}</span>
+        </div>
+        <div className="scrollbar-none -mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
           {members.map((m) => {
             const isLead = m.dancer_profile_id === leadProfileId;
             const label = m.dancer_label ?? m.display_name ?? "(이름 없음)";
+            const avatar = (
+              <HighlightAvatar src={m.avatar_url} label={label} isLead={isLead} />
+            );
             return (
-              <li
+              <div
                 key={m.id}
-                className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2"
+                className="flex w-16 shrink-0 flex-col items-center gap-1.5"
               >
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium">{label}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {m.dancer_id ? "댄서 프로필 연결됨" : "이름만 등록"}
-                    {isLead ? " · 팀장" : ""}
-                  </span>
+                <div className="relative">
+                  {m.slug ? (
+                    <Link
+                      href={`/d/${m.slug}`}
+                      aria-label={`${label} 프로필 보기`}
+                      className="block transition-opacity hover:opacity-80"
+                    >
+                      {avatar}
+                    </Link>
+                  ) : (
+                    avatar
+                  )}
+                  {!isLead ? (
+                    <button
+                      type="button"
+                      disabled={removingId === m.id}
+                      aria-label={`${label} 제거`}
+                      onClick={async () => {
+                        if (!confirm(`${label} 님을 팀에서 제거할까요?`)) return;
+                        setRemovingId(m.id);
+                        setMessage(null);
+                        const fd = new FormData();
+                        fd.set("member_id", m.id);
+                        fd.set("team_id", teamId);
+                        const result = await removeTeamMemberAction(fd);
+                        setRemovingId(null);
+                        if (!result.ok) {
+                          setMessage({ kind: "error", text: result.error });
+                          return;
+                        }
+                        router.refresh();
+                      }}
+                      className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-sm leading-none text-muted-foreground shadow-sm transition-colors hover:border-destructive hover:text-destructive disabled:opacity-50"
+                    >
+                      ×
+                    </button>
+                  ) : null}
                 </div>
-                {!isLead ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={removingId === m.id}
-                    onClick={async () => {
-                      if (!confirm(`${label} 님을 팀에서 제거할까요?`)) return;
-                      setRemovingId(m.id);
-                      setMessage(null);
-                      const fd = new FormData();
-                      fd.set("member_id", m.id);
-                      fd.set("team_id", teamId);
-                      const result = await removeTeamMemberAction(fd);
-                      setRemovingId(null);
-                      if (!result.ok) {
-                        setMessage({ kind: "error", text: result.error });
-                        return;
-                      }
-                      router.refresh();
-                    }}
-                  >
-                    {removingId === m.id ? "제거 중..." : "제거"}
-                  </Button>
-                ) : (
-                  <span className="text-xs text-muted-foreground">팀장</span>
-                )}
-              </li>
+                <span className="w-full truncate text-center text-xs font-medium">
+                  {label}
+                </span>
+                {isLead ? (
+                  <span className="-mt-0.5 text-[10px] font-medium text-primary">리더</span>
+                ) : null}
+              </div>
             );
           })}
-        </ul>
+        </div>
       </section>
 
       <AddMemberSearch teamId={teamId} />
@@ -135,9 +187,9 @@ export function TeamMembersManager({ teamId, leadProfileId, members }: Props) {
       </details>
 
       <section className="flex flex-col gap-3 rounded-md border border-warn/30 bg-warn/5 p-4">
-        <h2 className="text-sm font-semibold">팀장 이양 / 팀 해체</h2>
+        <h2 className="text-sm font-semibold">리더 위임 / 팀 해체</h2>
         <p className="text-xs text-muted-foreground">
-          팀장을 떠나려면 후임을 지정하거나 팀을 해체해야 합니다.
+          리더를 그만두려면 후임을 지정하거나 팀을 해체해야 합니다.
         </p>
         <div className="flex gap-2">
           <Button
@@ -149,7 +201,7 @@ export function TeamMembersManager({ teamId, leadProfileId, members }: Props) {
               setShowDisband(false);
             }}
           >
-            팀장 이양
+            리더 위임
           </Button>
           <Button
             type="button"
@@ -174,14 +226,14 @@ export function TeamMembersManager({ teamId, leadProfileId, members }: Props) {
                 setMessage({ kind: "error", text: result.error });
                 return;
               }
-              setMessage({ kind: "ok", text: "팀장이 이양됐습니다." });
+              setMessage({ kind: "ok", text: "리더가 위임됐습니다." });
               setShowTransfer(false);
               router.refresh();
               router.push("/me/teams");
             }}
             className="flex flex-col gap-3 rounded-md border border-border bg-background p-3"
           >
-            <Label htmlFor="new_lead_profile_id">후임 팀장</Label>
+            <Label htmlFor="new_lead_profile_id">후임 리더</Label>
             <select
               id="new_lead_profile_id"
               name="new_lead_profile_id"
@@ -202,7 +254,7 @@ export function TeamMembersManager({ teamId, leadProfileId, members }: Props) {
             ) : null}
             <div className="flex gap-2">
               <Button type="submit" size="sm" disabled={linkedMembers.length === 0}>
-                이양 확정
+                위임 확정
               </Button>
               <Button
                 type="button"

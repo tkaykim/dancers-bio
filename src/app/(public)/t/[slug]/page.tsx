@@ -133,7 +133,7 @@ export default async function PublicTeamPage({
     supabase
       .from("team_members")
       .select(
-        "id, dancer_id, display_name, sort_order, dancers:dancer_id(id, stage_name, profile_img, profile_id, profiles:profile_id(display_name, avatar_url))",
+        "id, dancer_id, display_name, sort_order, dancers:dancer_id(id, stage_name, slug, profile_img, profile_id, profiles:profile_id(display_name, avatar_url))",
       )
       .eq("team_id", team.id)
       .order("sort_order", { ascending: true }),
@@ -196,6 +196,7 @@ export default async function PublicTeamPage({
   type PublicDancerJoin = {
     id: string;
     stage_name: string | null;
+    slug: string | null;
     profile_img: string | null;
     profile_id: string | null;
     profiles?: { display_name: string | null; avatar_url: string | null } | null;
@@ -206,6 +207,7 @@ export default async function PublicTeamPage({
     return {
       id: r.id,
       profile_id: d?.profile_id ?? null,
+      slug: d?.slug ?? null,
       label:
         d?.profiles?.display_name ??
         d?.stage_name ??
@@ -286,10 +288,17 @@ export default async function PublicTeamPage({
           <h1 className="text-4xl font-extrabold tracking-tight leading-none text-white">
             {team.team_name}
           </h1>
-          <p className="text-sm font-medium text-white/80">
-            {(team.genres ?? []).slice(0, 3).join(" · ")}
-            {team.korean_name ? ` · ${team.korean_name}` : ""}
-          </p>
+          {(() => {
+            const subtitle = [
+              (team.genres ?? []).slice(0, 3).join(" · "),
+              team.korean_name ?? "",
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            return subtitle ? (
+              <p className="text-sm font-medium text-white/80">{subtitle}</p>
+            ) : null;
+          })()}
         </div>
       </div>
 
@@ -325,34 +334,49 @@ export default async function PublicTeamPage({
 
       {/* Members */}
       {members.length > 0 ? (
-        <section className="px-6 pt-8">
-          <div className="flex items-center justify-between">
+        <section className="pt-8">
+          <div className="flex items-center justify-between px-6">
             <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">↳ Members</h2>
             <span className="font-mono text-[11px] text-ink-3">{members.length}</span>
           </div>
-          <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {members.map((m) => (
-              <li
-                key={m.id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
-              >
-                {m.avatar_url ? (
-                  <Image
-                    src={m.avatar_url}
-                    alt={m.label}
-                    width={36}
-                    height={36}
-                    className="h-9 w-9 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold">
-                    {m.label[0]}
-                  </div>
-                )}
-                <span className="truncate text-sm font-medium">{m.label}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="scrollbar-none mt-3 flex gap-4 overflow-x-auto px-6 pb-1">
+            {members.map((m) => {
+              const avatar = m.avatar_url ? (
+                <Image
+                  src={m.avatar_url}
+                  alt={m.label}
+                  width={64}
+                  height={64}
+                  className="h-16 w-16 rounded-full object-cover ring-1 ring-hairline-2"
+                />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-lg font-semibold ring-1 ring-hairline-2">
+                  {m.label[0]}
+                </div>
+              );
+              return (
+                <div
+                  key={m.id}
+                  className="flex w-16 shrink-0 flex-col items-center gap-1.5"
+                >
+                  {m.slug ? (
+                    <Link
+                      href={`/d/${m.slug}`}
+                      aria-label={`${m.label} 프로필`}
+                      className="block transition-opacity hover:opacity-80"
+                    >
+                      {avatar}
+                    </Link>
+                  ) : (
+                    avatar
+                  )}
+                  <span className="w-full truncate text-center text-xs font-medium text-ink-2">
+                    {m.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </section>
       ) : null}
 

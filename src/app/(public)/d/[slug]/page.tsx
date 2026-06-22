@@ -339,15 +339,22 @@ export default async function PublicDancerPage({
           <h1 className="text-4xl font-extrabold tracking-tight leading-none text-white">
             {dancer.stage_name}
           </h1>
-          <p className="text-sm font-medium text-white/80">
-            {(dancer.genres ?? []).slice(0, 3).join(" · ")}
-            {dancer.korean_name ? ` · ${dancer.korean_name}` : ""}
-          </p>
+          {(() => {
+            const subtitle = [
+              (dancer.genres ?? []).slice(0, 3).join(" · "),
+              dancer.korean_name ?? "",
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            return subtitle ? (
+              <p className="text-sm font-medium text-white/80">{subtitle}</p>
+            ) : null;
+          })()}
         </div>
       </div>
 
       {/* Stats */}
-      <section className="mx-4 -mt-4 grid grid-cols-3 rounded-2xl border border-border bg-card py-4">
+      <section className="mx-4 mt-4 grid grid-cols-3 rounded-2xl border border-border bg-card py-4">
         {[
           { n: list.length, l: "Credits" },
           { n: orderedTypes.length, l: "Categories" },
