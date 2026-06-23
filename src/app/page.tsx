@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     absolute: "deetz(디츠) | 댄서 섭외·캐스팅·안무 제작 플랫폼",
   },
   description:
-    "디츠(deetz)는 MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 댄서 캐스팅 플랫폼입니다.",
+    "디츠(deetz)는 MV·광고·무대·방송 댄서 섭외와 안무 제작·안무가·댄스팀 섭외를 연결하는 댄서 캐스팅 플랫폼.",
   keywords: [
     "디츠",
     "deetz",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "deetz(디츠) | 댄서 섭외·캐스팅·안무 제작 플랫폼",
     description:
-      "디츠(deetz)는 MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외를 포트폴리오 기반으로 연결합니다.",
+      "MV·광고·무대·방송 댄서 섭외와 안무 제작을 포트폴리오로 연결하는 댄서 캐스팅 플랫폼, 디츠(deetz).",
     url: "https://deetz.kr",
     siteName: "deetz",
     type: "website",

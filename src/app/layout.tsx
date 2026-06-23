@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     template: "%s · deetz",
   },
   description:
-    "MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 플랫폼.",
+    "MV·광고·무대·방송 댄서 섭외와 안무 제작·안무가·댄스팀 섭외를 연결하는 댄서 캐스팅 플랫폼, 디츠(deetz).",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon-192.png",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "deetz | 댄서 섭외·안무 제작 플랫폼",
     description:
-      "MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 플랫폼.",
+      "MV·광고·무대·방송 댄서 섭외와 안무 제작·안무가·댄스팀 섭외를 연결하는 댄서 캐스팅 플랫폼, 디츠(deetz).",
     url: "https://deetz.kr",
     siteName: "deetz",
     type: "website",
@@ -74,7 +74,7 @@ export default function RootLayout({
         url: SITE,
         logo: `${SITE}/icon-512.png`,
         email: "dancers.bio.kr@gmail.com",
-        description: "MV, 광고, 무대, 방송, 행사에 필요한 댄서 섭외, 안무 제작, 안무가 섭외, 댄스팀 섭외, 댄스 공연 섭외를 연결하는 플랫폼.",
+        description: "MV·광고·무대·방송 댄서 섭외와 안무 제작·안무가·댄스팀 섭외를 연결하는 댄서 캐스팅 플랫폼, 디츠(deetz).",
         areaServed: "KR",
         sameAs: [
           "https://www.instagram.com/deetz_magazine/",
