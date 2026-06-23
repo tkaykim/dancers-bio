@@ -34,10 +34,53 @@ export function CareerGroup({
 }: {
   label: string;
   items: Career[];
-  variant?: "card" | "row";
+  variant?: "card" | "row" | "carousel";
 }) {
   const [expanded, setExpanded] = useState(false);
   const [selected, setSelected] = useState<Career | null>(null);
+
+  // 대표 경력: 접지 않고 좌우 스와이프 카루셀로 전부 노출 (한 화면에 약 3~4개 + peek).
+  if (variant === "carousel") {
+    return (
+      <div>
+        <h3 className="mb-3 flex items-baseline gap-2 text-sm font-semibold">
+          {label}
+          <span className="font-mono text-[11px] font-normal text-ink-3">
+            {items.length}
+          </span>
+        </h3>
+        <div className="-mx-6 flex snap-x snap-mandatory gap-3 overflow-x-auto px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {items.map((c) => {
+            const video = parseVideoUrl(c.details?.link);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setSelected(c)}
+                className="group flex w-[30%] min-w-[124px] shrink-0 snap-start flex-col gap-2 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:bg-secondary"
+              >
+                {video ? (
+                  <VideoThumbnail url={video.url} alt={c.title} />
+                ) : null}
+                <div className="flex items-center gap-2 font-mono text-[11px] text-ink-3">
+                  <span>{c.date}</span>
+                  {c.is_representative ? (
+                    <span className="text-primary">★ 대표</span>
+                  ) : null}
+                </div>
+                <div className="text-sm font-medium leading-snug">{c.title}</div>
+                {c.details?.role ? (
+                  <div className="text-xs text-ink-3">{c.details.role}</div>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+        <CareerDetailDialog career={selected} onClose={() => setSelected(null)} />
+      </div>
+    );
+  }
+
   const threshold = variant === "row" ? 6 : COLLAPSE_THRESHOLD;
   const overflow = items.length > threshold;
   const visible = expanded || !overflow ? items : items.slice(0, threshold);

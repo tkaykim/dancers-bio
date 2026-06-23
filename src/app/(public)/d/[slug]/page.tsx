@@ -248,13 +248,13 @@ export default async function PublicDancerPage({
     ? new Date().getFullYear() - Math.min(...list.map((c) => Number(c.date.slice(0, 4))))
     : 0;
 
-  // Split highlights (representative) vs. rest
+  // 대표 경력(representative)은 Highlight 카루셀에 노출.
   const highlights = list.filter((c) => c.is_representative);
-  const rest = list.filter((c) => !c.is_representative);
 
-  // Group non-highlight careers by type for the credits section
+  // Credits 카테고리는 "전체" 경력으로 묶는다 — 대표 경력도 해당 카테고리 섹션에
+  // 함께 보여야 하므로 비대표만 거르지 않고 list 전체를 그룹화한다.
   const grouped = new Map<string, Career[]>();
-  for (const c of rest) {
+  for (const c of list) {
     const arr = grouped.get(c.type) ?? [];
     arr.push(c);
     grouped.set(c.type, arr);
@@ -500,7 +500,7 @@ export default async function PublicDancerPage({
           <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">
             ↳ Highlight
           </h2>
-          <CareerGroup label="대표 경력" items={highlights} variant="card" />
+          <CareerGroup label="대표 경력" items={highlights} variant="carousel" />
         </section>
       ) : null}
 
