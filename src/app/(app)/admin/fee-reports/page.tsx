@@ -41,6 +41,25 @@ const CLIENT_LABEL: Record<string, string> = {
 function isImage(f: EvidenceFile) {
   return /^image\//.test(f.type) || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(f.name);
 }
+
+// 이미지면 썸네일, 로드 실패(엑박)·비이미지면 📎 아이콘으로 폴백
+function EvidenceThumb({ f }: { f: EvidenceFile }) {
+  const [err, setErr] = useState(false);
+  if (isImage(f) && f.url && !err) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={f.url}
+        alt={f.name}
+        className="h-28 w-full rounded object-cover"
+        onError={() => setErr(true)}
+      />
+    );
+  }
+  return (
+    <div className="flex h-28 w-full items-center justify-center rounded bg-[#f0ece2] text-3xl">📎</div>
+  );
+}
 function formatBytes(n: number) {
   if (!n) return "";
   if (n < 1024) return `${n} B`;
@@ -149,14 +168,7 @@ export default function AdminFeeReportsPage() {
                               rel="noopener noreferrer"
                               className="block rounded-md border border-[#ddd6c7] bg-white p-2 hover:border-[#cfc8b8]"
                             >
-                              {isImage(f) && f.url ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={f.url} alt={f.name} className="h-28 w-full rounded object-cover" />
-                              ) : (
-                                <div className="flex h-28 w-full items-center justify-center rounded bg-[#f0ece2] text-3xl">
-                                  📎
-                                </div>
-                              )}
+                              <EvidenceThumb f={f} />
                               <p className="mt-1 truncate text-xs" title={f.name}>
                                 {f.name}
                               </p>
