@@ -278,6 +278,23 @@ export default async function ProjectDetailPage({
   }
 
   const sessions = (sessionsData ?? []) as SessionRow[];
+
+  // 공지사항 — user 클라이언트로 조회해 RLS(pa_select_audience)가 열람대상 필터.
+  // 비로그인은 'public' 공지만, 로그인 지원자는 본인 상태 대상 공지까지 노출.
+  const { data: annData } = await supabase
+    .from("project_announcements")
+    .select("id, title, body, pinned, created_at")
+    .eq("project_id", id)
+    .is("deleted_at", null)
+    .order("pinned", { ascending: false })
+    .order("created_at", { ascending: false });
+  const announcements = (annData ?? []) as Array<{
+    id: string;
+    title: string | null;
+    body: string;
+    pinned: boolean;
+    created_at: string;
+  }>;
   const isAdmin = !!viewerProfile?.is_admin;
   const isOwner = !!user && p.owner_id === user.id;
   // 소유자·슈퍼관리자는 즉시 true, 그 외 로그인 사용자는 공동관리자 여부 확인.
@@ -408,6 +425,44 @@ export default async function ProjectDetailPage({
         </section>
       ) : null}
 
+      {announcements.length > 0 ? (
+        <section className="flex flex-col gap-2">
+          <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
+            ↳ 공지 ({announcements.length})
+          </p>
+          <ul className="flex flex-col gap-2">
+            {announcements.map((a) => (
+              <li
+                key={a.id}
+                className="flex flex-col gap-1 rounded-xl border border-border bg-card p-3"
+              >
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {a.pinned ? (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      고정
+                    </span>
+                  ) : null}
+                  {a.title ? (
+                    <p className="text-sm font-semibold">{a.title}</p>
+                  ) : null}
+                  <span className="text-[11px] text-ink-3">
+                    {new Intl.DateTimeFormat("ko-KR", {
+                      month: "numeric",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                      timeZone: "Asia/Seoul",
+                    }).format(new Date(a.created_at))}
+                  </span>
+                </div>
+                <p className="whitespace-pre-wrap text-sm text-ink-2">{a.body}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {sessions.length > 0 ? (
         <section className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
@@ -438,6 +493,10 @@ export default async function ProjectDetailPage({
                   ) : s.status === "cancelled" ? (
                     <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
                       취소됨
+                    </span>
+                  ) : s.status === "undecided" ? (
+                    <span className="shrink-0 rounded-full bg-warn/15 px-2 py-0.5 text-[10px] font-medium text-warn">
+                      미정
                     </span>
                   ) : null}
                 </span>

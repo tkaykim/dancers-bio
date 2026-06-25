@@ -17,11 +17,17 @@ const SCHED_STATUS_META: Record<
   string,
   { label: string; chip: string }
 > = {
+  undecided: { label: "미정", chip: "bg-warn/15 text-warn" },
   tentative: { label: "예정", chip: "bg-secondary text-ink-2" },
   confirmed: { label: "확정", chip: "bg-ok/15 text-ok" },
   cancelled: { label: "취소됨", chip: "bg-destructive/10 text-destructive" },
 };
-const SCHED_STATUS_ORDER = ["tentative", "confirmed", "cancelled"] as const;
+const SCHED_STATUS_ORDER = [
+  "undecided",
+  "tentative",
+  "confirmed",
+  "cancelled",
+] as const;
 
 export type ScheduleRow = {
   id: string;
@@ -365,12 +371,7 @@ export function SchedulePanel({
                 <div className="inline-flex overflow-hidden rounded-full border border-border">
                   {SCHED_STATUS_ORDER.map((st) => {
                     const active = s.status === st;
-                    const activeClass =
-                      st === "cancelled"
-                        ? "bg-destructive/10 text-destructive"
-                        : st === "confirmed"
-                          ? "bg-ok/15 text-ok"
-                          : "bg-secondary text-foreground";
+                    const activeClass = SCHED_STATUS_META[st].chip;
                     return (
                       <button
                         key={st}
@@ -395,29 +396,27 @@ export function SchedulePanel({
                   {expand === s.id ? "명단 닫기" : "응답 명단"}
                 </button>
 
-                {s.status !== "cancelled" ? (
-                  s.boardOpsCode ? (
-                    <a
-                      href={`${origin}/ops/events/${s.boardOpsCode}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
-                    >
-                      운영보드 열기 →
-                      <span className="font-normal text-ink-3">
-                        출석 {s.boardCheckedIn}/{s.boardParticipants}
-                      </span>
-                    </a>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => createBoard(s.id)}
-                      className="rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10 disabled:opacity-50"
-                    >
-                      + 운영보드 만들기
-                    </button>
-                  )
+                {s.status === "cancelled" ? null : s.boardOpsCode ? (
+                  <a
+                    href={`${origin}/ops/events/${s.boardOpsCode}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
+                  >
+                    운영보드 열기 →
+                    <span className="font-normal text-ink-3">
+                      출석 {s.boardCheckedIn}/{s.boardParticipants}
+                    </span>
+                  </a>
+                ) : s.status === "tentative" || s.status === "confirmed" ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => createBoard(s.id)}
+                    className="rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10 disabled:opacity-50"
+                  >
+                    + 운영보드 만들기
+                  </button>
                 ) : null}
               </div>
 

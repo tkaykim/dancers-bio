@@ -263,7 +263,12 @@ export async function deleteScheduleAction(fd: FormData): Promise<ActionResult> 
 }
 
 // 일정 상태 변경: 예정(tentative) / 확정(confirmed) / 취소됨(cancelled)
-const SCHEDULE_STATUSES = new Set(["tentative", "confirmed", "cancelled"]);
+const SCHEDULE_STATUSES = new Set([
+  "undecided",
+  "tentative",
+  "confirmed",
+  "cancelled",
+]);
 
 export async function updateScheduleStatusAction(
   fd: FormData,
