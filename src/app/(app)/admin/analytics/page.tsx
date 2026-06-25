@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   AnalyticsDashboard,
   type AnalyticsData,
+  type ActivityData,
 } from "@/components/admin/AnalyticsDashboard";
 import { serverNowMs } from "@/lib/server-time";
 
@@ -20,6 +21,8 @@ export default async function AdminAnalyticsPage() {
     { data: dRows },
     { data: chRows },
     { data: projRows },
+    { data: actSummary },
+    { data: dauRows },
   ] = await Promise.all([
     supabase.from("profiles").select("id, created_at"),
     supabase
@@ -28,6 +31,8 @@ export default async function AdminAnalyticsPage() {
     supabase.from("dancers").select("profile_id, created_at"),
     supabase.from("recruitment_channels").select("id, name"),
     supabase.from("projects").select("status").is("deleted_at", null),
+    supabase.rpc("admin_activity_summary"),
+    supabase.rpc("admin_dau_series", { _days: 60 }),
   ]);
 
   const num = (v: string | null) => (v ? new Date(v).getTime() : NaN);
@@ -61,5 +66,28 @@ export default async function AdminAnalyticsPage() {
     projects: (projRows ?? []) as { status: string }[],
   };
 
-  return <AnalyticsDashboard data={data} now={serverNowMs()} />;
+  const summaryRow = (
+    (actSummary ?? []) as {
+      dau: number;
+      wau: number;
+      mau: number;
+      tracked_since: string | null;
+      total_events: number;
+    }[]
+  )[0];
+  const activity: ActivityData = {
+    dau: summaryRow?.dau ?? 0,
+    wau: summaryRow?.wau ?? 0,
+    mau: summaryRow?.mau ?? 0,
+    trackedSince: summaryRow?.tracked_since ?? null,
+    totalEvents: summaryRow?.total_events ?? 0,
+    series: ((dauRows ?? []) as { day: string; dau: number }[]).map((r) => ({
+      label: r.day.slice(5).replace("-", "/"),
+      value: r.dau,
+    })),
+  };
+
+  return (
+    <AnalyticsDashboard data={data} activity={activity} now={serverNowMs()} />
+  );
 }
