@@ -104,6 +104,7 @@ async function claimAndSend(
       phone: opts.phone,
       template_id: templateId,
       status: "claimed",
+      variables: opts.variables ?? null,
     })
     .select("id")
     .maybeSingle();

@@ -144,6 +144,11 @@ export default async function AdminHomePage() {
           accent={Boolean(pendingWithdrawals)}
         />
         <Tile
+          href="/admin/alimtalk"
+          title="알림톡 발송내역"
+          desc="누구에게·성공여부·내용·실패사유 발송 로그"
+        />
+        <Tile
           href="/admin/users"
           title="사용자 / 권한"
           desc="사용자 검색 + can_create_project 토글"
