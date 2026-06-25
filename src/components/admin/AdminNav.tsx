@@ -15,6 +15,7 @@ import {
   Bot,
   Shield,
   BarChart3,
+  TrendingUp,
   Wallet,
   Receipt,
 } from "lucide-react";
@@ -33,6 +34,7 @@ const GROUPS: Group[] = [
     title: null,
     items: [
       { href: "/admin", label: "대시보드", Icon: LayoutDashboard, exact: true },
+      { href: "/admin/analytics", label: "분석", Icon: TrendingUp, exact: true },
     ],
   },
   {

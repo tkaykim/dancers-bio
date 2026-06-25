@@ -75,6 +75,11 @@ export default async function AdminHomePage() {
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Tile
+          href="/admin/analytics"
+          title="성장 · KPI 분석"
+          desc="가입·지원 추이, 수락률, 채널별 지원, 클레임률 등 핵심 지표"
+        />
+        <Tile
           href="/admin/dancers"
           title="댄서 승인 큐"
           desc="신규 프로필 승인/거부 + 노출 순서 조정"
