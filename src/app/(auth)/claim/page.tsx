@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ClaimForm } from "@/components/auth/ClaimForm";
 
 interface SearchParams {
@@ -7,16 +7,19 @@ interface SearchParams {
   dancer?: string;
 }
 
+// 초대받은(비로그인) 댄서에게 보여주는 큐레이션 프로필 프리뷰.
+// 큐레이션 댄서는 아직 미승인(pending)일 수 있어 RLS 공개 정책으로는 안 보인다.
+// slug 단건 read-only 이므로 service-role(admin) 클라이언트로 조회한다.
 async function fetchDancerPreview(slug: string | undefined) {
   if (!slug) return null;
-  const supabase = await createClient();
-  const { data } = await supabase
+  const admin = createAdminClient();
+  const { data } = await admin
     .from("dancers")
     .select("id, stage_name, korean_name, profile_img, slug, location, genres, specialties")
     .eq("slug", slug)
     .maybeSingle();
   if (!data) return null;
-  const { count } = await supabase
+  const { count } = await admin
     .from("careers")
     .select("id", { count: "exact", head: true })
     .eq("dancer_id", data.id);

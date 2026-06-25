@@ -53,25 +53,41 @@ export default async function AdminDancersPage({
   const q = (rawQ ?? "").replace(/[%,()*]/g, "").trim();
 
   const supabase = await createClient();
-  let query = supabase
-    .from("dancers")
-    .select(
-      "id, profile_id, stage_name, korean_name, slug, profile_img, location, approval_status, approval_reject_reason, display_order, approved_at, approved_by, created_at",
-    );
+  const cols =
+    "id, profile_id, stage_name, korean_name, slug, profile_img, location, approval_status, approval_reject_reason, display_order, approved_at, approved_by, created_at";
 
+  // ⚠️ 과거 버그: 단일 쿼리 + `.limit(500)` + approval_status 오름차순 정렬이라
+  // approved 가 앞을 다 채우면 대기(pending) 큐가 통째로 잘려 안 보였다.
+  // 검색이 아닐 때는 상태별로 분리 조회해 어떤 상태도 잘리지 않게 한다.
+  let list: DancerRow[];
   if (q) {
-    query = query.or(
-      `stage_name.ilike.%${q}%,korean_name.ilike.%${q}%,slug.ilike.%${q}%`,
-    );
+    const { data: rows } = await supabase
+      .from("dancers")
+      .select(cols)
+      .or(`stage_name.ilike.%${q}%,korean_name.ilike.%${q}%,slug.ilike.%${q}%`)
+      .order("approval_status", { ascending: true })
+      .order("display_order", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    list = (rows ?? []) as DancerRow[];
+  } else {
+    const byStatus = async (status: Status) => {
+      const { data } = await supabase
+        .from("dancers")
+        .select(cols)
+        .eq("approval_status", status)
+        .order("display_order", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .limit(2000);
+      return (data ?? []) as DancerRow[];
+    };
+    const [pendingRows, approvedRows, rejectedRows] = await Promise.all([
+      byStatus("pending"),
+      byStatus("approved"),
+      byStatus("rejected"),
+    ]);
+    list = [...pendingRows, ...approvedRows, ...rejectedRows];
   }
-
-  const { data: rows } = await query
-    .order("approval_status", { ascending: true })
-    .order("display_order", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false })
-    .limit(500);
-
-  const list = (rows ?? []) as DancerRow[];
   const profileIds = Array.from(
     new Set(list.map((r) => r.profile_id).filter((v): v is string => !!v)),
   );

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { InstagramVerifyForm } from "@/components/verification/InstagramVerifyForm";
 
 function pickActive<T extends { status: string; expires_at: string }>(rows: T[]): T | undefined {
@@ -38,7 +39,9 @@ export default async function VerifyInstagramPage({
       // 이미 처리된 claim — /me로
       redirect("/me");
     }
-    const { data: dancer } = await supabase
+    // claim 대상은 미승인 큐레이션 댄서일 수 있다. 위에서 claim 소유(requester_id)를
+    // 검증했으므로, 미승인이라도 보여주기 위해 admin read-only 로 단건 조회.
+    const { data: dancer } = await createAdminClient()
       .from("dancers")
       .select("id, stage_name, slug, profile_img")
       .eq("id", claim.dancer_id)

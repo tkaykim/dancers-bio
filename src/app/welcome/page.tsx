@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { OnboardingLoginModal } from "@/components/auth/OnboardingLoginModal";
 
 type DancerRow = {
@@ -23,26 +23,27 @@ export default async function WelcomePage({
   // 로그인·클레임 후 이동할 경로. 오픈리다이렉트 방지: 앱 내부 상대경로(/...)만 허용.
   const redirectTo =
     next && next.startsWith("/") && !next.startsWith("//") ? next : "/me/portfolio";
-  const supabase = await createClient();
+  // 초대 랜딩(비로그인) — 미승인 큐레이션 프로필도 보여줘야 하므로 admin read-only.
+  const admin = createAdminClient();
 
   let dancer: DancerRow | null = null;
   let careerCount = 0;
   let highlights: { title: string; year: string | null }[] = [];
 
   if (d) {
-    const { data } = await supabase
+    const { data } = await admin
       .from("dancers")
       .select("id, stage_name, korean_name, profile_img, location, genres, slug, bio")
       .eq("slug", d)
       .maybeSingle();
     dancer = (data as DancerRow | null) ?? null;
     if (dancer) {
-      const { count } = await supabase
+      const { count } = await admin
         .from("careers")
         .select("id", { count: "exact", head: true })
         .eq("dancer_id", dancer.id);
       careerCount = count ?? 0;
-      const { data: cs } = await supabase
+      const { data: cs } = await admin
         .from("careers")
         .select("title, details, is_representative, sort_order")
         .eq("dancer_id", dancer.id)
