@@ -79,6 +79,7 @@ export type ActivityData = {
   trackedSince: string | null;
   totalEvents: number;
   series: { label: string; value: number }[];
+  mauSeries: { label: string; value: number }[];
 };
 
 export function AnalyticsDashboard({
@@ -312,12 +313,27 @@ export function AnalyticsDashboard({
               <Kpi label="MAU (30일)" value={activity.mau} />
               <Kpi label="고착도 (DAU/MAU)" value={`${pct(activity.dau, activity.mau)}%`} />
             </div>
-            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
-              <div className="flex items-baseline justify-between gap-2">
-                <h3 className="text-sm font-medium text-ink-2">일별 DAU</h3>
-                <span className="text-[11px] text-ink-3">최근 {activity.series.length}일</span>
+            <div className="grid gap-3 lg:grid-cols-2">
+              <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="text-sm font-medium text-ink-2">일별 DAU</h3>
+                  <span className="text-[11px] text-ink-3">최근 {activity.series.length}일</span>
+                </div>
+                <Bars rows={activity.series} barClass="bg-primary" labelEvery={7} />
               </div>
-              <Bars rows={activity.series} barClass="bg-primary" labelEvery={7} />
+              <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="text-sm font-medium text-ink-2">월별 MAU</h3>
+                  <span className="text-[11px] text-ink-3">달력월 distinct</span>
+                </div>
+                {activity.mauSeries.length === 0 ? (
+                  <p className="py-8 text-center text-xs text-ink-3">
+                    한 달 이상 누적되면 표시됩니다.
+                  </p>
+                ) : (
+                  <Bars rows={activity.mauSeries} barClass="bg-sky-500" labelEvery={1} />
+                )}
+              </div>
             </div>
           </>
         )}
