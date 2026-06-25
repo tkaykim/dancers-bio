@@ -72,7 +72,24 @@ function deltaPct(curr: number, prev: number): number | null {
   return Math.round(((curr - prev) / prev) * 100);
 }
 
-export function AnalyticsDashboard({ data, now }: { data: AnalyticsData; now: number }) {
+export type ActivityData = {
+  dau: number;
+  wau: number;
+  mau: number;
+  trackedSince: string | null;
+  totalEvents: number;
+  series: { label: string; value: number }[];
+};
+
+export function AnalyticsDashboard({
+  data,
+  activity,
+  now,
+}: {
+  data: AnalyticsData;
+  activity: ActivityData;
+  now: number;
+}) {
   const [period, setPeriod] = useState<Period>("week");
   const cfg = useMemo(() => PERIODS.find((p) => p.key === period)!, [period]);
 
@@ -272,6 +289,40 @@ export function AnalyticsDashboard({ data, now }: { data: AnalyticsData; now: nu
         <Kpi label="수락률" value={`${pct(statusCounts.accepted, decided)}%`} sub={`수락 ${statusCounts.accepted}/${decided}`} />
       </section>
 
+      {/* 방문 기반 활동 (DAU/MAU) — 실제 로그인 방문 로그 */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-sm font-bold text-ink-2">방문 기반 활동 (DAU / MAU)</h2>
+          <span className="text-[11px] text-ink-3">
+            {activity.trackedSince
+              ? `${activity.trackedSince}부터 수집`
+              : "오늘부터 수집 시작"}
+          </span>
+        </div>
+        {activity.totalEvents === 0 ? (
+          <p className="rounded-2xl border border-dashed border-hairline-2 p-5 text-center text-sm text-ink-3">
+            방문 기록 수집을 시작했습니다. 로그인 사용자가 접속하면 하루 1회 집계되어,
+            며칠 뒤부터 DAU/MAU 추이가 채워집니다. (과거 소급 불가)
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Kpi label="DAU (오늘)" value={activity.dau} />
+              <Kpi label="WAU (7일)" value={activity.wau} />
+              <Kpi label="MAU (30일)" value={activity.mau} />
+              <Kpi label="고착도 (DAU/MAU)" value={`${pct(activity.dau, activity.mau)}%`} />
+            </div>
+            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+              <div className="flex items-baseline justify-between gap-2">
+                <h3 className="text-sm font-medium text-ink-2">일별 DAU</h3>
+                <span className="text-[11px] text-ink-3">최근 {activity.series.length}일</span>
+              </div>
+              <Bars rows={activity.series} barClass="bg-primary" labelEvery={7} />
+            </div>
+          </>
+        )}
+      </section>
+
       {/* 추이 (기간 토글 반영) */}
       <section className="grid gap-4 lg:grid-cols-2">
         <ComboCard
@@ -291,8 +342,8 @@ export function AnalyticsDashboard({ data, now }: { data: AnalyticsData; now: nu
       {/* DAU */}
       <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-sm font-bold text-ink-2">일별 활동 유저 (DAU)</h2>
-          <span className="text-[11px] text-ink-3">최근 30일 · 가입 또는 지원한 distinct</span>
+          <h2 className="text-sm font-bold text-ink-2">일별 활동 (지원 기반 proxy)</h2>
+          <span className="text-[11px] text-ink-3">최근 30일 · 지원·가입한 distinct (방문 로그 누적 전 추정)</span>
         </div>
         <Bars rows={dau} barClass="bg-primary" labelEvery={3} />
       </section>

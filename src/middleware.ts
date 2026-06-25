@@ -77,7 +77,28 @@ export async function middleware(request: NextRequest) {
   );
 
   // refresh session cookie if needed
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // DAU/MAU 활동 기록: 로그인 사용자당 하루 1회(쿠키 스로틀)만 기록해
+  // 요청마다 쓰지 않는다. touch_activity()는 멱등(on conflict do nothing).
+  if (user) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (request.cookies.get("da")?.value !== today) {
+      try {
+        await supabase.rpc("touch_activity", { _source: "web" });
+      } catch {
+        // 활동 기록 실패가 요청을 막지 않도록 무시(best-effort).
+      }
+      response.cookies.set("da", today, {
+        path: "/",
+        maxAge: 86_400,
+        httpOnly: true,
+        sameSite: "lax",
+      });
+    }
+  }
 
   return response;
 }
