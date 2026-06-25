@@ -457,7 +457,7 @@ export default async function ApplicantsPage({
   const announcements = (annRows ?? []) as AnnouncementRow[];
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-8">
+    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-8 lg:max-w-6xl">
       <Link
         href={`/projects/${p.short_code}`}
         className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
@@ -469,59 +469,72 @@ export default async function ApplicantsPage({
         {p.title}
       </h1>
 
-      {/* 본업: 지원자 심사 콘솔 (최상단) */}
-      <ApplicantsConsole
-        projectId={p.id}
-        recruitmentCount={p.recruitment_count}
-        initial={applicants}
-        channels={recruitmentChannels.map((channel) => ({
-          id: channel.id,
-          name: channel.name,
-        }))}
-      />
-
-      <AnnouncementsPanel
-        projectId={p.id}
-        shortCode={p.short_code}
-        announcements={announcements}
-      />
-
-      <SchedulePanel
-        projectId={p.id}
-        targetCount={targetCount}
-        schedules={scheduleRows}
-        surveyUrl={`https://deetz.kr/sr/${p.schedule_survey_code}`}
-      />
-
-      <ProjectEventsPanel events={standaloneEvents} />
-
-      <WithdrawalLinkPanel url={`https://deetz.kr/w/${p.settlement_share_code}`} />
-
-      {/* 세팅·초대 도구: 접힘 (본업을 가리지 않도록 아래로) */}
-      <details className="group rounded-2xl border border-border bg-card">
-        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium">
-          <span>지원자 초대 · 공동관리자</span>
-          <span className="text-ink-3 transition-transform group-open:rotate-180">
-            ▾
-          </span>
-        </summary>
-        <div className="flex flex-col gap-5 border-t border-hairline-2 p-4">
-          <ManagersPanel
+      {/*
+        PC(lg+) = 2컬럼 운영 대시보드: 좌 = 지원자 심사(메인) / 우 = 운영 도구 사이드바.
+        모바일 = grid-cols-1 이라 소스 순서 그대로 단일 스택(콘솔 → 공지 → 일정 → 보드 → 출금 → 초대도구), 현행과 동일.
+      */}
+      <div className="grid gap-5 lg:grid-cols-[1.7fr_1fr] lg:items-start">
+        {/* 본업: 지원자 심사 콘솔 */}
+        <div className="flex min-w-0 flex-col gap-5">
+          <ApplicantsConsole
             projectId={p.id}
-            canEdit={canEditManagers}
-            managers={managers}
+            recruitmentCount={p.recruitment_count}
+            initial={applicants}
+            channels={recruitmentChannels.map((channel) => ({
+              id: channel.id,
+              name: channel.name,
+            }))}
           />
-          <RecruitmentChannelsPanel
-            projectId={p.id}
-            canEdit={true}
-            channels={recruitmentChannels}
-          />
-          {recommended.length > 0 ? (
-            <RecommendedDancers projectId={p.id} dancers={recommended} />
-          ) : null}
-          <SearchAndPropose projectId={p.id} />
         </div>
-      </details>
+
+        {/* 운영 도구 사이드바 (모바일에선 콘솔 아래로 자연 스택) */}
+        <div className="flex min-w-0 flex-col gap-5">
+          <AnnouncementsPanel
+            projectId={p.id}
+            shortCode={p.short_code}
+            announcements={announcements}
+          />
+
+          <SchedulePanel
+            projectId={p.id}
+            targetCount={targetCount}
+            schedules={scheduleRows}
+            surveyUrl={`https://deetz.kr/sr/${p.schedule_survey_code}`}
+          />
+
+          <ProjectEventsPanel events={standaloneEvents} />
+
+          <WithdrawalLinkPanel
+            url={`https://deetz.kr/w/${p.settlement_share_code}`}
+          />
+
+          {/* 세팅·초대 도구: 접힘 */}
+          <details className="group rounded-2xl border border-border bg-card">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium">
+              <span>지원자 초대 · 공동관리자</span>
+              <span className="text-ink-3 transition-transform group-open:rotate-180">
+                ▾
+              </span>
+            </summary>
+            <div className="flex flex-col gap-5 border-t border-hairline-2 p-4">
+              <ManagersPanel
+                projectId={p.id}
+                canEdit={canEditManagers}
+                managers={managers}
+              />
+              <RecruitmentChannelsPanel
+                projectId={p.id}
+                canEdit={true}
+                channels={recruitmentChannels}
+              />
+              {recommended.length > 0 ? (
+                <RecommendedDancers projectId={p.id} dancers={recommended} />
+              ) : null}
+              <SearchAndPropose projectId={p.id} />
+            </div>
+          </details>
+        </div>
+      </div>
     </div>
   );
 }
