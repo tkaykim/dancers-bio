@@ -14,7 +14,9 @@ type EventType =
   | "dancer_approved"
   | "profile_incomplete"
   | "casting_proposal"
-  | "schedule_request";
+  | "schedule_request"
+  | "schedule_change"
+  | "schedule_cancel";
 
 function templateIdFor(event: EventType): string | undefined {
   switch (event) {
@@ -26,6 +28,10 @@ function templateIdFor(event: EventType): string | undefined {
       return process.env.SOLAPI_TPL_CASTING_PROPOSAL;
     case "schedule_request":
       return process.env.SOLAPI_TPL_SCHEDULE;
+    case "schedule_change":
+      return process.env.SOLAPI_TPL_SCHEDULE_CHANGE;
+    case "schedule_cancel":
+      return process.env.SOLAPI_TPL_SCHEDULE_CANCEL;
   }
 }
 
@@ -192,6 +198,72 @@ export async function sendScheduleRequestAlimtalk(args: {
       variables: {
         이름: c.name,
         프로젝트명: args.projectTitle,
+        토큰: args.token,
+      },
+    });
+  } catch {
+    /* 무시 */
+  }
+}
+
+/**
+ * ⑤ 일정 추가/변경 — 지원한 프로젝트에 일정이 추가·변경됐을 때 가능 여부 확인 요청.
+ * refId = scheduleId → 일정 1건당 댄서별 1회. token = /s/<token> 개인 매직링크.
+ */
+export async function sendScheduleChangeAlimtalk(args: {
+  dancerId: string;
+  scheduleId: string;
+  projectTitle: string;
+  scheduleText: string;
+  token: string;
+}): Promise<void> {
+  try {
+    if (!alimtalkConfigured()) return;
+    const admin = createAdminClient();
+    const c = await getDancerContact(admin, args.dancerId);
+    if (!c?.phone) return;
+    await claimAndSend(admin, {
+      event: "schedule_change",
+      dancerId: args.dancerId,
+      refId: args.scheduleId,
+      phone: c.phone,
+      variables: {
+        이름: c.name,
+        프로젝트명: args.projectTitle,
+        일정: args.scheduleText,
+        토큰: args.token,
+      },
+    });
+  } catch {
+    /* 무시 */
+  }
+}
+
+/**
+ * ⑥ 일정 취소 — 지원한 프로젝트의 일정이 삭제됐을 때 취소 사실 통지.
+ * refId = scheduleId → 일정 1건당 댄서별 1회. token = /s/<token> 개인 매직링크.
+ */
+export async function sendScheduleCancelAlimtalk(args: {
+  dancerId: string;
+  scheduleId: string;
+  projectTitle: string;
+  scheduleText: string;
+  token: string;
+}): Promise<void> {
+  try {
+    if (!alimtalkConfigured()) return;
+    const admin = createAdminClient();
+    const c = await getDancerContact(admin, args.dancerId);
+    if (!c?.phone) return;
+    await claimAndSend(admin, {
+      event: "schedule_cancel",
+      dancerId: args.dancerId,
+      refId: args.scheduleId,
+      phone: c.phone,
+      variables: {
+        이름: c.name,
+        프로젝트명: args.projectTitle,
+        일정: args.scheduleText,
         토큰: args.token,
       },
     });

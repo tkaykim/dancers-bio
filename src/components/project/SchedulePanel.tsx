@@ -9,7 +9,19 @@ import {
   deleteScheduleAction,
   sendProjectScheduleRequestsAction,
   getScheduleRespondersAction,
+  updateScheduleStatusAction,
 } from "@/app/actions/project-schedules";
+import { confirmScheduleAndCreateBoardAction } from "@/app/actions/project-events";
+
+const SCHED_STATUS_META: Record<
+  string,
+  { label: string; chip: string }
+> = {
+  tentative: { label: "예정", chip: "bg-secondary text-ink-2" },
+  confirmed: { label: "확정", chip: "bg-ok/15 text-ok" },
+  cancelled: { label: "취소됨", chip: "bg-destructive/10 text-destructive" },
+};
+const SCHED_STATUS_ORDER = ["tentative", "confirmed", "cancelled"] as const;
 
 export type ScheduleRow = {
   id: string;
@@ -20,6 +32,10 @@ export type ScheduleRow = {
   partial: number;
   unavailable: number;
   responded: number;
+  status: string;
+  boardOpsCode: string | null;
+  boardParticipants: number;
+  boardCheckedIn: number;
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -46,6 +62,47 @@ export function SchedulePanel({
   const [responders, setResponders] = useState<
     Record<string, { name: string; status: string; note: string | null }[]>
   >({});
+  const origin =
+    typeof window === "undefined" ? "https://deetz.kr" : window.location.origin;
+
+  function setStatus(scheduleId: string, status: string) {
+    const fd = new FormData();
+    fd.set("schedule_id", scheduleId);
+    fd.set("project_id", projectId);
+    fd.set("status", status);
+    startTransition(async () => {
+      const r = await updateScheduleStatusAction(fd);
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function createBoard(scheduleId: string) {
+    if (
+      !confirm(
+        "이 일정을 확정하고 전용 운영보드를 만들까요?\n수락 지원자가 참가자로 자동 등록되고, 출석·번호표·현장상태를 보드에서 관리합니다.",
+      )
+    )
+      return;
+    const fd = new FormData();
+    fd.set("schedule_id", scheduleId);
+    fd.set("project_id", projectId);
+    startTransition(async () => {
+      const r = await confirmScheduleAndCreateBoardAction(fd);
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      toast.success(`운영보드를 만들었습니다 (참가자 ${r.data?.inserted ?? 0}명)`);
+      if (r.data?.ops_code) {
+        window.open(`${origin}/ops/events/${r.data.ops_code}`, "_blank");
+      }
+      router.refresh();
+    });
+  }
 
   // 새 일정 입력
   const [label, setLabel] = useState("");
@@ -248,11 +305,30 @@ export function SchedulePanel({
           {schedules.map((s) => (
             <li
               key={s.id}
-              className="flex flex-col gap-2 rounded-xl border border-border p-3"
+              className={`flex flex-col gap-2 rounded-xl border p-3 ${
+                s.status === "cancelled"
+                  ? "border-hairline-2 bg-secondary/20 opacity-75"
+                  : "border-border"
+              }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex min-w-0 flex-col">
-                  <p className="text-sm font-semibold">{s.label}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p
+                      className={`text-sm font-semibold ${
+                        s.status === "cancelled" ? "text-ink-3 line-through" : ""
+                      }`}
+                    >
+                      {s.label}
+                    </p>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        (SCHED_STATUS_META[s.status] ?? SCHED_STATUS_META.tentative).chip
+                      }`}
+                    >
+                      {(SCHED_STATUS_META[s.status] ?? SCHED_STATUS_META.tentative).label}
+                    </span>
+                  </div>
                   <p className="text-xs text-ink-2">{s.whenText}</p>
                   {s.location ? (
                     <p className="flex items-center gap-1 text-xs text-ink-3">
@@ -285,7 +361,32 @@ export function SchedulePanel({
                 </span>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex overflow-hidden rounded-full border border-border">
+                  {SCHED_STATUS_ORDER.map((st) => {
+                    const active = s.status === st;
+                    const activeClass =
+                      st === "cancelled"
+                        ? "bg-destructive/10 text-destructive"
+                        : st === "confirmed"
+                          ? "bg-ok/15 text-ok"
+                          : "bg-secondary text-foreground";
+                    return (
+                      <button
+                        key={st}
+                        type="button"
+                        disabled={busy || active}
+                        onClick={() => setStatus(s.id, st)}
+                        className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                          active ? activeClass : "text-ink-3 hover:bg-secondary"
+                        }`}
+                      >
+                        {SCHED_STATUS_META[st].label}
+                      </button>
+                    );
+                  })}
+                </div>
+
                 <button
                   type="button"
                   onClick={() => toggleExpand(s.id)}
@@ -293,6 +394,31 @@ export function SchedulePanel({
                 >
                   {expand === s.id ? "명단 닫기" : "응답 명단"}
                 </button>
+
+                {s.status !== "cancelled" ? (
+                  s.boardOpsCode ? (
+                    <a
+                      href={`${origin}/ops/events/${s.boardOpsCode}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
+                    >
+                      운영보드 열기 →
+                      <span className="font-normal text-ink-3">
+                        출석 {s.boardCheckedIn}/{s.boardParticipants}
+                      </span>
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => createBoard(s.id)}
+                      className="rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10 disabled:opacity-50"
+                    >
+                      + 운영보드 만들기
+                    </button>
+                  )
+                ) : null}
               </div>
 
               {expand === s.id ? (

@@ -123,6 +123,7 @@ type SessionRow = {
   ends_at: string | null;
   time_tbd: boolean;
   sort_order: number;
+  status: string;
 };
 
 type ApplicationRow = {
@@ -204,7 +205,7 @@ export default async function ProjectDetailPage({
   ] = await Promise.all([
     admin
       .from("project_schedules")
-      .select("id, label, starts_at, ends_at, time_tbd, sort_order")
+      .select("id, label, starts_at, ends_at, time_tbd, sort_order, status")
       .eq("project_id", id)
       .order("starts_at", { ascending: true, nullsFirst: false })
       .order("sort_order"),
@@ -416,9 +417,30 @@ export default async function ProjectDetailPage({
             {sessions.map((s) => (
               <li
                 key={s.id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card p-3"
+                className={`flex items-center justify-between gap-2 rounded-xl border bg-card p-3 ${
+                  s.status === "cancelled"
+                    ? "border-hairline-2 opacity-75"
+                    : "border-border"
+                }`}
               >
-                <span className="text-sm font-medium">{s.label}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span
+                    className={`truncate text-sm font-medium ${
+                      s.status === "cancelled" ? "text-ink-3 line-through" : ""
+                    }`}
+                  >
+                    {s.label}
+                  </span>
+                  {s.status === "confirmed" ? (
+                    <span className="shrink-0 rounded-full bg-ok/15 px-2 py-0.5 text-[10px] font-medium text-ok">
+                      확정
+                    </span>
+                  ) : s.status === "cancelled" ? (
+                    <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
+                      취소됨
+                    </span>
+                  ) : null}
+                </span>
                 <span className="shrink-0 text-xs text-ink-2">
                   {formatWhen(s.starts_at, s.ends_at, s.time_tbd)}
                 </span>
