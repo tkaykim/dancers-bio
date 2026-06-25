@@ -3,9 +3,68 @@
 import { revalidatePath } from "next/cache";
 import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { notify } from "@/lib/notify";
 import type { ActionResult } from "./auth";
 
 const VALID_AUDIENCES = new Set(["public", "pending", "accepted", "rejected"]);
+
+// 공지 등록 → 열람대상 지원자에게 인앱 + 웹푸시 알림 (비치명적, 알림톡 없음).
+// 대상 = audiences 에 해당하는 지원상태의 본인계정. 'public' 포함 시 전체 지원자.
+async function notifyAnnouncementAudience(args: {
+  projectId: string;
+  title: string | null;
+  body: string;
+  audiences: string[];
+}): Promise<void> {
+  try {
+    const statuses = args.audiences.includes("public")
+      ? ["pending", "accepted", "rejected"]
+      : args.audiences.filter((a) => a !== "public");
+    if (statuses.length === 0) return;
+
+    const admin = createAdminClient();
+    const [{ data: proj }, { data: apps }] = await Promise.all([
+      admin.from("projects").select("title").eq("id", args.projectId).maybeSingle(),
+      admin
+        .from("applications")
+        .select("applicant_id")
+        .eq("project_id", args.projectId)
+        .is("archived_at", null)
+        .in("status", statuses)
+        .not("applicant_id", "is", null),
+    ]);
+    const ids = Array.from(
+      new Set(
+        ((apps ?? []) as Array<{ applicant_id: string | null }>)
+          .map((a) => a.applicant_id)
+          .filter((v): v is string => !!v),
+      ),
+    );
+    if (ids.length === 0) return;
+
+    const projectTitle = (proj?.title as string) ?? "프로젝트";
+    const url = `/projects/${args.projectId}`;
+    const preview = (args.title || args.body).slice(0, 50);
+    await Promise.all(
+      ids.map((rid) =>
+        notify({
+          recipientId: rid,
+          type: "announcement_posted",
+          payload: {
+            project_id: args.projectId,
+            project_title: projectTitle,
+            title: args.title,
+            url,
+          },
+          push: { title: `${projectTitle} 공지`, body: preview, url },
+        }),
+      ),
+    );
+  } catch (err) {
+    console.error("[notifyAnnouncementAudience] failed (non-fatal):", err);
+  }
+}
 
 function parseAudiences(fd: FormData): string[] {
   const raw = fd.getAll("audiences").map((v) => v.toString());
@@ -48,6 +107,9 @@ export async function createAnnouncementAction(
     .select("id")
     .single();
   if (error) return { ok: false, error: error.message };
+
+  // 열람대상에게 인앱 + 웹푸시 알림 (비치명적).
+  await notifyAnnouncementAudience({ projectId, title, body, audiences });
 
   revalidatePath(`/projects/${projectId}/applicants`);
   return { ok: true, data: { id: data.id as string } };

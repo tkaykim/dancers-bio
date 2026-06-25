@@ -9,6 +9,11 @@ import { DEFAULT_WITHHOLDING_RATE, calcSettlement, formatWon } from "@/lib/settl
 import { sendGmailEmail } from "@/lib/gmail";
 import { buildWithdrawalRequestEmail } from "@/lib/notify/settlement-mail";
 import { notify } from "@/lib/notify";
+import {
+  sendSettlementConfirmedAlimtalk,
+  sendSettlementPaidAlimtalk,
+  sendSettlementInfoRequiredAlimtalk,
+} from "@/lib/alimtalk/dancer-events";
 import type { ActionResult } from "./auth";
 
 const SITE = "https://deetz.kr";
@@ -126,6 +131,144 @@ async function notifyAdminsWithdrawalRequested(
       "[notifyAdminsWithdrawalRequested] failed (non-fatal):",
       err,
     );
+  }
+}
+
+// 댄서에게 정산완료/입금완료 알림 (인앱 + 웹푸시 + 알림톡). 비치명적.
+// 정산 정보(계좌 3종 + 주민/외국인등록번호) 완비 여부.
+async function settlementInfoComplete(
+  admin: ReturnType<typeof createAdminClient>,
+  dancerId: string,
+): Promise<boolean> {
+  const { data: pi } = await admin
+    .from("dancer_private_info")
+    .select(
+      "bank_name, bank_account_number, bank_account_holder, resident_registration_number",
+    )
+    .eq("dancer_id", dancerId)
+    .maybeSingle();
+  return !!(
+    pi?.bank_name &&
+    pi?.bank_account_number &&
+    pi?.bank_account_holder &&
+    pi?.resident_registration_number
+  );
+}
+
+async function notifyDancerSettlement(
+  settlementId: string,
+  kind: "confirmed" | "paid" | "info_required",
+): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const { data: s } = await admin
+      .from("settlements")
+      .select("dancer_id, project_id, gross_amount, withholding_rate")
+      .eq("id", settlementId)
+      .maybeSingle();
+    if (!s) return;
+    const dancerId = s.dancer_id as string;
+
+    const [{ data: d }, { data: p }] = await Promise.all([
+      admin
+        .from("dancers")
+        .select("stage_name, profile_id")
+        .eq("id", dancerId)
+        .maybeSingle(),
+      admin.from("projects").select("title").eq("id", s.project_id).maybeSingle(),
+    ]);
+    const title = (p?.title as string) ?? "프로젝트";
+    const net = calcSettlement(
+      s.gross_amount as number,
+      Number(s.withholding_rate),
+    ).net;
+    const netText = formatWon(net);
+    const url = "/me/settlements";
+
+    // 정산완료인데 정산정보(계좌·주민번호) 미비 → '정보 입력 요청'으로 전환.
+    let effective = kind;
+    if (kind === "confirmed" && !(await settlementInfoComplete(admin, dancerId))) {
+      effective = "info_required";
+    }
+
+    // 인앱/푸시 수신자 = 댄서 계정(지원 계정 우선 → 클레임 계정).
+    const { data: app } = await admin
+      .from("applications")
+      .select("applicant_id")
+      .eq("project_id", s.project_id)
+      .eq("dancer_id", dancerId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const accountId =
+      (app?.applicant_id as string | null) ?? (d?.profile_id as string | null);
+
+    const notif =
+      effective === "paid"
+        ? {
+            type: "settlement_paid" as const,
+            push: {
+              title: "입금 완료",
+              body: `'${title}' 정산금 ${netText}이 입금 완료됐어요.`,
+              url,
+            },
+          }
+        : effective === "info_required"
+          ? {
+              type: "settlement_info_required" as const,
+              push: {
+                title: "정산정보 입력 요청",
+                body: `'${title}' 정산을 받으려면 계좌·정산정보를 입력해 주세요.`,
+                url,
+              },
+            }
+          : {
+              type: "settlement_confirmed" as const,
+              push: {
+                title: "정산 금액 확정",
+                body: `'${title}' 정산금 ${netText}이 확정됐어요.`,
+                url,
+              },
+            };
+
+    if (accountId) {
+      await notify({
+        recipientId: accountId,
+        type: notif.type,
+        payload: {
+          kind: effective,
+          settlement_id: settlementId,
+          project_title: title,
+          net_amount: net,
+          url,
+        },
+        push: notif.push,
+      });
+    }
+
+    if (effective === "paid") {
+      await sendSettlementPaidAlimtalk({
+        dancerId,
+        settlementId,
+        projectTitle: title,
+        netText,
+      });
+    } else if (effective === "info_required") {
+      await sendSettlementInfoRequiredAlimtalk({
+        dancerId,
+        settlementId,
+        projectTitle: title,
+      });
+    } else {
+      await sendSettlementConfirmedAlimtalk({
+        dancerId,
+        settlementId,
+        projectTitle: title,
+        netText,
+      });
+    }
+  } catch (err) {
+    console.error("[notifyDancerSettlement] failed (non-fatal):", err);
   }
 }
 
@@ -301,6 +444,9 @@ export async function sendWithdrawalRequestEmailAction(
   });
   const r = await sendGmailEmail({ to: email, ...mail });
   if (!r.ok) return { ok: false, error: "메일 발송에 실패했습니다." };
+
+  // 정산완료(금액확정) 알림 — 인앱 + 웹푸시 + 알림톡(게이트).
+  await notifyDancerSettlement(settlementId, "confirmed");
   return { ok: true };
 }
 
@@ -418,6 +564,9 @@ export async function markSettlementPaidAction(
     .eq("id", settlementId);
   if (error) return { ok: false, error: "처리에 실패했습니다. 다시 시도해 주세요." };
 
+  // 입금완료 알림 — 인앱 + 웹푸시 + 알림톡(게이트).
+  await notifyDancerSettlement(settlementId, "paid");
+
   revalidatePath("/admin/settlements");
   revalidatePath("/me/settlements");
   return { ok: true };
@@ -450,9 +599,26 @@ export async function markSettlementsPaidAction(
     .select("id");
   if (error) return { ok: false, error: "처리에 실패했습니다. 다시 시도해 주세요." };
 
+  // 입금완료 알림 — 실제로 paid 전환된 건만 (인앱 + 웹푸시 + 알림톡 게이트).
+  for (const row of (data ?? []) as Array<{ id: string }>) {
+    await notifyDancerSettlement(row.id as string, "paid");
+  }
+
   revalidatePath("/admin/settlements");
   revalidatePath("/me/settlements");
   return { ok: true, data: { updated: (data ?? []).length } };
+}
+
+// ── 관리자: 정산정보(계좌·주민번호) 미기입 댄서에게 입력 요청 알림 발송 ────────
+// 정산금은 확정됐으나 정산정보가 없어 지급 불가한 댄서에게 "정보 입력" 독려.
+export async function requestSettlementInfoAction(
+  fd: FormData,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const settlementId = (fd.get("settlement_id") ?? "").toString().trim();
+  if (!settlementId) return { ok: false, error: "잘못된 요청입니다." };
+  await notifyDancerSettlement(settlementId, "info_required");
+  return { ok: true };
 }
 
 // ── 관리자: 선택한 정산 건 → 우리은행 '다계좌이체' 업로드 파일(.xls) 생성 ─────
