@@ -9,9 +9,13 @@ export default async function ProjectsLayout({
   children: React.ReactNode;
 }) {
   const user = await getUser();
+  // 모바일 = 폰 폭(max-w-md) 셸 유지. 데스크톱(lg+) = 폭 제한 해제 → 각 페이지가
+  // 자체 max-w로 폭을 결정(대부분 max-w-md 유지, 관리 페이지는 넓은 대시보드).
   return (
-    <div className="relative mx-auto flex min-h-svh w-full max-w-md flex-col bg-background">
-      <main className={"flex-1 " + (user ? "pb-24" : "pb-10")}>{children}</main>
+    <div className="relative mx-auto flex min-h-svh w-full max-w-md flex-col bg-background lg:max-w-none">
+      <main className={"flex-1 " + (user ? "pb-24 lg:pb-10" : "pb-10")}>
+        {children}
+      </main>
       {user ? <BottomTabBar /> : null}
     </div>
   );
