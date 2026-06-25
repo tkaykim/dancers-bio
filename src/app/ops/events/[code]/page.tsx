@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isProjectOwnerOrAdmin } from "@/lib/auth/guard";
+import { requireEventOpsAccess } from "@/lib/ops/event-access";
 import {
   EventOpsClient,
   type EventOpsEvent,
@@ -7,6 +9,7 @@ import {
   type EventOpsProject,
   type OutreachStatus,
 } from "./EventOpsClient";
+import { EventStaffPanel, type EventStaffMember } from "./EventStaffPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +65,10 @@ export default async function ProjectEventOpsPage({
     .maybeSingle();
   if (!eventData) notFound();
   const event = eventData as EventOpsEvent & { project_id: string };
+
+  // 운영 콘솔 접근 게이트 (passes 등 staff-facing 페이지와 공유).
+  // 기존엔 ops_code 만 알면 누구나 접근 가능했고(참가자 QR이 그 ops_code 노출), 이를 차단한다.
+  await requireEventOpsAccess(opsCode);
 
   const [{ data: project }, { data: participantRows }] = await Promise.all([
     admin
@@ -178,11 +185,74 @@ export default async function ProjectEventOpsPage({
     };
   });
 
+  // 현장 스태프 관리 패널은 소유자·슈퍼관리자에게만 노출.
+  const canManageStaff = await isProjectOwnerOrAdmin(event.project_id);
+  let staffMembers: EventStaffMember[] = [];
+  if (canManageStaff) {
+    const { data: staffRows } = await admin
+      .from("event_staff")
+      .select("id, profile_id, role, expires_at")
+      .eq("event_id", event.id)
+      .order("created_at", { ascending: true });
+    const rows = (staffRows ?? []) as Array<{
+      id: string;
+      profile_id: string;
+      role: string;
+      expires_at: string | null;
+    }>;
+    const ids = rows.map((r) => r.profile_id);
+    const profMap = new Map<
+      string,
+      {
+        display_name: string | null;
+        avatar_url: string | null;
+        instagram_handle: string | null;
+      }
+    >();
+    if (ids.length > 0) {
+      const { data: profs } = await admin
+        .from("profiles")
+        .select("id, display_name, avatar_url, instagram_handle")
+        .in("id", ids);
+      for (const p of (profs ?? []) as Array<{
+        id: string;
+        display_name: string | null;
+        avatar_url: string | null;
+        instagram_handle: string | null;
+      }>) {
+        profMap.set(p.id, p);
+      }
+    }
+    staffMembers = rows.map((r) => {
+      const p = profMap.get(r.profile_id);
+      return {
+        id: r.id,
+        profile_id: r.profile_id,
+        role: r.role,
+        expires_at: r.expires_at,
+        display_name: p?.display_name ?? "(알 수 없음)",
+        avatar_url: p?.avatar_url ?? null,
+        instagram_handle: p?.instagram_handle ?? null,
+      };
+    });
+  }
+
   return (
-    <EventOpsClient
-      event={event}
-      project={(project ?? null) as EventOpsProject | null}
-      participants={enrichedParticipants}
-    />
+    <>
+      {canManageStaff ? (
+        <div className="mx-auto w-full max-w-[1100px] px-4 pt-4">
+          <EventStaffPanel
+            eventId={event.id}
+            projectId={event.project_id}
+            staff={staffMembers}
+          />
+        </div>
+      ) : null}
+      <EventOpsClient
+        event={event}
+        project={(project ?? null) as EventOpsProject | null}
+        participants={enrichedParticipants}
+      />
+    </>
   );
 }

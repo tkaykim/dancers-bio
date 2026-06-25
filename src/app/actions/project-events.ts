@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { canManageProject, requireUser } from "@/lib/auth/guard";
+import { canManageProject, getUser, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getProjectApplicationScopeIds } from "@/lib/ops/project-application-scope";
@@ -123,6 +123,37 @@ async function syncEventOperations(
   if (taskRows.length > 0) {
     await admin.from("outreach_tasks").insert(taskRows);
   }
+}
+
+// 운영보드 mutation 권한 게이트: 로그인 + (프로젝트 관리권한 OR 해당 행사 스태프).
+// ops_code 는 행사 식별용일 뿐, 처리 권한은 로그인 계정으로 판정한다.
+async function authorizeEventByOpsCode(
+  admin: AdminClient,
+  opsCode: string,
+): Promise<{ ok: true; eventId: string } | { ok: false; error: string }> {
+  const user = await getUser();
+  if (!user) return { ok: false, error: "로그인이 필요합니다." };
+  const { data: event } = await admin
+    .from("project_events")
+    .select("id, project_id")
+    .eq("ops_code", opsCode)
+    .maybeSingle();
+  if (!event) return { ok: false, error: "운영일정을 찾을 수 없습니다." };
+  const eventId = event.id as string;
+  if (await canManageProject(event.project_id as string)) {
+    return { ok: true, eventId };
+  }
+  const { data: staff } = await admin
+    .from("event_staff")
+    .select("id, expires_at")
+    .eq("event_id", eventId)
+    .eq("profile_id", user.id)
+    .maybeSingle();
+  const staffActive =
+    !!staff &&
+    (!staff.expires_at || new Date(staff.expires_at as string) > new Date());
+  if (staffActive) return { ok: true, eventId };
+  return { ok: false, error: "권한이 없습니다." };
 }
 
 export async function createProjectEventAction(
@@ -418,12 +449,9 @@ export async function updateEventParticipantOpsAction(
   }
 
   const admin = createAdminClient();
-  const { data: event } = await admin
-    .from("project_events")
-    .select("id")
-    .eq("ops_code", opsCode)
-    .maybeSingle();
-  if (!event) return { ok: false, error: "운영일정을 찾을 수 없습니다." };
+  const auth = await authorizeEventByOpsCode(admin, opsCode);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const event = { id: auth.eventId };
 
   const { data: participant } = await admin
     .from("event_participants")
@@ -487,12 +515,9 @@ export async function updateEventParticipantGenderAction(
   }
 
   const admin = createAdminClient();
-  const { data: event } = await admin
-    .from("project_events")
-    .select("id")
-    .eq("ops_code", opsCode)
-    .maybeSingle();
-  if (!event) return { ok: false, error: "운영일정을 찾을 수 없습니다." };
+  const auth = await authorizeEventByOpsCode(admin, opsCode);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const event = { id: auth.eventId };
 
   const { data: participant } = await admin
     .from("event_participants")
@@ -540,12 +565,9 @@ export async function updateEventOutreachTaskAction(
   }
 
   const admin = createAdminClient();
-  const { data: event } = await admin
-    .from("project_events")
-    .select("id")
-    .eq("ops_code", opsCode)
-    .maybeSingle();
-  if (!event) return { ok: false, error: "운영일정을 찾을 수 없습니다." };
+  const auth = await authorizeEventByOpsCode(admin, opsCode);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const event = { id: auth.eventId };
 
   const nextLastContactedAt =
     status === "pending" ? null : new Date().toISOString();
