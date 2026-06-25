@@ -21,6 +21,10 @@ import {
   type ProjectEventRow,
 } from "@/components/project/ProjectEventsPanel";
 import { SchedulePanel, type ScheduleRow } from "@/components/project/SchedulePanel";
+import {
+  AnnouncementsPanel,
+  type AnnouncementRow,
+} from "@/components/project/AnnouncementsPanel";
 import { WithdrawalLinkPanel } from "@/components/project/WithdrawalLinkPanel";
 import { formatWhen } from "@/lib/format-when";
 import { classifyProjectIdentifier } from "@/lib/projectId";
@@ -442,6 +446,16 @@ export default async function ApplicantsPage({
     (event) => !linkedEventIds.has(event.id),
   );
 
+  // 공지사항 (관리자는 RLS pa_manage 로 전체 조회)
+  const { data: annRows } = await supabase
+    .from("project_announcements")
+    .select("id, title, body, audiences, pinned, created_at")
+    .eq("project_id", p.id)
+    .is("deleted_at", null)
+    .order("pinned", { ascending: false })
+    .order("created_at", { ascending: false });
+  const announcements = (annRows ?? []) as AnnouncementRow[];
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-8">
       <Link
@@ -464,6 +478,12 @@ export default async function ApplicantsPage({
           id: channel.id,
           name: channel.name,
         }))}
+      />
+
+      <AnnouncementsPanel
+        projectId={p.id}
+        shortCode={p.short_code}
+        announcements={announcements}
       />
 
       <SchedulePanel
