@@ -19,7 +19,9 @@ export type NotificationType =
   | "announcement_posted"
   | "settlement_confirmed"
   | "settlement_paid"
-  | "settlement_info_required";
+  | "settlement_info_required"
+  | "ops_access_requested"
+  | "ops_access_granted";
 
 type NotifyParams = {
   recipientId: string;

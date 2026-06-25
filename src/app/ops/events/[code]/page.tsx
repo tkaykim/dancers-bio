@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canManageProject } from "@/lib/auth/guard";
-import { requireEventOpsAccess } from "@/lib/ops/event-access";
+import { getEventOpsAccess } from "@/lib/ops/event-access";
 import {
   EventOpsClient,
   type EventOpsEvent,
@@ -9,7 +9,12 @@ import {
   type EventOpsProject,
   type OutreachStatus,
 } from "./EventOpsClient";
-import { EventStaffPanel, type EventStaffMember } from "./EventStaffPanel";
+import {
+  EventStaffPanel,
+  type EventStaffMember,
+  type EventAccessRequest,
+} from "./EventStaffPanel";
+import { RequestAccessView } from "./RequestAccessView";
 
 export const dynamic = "force-dynamic";
 
@@ -66,9 +71,31 @@ export default async function ProjectEventOpsPage({
   if (!eventData) notFound();
   const event = eventData as EventOpsEvent & { project_id: string };
 
-  // 운영 콘솔 접근 게이트 (passes 등 staff-facing 페이지와 공유).
-  // 기존엔 ops_code 만 알면 누구나 접근 가능했고(참가자 QR이 그 ops_code 노출), 이를 차단한다.
-  await requireEventOpsAccess(opsCode);
+  // 운영 콘솔 접근 판정. 권한 없으면 404 대신 '권한 신청' 화면(Drive식)으로 분기.
+  const access = await getEventOpsAccess(opsCode);
+  if (!access.authorized) {
+    const { data: lastReq } = await admin
+      .from("event_access_requests")
+      .select("status")
+      .eq("event_id", event.id)
+      .eq("profile_id", access.userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const reqStatus: "none" | "pending" | "denied" =
+      lastReq?.status === "pending"
+        ? "pending"
+        : lastReq?.status === "denied"
+          ? "denied"
+          : "none";
+    return (
+      <RequestAccessView
+        opsCode={event.ops_code}
+        eventName={event.name}
+        initialStatus={reqStatus}
+      />
+    );
+  }
 
   const [{ data: project }, { data: participantRows }] = await Promise.all([
     admin
@@ -188,6 +215,7 @@ export default async function ProjectEventOpsPage({
   // 현장 스태프 관리 패널 = 프로젝트 관리권한자(소유자·admin·매니저)에게 노출.
   const canManageStaff = await canManageProject(event.project_id);
   let staffMembers: EventStaffMember[] = [];
+  let accessRequests: EventAccessRequest[] = [];
   if (canManageStaff) {
     const { data: staffRows } = await admin
       .from("event_staff")
@@ -235,6 +263,41 @@ export default async function ProjectEventOpsPage({
         instagram_handle: p?.instagram_handle ?? null,
       };
     });
+
+    // 대기중 접근 신청 로드 (Drive식 권한 요청 승인용).
+    const { data: reqRows } = await admin
+      .from("event_access_requests")
+      .select("id, profile_id, message, created_at")
+      .eq("event_id", event.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true });
+    const rrows = (reqRows ?? []) as Array<{
+      id: string;
+      profile_id: string;
+      message: string;
+      created_at: string;
+    }>;
+    const rIds = rrows.map((r) => r.profile_id);
+    const reqProfMap = new Map<string, { display_name: string | null }>();
+    if (rIds.length > 0) {
+      const { data: rprofs } = await admin
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", rIds);
+      for (const p of (rprofs ?? []) as Array<{
+        id: string;
+        display_name: string | null;
+      }>) {
+        reqProfMap.set(p.id, p);
+      }
+    }
+    accessRequests = rrows.map((r) => ({
+      id: r.id,
+      profile_id: r.profile_id,
+      message: r.message ?? "",
+      created_at: r.created_at,
+      display_name: reqProfMap.get(r.profile_id)?.display_name ?? "(알 수 없음)",
+    }));
   }
 
   return (
@@ -245,6 +308,7 @@ export default async function ProjectEventOpsPage({
             eventId={event.id}
             opsCode={event.ops_code}
             staff={staffMembers}
+            requests={accessRequests}
           />
         </div>
       ) : null}

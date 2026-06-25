@@ -9,6 +9,7 @@ import {
   updateEventStaffAction,
   type OpsStaffCandidate,
 } from "@/app/actions/event-staff";
+import { decideEventAccessRequestAction } from "@/app/actions/event-access-requests";
 
 export type EventStaffMember = {
   id: string;
@@ -35,14 +36,24 @@ function isExpired(iso: string | null): boolean {
   return !Number.isNaN(d.getTime()) && d.getTime() <= Date.now();
 }
 
+export type EventAccessRequest = {
+  id: string;
+  profile_id: string;
+  display_name: string;
+  message: string;
+  created_at: string;
+};
+
 export function EventStaffPanel({
   eventId,
   opsCode,
   staff,
+  requests,
 }: {
   eventId: string;
   opsCode: string;
   staff: EventStaffMember[];
+  requests: EventAccessRequest[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -54,8 +65,48 @@ export function EventStaffPanel({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [expiryDraft, setExpiryDraft] = useState<Record<string, string>>({});
+  const [reqExpiry, setReqExpiry] = useState<Record<string, string>>({});
 
   const existingIds = new Set(staff.map((s) => s.profile_id));
+
+  function approveRequest(req: EventAccessRequest) {
+    const exp = reqExpiry[req.id] ?? "";
+    if (!exp) {
+      setError("승인하려면 권한 만료일을 먼저 선택해 주세요.");
+      return;
+    }
+    setError(null);
+    setBusyId(req.id);
+    const fd = new FormData();
+    fd.set("request_id", req.id);
+    fd.set("decision", "approve");
+    fd.set("expires_at", exp);
+    decideEventAccessRequestAction(fd).then((r) => {
+      setBusyId(null);
+      if (!r.ok) {
+        setError(r.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function denyRequest(req: EventAccessRequest) {
+    if (!confirm(`${req.display_name} 신청을 거절할까요?`)) return;
+    setError(null);
+    setBusyId(req.id);
+    const fd = new FormData();
+    fd.set("request_id", req.id);
+    fd.set("decision", "deny");
+    decideEventAccessRequestAction(fd).then((r) => {
+      setBusyId(null);
+      if (!r.ok) {
+        setError(r.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
 
   const search = useCallback(
     (q: string) => {
@@ -175,6 +226,62 @@ export function EventStaffPanel({
         (deetz 계정이 없으면 먼저 가입이 필요합니다. 지정한 만료일이 지나면 접근이
         자동으로 차단됩니다.)
       </p>
+
+      {requests.length > 0 ? (
+        <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-amber-800">
+            권한 신청 ({requests.length})
+          </p>
+          <ul className="flex flex-col gap-2">
+            {requests.map((req) => (
+              <li
+                key={req.id}
+                className="flex flex-col gap-2 rounded-lg bg-white px-3 py-2"
+              >
+                <div className="flex min-w-0 flex-col">
+                  <p className="truncate text-sm font-semibold">
+                    {req.display_name}
+                  </p>
+                  {req.message ? (
+                    <p className="whitespace-pre-wrap text-[12px] leading-relaxed text-ink-2">
+                      {req.message}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] text-ink-3">만료</span>
+                  <input
+                    type="date"
+                    value={reqExpiry[req.id] ?? ""}
+                    onChange={(e) =>
+                      setReqExpiry((p) => ({ ...p, [req.id]: e.target.value }))
+                    }
+                    className="h-8 rounded-lg border border-border bg-background px-2 text-xs"
+                    aria-label="권한 만료일"
+                  />
+                  <button
+                    type="button"
+                    disabled={busyId === req.id || !reqExpiry[req.id]}
+                    title={!reqExpiry[req.id] ? "만료일을 먼저 선택하세요" : undefined}
+                    onClick={() => approveRequest(req)}
+                    className="rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground disabled:opacity-40"
+                  >
+                    {busyId === req.id ? "..." : "승인"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busyId === req.id}
+                    onClick={() => denyRequest(req)}
+                    className="rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-ink-2 hover:text-destructive disabled:opacity-50"
+                  >
+                    거절
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {staff.length > 0 ? (
         <ul className="flex flex-col gap-1">
