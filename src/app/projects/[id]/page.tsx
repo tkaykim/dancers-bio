@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Button } from "@/components/ui/button";
 import { ApplyForm } from "@/components/project/ApplyForm";
 import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
+import { ShareButton } from "@/components/project/ShareButton";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 import { deadlineLabel, isExpired } from "@/lib/utils/deadline";
 import { formatBytes } from "@/lib/storage/dancer-portfolio-file";
@@ -326,12 +327,15 @@ export default async function ProjectDetailPage({
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
-      <Link
-        href={user ? "/feed" : "/"}
-        className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
-      >
-        ← {user ? "캐스팅 피드" : "deetz"}
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          href={user ? "/feed" : "/"}
+          className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
+        >
+          ← {user ? "캐스팅 피드" : "deetz"}
+        </Link>
+        <ShareButton shortCode={p.short_code} title={p.title} />
+      </div>
 
       <header className="flex flex-col gap-3">
         <div className="flex flex-wrap gap-1.5">
