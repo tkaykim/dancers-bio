@@ -10,7 +10,11 @@ import {
   verifyProjectSurveyToken,
 } from "@/lib/quick-token";
 import { buildScheduleRequestEmail } from "@/lib/notify/schedule-mail";
-import { sendScheduleRequestAlimtalk } from "@/lib/alimtalk/dancer-events";
+import {
+  sendScheduleCancelAlimtalk,
+  sendScheduleChangeAlimtalk,
+  sendScheduleRequestAlimtalk,
+} from "@/lib/alimtalk/dancer-events";
 import { notify } from "@/lib/notify";
 import { formatWhen } from "@/lib/format-when";
 import { sendGmailEmail } from "@/lib/gmail";
@@ -27,6 +31,69 @@ function isoOrNull(v: string | null): string | null {
   if (!v) return null;
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+// 알림톡 #{일정} 표시 텍스트: "리허설 · 6월 18일(수) 16:00" (날짜 없으면 라벨만).
+function scheduleDisplayText(
+  label: string,
+  startsAt: string | null,
+  endsAt: string | null,
+  timeTbd: boolean,
+): string {
+  const when = formatWhen(startsAt, endsAt, timeTbd);
+  return when === "일정 미정" ? label : `${label} · ${when}`;
+}
+
+// 일정 추가/취소 알림톡을 지원자 댄서(대기+수락, 중복 제거)에게 fan-out (best-effort).
+// 폰 보유 댄서만, refId=scheduleId 멱등(일정 1건당 댄서별 1회). 실패는 본 액션을 막지 않음.
+async function fanoutScheduleAlimtalk(
+  kind: "change" | "cancel",
+  args: { projectId: string; scheduleId: string; scheduleText: string },
+): Promise<void> {
+  // 안전 스위치: 기본 비활성화. 운영에서 SCHEDULE_ALIMTALK_ENABLED=true 로 켠다.
+  // (템플릿/계정 env가 있어도 이 플래그가 없으면 일정 알림톡은 일절 안 나간다.)
+  if (process.env.SCHEDULE_ALIMTALK_ENABLED !== "true") return;
+  try {
+    const admin = createAdminClient();
+    const [{ data: proj }, scopeIds] = await Promise.all([
+      admin.from("projects").select("title").eq("id", args.projectId).maybeSingle(),
+      getProjectApplicationScopeIds(admin, args.projectId),
+    ]);
+    const projectTitle = (proj?.title as string) ?? "프로젝트";
+    const { data: apps } = await admin
+      .from("applications")
+      .select("dancer_id")
+      .in("project_id", scopeIds)
+      .is("archived_at", null)
+      .in("status", ["pending", "accepted"])
+      .not("dancer_id", "is", null);
+
+    const seen = new Set<string>();
+    const dancerIds: string[] = [];
+    for (const a of (apps ?? []) as Array<{ dancer_id: string }>) {
+      if (!seen.has(a.dancer_id)) {
+        seen.add(a.dancer_id);
+        dancerIds.push(a.dancer_id);
+      }
+    }
+
+    await Promise.all(
+      dancerIds.map((dancerId) => {
+        const payload = {
+          dancerId,
+          scheduleId: args.scheduleId,
+          projectTitle,
+          scheduleText: args.scheduleText,
+          token: makeProjectSurveyToken(args.projectId, dancerId),
+        };
+        return kind === "change"
+          ? sendScheduleChangeAlimtalk(payload)
+          : sendScheduleCancelAlimtalk(payload);
+      }),
+    );
+  } catch {
+    // 알림톡 실패는 무시 (본 액션은 성공).
+  }
 }
 
 // 후보 일정 추가 (프로젝트 생성 시 또는 이후 언제든)
@@ -64,6 +131,18 @@ export async function createScheduleAction(
   // 새 일정 추가 → 대기·수락 지원자에게 인앱 + 웹푸시 알림 (비치명적).
   // "일정이 추가됐어요, 가능여부를 알려주세요" — 이미 응답한 사람도 다시 인지 가능.
   await notifyScheduleAdded(projectId, label);
+
+  // 추가된 일정 → 지원자에게 일정변경확인 알림톡 (폰 보유 시, best-effort).
+  await fanoutScheduleAlimtalk("change", {
+    projectId,
+    scheduleId: data.id as string,
+    scheduleText: scheduleDisplayText(
+      label,
+      isoOrNull(startsRaw),
+      timeTbd ? null : isoOrNull(strOrNull(fd, "ends_at")),
+      timeTbd,
+    ),
+  });
 
   revalidatePath(`/projects/${projectId}/applicants`);
   return { ok: true, data: { id: data.id as string } };
@@ -147,14 +226,84 @@ export async function deleteScheduleAction(fd: FormData): Promise<ActionResult> 
   if (!id) return { ok: false, error: "잘못된 요청입니다." };
   if (projectId && !(await canManageProject(projectId)))
     return { ok: false, error: "권한이 없습니다." };
+
+  // 삭제 전 일정 정보 확보 (취소 통지 알림톡용 — 라벨·날짜·프로젝트).
+  const admin = createAdminClient();
+  const { data: sch } = await admin
+    .from("project_schedules")
+    .select("label, starts_at, ends_at, time_tbd, project_id")
+    .eq("id", id)
+    .maybeSingle();
+
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: deleted, error } = await supabase
     .from("project_schedules")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+
+  // 실제로 삭제된 경우에만 취소 통지 알림톡 (RLS로 0행 삭제 시 발송 안 함).
+  const didDelete = Array.isArray(deleted) && deleted.length > 0;
+  if (didDelete && sch?.project_id) {
+    await fanoutScheduleAlimtalk("cancel", {
+      projectId: sch.project_id as string,
+      scheduleId: id,
+      scheduleText: scheduleDisplayText(
+        (sch.label as string) ?? "일정",
+        sch.starts_at as string | null,
+        sch.ends_at as string | null,
+        Boolean(sch.time_tbd),
+      ),
+    });
+  }
+
   if (projectId) revalidatePath(`/projects/${projectId}/applicants`);
   return { ok: true };
+}
+
+// 일정 상태 변경: 예정(tentative) / 확정(confirmed) / 취소됨(cancelled)
+const SCHEDULE_STATUSES = new Set(["tentative", "confirmed", "cancelled"]);
+
+export async function updateScheduleStatusAction(
+  fd: FormData,
+): Promise<ActionResult<{ status: string }>> {
+  await requireUser();
+  const id = (fd.get("schedule_id") ?? "").toString().trim();
+  const projectId = (fd.get("project_id") ?? "").toString().trim();
+  const status = (fd.get("status") ?? "").toString().trim();
+  if (!id || !projectId) return { ok: false, error: "잘못된 요청입니다." };
+  if (!SCHEDULE_STATUSES.has(status))
+    return { ok: false, error: "상태값을 확인해 주세요." };
+  if (!(await canManageProject(projectId)))
+    return { ok: false, error: "권한이 없습니다." };
+
+  const supabase = await createClient();
+  const { data: updated, error } = await supabase
+    .from("project_schedules")
+    .update({ status })
+    .eq("id", id)
+    .eq("project_id", projectId)
+    .select("id, label, starts_at, ends_at, time_tbd")
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+
+  // '취소됨'으로 전환되면 취소 통지 알림톡 (kill-switch·멱등 적용 — 삭제 통지와 중복 안 됨).
+  if (status === "cancelled" && updated) {
+    await fanoutScheduleAlimtalk("cancel", {
+      projectId,
+      scheduleId: id,
+      scheduleText: scheduleDisplayText(
+        (updated.label as string) ?? "일정",
+        updated.starts_at as string | null,
+        updated.ends_at as string | null,
+        Boolean(updated.time_tbd),
+      ),
+    });
+  }
+
+  revalidatePath(`/projects/${projectId}/applicants`);
+  return { ok: true, data: { status } };
 }
 
 // 특정 일정의 응답자 명단 (관리자용)

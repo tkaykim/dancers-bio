@@ -170,6 +170,77 @@ export async function createProjectEventAction(
   };
 }
 
+// 수락 지원자를 운영보드 참가자로 시드하는 핵심 로직 (직접 시드·일정 확정 공용).
+// 성공 시 카운트를 반환하고, DB 오류는 throw 한다 (호출부에서 처리).
+async function seedAcceptedParticipants(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  admin: AdminClient,
+  {
+    eventId,
+    projectId,
+    userId,
+  }: { eventId: string; projectId: string; userId: string },
+): Promise<{ inserted: number; existing: number; total: number }> {
+  const projectScopeIds = await getProjectApplicationScopeIds(admin, projectId);
+  const { data: apps, error: appError } = await admin
+    .from("applications")
+    .select("id, dancer_id, recruitment_channel_id")
+    .in("project_id", projectScopeIds)
+    .eq("status", "accepted")
+    .is("archived_at", null)
+    .not("dancer_id", "is", null)
+    .order("created_at", { ascending: true });
+  if (appError) throw new Error(appError.message);
+
+  const uniqueByDancer = new Map<
+    string,
+    { id: string; dancer_id: string; recruitment_channel_id: string | null }
+  >();
+  for (const app of (apps ?? []) as Array<{
+    id: string;
+    dancer_id: string | null;
+    recruitment_channel_id: string | null;
+  }>) {
+    if (!app.dancer_id || uniqueByDancer.has(app.dancer_id)) continue;
+    uniqueByDancer.set(app.dancer_id, {
+      id: app.id,
+      dancer_id: app.dancer_id,
+      recruitment_channel_id: app.recruitment_channel_id,
+    });
+  }
+
+  const candidates = Array.from(uniqueByDancer.values());
+  if (candidates.length === 0) return { inserted: 0, existing: 0, total: 0 };
+
+  const { count: existingCount } = await supabase
+    .from("event_participants")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", eventId);
+
+  const { data: insertedRows, error } = await supabase
+    .from("event_participants")
+    .upsert(
+      candidates.map((app) => ({
+        event_id: eventId,
+        application_id: app.id,
+        dancer_id: app.dancer_id,
+        recruitment_channel_id: app.recruitment_channel_id,
+        created_by: userId,
+      })),
+      { onConflict: "event_id,dancer_id", ignoreDuplicates: true },
+    )
+    .select("id");
+  if (error) throw new Error(error.message);
+
+  await syncEventOperations(admin, { eventId, projectId, userId });
+
+  return {
+    inserted: insertedRows?.length ?? 0,
+    existing: existingCount ?? 0,
+    total: candidates.length,
+  };
+}
+
 export async function seedEventParticipantsFromAcceptedAction(
   formData: FormData,
 ): Promise<ActionResult<{ inserted: number; existing: number; total: number }>> {
@@ -191,71 +262,128 @@ export async function seedEventParticipantsFromAcceptedAction(
   }
 
   const admin = createAdminClient();
-  const projectScopeIds = await getProjectApplicationScopeIds(admin, projectId);
-  const { data: apps, error: appError } = await admin
-    .from("applications")
-    .select("id, dancer_id, recruitment_channel_id")
-    .in("project_id", projectScopeIds)
-    .eq("status", "accepted")
-    .is("archived_at", null)
-    .not("dancer_id", "is", null)
-    .order("created_at", { ascending: true });
-  if (appError) return { ok: false, error: appError.message };
-
-  const uniqueByDancer = new Map<
-    string,
-    { id: string; dancer_id: string; recruitment_channel_id: string | null }
-  >();
-  for (const app of (apps ?? []) as Array<{
-    id: string;
-    dancer_id: string | null;
-    recruitment_channel_id: string | null;
-  }>) {
-    if (!app.dancer_id || uniqueByDancer.has(app.dancer_id)) continue;
-    uniqueByDancer.set(app.dancer_id, {
-      id: app.id,
-      dancer_id: app.dancer_id,
-      recruitment_channel_id: app.recruitment_channel_id,
+  try {
+    const result = await seedAcceptedParticipants(supabase, admin, {
+      eventId,
+      projectId,
+      userId: user.id,
     });
+    revalidatePath(`/projects/${projectId}/applicants`);
+    revalidatePath(`/ops/events/${event.ops_code as string}`);
+    return { ok: true, data: result };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "시드 실패" };
+  }
+}
+
+// 허용 event_type (DB는 자유 텍스트지만 UI 셀렉트와 일치시킨다)
+const EVENT_TYPES = new Set([
+  "audition",
+  "rehearsal",
+  "shoot",
+  "fitting",
+  "meeting",
+  "other",
+]);
+
+// 취합 일정(project_schedule)을 확정하고, 그 일정 전용 운영보드(project_event)를 만든다.
+// 한 번의 액션으로: status=confirmed + 이벤트 생성(일정 정보 복사) + 양방향 연결 + 수락자 시드.
+// 이미 연결된 보드가 있으면 그대로 그 보드를 반환한다 (멱등).
+export async function confirmScheduleAndCreateBoardAction(
+  formData: FormData,
+): Promise<ActionResult<{ event_id: string; ops_code: string; inserted: number }>> {
+  const user = await requireUser();
+  const scheduleId = text(formData, "schedule_id", 80);
+  const projectId = text(formData, "project_id", 80);
+  if (!scheduleId || !projectId) {
+    return { ok: false, error: "일정을 확인해 주세요." };
+  }
+  if (!(await canManageProject(projectId))) {
+    return { ok: false, error: "운영보드를 만들 권한이 없습니다." };
   }
 
-  const candidates = Array.from(uniqueByDancer.values());
-  if (candidates.length === 0) {
-    return { ok: true, data: { inserted: 0, existing: 0, total: 0 } };
-  }
-
-  const { count: existingCount } = await supabase
-    .from("event_participants")
-    .select("id", { count: "exact", head: true })
-    .eq("event_id", eventId);
-
-  const { data: insertedRows, error } = await supabase
-    .from("event_participants")
-    .upsert(
-      candidates.map((app) => ({
-        event_id: eventId,
-        application_id: app.id,
-        dancer_id: app.dancer_id,
-        recruitment_channel_id: app.recruitment_channel_id,
-        created_by: user.id,
-      })),
-      { onConflict: "event_id,dancer_id", ignoreDuplicates: true },
+  const admin = createAdminClient();
+  const { data: sch } = await admin
+    .from("project_schedules")
+    .select(
+      "id, project_id, label, starts_at, ends_at, location, session_type, project_event_id",
     )
-    .select("id");
+    .eq("id", scheduleId)
+    .maybeSingle();
+  if (!sch || (sch.project_id as string) !== projectId) {
+    return { ok: false, error: "일정을 찾을 수 없습니다." };
+  }
 
-  if (error) return { ok: false, error: error.message };
+  // 이미 보드가 연결돼 있으면 그대로 반환 (중복 생성 방지).
+  if (sch.project_event_id) {
+    const { data: existing } = await admin
+      .from("project_events")
+      .select("id, ops_code")
+      .eq("id", sch.project_event_id as string)
+      .maybeSingle();
+    if (existing) {
+      return {
+        ok: true,
+        data: {
+          event_id: existing.id as string,
+          ops_code: existing.ops_code as string,
+          inserted: 0,
+        },
+      };
+    }
+  }
 
-  await syncEventOperations(admin, { eventId, projectId, userId: user.id });
+  const sessionType = (sch.session_type as string | null) ?? "";
+  const eventType = EVENT_TYPES.has(sessionType) ? sessionType : "other";
 
-  const inserted = insertedRows?.length ?? 0;
+  const supabase = await createClient();
+  const { data: event, error: evErr } = await supabase
+    .from("project_events")
+    .insert({
+      project_id: projectId,
+      name: sch.label as string,
+      event_type: eventType,
+      starts_at: sch.starts_at as string | null,
+      ends_at: sch.ends_at as string | null,
+      location: sch.location as string | null,
+      created_by: user.id,
+    })
+    .select("id, ops_code")
+    .single();
+  if (evErr) {
+    if (evErr.code === "42501") {
+      return { ok: false, error: "운영보드를 만들 권한이 없습니다." };
+    }
+    return { ok: false, error: evErr.message };
+  }
+
+  // 일정 확정 + 양방향 연결.
+  await admin
+    .from("project_schedules")
+    .update({ status: "confirmed", project_event_id: event.id as string })
+    .eq("id", scheduleId);
+
+  // 수락 지원자 시드 (실패해도 보드 생성 자체는 유지).
+  let inserted = 0;
+  try {
+    const seeded = await seedAcceptedParticipants(supabase, admin, {
+      eventId: event.id as string,
+      projectId,
+      userId: user.id,
+    });
+    inserted = seeded.inserted;
+  } catch {
+    // 시드 실패 무시 — 보드에서 "수락자 반영"으로 재시도 가능.
+  }
+
   revalidatePath(`/projects/${projectId}/applicants`);
   revalidatePath(`/ops/events/${event.ops_code as string}`);
   return {
     ok: true,
     data: {
+      event_id: event.id as string,
+      ops_code: event.ops_code as string,
       inserted,
-      existing: existingCount ?? 0,
-      total: candidates.length,
     },
   };
 }

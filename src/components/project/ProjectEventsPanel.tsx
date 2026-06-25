@@ -1,14 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarClock, Copy, ExternalLink, Printer, QrCode, Users } from "lucide-react";
+import { Copy, ExternalLink, Printer, QrCode, Users } from "lucide-react";
 import { toast } from "sonner";
-import {
-  createProjectEventAction,
-  seedEventParticipantsFromAcceptedAction,
-} from "@/app/actions/project-events";
+import { seedEventParticipantsFromAcceptedAction } from "@/app/actions/project-events";
 
 export type ProjectEventRow = {
   id: string;
@@ -62,43 +59,13 @@ function formatEventWhen(startsAt: string | null, endsAt: string | null): string
   return `${dateText} ${startText}~${endText}`;
 }
 
-export function ProjectEventsPanel({
-  projectId,
-  events,
-}: {
-  projectId: string;
-  events: ProjectEventRow[];
-}) {
+// 일정에 연결되지 않은 "기타(레거시) 운영보드"만 읽기 전용으로 보여준다.
+// 새 보드는 일정(SchedulePanel)의 [운영보드 만들기]로만 생성한다 — 개념 통합.
+export function ProjectEventsPanel({ events }: { events: ProjectEventRow[] }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-  const [date, setDate] = useState("");
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
   const origin =
     typeof window === "undefined" ? "https://deetz.kr" : window.location.origin;
-
-  function createEvent(formData: FormData) {
-    formData.set("project_id", projectId);
-    if (date) {
-      formData.set("starts_at", `${date}T${start || "00:00"}:00+09:00`);
-      if (end) formData.set("ends_at", `${date}T${end}:00+09:00`);
-    }
-    startTransition(async () => {
-      const result = await createProjectEventAction(formData);
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("운영일정을 만들었습니다");
-      setOpen(false);
-      setDate("");
-      setStart("");
-      setEnd("");
-      router.refresh();
-    });
-  }
 
   function seedParticipants(eventId: string) {
     setBusyId(eventId);
@@ -129,195 +96,98 @@ export function ProjectEventsPanel({
     }
   }
 
+  if (events.length === 0) return null;
+
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-            ↳ 운영일정 ({events.length})
-          </p>
-          <p className="mt-1 text-xs text-ink-3">
-            오디션·연습·촬영일별 출석, 번호표, 현장 상태를 분리해서 관리합니다.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setOpen((value) => !value)}
-          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 text-xs font-semibold text-primary hover:bg-primary/10"
-        >
-          <CalendarClock className="size-3.5" />
-          일정
-        </button>
+      <div>
+        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
+          ↳ 기타 운영보드 ({events.length})
+        </p>
+        <p className="mt-1 text-xs text-ink-3">
+          일정에 연결되지 않은 보드입니다. 새 보드는 위 &apos;일정&apos;에서 [운영보드 만들기]로 만드세요.
+        </p>
       </div>
 
-      {open ? (
-        <form
-          action={createEvent}
-          className="grid gap-2 rounded-xl border border-hairline-2 bg-background p-3 sm:grid-cols-[1fr_120px]"
-        >
-          <input
-            name="name"
-            required
-            maxLength={120}
-            placeholder="예: 1차 오디션, 7/13 연습"
-            className="h-10 rounded-lg border border-border bg-card px-3 text-sm"
-          />
-          <select
-            name="event_type"
-            defaultValue="rehearsal"
-            className="h-10 rounded-lg border border-border bg-card px-3 text-sm"
-          >
-            <option value="audition">오디션</option>
-            <option value="rehearsal">연습</option>
-            <option value="shoot">촬영</option>
-            <option value="fitting">피팅</option>
-            <option value="meeting">미팅</option>
-            <option value="other">기타</option>
-          </select>
-          <div className="grid gap-2 sm:col-span-2 sm:grid-cols-[1fr_100px_100px]">
-            <input
-              type="date"
-              value={date}
-              onChange={(event) => setDate(event.target.value)}
-              className="h-10 rounded-lg border border-border bg-card px-3 text-sm"
-            />
-            <input
-              type="time"
-              value={start}
-              onChange={(event) => setStart(event.target.value)}
-              className="h-10 rounded-lg border border-border bg-card px-3 text-sm"
-            />
-            <input
-              type="time"
-              value={end}
-              onChange={(event) => setEnd(event.target.value)}
-              className="h-10 rounded-lg border border-border bg-card px-3 text-sm"
-            />
-          </div>
-          <input
-            name="location"
-            maxLength={200}
-            placeholder="장소"
-            className="h-10 rounded-lg border border-border bg-card px-3 text-sm sm:col-span-2"
-          />
-          <button
-            type="submit"
-            disabled={pending}
-            className="h-10 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50 sm:col-span-2"
-          >
-            {pending ? "생성 중..." : "운영일정 만들기"}
-          </button>
-        </form>
-      ) : null}
-
-      {events.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-hairline-2 p-5 text-center text-sm text-ink-3">
-          아직 운영일정이 없습니다. 이벤트를 만들면 수락된 지원자를 참가자로 전환할 수 있습니다.
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {events.map((event) => {
-            const opsUrl = `${origin}/ops/events/${event.ops_code}`;
-            const labelsUrl = `${opsUrl}/labels`;
-            const passesUrl = `${opsUrl}/passes`;
-            return (
-              <li key={event.id} className="rounded-xl border border-border p-3">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <p className="truncate text-sm font-semibold">{event.name}</p>
-                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-ink-2">
-                          {EVENT_TYPE_LABELS[event.event_type] ?? event.event_type}
-                        </span>
-                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-ink-3">
-                          {event.status}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs text-ink-2">
-                        {formatEventWhen(event.starts_at, event.ends_at)}
+      <ul className="flex flex-col gap-2">
+        {events.map((event) => {
+          const opsUrl = `${origin}/ops/events/${event.ops_code}`;
+          const labelsUrl = `${opsUrl}/labels`;
+          const passesUrl = `${opsUrl}/passes`;
+          return (
+            <li key={event.id} className="rounded-xl border border-border p-3">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <p className="truncate text-sm font-semibold">{event.name}</p>
+                      <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-ink-2">
+                        {EVENT_TYPE_LABELS[event.event_type] ?? event.event_type}
+                      </span>
+                      <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-ink-3">
+                        {event.status}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-ink-2">
+                      {formatEventWhen(event.starts_at, event.ends_at)}
+                    </p>
+                    {event.location ? (
+                      <p className="mt-0.5 truncate text-xs text-ink-3">
+                        {event.location}
                       </p>
-                      {event.location ? (
-                        <p className="mt-0.5 truncate text-xs text-ink-3">
-                          {event.location}
-                        </p>
-                      ) : null}
-                    </div>
-                    <button
-                      type="button"
-                      disabled={busyId === event.id}
-                      onClick={() => seedParticipants(event.id)}
-                      className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary/5 px-2.5 text-[11px] font-semibold text-primary hover:bg-primary/10 disabled:opacity-50"
-                    >
-                      <Users className="size-3.5" />
-                      수락자 반영
-                    </button>
+                    ) : null}
                   </div>
+                  <button
+                    type="button"
+                    disabled={busyId === event.id}
+                    onClick={() => seedParticipants(event.id)}
+                    className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary/5 px-2.5 text-[11px] font-semibold text-primary hover:bg-primary/10 disabled:opacity-50"
+                  >
+                    <Users className="size-3.5" />
+                    수락자 반영
+                  </button>
+                </div>
 
-                  <div className="grid grid-cols-3 rounded-lg border border-hairline-2 bg-background text-center text-xs">
-                    <div className="p-2">
-                      <p className="text-ink-3">참가자</p>
-                      <p className="font-semibold">{event.participantCount}</p>
-                    </div>
-                    <div className="border-x border-hairline-2 p-2">
-                      <p className="text-ink-3">출석</p>
-                      <p className="font-semibold">{event.checkedInCount}</p>
-                    </div>
-                    <div className="p-2">
-                      <p className="text-ink-3">최종/보류</p>
-                      <p className="font-semibold">{event.finalistCount}</p>
-                    </div>
+                <div className="grid grid-cols-3 rounded-lg border border-hairline-2 bg-background text-center text-xs">
+                  <div className="p-2">
+                    <p className="text-ink-3">참가자</p>
+                    <p className="font-semibold">{event.participantCount}</p>
                   </div>
-
-                  <div className="grid gap-2 text-xs lg:grid-cols-3">
-                    <EventToolLink
-                      label="운영판"
-                      href={opsUrl}
-                      onCopy={() => copy(opsUrl)}
-                      icon={<ExternalLink className="size-3.5" />}
-                    />
-                    <EventToolLink
-                      label="번호표 라벨"
-                      href={labelsUrl}
-                      onCopy={() => copy(labelsUrl)}
-                      icon={<Printer className="size-3.5" />}
-                    />
-                    <EventToolLink
-                      label="QR 패스"
-                      href={passesUrl}
-                      onCopy={() => copy(passesUrl)}
-                      icon={<QrCode className="size-3.5" />}
-                    />
+                  <div className="border-x border-hairline-2 p-2">
+                    <p className="text-ink-3">출석</p>
+                    <p className="font-semibold">{event.checkedInCount}</p>
                   </div>
-
-                  <div className="hidden items-center gap-2 rounded-lg border border-hairline-2 bg-background px-2 py-2 text-xs">
-                    <code className="min-w-0 flex-1 truncate text-ink-2">
-                      {opsUrl}
-                    </code>
-                    <button
-                      type="button"
-                      onClick={() => copy(opsUrl)}
-                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-secondary"
-                      aria-label="운영 링크 복사"
-                    >
-                      <Copy className="size-3.5" />
-                    </button>
-                    <a
-                      href={opsUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-secondary"
-                      aria-label="운영 링크 열기"
-                    >
-                      <ExternalLink className="size-3.5" />
-                    </a>
+                  <div className="p-2">
+                    <p className="text-ink-3">최종/보류</p>
+                    <p className="font-semibold">{event.finalistCount}</p>
                   </div>
                 </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+
+                <div className="grid gap-2 text-xs lg:grid-cols-3">
+                  <EventToolLink
+                    label="운영판"
+                    href={opsUrl}
+                    onCopy={() => copy(opsUrl)}
+                    icon={<ExternalLink className="size-3.5" />}
+                  />
+                  <EventToolLink
+                    label="번호표 라벨"
+                    href={labelsUrl}
+                    onCopy={() => copy(labelsUrl)}
+                    icon={<Printer className="size-3.5" />}
+                  />
+                  <EventToolLink
+                    label="QR 패스"
+                    href={passesUrl}
+                    onCopy={() => copy(passesUrl)}
+                    icon={<QrCode className="size-3.5" />}
+                  />
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

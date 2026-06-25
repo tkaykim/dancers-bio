@@ -323,7 +323,9 @@ export default async function ApplicantsPage({
   ).length;
   const { data: schedRows } = await supabase
     .from("project_schedules")
-    .select("id, label, starts_at, ends_at, location, time_tbd")
+    .select(
+      "id, label, starts_at, ends_at, location, time_tbd, status, project_event_id",
+    )
     .eq("project_id", p.id)
     .order("starts_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
@@ -334,6 +336,8 @@ export default async function ApplicantsPage({
     ends_at: string | null;
     location: string | null;
     time_tbd: boolean;
+    status: string;
+    project_event_id: string | null;
   }>;
   const respCounts: Record<
     string,
@@ -360,22 +364,6 @@ export default async function ApplicantsPage({
       else if (r.status === "unavailable") x.unavailable++;
     }
   }
-  const scheduleRows: ScheduleRow[] = schedList.map((s) => {
-    const c = respCounts[s.id] ?? {
-      available: 0,
-      partial: 0,
-      unavailable: 0,
-      responded: 0,
-    };
-    return {
-      id: s.id,
-      label: s.label,
-      whenText: formatWhen(s.starts_at, s.ends_at, s.time_tbd),
-      location: s.location ?? null,
-      ...c,
-    };
-  });
-
   const { data: eventRowsRaw } = await supabase
     .from("project_events")
     .select(
@@ -418,6 +406,41 @@ export default async function ApplicantsPage({
     };
     return { ...event, ...stats };
   });
+  const eventById = new Map(projectEvents.map((event) => [event.id, event]));
+
+  // 일정 → 연결된 운영보드 정보 병합 (있으면 출석/참가자 카운트 + ops_code).
+  const scheduleRows: ScheduleRow[] = schedList.map((s) => {
+    const c = respCounts[s.id] ?? {
+      available: 0,
+      partial: 0,
+      unavailable: 0,
+      responded: 0,
+    };
+    const board = s.project_event_id
+      ? eventById.get(s.project_event_id) ?? null
+      : null;
+    return {
+      id: s.id,
+      label: s.label,
+      whenText: formatWhen(s.starts_at, s.ends_at, s.time_tbd),
+      location: s.location ?? null,
+      status: s.status,
+      boardOpsCode: board?.ops_code ?? null,
+      boardParticipants: board?.participantCount ?? 0,
+      boardCheckedIn: board?.checkedInCount ?? 0,
+      ...c,
+    };
+  });
+
+  // 일정에 연결된 보드는 일정 카드에서 다루므로, 독립 보드만 ProjectEventsPanel로.
+  const linkedEventIds = new Set(
+    schedList
+      .map((s) => s.project_event_id)
+      .filter((id): id is string => !!id),
+  );
+  const standaloneEvents = projectEvents.filter(
+    (event) => !linkedEventIds.has(event.id),
+  );
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-8">
@@ -450,6 +473,8 @@ export default async function ApplicantsPage({
         surveyUrl={`https://deetz.kr/sr/${p.schedule_survey_code}`}
       />
 
+      <ProjectEventsPanel events={standaloneEvents} />
+
       <WithdrawalLinkPanel url={`https://deetz.kr/w/${p.settlement_share_code}`} />
 
       {/* 세팅·초대 도구: 접힘 (본업을 가리지 않도록 아래로) */}
@@ -471,7 +496,6 @@ export default async function ApplicantsPage({
             canEdit={true}
             channels={recruitmentChannels}
           />
-          <ProjectEventsPanel projectId={p.id} events={projectEvents} />
           {recommended.length > 0 ? (
             <RecommendedDancers projectId={p.id} dancers={recommended} />
           ) : null}
