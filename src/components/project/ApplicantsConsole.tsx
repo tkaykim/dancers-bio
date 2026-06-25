@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -102,6 +102,18 @@ export function ApplicantsConsole({
     }
     return { counts, none };
   }, [items]);
+
+  // 채널 필터 드롭다운: 지원 0건 채널은 숨김(선택 중인 채널은 유지), 지원 많은 순.
+  const channelOptions = useMemo(() => {
+    return channels
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        count: channelCounts.counts.get(c.id) ?? 0,
+      }))
+      .filter((c) => c.count > 0 || c.id === channelFilter)
+      .sort((a, b) => b.count - a.count);
+  }, [channels, channelCounts, channelFilter]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -270,7 +282,8 @@ export function ApplicantsConsole({
       <div className="flex items-baseline justify-between">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 지원자</p>
         <p className="text-sm text-ink-2">
-          총 {counts.total}명 · 수락 {counts.accepted} / {recruitmentCount}
+          전체 {counts.total} · 대기 {counts.pending} · 수락 {counts.accepted} /{" "}
+          {recruitmentCount}
         </p>
       </div>
 
@@ -313,90 +326,92 @@ export function ApplicantsConsole({
         </button>
       </div>
 
-      {channels.length > 0 || channelCounts.none > 0 ? (
-        <div className="flex flex-wrap gap-1">
-          <FilterChip
-            active={channelFilter === "all"}
-            onClick={() => setChannelFilter("all")}
-          >
-            전체 채널
-          </FilterChip>
-          {channels.map((channel) => (
-            <FilterChip
-              key={channel.id}
-              active={channelFilter === channel.id}
-              onClick={() =>
-                setChannelFilter(channelFilter === channel.id ? "all" : channel.id)
-              }
+      {/* 채널·장르 필터 (드롭다운 — 채널 0건 숨김, 칩 벽 제거) */}
+      {channels.length > 0 || channelCounts.none > 0 || allGenres.length > 0 ? (
+        <div className="flex gap-2">
+          {channels.length > 0 || channelCounts.none > 0 ? (
+            <select
+              value={channelFilter}
+              onChange={(e) => setChannelFilter(e.target.value)}
+              className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-2 text-xs text-ink-2"
+              aria-label="모집채널 필터"
             >
-              {channel.name} {channelCounts.counts.get(channel.id) ?? 0}
-            </FilterChip>
-          ))}
-          {channelCounts.none > 0 ? (
-            <FilterChip
-              active={channelFilter === "none"}
-              onClick={() =>
-                setChannelFilter(channelFilter === "none" ? "all" : "none")
-              }
+              <option value="all">전체 채널</option>
+              {channelOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.count})
+                </option>
+              ))}
+              {channelCounts.none > 0 ? (
+                <option value="none">채널 없음 ({channelCounts.none})</option>
+              ) : null}
+            </select>
+          ) : null}
+          {allGenres.length > 0 ? (
+            <select
+              value={genre ?? ""}
+              onChange={(e) => setGenre(e.target.value || null)}
+              className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-2 text-xs text-ink-2"
+              aria-label="장르 필터"
             >
-              채널 없음 {channelCounts.none}
-            </FilterChip>
+              <option value="">전체 장르</option>
+              {allGenres.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
           ) : null}
         </div>
       ) : null}
 
-      {/* 장르 필터 */}
-      {allGenres.length > 0 ? (
-        <div className="flex flex-wrap gap-1">
-          <FilterChip active={genre === null} onClick={() => setGenre(null)}>
-            전체 장르
-          </FilterChip>
-          {allGenres.map((g) => (
-            <FilterChip
-              key={g}
-              active={genre === g}
-              onClick={() => setGenre(genre === g ? null : g)}
-            >
-              {g}
-            </FilterChip>
-          ))}
-        </div>
-      ) : null}
-
-      {/* 일괄 선택 바 */}
+      {/* 일괄 선택 바 — 선택 시 강조 */}
       {canDecide ? (
-      <div className="flex items-center justify-between gap-2 text-xs">
-        <button
-          type="button"
-          onClick={selectAllVisible}
-          className="text-ink-3 hover:text-foreground"
+        <div
+          className={`flex items-center justify-between gap-2 text-xs ${
+            selected.size > 0
+              ? "rounded-xl border border-primary/30 bg-primary/5 px-3 py-2"
+              : ""
+          }`}
         >
-          {filtered.length > 0 && filtered.every((a) => selected.has(a.id))
-            ? "선택 해제"
-            : "보이는 항목 전체 선택"}
-        </button>
-        {selected.size > 0 ? (
-          <div className="flex items-center gap-2">
-            <span className="text-ink-2">선택 {selected.size}</span>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => bulk("rejected")}
-              className="rounded-full bg-destructive/10 px-3 py-1 font-semibold text-destructive disabled:opacity-50"
-            >
-              일괄 거절
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => bulk("pending")}
-              className="rounded-full bg-secondary px-3 py-1 font-medium text-ink-2 disabled:opacity-50"
-            >
-              대기로
-            </button>
-          </div>
-        ) : null}
-      </div>
+          <button
+            type="button"
+            onClick={selectAllVisible}
+            className="text-ink-3 hover:text-foreground"
+          >
+            {filtered.length > 0 && filtered.every((a) => selected.has(a.id))
+              ? "선택 해제"
+              : "보이는 항목 전체 선택"}
+          </button>
+          {selected.size > 0 ? (
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-ink-2">선택 {selected.size}</span>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => bulk("rejected")}
+                className="rounded-full bg-destructive/10 px-3 py-1 font-semibold text-destructive disabled:opacity-50"
+              >
+                일괄 거절
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => bulk("pending")}
+                className="rounded-full bg-secondary px-3 py-1 font-medium text-ink-2 disabled:opacity-50"
+              >
+                대기로
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelected(new Set())}
+                className="text-ink-3 hover:text-foreground"
+              >
+                해제
+              </button>
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       {/* 리스트 */}
@@ -553,29 +568,5 @@ export function ApplicantsConsole({
         }}
       />
     </div>
-  );
-}
-
-function FilterChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
-        active
-          ? "border-primary bg-primary/10 text-primary"
-          : "border-border text-ink-3 hover:bg-secondary"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
