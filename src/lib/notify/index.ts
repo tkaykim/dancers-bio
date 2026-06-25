@@ -15,7 +15,11 @@ export type NotificationType =
   | "creator_permission_granted"
   | "creator_permission_revoked"
   | "project_session_reminder"
-  | "settlement_withdrawal_requested";
+  | "settlement_withdrawal_requested"
+  | "announcement_posted"
+  | "settlement_confirmed"
+  | "settlement_paid"
+  | "settlement_info_required";
 
 type NotifyParams = {
   recipientId: string;

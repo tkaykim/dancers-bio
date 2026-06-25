@@ -16,7 +16,10 @@ type EventType =
   | "casting_proposal"
   | "schedule_request"
   | "schedule_change"
-  | "schedule_cancel";
+  | "schedule_cancel"
+  | "settlement_confirmed"
+  | "settlement_paid"
+  | "settlement_info_required";
 
 function templateIdFor(event: EventType): string | undefined {
   switch (event) {
@@ -32,6 +35,12 @@ function templateIdFor(event: EventType): string | undefined {
       return process.env.SOLAPI_TPL_SCHEDULE_CHANGE;
     case "schedule_cancel":
       return process.env.SOLAPI_TPL_SCHEDULE_CANCEL;
+    case "settlement_confirmed":
+      return process.env.SOLAPI_TPL_SETTLEMENT_CONFIRMED;
+    case "settlement_paid":
+      return process.env.SOLAPI_TPL_SETTLEMENT_PAID;
+    case "settlement_info_required":
+      return process.env.SOLAPI_TPL_SETTLEMENT_INFO;
   }
 }
 
@@ -265,6 +274,100 @@ export async function sendScheduleCancelAlimtalk(args: {
         프로젝트명: args.projectTitle,
         일정: args.scheduleText,
         토큰: args.token,
+      },
+    });
+  } catch {
+    /* 무시 */
+  }
+}
+
+// 정산 알림톡 안전 스위치: 기본 비활성화. 운영에서 SETTLEMENT_ALIMTALK_ENABLED=true 로 켠다.
+function settlementAlimtalkEnabled(): boolean {
+  return process.env.SETTLEMENT_ALIMTALK_ENABLED === "true";
+}
+
+/**
+ * ⑦ 정산완료(금액 확정) — 출금 신청 안내. refId = settlementId → 정산 1건당 1회.
+ */
+export async function sendSettlementConfirmedAlimtalk(args: {
+  dancerId: string;
+  settlementId: string;
+  projectTitle: string;
+  netText: string;
+}): Promise<void> {
+  try {
+    if (!settlementAlimtalkEnabled() || !alimtalkConfigured()) return;
+    const admin = createAdminClient();
+    const c = await getDancerContact(admin, args.dancerId);
+    if (!c?.phone) return;
+    await claimAndSend(admin, {
+      event: "settlement_confirmed",
+      dancerId: args.dancerId,
+      refId: args.settlementId,
+      phone: c.phone,
+      variables: {
+        이름: c.name,
+        프로젝트명: args.projectTitle,
+        금액: args.netText,
+      },
+    });
+  } catch {
+    /* 무시 */
+  }
+}
+
+/**
+ * ⑧ 입금완료 — 정산금 이체 완료 통지. refId = settlementId → 정산 1건당 1회.
+ */
+export async function sendSettlementPaidAlimtalk(args: {
+  dancerId: string;
+  settlementId: string;
+  projectTitle: string;
+  netText: string;
+}): Promise<void> {
+  try {
+    if (!settlementAlimtalkEnabled() || !alimtalkConfigured()) return;
+    const admin = createAdminClient();
+    const c = await getDancerContact(admin, args.dancerId);
+    if (!c?.phone) return;
+    await claimAndSend(admin, {
+      event: "settlement_paid",
+      dancerId: args.dancerId,
+      refId: args.settlementId,
+      phone: c.phone,
+      variables: {
+        이름: c.name,
+        프로젝트명: args.projectTitle,
+        금액: args.netText,
+      },
+    });
+  } catch {
+    /* 무시 */
+  }
+}
+
+/**
+ * ⑨ 정산정보 입력 요청 — 정산 대상이나 계좌·주민번호 미기입자에게 입력 독려.
+ * refId = settlementId → 정산 1건당 1회.
+ */
+export async function sendSettlementInfoRequiredAlimtalk(args: {
+  dancerId: string;
+  settlementId: string;
+  projectTitle: string;
+}): Promise<void> {
+  try {
+    if (!settlementAlimtalkEnabled() || !alimtalkConfigured()) return;
+    const admin = createAdminClient();
+    const c = await getDancerContact(admin, args.dancerId);
+    if (!c?.phone) return;
+    await claimAndSend(admin, {
+      event: "settlement_info_required",
+      dancerId: args.dancerId,
+      refId: args.settlementId,
+      phone: c.phone,
+      variables: {
+        이름: c.name,
+        프로젝트명: args.projectTitle,
       },
     });
   } catch {
