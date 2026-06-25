@@ -2,11 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/browser";
+import { requestRosterAccessAction } from "@/app/actions/roster-access";
 import { Input } from "@/components/ui/input";
 
 const PAGE_SIZE = 24;
+// 비로그인·로그인 모두 디렉토리 브라우즈는 이만큼까지만 — 그 이상은 '열람 요청'.
+const PUBLIC_BROWSE_CAP = 40;
 
 type Dancer = {
   id: string;
@@ -39,13 +44,18 @@ export function DirectoryClient({
   initialTab,
   totalDancers,
   totalTeams,
+  isLoggedIn,
 }: {
   initialDancers: Dancer[];
   initialTeams: Team[];
   initialTab: Tab;
   totalDancers: number;
   totalTeams: number;
+  isLoggedIn: boolean;
 }) {
+  const router = useRouter();
+  const [requesting, setRequesting] = useState(false);
+  const [requested, setRequested] = useState(false);
   const [tab, setTab] = useState<Tab>(initialTab);
   const [query, setQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
@@ -147,10 +157,36 @@ export function DirectoryClient({
     }
   }
 
+  async function handleRequestAccess() {
+    if (!isLoggedIn) {
+      router.push("/login?next=/dancers");
+      return;
+    }
+    if (requesting || requested) return;
+    setRequesting(true);
+    try {
+      const res = await requestRosterAccessAction();
+      if (res.ok) {
+        setRequested(true);
+        toast.success("열람 요청이 접수되었습니다. 검토 후 연락드리겠습니다.");
+      } else {
+        toast.error(res.error);
+      }
+    } finally {
+      setRequesting(false);
+    }
+  }
+
   const list = tab === "dancers" ? dancers : teams;
   const hasMore = tab === "dancers" ? dancerHasMore : teamHasMore;
   const total = tab === "dancers" ? totalDancers : totalTeams;
   const shown = list.length;
+  // 디렉토리(개인) 브라우즈가 공개 캡(40)에 도달했고, 더 있을 때 → '열람 요청' 전환.
+  const atDancerCap =
+    tab === "dancers" &&
+    !debouncedQ &&
+    dancers.length >= PUBLIC_BROWSE_CAP &&
+    totalDancers > PUBLIC_BROWSE_CAP;
 
   return (
     <div className="flex flex-col gap-6">
@@ -222,7 +258,32 @@ export function DirectoryClient({
         </ul>
       )}
 
-      {hasMore && list.length > 0 ? (
+      {atDancerCap ? (
+        <div className="mx-auto mt-2 flex max-w-md flex-col items-center gap-3 rounded-2xl border border-hairline-2 bg-card p-6 text-center">
+          <p className="text-sm font-semibold text-foreground">
+            더 많은 댄서 프로필이 필요하신가요?
+          </p>
+          <p className="text-xs leading-relaxed text-ink-3">
+            공개 디렉토리에는 {PUBLIC_BROWSE_CAP}명까지 표시됩니다.
+            <br />
+            전체 풀 열람이 필요하시면 요청해 주세요. 검토 후 안내드립니다.
+          </p>
+          <button
+            type="button"
+            onClick={handleRequestAccess}
+            disabled={requesting || requested}
+            className="rounded-full bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+          >
+            {requested
+              ? "요청 접수됨 ✓"
+              : requesting
+                ? "전송 중…"
+                : isLoggedIn
+                  ? "열람 요청하기"
+                  : "로그인하고 열람 요청"}
+          </button>
+        </div>
+      ) : hasMore && list.length > 0 ? (
         <button
           type="button"
           onClick={loadMore}

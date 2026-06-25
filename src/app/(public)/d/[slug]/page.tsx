@@ -78,6 +78,12 @@ function dancerDescription(dancer: DancerRow, careerCount?: number): string {
 
 async function loadDancer(slugOrId: string) {
   const supabase = await createClient();
+  // 1) 공개 경로: approved 댄서는 SECURITY DEFINER RPC 로 조회한다.
+  //    (anon 은 dancers 테이블 직접 SELECT 가 RLS 로 막혀 있으므로 RPC 가 유일한 공개 통로)
+  const { data: pub } = await supabase.rpc("get_public_dancer", { _key: slugOrId });
+  if (Array.isArray(pub) && pub.length > 0) return pub[0] as DancerRow;
+  // 2) 미승인 프로필 미리보기: 본인·매니저·admin 만 (RLS 가 판정).
+  //    로그인 세션의 authenticated 역할로 직접 조회 — 비로그인/타인은 RLS 로 0건 → notFound.
   const query = UUID_RE.test(slugOrId)
     ? supabase.from("dancers").select("*").eq("id", slugOrId).maybeSingle()
     : supabase.from("dancers").select("*").eq("slug", slugOrId).maybeSingle();
