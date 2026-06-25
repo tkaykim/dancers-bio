@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { isProjectOwnerOrAdmin, requireUser } from "@/lib/auth/guard";
+import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionResult } from "./auth";
 
@@ -31,7 +31,7 @@ async function resolveEventProject(
   );
 }
 
-// 현장 스태프 관리 권한 = 소유자·슈퍼관리자만 (콘솔 PII 접근 부여라 보수적으로).
+// 현장 스태프 관리 권한 = 프로젝트 관리권한(소유자·슈퍼관리자·매니저).
 async function authorizeStaffManage(
   admin: AdminClient,
   eventId: string,
@@ -41,9 +41,38 @@ async function authorizeStaffManage(
 > {
   const ev = await resolveEventProject(admin, eventId);
   if (!ev) return { ok: false, error: "운영일정을 찾을 수 없습니다." };
-  if (!(await isProjectOwnerOrAdmin(ev.project_id)))
+  if (!(await canManageProject(ev.project_id)))
     return { ok: false, error: "현장 스태프를 관리할 권한이 없습니다." };
   return { ok: true, event: ev };
+}
+
+export type OpsStaffCandidate = {
+  id: string;
+  display_name: string;
+  avatar_url: string | null;
+  instagram_handle: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
+// 현장 스태프로 등록할 "기존 가입 계정" 검색 (이름·전화·이메일·인스타). 관리권한자만.
+export async function searchOpsStaffCandidatesAction(
+  query: string,
+  eventId: string,
+): Promise<ActionResult<OpsStaffCandidate[]>> {
+  await requireUser();
+  const admin = createAdminClient();
+  const auth = await authorizeStaffManage(admin, eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const term = (query ?? "").trim();
+  if (term.length < 1) return { ok: true, data: [] };
+  const safe = term.replace(/[%_,]/g, "");
+  if (!safe) return { ok: true, data: [] };
+  const { data, error } = await admin.rpc("admin_search_ops_staff_candidates", {
+    p_term: safe,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: (data ?? []) as unknown as OpsStaffCandidate[] };
 }
 
 // 현장 스태프 등록 (기본 무기한).
@@ -56,6 +85,7 @@ export async function addEventStaffAction(
   const role = ((formData.get("role") ?? "").toString().trim() || "staff").slice(0, 40);
   const expiresAt = toExpiry((formData.get("expires_at") ?? "").toString());
   if (!eventId || !profileId) return { ok: false, error: "잘못된 요청입니다." };
+  if (!expiresAt) return { ok: false, error: "권한 만료일을 지정해 주세요." };
 
   const admin = createAdminClient();
   const auth = await authorizeStaffManage(admin, eventId);
