@@ -23,6 +23,7 @@ export default async function AdminAnalyticsPage() {
     { data: projRows },
     { data: actSummary },
     { data: dauRows },
+    { data: mauRows },
   ] = await Promise.all([
     supabase.from("profiles").select("id, created_at"),
     supabase
@@ -33,6 +34,7 @@ export default async function AdminAnalyticsPage() {
     supabase.from("projects").select("status").is("deleted_at", null),
     supabase.rpc("admin_activity_summary"),
     supabase.rpc("admin_dau_series", { _days: 60 }),
+    supabase.rpc("admin_mau_monthly", { _months: 12 }),
   ]);
 
   const num = (v: string | null) => (v ? new Date(v).getTime() : NaN);
@@ -85,6 +87,10 @@ export default async function AdminAnalyticsPage() {
       label: r.day.slice(5).replace("-", "/"),
       value: r.dau,
     })),
+    mauSeries: ((mauRows ?? []) as { month: string; mau: number }[]).map((r) => {
+      const [y, m] = r.month.split("-");
+      return { label: `${y.slice(2)}.${Number(m)}`, value: r.mau };
+    }),
   };
 
   return (
