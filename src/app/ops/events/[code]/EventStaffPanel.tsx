@@ -3,13 +3,11 @@
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  searchManagerCandidatesAction,
-  type ManagerCandidate,
-} from "@/app/actions/project-managers";
-import {
   addEventStaffAction,
   removeEventStaffAction,
+  searchOpsStaffCandidatesAction,
   updateEventStaffAction,
+  type OpsStaffCandidate,
 } from "@/app/actions/event-staff";
 
 export type EventStaffMember = {
@@ -39,21 +37,22 @@ function isExpired(iso: string | null): boolean {
 
 export function EventStaffPanel({
   eventId,
-  projectId,
+  opsCode,
   staff,
 }: {
   eventId: string;
-  projectId: string;
+  opsCode: string;
   staff: EventStaffMember[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<ManagerCandidate[]>([]);
+  const [results, setResults] = useState<OpsStaffCandidate[]>([]);
   const [searching, startSearch] = useTransition();
+  const [addExpiry, setAddExpiry] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // 행별 만료일 입력 로컬값.
+  const [copied, setCopied] = useState(false);
   const [expiryDraft, setExpiryDraft] = useState<Record<string, string>>({});
 
   const existingIds = new Set(staff.map((s) => s.profile_id));
@@ -66,20 +65,32 @@ export function EventStaffPanel({
         return;
       }
       startSearch(async () => {
-        const r = await searchManagerCandidatesAction(q.trim(), projectId);
+        const r = await searchOpsStaffCandidatesAction(q.trim(), eventId);
         if (r.ok && r.data) setResults(r.data);
         else if (!r.ok) setError(r.error);
       });
     },
-    [projectId],
+    [eventId],
   );
 
+  function copyLink() {
+    const url = `${window.location.origin}/ops/events/${opsCode}`;
+    void navigator.clipboard?.writeText(url);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  }
+
   function add(profileId: string) {
+    if (!addExpiry) {
+      setError("권한 만료일을 먼저 선택해 주세요.");
+      return;
+    }
     setError(null);
     setBusyId(profileId);
     const fd = new FormData();
     fd.set("event_id", eventId);
     fd.set("profile_id", profileId);
+    fd.set("expires_at", addExpiry);
     addEventStaffAction(fd).then((r) => {
       setBusyId(null);
       if (!r.ok) {
@@ -93,12 +104,17 @@ export function EventStaffPanel({
   }
 
   function saveExpiry(member: EventStaffMember) {
+    const next = expiryDraft[member.id] ?? toDateInput(member.expires_at);
+    if (!next) {
+      setError("만료일을 선택해 주세요.");
+      return;
+    }
     setError(null);
     setBusyId(member.id);
     const fd = new FormData();
     fd.set("staff_id", member.id);
     fd.set("event_id", eventId);
-    fd.set("expires_at", expiryDraft[member.id] ?? toDateInput(member.expires_at));
+    fd.set("expires_at", next);
     updateEventStaffAction(fd).then((r) => {
       setBusyId(null);
       if (!r.ok) {
@@ -128,23 +144,36 @@ export function EventStaffPanel({
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
           ↳ 현장 스태프 ({staff.length})
         </p>
-        {!open ? (
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setOpen(true)}
-            className="rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
+            onClick={copyLink}
+            className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold text-ink-2 hover:bg-secondary/40"
           >
-            + 추가
+            {copied ? "링크 복사됨 ✓" : "운영보드 링크 복사"}
           </button>
-        ) : null}
+          {!open ? (
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
+            >
+              + 추가
+            </button>
+          ) : null}
+        </div>
       </div>
-      <p className="text-[11px] leading-relaxed text-ink-3">
-        등록된 스태프는 로그인하면 이 운영 콘솔에 접근할 수 있습니다. 만료일을 지정하면 그
-        날까지만 접근됩니다 (비우면 무기한).
+
+      <p className="rounded-lg bg-secondary/30 px-3 py-2 text-[11px] leading-relaxed text-ink-3">
+        등록한 분께 위 <b>운영보드 링크</b>를 SNS·이메일로 전달하세요. 받은 분이 본인
+        deetz 계정으로 로그인하면 바로 이 운영 콘솔에 접속됩니다.
+        <br />
+        (deetz 계정이 없으면 먼저 가입이 필요합니다. 지정한 만료일이 지나면 접근이
+        자동으로 차단됩니다.)
       </p>
 
       {staff.length > 0 ? (
@@ -178,6 +207,7 @@ export function EventStaffPanel({
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-[10px] text-ink-3">만료</span>
                   <input
                     type="date"
                     value={draft}
@@ -213,9 +243,9 @@ export function EventStaffPanel({
       )}
 
       {open ? (
-        <div className="flex flex-col gap-2 border-t border-hairline-2 pt-3">
+        <div className="flex flex-col gap-3 border-t border-hairline-2 pt-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold">계정 검색해서 추가</p>
+            <p className="text-sm font-semibold">계정 검색해서 등록</p>
             <button
               type="button"
               onClick={() => {
@@ -229,18 +259,33 @@ export function EventStaffPanel({
               닫기
             </button>
           </div>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold text-ink-2">
+              권한 만료일 <span className="text-destructive">*</span> (등록 시 필수)
+            </span>
+            <input
+              type="date"
+              value={addExpiry}
+              onChange={(e) => setAddExpiry(e.target.value)}
+              className="h-10 rounded-lg border border-border bg-background px-3 text-sm"
+            />
+          </label>
+
           <input
             type="text"
             value={query}
             onChange={(e) => search(e.target.value)}
-            placeholder="이름 · 이메일 · 인스타 핸들로 검색..."
-            autoFocus
+            placeholder="이름 · 전화번호 · 이메일로 검색..."
             className="h-10 rounded-lg border border-border bg-background px-3 text-sm placeholder:text-ink-3"
           />
+
           {searching ? (
             <p className="py-3 text-center text-xs text-ink-3">검색 중...</p>
           ) : results.length === 0 && query.trim().length > 0 ? (
-            <p className="py-3 text-center text-xs text-ink-3">결과가 없습니다.</p>
+            <p className="py-3 text-center text-xs text-ink-3">
+              일치하는 계정이 없습니다. (상대가 먼저 deetz 가입을 해야 검색됩니다.)
+            </p>
           ) : results.length > 0 ? (
             <ul className="flex max-h-[300px] flex-col gap-1 overflow-y-auto">
               {results.map((c) => {
@@ -257,20 +302,21 @@ export function EventStaffPanel({
                       <p className="truncate text-sm font-medium">
                         {c.display_name}
                       </p>
-                      {c.email ? (
-                        <p className="truncate text-[11px] text-ink-3">{c.email}</p>
-                      ) : null}
+                      <p className="truncate text-[11px] text-ink-3">
+                        {[c.email, c.phone].filter(Boolean).join(" · ") || "—"}
+                      </p>
                     </div>
                     {already ? (
                       <span className="shrink-0 text-[11px] text-ink-3">등록됨</span>
                     ) : (
                       <button
                         type="button"
-                        disabled={busyId === c.id}
+                        disabled={busyId === c.id || !addExpiry}
+                        title={!addExpiry ? "만료일을 먼저 선택하세요" : undefined}
                         onClick={() => add(c.id)}
-                        className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground disabled:opacity-50"
+                        className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground disabled:opacity-40"
                       >
-                        {busyId === c.id ? "..." : "추가"}
+                        {busyId === c.id ? "..." : "등록"}
                       </button>
                     )}
                   </li>

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isProjectOwnerOrAdmin } from "@/lib/auth/guard";
+import { canManageProject } from "@/lib/auth/guard";
 import { requireEventOpsAccess } from "@/lib/ops/event-access";
 import {
   EventOpsClient,
@@ -185,8 +185,8 @@ export default async function ProjectEventOpsPage({
     };
   });
 
-  // 현장 스태프 관리 패널은 소유자·슈퍼관리자에게만 노출.
-  const canManageStaff = await isProjectOwnerOrAdmin(event.project_id);
+  // 현장 스태프 관리 패널 = 프로젝트 관리권한자(소유자·admin·매니저)에게 노출.
+  const canManageStaff = await canManageProject(event.project_id);
   let staffMembers: EventStaffMember[] = [];
   if (canManageStaff) {
     const { data: staffRows } = await admin
@@ -243,7 +243,7 @@ export default async function ProjectEventOpsPage({
         <div className="mx-auto w-full max-w-[1100px] px-4 pt-4">
           <EventStaffPanel
             eventId={event.id}
-            projectId={event.project_id}
+            opsCode={event.ops_code}
             staff={staffMembers}
           />
         </div>
