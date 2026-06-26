@@ -20,10 +20,9 @@ export function ShareButton({
   const [copied, setCopied] = useState(false);
 
   async function handleShare() {
-    const url =
-      typeof window !== "undefined"
-        ? `${window.location.origin}/projects/${shortCode}`
-        : `/projects/${shortCode}`;
+    // 공유 링크는 현재 접속 도메인(미리보기 vercel.app 등)과 무관하게
+    // 항상 공식 도메인(deetz.kr)으로 만든다.
+    const url = `https://deetz.kr/projects/${shortCode}`;
 
     // 1) 네이티브 공유시트 (모바일·PWA). 사용자가 취소하면 조용히 종료.
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {

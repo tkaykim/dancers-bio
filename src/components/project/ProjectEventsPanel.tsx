@@ -64,8 +64,7 @@ function formatEventWhen(startsAt: string | null, endsAt: string | null): string
 export function ProjectEventsPanel({ events }: { events: ProjectEventRow[] }) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
-  const origin =
-    typeof window === "undefined" ? "https://deetz.kr" : window.location.origin;
+  const origin = "https://deetz.kr";
 
   function seedParticipants(eventId: string) {
     setBusyId(eventId);

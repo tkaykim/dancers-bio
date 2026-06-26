@@ -90,7 +90,7 @@ export async function forgotPasswordAction(
   }
   const supabase = await createClient();
   const origin =
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://dancers-bio-lite.vercel.app";
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://deetz.kr";
   await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${origin}/reset-password`,
   });

@@ -83,8 +83,7 @@ export function RecruitmentChannelsPanel({
   const [searching, startSearch] = useTransition();
   const [creating, startCreate] = useTransition();
 
-  const origin =
-    typeof window === "undefined" ? "https://deetz.kr" : window.location.origin;
+  const origin = "https://deetz.kr";
   const activeChannels = channels.filter((ch) => ch.status !== "archived");
   const archivedCount = channels.length - activeChannels.length;
   const openedChannel = channels.find((ch) => ch.id === memberChannelId) ?? null;

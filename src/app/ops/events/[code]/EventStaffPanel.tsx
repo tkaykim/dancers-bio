@@ -125,7 +125,7 @@ export function EventStaffPanel({
   );
 
   function copyLink() {
-    const url = `${window.location.origin}/ops/events/${opsCode}`;
+    const url = `https://deetz.kr/ops/events/${opsCode}`;
     void navigator.clipboard?.writeText(url);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1500);

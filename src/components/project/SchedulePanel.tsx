@@ -68,8 +68,7 @@ export function SchedulePanel({
   const [responders, setResponders] = useState<
     Record<string, { name: string; status: string; note: string | null }[]>
   >({});
-  const origin =
-    typeof window === "undefined" ? "https://deetz.kr" : window.location.origin;
+  const origin = "https://deetz.kr";
 
   function setStatus(scheduleId: string, status: string) {
     const fd = new FormData();
