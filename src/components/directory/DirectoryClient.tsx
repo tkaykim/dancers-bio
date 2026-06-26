@@ -23,6 +23,7 @@ type Dancer = {
   genres: string[] | null;
   specialties: string[] | null;
   profile_id: string | null;
+  is_verified: boolean | null;
 };
 
 type Team = {
@@ -239,7 +240,7 @@ export function DirectoryClient({
                     sub={d.korean_name}
                     tags={d.genres}
                     img={d.profile_img}
-                    badge={d.profile_id ? null : "큐레이션"}
+                    badge={!d.profile_id && !d.is_verified ? "큐레이션" : null}
                   />
                 </li>
               ))

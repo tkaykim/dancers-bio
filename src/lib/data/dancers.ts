@@ -10,6 +10,7 @@ export type DancerListItem = {
   genres: string[] | null;
   specialties: string[] | null;
   profile_id: string | null;
+  is_verified: boolean | null;
 };
 
 export const DANCER_PAGE_SIZE = 12;
@@ -36,7 +37,7 @@ export async function fetchDancerPage({
   let query = supabase
     .from("dancers")
     .select(
-      "id, stage_name, korean_name, slug, profile_img, location, genres, specialties, profile_id",
+      "id, stage_name, korean_name, slug, profile_img, location, genres, specialties, profile_id, is_verified",
     )
     .eq("approval_status", "approved")
     .order("display_order", { ascending: false, nullsFirst: false })

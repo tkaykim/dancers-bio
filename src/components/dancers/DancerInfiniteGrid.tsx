@@ -154,11 +154,11 @@ export function DancerInfiniteGrid({
                   </p>
                 ) : null}
               </div>
-              {d.profile_id ? null : (
+              {!d.profile_id && !d.is_verified ? (
                 <span className="absolute right-2 top-2 rounded-full bg-card/80 px-2 py-0.5 text-[10px] text-ink-3 backdrop-blur">
                   큐레이션
                 </span>
-              )}
+              ) : null}
             </Link>
           </li>
         ))}
