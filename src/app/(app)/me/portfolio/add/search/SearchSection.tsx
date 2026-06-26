@@ -80,6 +80,7 @@ export function SearchSection({
         .is("profile_id", null)
         .eq("approval_status", "approved")
         .eq("is_active", true)
+        .or("is_verified.eq.false,is_verified.is.null")
         .order("stage_name", { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1);
       if (q) {

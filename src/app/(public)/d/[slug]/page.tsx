@@ -154,7 +154,7 @@ export default async function PublicDancerPage({
   ]);
 
   // claim 상태
-  const isCuration = !dancer.profile_id;
+  const isCuration = !dancer.profile_id && !dancer.is_verified;
   const isOwner = Boolean(viewer && dancer.profile_id === viewer.id);
 
   // 수정 권한: 에디터(/me/portfolio/[dancerId]) 가드와 동일 — owner / manager / admin.

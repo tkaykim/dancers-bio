@@ -34,6 +34,7 @@ export default async function AddDancerSearchPage({
       .is("profile_id", null)
       .eq("approval_status", "approved")
       .eq("is_active", true)
+      .or("is_verified.eq.false,is_verified.is.null")
       .order("stage_name", { ascending: true })
       .range(0, PAGE_SIZE - 1),
     supabase
@@ -41,7 +42,8 @@ export default async function AddDancerSearchPage({
       .select("id", { count: "exact", head: true })
       .is("profile_id", null)
       .eq("approval_status", "approved")
-      .eq("is_active", true),
+      .eq("is_active", true)
+      .or("is_verified.eq.false,is_verified.is.null"),
   ]);
 
   return (

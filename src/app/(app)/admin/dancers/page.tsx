@@ -15,6 +15,7 @@ type DancerRow = {
   slug: string | null;
   profile_img: string | null;
   location: string | null;
+  is_verified: boolean | null;
   approval_status: Status;
   approval_reject_reason: string | null;
   display_order: number | null;
@@ -54,7 +55,7 @@ export default async function AdminDancersPage({
 
   const supabase = await createClient();
   const cols =
-    "id, profile_id, stage_name, korean_name, slug, profile_img, location, approval_status, approval_reject_reason, display_order, approved_at, approved_by, created_at";
+    "id, profile_id, stage_name, korean_name, slug, profile_img, location, is_verified, approval_status, approval_reject_reason, display_order, approved_at, approved_by, created_at";
 
   // ⚠️ 과거 버그: 단일 쿼리 + `.limit(500)` + approval_status 오름차순 정렬이라
   // approved 가 앞을 다 채우면 대기(pending) 큐가 통째로 잘려 안 보였다.
@@ -316,7 +317,8 @@ function DancerCard({
                 ) : null}
               </p>
               <p className="truncate text-[11px] text-ink-3">
-                {owner?.display_name ?? (row.profile_id ? "(unknown)" : "큐레이션")}
+                {owner?.display_name ??
+                  (row.profile_id ? "(unknown)" : row.is_verified ? "검증됨" : "큐레이션")}
                 {row.location ? ` · ${row.location}` : ""}
               </p>
               <p className="mt-1 text-[11px] text-ink-3">
