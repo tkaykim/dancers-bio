@@ -88,6 +88,8 @@ export async function createAnnouncementAction(
 
   if (!projectId || !body)
     return { ok: false, error: "공지 내용을 입력해 주세요." };
+  if (!title)
+    return { ok: false, error: "공지 제목을 입력해 주세요." };
   if (audiences.length === 0)
     return { ok: false, error: "열람 대상을 한 개 이상 선택해 주세요." };
   if (!(await canManageProject(projectId)))
