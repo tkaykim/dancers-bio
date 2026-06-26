@@ -89,6 +89,10 @@ export function AnnouncementsPanel({
   }
 
   function submit() {
+    if (!title.trim()) {
+      toast.error("공지 제목을 입력해 주세요.");
+      return;
+    }
     if (!body.trim()) {
       toast.error("공지 내용을 입력해 주세요.");
       return;
@@ -193,7 +197,7 @@ export function AnnouncementsPanel({
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="제목 (선택)"
+            placeholder="제목"
             className="h-10 rounded-lg border border-border bg-background px-3 text-sm"
           />
           <textarea
