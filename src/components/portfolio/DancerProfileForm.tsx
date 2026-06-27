@@ -8,6 +8,10 @@ import { checkSlugAvailability } from "@/app/actions/slug";
 import { uploadAvatarFromBrowser } from "@/lib/storage/upload-client";
 import { slugify } from "@/lib/utils/slug";
 import { AvatarUpload } from "@/components/portfolio/AvatarUpload";
+import {
+  NationalityVisaFields,
+  type NationalityVisaValue,
+} from "@/components/portfolio/NationalityVisaFields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +34,7 @@ type Props = {
     social_tiktok: string;
     height_cm: string;
     shoe_size_mm: string;
+    nationalityVisa: Partial<NationalityVisaValue>;
   };
   isCreate: boolean;
 };
@@ -293,6 +298,20 @@ export function DancerProfileForm({
           />
         </div>
       </Field>
+
+      <fieldset className="flex flex-col gap-3 rounded-md border border-input p-4">
+        <legend className="px-1 text-sm font-medium">국적 · 비자</legend>
+        <p className="text-xs text-ink-3">
+          국적·비자 정보는 본인과 관리자에게만 보입니다. 외국 국적이면 체류 자격을 함께 입력해 주세요.
+        </p>
+        <NationalityVisaFields
+          defaultValue={defaultValues.nationalityVisa}
+          onChange={() => {
+            if (!dirty) setDirty(true);
+            if (message?.kind === "ok") setMessage(null);
+          }}
+        />
+      </fieldset>
       <Field
         label="특기 (쉼표로 구분)"
         htmlFor="specialties"

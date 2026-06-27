@@ -12,6 +12,11 @@ import {
   type SocialHandles,
 } from "@/components/portfolio/SocialLinksInput";
 import { PriorityMultiSelect } from "@/components/ui/priority-multi-select";
+import {
+  NationalityVisaFields,
+  buildNationalityVisaValue,
+  type NationalityVisaValue,
+} from "@/components/portfolio/NationalityVisaFields";
 import { cn } from "@/lib/utils";
 
 const TOTAL_STEPS = 6;
@@ -64,6 +69,7 @@ type FormState = {
   social: SocialHandles;
   profile_img: File | null;
   pendingCareers: PendingCareer[];
+  nationalityVisa: NationalityVisaValue;
 };
 
 const initialState: FormState = {
@@ -79,6 +85,7 @@ const initialState: FormState = {
   social: {},
   profile_img: null,
   pendingCareers: [],
+  nationalityVisa: buildNationalityVisaValue(),
 };
 
 type CreateProfileWizardProps = {
@@ -136,6 +143,20 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
       if (data.bio) fd.set("bio", data.bio);
       if (data.height_cm) fd.set("height_cm", data.height_cm);
       if (data.shoe_size_mm) fd.set("shoe_size_mm", data.shoe_size_mm);
+      // 국적·비자 (대한민국 기본). 외국 국적이면 비자 정보 동반.
+      const nv = data.nationalityVisa;
+      fd.set("nationality_code", nv.nationality_code);
+      fd.set("nationality", nv.nationality);
+      fd.set("is_korean_national", nv.is_korean_national ? "true" : "false");
+      if (!nv.is_korean_national) {
+        if (nv.has_visa != null) fd.set("has_visa", nv.has_visa ? "true" : "false");
+        if (nv.has_visa === true) {
+          if (nv.visa_type) fd.set("visa_type", nv.visa_type);
+          if (nv.visa_type === "OTHER" && nv.visa_type_other)
+            fd.set("visa_type_other", nv.visa_type_other);
+          if (nv.visa_expiry) fd.set("visa_expiry", nv.visa_expiry);
+        }
+      }
       data.specialties.forEach((s) => fd.append("specialties", s));
       data.genres.forEach((g) => fd.append("genres", g));
       if (data.social.instagram)
@@ -195,7 +216,12 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
   };
 
   const isLast = step === TOTAL_STEPS;
-  const cannotProceed = step === 1 && !data.stage_name.trim();
+  // 외국 국적이면 비자 유무는 응답해야 다음 단계로.
+  const foreignVisaUnanswered =
+    !data.nationalityVisa.is_korean_national &&
+    data.nationalityVisa.has_visa == null;
+  const cannotProceed =
+    step === 1 && (!data.stage_name.trim() || foreignVisaUnanswered);
 
   return (
     <div className="min-h-screen pb-32">
@@ -410,6 +436,14 @@ function StepBasic({
           <p className="mt-1.5 text-xs text-ink-3">
             입력하면 캐스팅 매칭·섭외 확률이 올라가요. 키 등 신체정보는 본인과 관리자에게만 보입니다.
           </p>
+        </Field>
+
+        <Field label="국적 · 비자">
+          <NationalityVisaFields
+            defaultValue={data.nationalityVisa}
+            emitHiddenInputs={false}
+            onChange={(nationalityVisa) => setData({ ...data, nationalityVisa })}
+          />
         </Field>
       </div>
     </div>

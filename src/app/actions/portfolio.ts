@@ -137,16 +137,13 @@ function numInRange(formData: FormData, key: string, min: number, max: number): 
   return n;
 }
 
-// dancer_private_info의 선택 측정값(키·신발) 저장. 본인은 RLS로 쓰기 가능.
-// 입력된 값만 갱신(미입력 필드는 기존 값 유지). 둘 다 없으면 아무것도 안 함. 비치명적.
-async function savePrivateMeasurements(
+// dancer_private_info upsert — 주어진 patch만 반영(없는 키는 기존 값 유지). 비치명적.
+// 본인/관리자는 RLS로 쓰기 가능.
+async function upsertPrivateInfo(
   supabase: Awaited<ReturnType<typeof createClient>>,
   dancerId: string,
-  m: { height_cm: number | null; shoe_size_mm: number | null },
+  patch: Record<string, unknown>,
 ): Promise<void> {
-  const patch: Record<string, number> = {};
-  if (m.height_cm != null) patch.height_cm = m.height_cm;
-  if (m.shoe_size_mm != null) patch.shoe_size_mm = m.shoe_size_mm;
   if (Object.keys(patch).length === 0) return;
   try {
     const { data: existing } = await supabase
@@ -165,7 +162,7 @@ async function savePrivateMeasurements(
         .insert({ dancer_id: dancerId, ...patch });
     }
   } catch (e) {
-    console.error("[savePrivateMeasurements] 실패:", e);
+    console.error("[upsertPrivateInfo] 실패:", e);
   }
 }
 
@@ -174,6 +171,47 @@ function measurementsFromForm(formData: FormData) {
     height_cm: numInRange(formData, "height_cm", 100, 250),
     shoe_size_mm: numInRange(formData, "shoe_size_mm", 180, 330),
   };
+}
+
+// 국적·비자 — 폼에 nationality_code가 있을 때만 반영.
+// 한국 국적이면 비자 필드는 null로 정리. 외국인+비자있음일 때만 종류·만료 저장.
+function nationalityVisaPatchFromForm(formData: FormData): Record<string, unknown> {
+  const code = strOrNull(formData, "nationality_code");
+  if (!code) return {};
+  const isKorean = (formData.get("is_korean_national") ?? "").toString() === "true";
+  const hasVisaRaw = (formData.get("has_visa") ?? "").toString();
+  const hasVisa = hasVisaRaw === "true" ? true : hasVisaRaw === "false" ? false : null;
+  const visaType = isKorean ? null : strOrNull(formData, "visa_type");
+  const visaTypeOther =
+    visaType === "OTHER" ? strOrNull(formData, "visa_type_other") : null;
+  const expiry = strOrNull(formData, "visa_expiry");
+  const visaExpiry =
+    !isKorean && hasVisa === true && expiry && /^\d{4}-\d{2}-\d{2}$/.test(expiry)
+      ? expiry
+      : null;
+  return {
+    nationality_code: code,
+    nationality: strOrNull(formData, "nationality"),
+    is_korean_national: isKorean,
+    has_visa: isKorean ? null : hasVisa,
+    visa_type: visaType,
+    visa_type_other: visaTypeOther,
+    visa_expiry: visaExpiry,
+  };
+}
+
+// 측정값(키·신발) + 국적·비자를 한 번에 upsert.
+async function savePrivateInfoFromForm(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  dancerId: string,
+  formData: FormData,
+): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  const m = measurementsFromForm(formData);
+  if (m.height_cm != null) patch.height_cm = m.height_cm;
+  if (m.shoe_size_mm != null) patch.shoe_size_mm = m.shoe_size_mm;
+  Object.assign(patch, nationalityVisaPatchFromForm(formData));
+  await upsertPrivateInfo(supabase, dancerId, patch);
 }
 
 function buildSocialLinks(parsed: { social_instagram?: string | null; social_youtube?: string | null; social_tiktok?: string | null }) {
@@ -305,7 +343,7 @@ export async function upsertDancerProfileAction(
     }
   }
 
-  await savePrivateMeasurements(supabase, dancerId, measurementsFromForm(formData));
+  await savePrivateInfoFromForm(supabase, dancerId, formData);
 
   revalidatePath("/me/portfolio");
   revalidatePath(`/me/portfolio/${dancerId}`);
@@ -399,7 +437,7 @@ export async function createDancerProfileAction(
   }
   const dancerId = inserted.id as string;
 
-  await savePrivateMeasurements(supabase, dancerId, measurementsFromForm(formData));
+  await savePrivateInfoFromForm(supabase, dancerId, formData);
 
   // 매니저 플로우: 본인을 dancer_managers에 자가 삽입
   if (role === "manager") {

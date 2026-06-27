@@ -25,10 +25,12 @@ export default async function MyPortfolioEditPage({
 
   if (!dancer) notFound();
 
-  // 키·신발 사이즈(민감정보) — 본인/관리자만 RLS로 조회됨.
+  // 키·신발 사이즈 + 국적·비자(민감정보) — 본인/관리자만 RLS로 조회됨.
   const { data: priv } = await supabase
     .from("dancer_private_info")
-    .select("height_cm, shoe_size_mm")
+    .select(
+      "height_cm, shoe_size_mm, nationality_code, nationality, is_korean_national, has_visa, visa_type, visa_type_other, visa_expiry",
+    )
     .eq("dancer_id", dancer.id)
     .maybeSingle();
 
@@ -98,6 +100,16 @@ export default async function MyPortfolioEditPage({
           social_tiktok: extractSocialHandle(social.tiktok),
           height_cm: priv?.height_cm != null ? String(priv.height_cm) : "",
           shoe_size_mm: priv?.shoe_size_mm != null ? String(priv.shoe_size_mm) : "",
+          nationalityVisa: {
+            nationality_code: (priv?.nationality_code as string | null) ?? undefined,
+            nationality: (priv?.nationality as string | null) ?? undefined,
+            is_korean_national:
+              (priv?.is_korean_national as boolean | null) ?? undefined,
+            has_visa: (priv?.has_visa as boolean | null) ?? undefined,
+            visa_type: (priv?.visa_type as string | null) ?? undefined,
+            visa_type_other: (priv?.visa_type_other as string | null) ?? undefined,
+            visa_expiry: (priv?.visa_expiry as string | null) ?? undefined,
+          },
         }}
       />
 
