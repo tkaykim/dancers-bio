@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyHeightToken } from "@/lib/quick-token";
 import { QuickHeightForm } from "@/components/portfolio/QuickHeightForm";
@@ -31,9 +32,7 @@ export default async function QuickHeightPage({
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 px-6 py-10">
       <div className="flex flex-col gap-2">
-        <div className="text-2xl font-extrabold tracking-tight">
-          deetz<span className="text-primary">.</span>
-        </div>
+        <DeetzLogo className="h-8 w-auto" priority />
         <h1 className="text-xl font-bold leading-tight">
           {name}님, 키만 빠르게 입력해 주세요
         </h1>

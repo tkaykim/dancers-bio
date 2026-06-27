@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { requireProfile } from "@/lib/auth/guard";
 import { AdminSidebarNav, AdminTopNav } from "@/components/admin/AdminNav";
 
@@ -15,10 +16,8 @@ export default async function AdminLayout({
     <div className="min-h-svh bg-background lg:flex">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-svh w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-border px-4 py-6 lg:flex">
-        <Link href="/feed" className="flex items-baseline gap-1.5 px-3">
-          <span className="text-xl font-extrabold tracking-tight leading-none">
-            deetz
-          </span>
+        <Link href="/feed" className="flex items-center gap-2 px-3">
+          <DeetzLogo className="h-6 w-auto" priority />
           <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
           <span className="ml-1 text-[11px] font-medium text-ink-3">admin</span>
         </Link>
@@ -34,10 +33,8 @@ export default async function AdminLayout({
       {/* Mobile top bar */}
       <header className="sticky top-0 z-20 border-b border-border bg-background/95 pt-3 backdrop-blur-xl lg:hidden">
         <div className="flex items-center justify-between px-4 pb-2">
-          <Link href="/feed" className="flex items-baseline gap-1.5">
-            <span className="text-lg font-extrabold tracking-tight leading-none">
-              deetz
-            </span>
+          <Link href="/feed" className="flex items-center gap-2">
+            <DeetzLogo className="h-5 w-auto" priority />
             <span className="text-[11px] font-medium text-ink-3">admin</span>
           </Link>
           <Link href="/me" className="text-xs text-ink-3 hover:text-foreground">

@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, BriefcaseBusiness, CircleCheck, MessageCircle, Search, Sparkles, UserRoundCheck } from "lucide-react";
+import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { Button } from "@/components/ui/button";
+import { BottomTabBar } from "@/components/layout/BottomTabBar";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
@@ -168,8 +170,8 @@ export default async function HomePage() {
       <section className="mx-auto grid min-h-svh max-w-6xl grid-cols-1 gap-10 px-5 pb-10 pt-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:px-8">
         <div className="flex flex-col justify-between gap-12">
           <nav className="flex items-center justify-between gap-4">
-            <Link href="/" className="text-2xl font-extrabold tracking-normal">
-              deetz.
+            <Link href="/" className="inline-flex items-center">
+              <DeetzLogo className="h-8 w-auto" priority />
             </Link>
             <div className="flex items-center gap-2">
               <Link href="/dancers">
@@ -340,7 +342,7 @@ export default async function HomePage() {
       </section>
 
       <section className="border-t border-[#ddd6c7] bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-16 lg:px-8">
+        <div className="mx-auto max-w-6xl px-5 pb-28 pt-16 lg:px-8 lg:pb-16">
           <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#81796a]">
             <MessageCircle className="h-4 w-4" aria-hidden />
             Contact
@@ -386,6 +388,8 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <BottomTabBar />
     </main>
   );
 }

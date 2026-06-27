@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OnboardingLoginModal } from "@/components/auth/OnboardingLoginModal";
 
@@ -61,11 +62,8 @@ export default async function WelcomePage({
 
   return (
     <div className="mx-auto w-full max-w-md px-6 pb-28 pt-12">
-      <Link href="/" className="mb-7 flex items-baseline gap-1.5">
-        <span className="text-2xl font-extrabold tracking-tight leading-none">
-          deetz
-        </span>
-        <span className="h-2 w-2 rounded-full bg-primary" aria-hidden />
+      <Link href="/" className="mb-7 inline-flex">
+        <DeetzLogo className="h-8 w-auto" priority />
       </Link>
 
       <p className="text-xs font-semibold uppercase tracking-wider text-primary">

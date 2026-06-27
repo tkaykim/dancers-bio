@@ -1,14 +1,12 @@
 import Link from "next/link";
+import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { SignupForm } from "@/components/auth/SignupForm";
 
 export default function SignupPage() {
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-8 px-6 pb-10 pt-12">
-      <Link href="/" className="flex items-baseline gap-1.5 self-start">
-        <span className="text-2xl font-extrabold tracking-tight leading-none">
-          deetz
-        </span>
-        <span className="h-2 w-2 rounded-full bg-primary" aria-hidden />
+      <Link href="/" className="inline-flex self-start">
+        <DeetzLogo className="h-8 w-auto" priority />
       </Link>
 
       <div className="flex flex-col gap-2">

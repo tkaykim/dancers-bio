@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { DeetzLogo } from "@/components/brand/DeetzLogo";
 
 type NavLink = {
   href: string;
@@ -43,8 +44,8 @@ export function TopNav() {
   return (
     <header className="sticky top-0 z-30 hidden border-b border-hairline-2 bg-background/90 backdrop-blur-xl lg:block">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-8">
-        <Link href="/" className="text-xl font-extrabold tracking-tight">
-          deetz.
+        <Link href="/" className="inline-flex items-center">
+          <DeetzLogo className="h-7 w-auto" priority />
         </Link>
         <nav aria-label="Primary" className="flex items-center gap-1 text-sm">
           {links.map((l) => {

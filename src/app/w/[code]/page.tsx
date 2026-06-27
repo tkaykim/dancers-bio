@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { type ReactNode } from "react";
 import { notFound } from "next/navigation";
+import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { getUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveDancerIdForUserInProject } from "@/lib/schedule/resolve";
@@ -22,9 +23,7 @@ function Shell({
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-6 py-10">
       <div className="flex flex-col gap-2">
-        <div className="text-2xl font-extrabold tracking-tight">
-          deetz<span className="text-primary">.</span>
-        </div>
+        <DeetzLogo className="h-8 w-auto" priority />
         <h1 className="text-xl font-bold leading-tight">정산 · 출금 신청</h1>
         <p className="text-sm text-ink-2">{projectTitle}</p>
       </div>
