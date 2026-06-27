@@ -174,7 +174,7 @@ export default async function ApplicantsPage({
       .limit(1)
       .maybeSingle();
     if (cb) {
-      const [{ count }, { data: sendRows }] = await Promise.all([
+      const [{ count }, { data: sendRows }, { data: commentRows }] = await Promise.all([
         supabase
           .from("casting_board_members")
           .select("id", { count: "exact", head: true })
@@ -185,6 +185,12 @@ export default async function ApplicantsPage({
           .eq("board_id", cb.id as string)
           .order("sent_at", { ascending: false })
           .limit(10),
+        supabase
+          .from("casting_board_comments")
+          .select("id, author_name, body, is_read, created_at")
+          .eq("board_id", cb.id as string)
+          .order("created_at", { ascending: false })
+          .limit(50),
       ]);
       castingBoard = {
         id: cb.id as string,
@@ -199,6 +205,19 @@ export default async function ApplicantsPage({
           email: s.recipient_email,
           name: s.recipient_name,
           sentAt: s.sent_at,
+        })),
+        comments: ((commentRows ?? []) as Array<{
+          id: string;
+          author_name: string | null;
+          body: string;
+          is_read: boolean;
+          created_at: string;
+        }>).map((c) => ({
+          id: c.id,
+          authorName: c.author_name,
+          body: c.body,
+          isRead: c.is_read,
+          createdAt: c.created_at,
         })),
       };
     }

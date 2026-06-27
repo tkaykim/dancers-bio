@@ -1,5 +1,6 @@
 import type { BoardView } from "@/lib/casting/board-data";
 import { CardSection } from "@/components/casting/CardSection";
+import { CommentDock } from "@/components/casting/CommentDock";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 
 export function CastingBoardView({ board }: { board: BoardView }) {
@@ -37,6 +38,15 @@ export function CastingBoardView({ board }: { board: BoardView }) {
         </div>
       </header>
 
+      {board.note ? (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5 text-sm leading-relaxed text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+            참고사항
+          </p>
+          <p className="whitespace-pre-wrap">{board.note}</p>
+        </div>
+      ) : null}
+
       {counts.total === 0 ? (
         <p className="mt-10 text-center text-sm text-ink-3">표시할 인원이 없습니다.</p>
       ) : (
@@ -51,6 +61,8 @@ export function CastingBoardView({ board }: { board: BoardView }) {
       <footer className="mt-10 border-t border-border pt-4 text-[10px] text-ink-3">
         deetz · deetz.kr · 본 자료는 캐스팅 검토용이며 외부 유출을 금합니다.
       </footer>
+
+      <CommentDock shareCode={board.shareCode} />
     </div>
   );
 }
