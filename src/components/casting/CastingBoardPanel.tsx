@@ -11,6 +11,7 @@ import {
   sendCastingBoardEmailAction,
 } from "@/app/actions/project-casting";
 import { markCastingCommentReadAction } from "@/app/actions/casting-comments";
+import { AutoTextarea } from "@/components/casting/AutoTextarea";
 
 type Settings = {
   genderPriority?: "male" | "female" | null;
@@ -286,16 +287,15 @@ export function CastingBoardPanel({
               ) : (
                 notes.map((n, i) => (
                   <div key={i} className="flex items-start gap-1.5">
-                    <textarea
+                    <AutoTextarea
                       value={n}
                       onChange={(e) =>
                         setNotes((prev) =>
                           prev.map((v, j) => (j === i ? e.target.value : v)),
                         )
                       }
-                      rows={2}
                       placeholder={`공지 ${i + 1}`}
-                      className="flex-1 resize-none rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+                      className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs"
                     />
                     <button
                       type="button"

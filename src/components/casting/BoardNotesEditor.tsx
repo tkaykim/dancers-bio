@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Pencil } from "lucide-react";
+import { AutoTextarea } from "@/components/casting/AutoTextarea";
 import { updateCastingBoardNotesAction } from "@/app/actions/project-casting";
 
 // 공개 보드(/cast)에서 관리자/매니저에게만 보이는 인라인 공지 편집기.
@@ -92,14 +93,13 @@ export function BoardNotesEditor({
         ) : (
           notes.map((n, i) => (
             <div key={i} className="flex items-start gap-1.5">
-              <textarea
+              <AutoTextarea
                 value={n}
                 onChange={(e) =>
                   setNotes((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))
                 }
-                rows={2}
                 placeholder={`공지 ${i + 1}`}
-                className="flex-1 resize-none rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
               />
               <button
                 type="button"
