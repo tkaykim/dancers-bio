@@ -40,7 +40,7 @@ export default async function MePage() {
   const shareTitle = `${profile.display_name ?? "댄서"} | 댄서 프로필 · dancers.bio`;
 
   return (
-    <div className="flex flex-col gap-6 px-6 pb-10 pt-8">
+    <div className="flex flex-col gap-6 px-6 pb-10 pt-8 lg:max-w-2xl">
       <ProfileCard
         userId={user.id}
         displayName={profile.display_name ?? ""}
