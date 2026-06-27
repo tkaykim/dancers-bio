@@ -21,7 +21,8 @@ export type NotificationType =
   | "settlement_paid"
   | "settlement_info_required"
   | "ops_access_requested"
-  | "ops_access_granted";
+  | "ops_access_granted"
+  | "project_posted_match";
 
 type NotifyParams = {
   recipientId: string;

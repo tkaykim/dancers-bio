@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { sendProjectMatchNotifications } from "@/lib/notify/project-match";
 import {
   canManageProject,
   isProjectOwnerOrAdmin,
@@ -116,6 +118,13 @@ export async function createProjectAction(
     sort_order: 0,
     created_by: creator.id,
   });
+
+  // 공개로 바로 게시되는 공고면, 핏 맞는(장르 일치) 댄서에게 매칭 알림(인앱+웹푸시).
+  // 응답을 막지 않도록 after()로 응답 후 비동기 실행. 멱등 로그로 중복발송 방지.
+  if (parsed.data.publish_now && parsed.data.visibility === "public") {
+    const newProjectId = project.id as string;
+    after(() => sendProjectMatchNotifications(newProjectId));
+  }
 
   // 일정 (project_schedules) — 비치명적. 모든 일정이 가능여부 조사 대상.
   const schedCount = Number(formData.get("schedules_count") ?? 0);
