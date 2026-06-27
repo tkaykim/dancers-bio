@@ -68,7 +68,11 @@ function Card({ c, fields }: { c: BoardCard; fields: BoardView["settings"]["fiel
   );
 }
 
-// 카드 섹션: 처음엔 3줄(열수×3)만, '더보기'로 전체. 열수는 너비로 계산.
+// 처음 노출 줄 수 + '더보기' 한 번에 추가로 펼치는 줄 수.
+const INITIAL_ROWS = 3;
+const STEP_ROWS = 3;
+
+// 카드 섹션: 처음엔 3줄(열수×3)만, '더보기'를 누를 때마다 3줄씩 추가. 열수는 너비로 계산.
 export function CardSection({
   label,
   cards,
@@ -79,7 +83,7 @@ export function CardSection({
   fields: BoardView["settings"]["fields"];
 }) {
   const [cols, setCols] = useState(5);
-  const [expanded, setExpanded] = useState(false);
+  const [rows, setRows] = useState(INITIAL_ROWS);
 
   useEffect(() => {
     const calc = () => {
@@ -93,9 +97,11 @@ export function CardSection({
 
   if (cards.length === 0) return null;
 
-  const limit = cols * 3;
-  const shown = expanded ? cards : cards.slice(0, limit);
-  const hidden = cards.length - limit;
+  const limit = cols * rows;
+  const shown = cards.slice(0, limit);
+  const remaining = cards.length - limit; // 남은(아직 안 보이는) 인원
+  const nextBatch = Math.min(remaining, cols * STEP_ROWS);
+  const canCollapse = remaining <= 0 && rows > INITIAL_ROWS;
 
   return (
     <section className="mt-7">
@@ -107,14 +113,18 @@ export function CardSection({
           <Card key={c.dancerId} c={c} fields={fields} />
         ))}
       </div>
-      {hidden > 0 ? (
+      {remaining > 0 || canCollapse ? (
         <div className="mt-3 text-center">
           <button
             type="button"
-            onClick={() => setExpanded((v) => !v)}
+            onClick={() =>
+              remaining > 0
+                ? setRows((r) => r + STEP_ROWS)
+                : setRows(INITIAL_ROWS)
+            }
             className="rounded-full border border-border bg-card px-5 py-2 text-xs font-semibold text-ink-1 hover:bg-secondary"
           >
-            {expanded ? "접기" : `더보기 (+${hidden}명)`}
+            {remaining > 0 ? `더보기 (+${nextBatch}명 · 남은 ${remaining}명)` : "접기"}
           </button>
         </div>
       ) : null}
