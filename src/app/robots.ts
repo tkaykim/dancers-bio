@@ -13,6 +13,7 @@ const DISALLOW = [
   "/applications",
   "/ops",
   "/channels",
+  "/cast", // 클라이언트 캐스팅 보드 공유 링크 — 검색 비노출
 ];
 
 export default function robots(): MetadataRoute.Robots {
