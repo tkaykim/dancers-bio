@@ -30,8 +30,9 @@ export type BoardView = {
   title: string | null;
   shareCode: string;
   settings: BoardSettings;
-  cards: BoardCard[];
-  counts: { total: number; male: number; female: number };
+  cards: BoardCard[]; // 사진 있는 인원 (카드)
+  listOnly: BoardCard[]; // 사진 없는 인원 (간략 리스트)
+  counts: { total: number; male: number; female: number; withPhoto: number };
 };
 
 function instaUrl(v: string | null | undefined): string | null {
@@ -59,32 +60,37 @@ export async function getCastingBoardByCode(
 
   const { data: members } = await admin
     .from("casting_board_members")
-    .select("dancer_id, sort_order")
+    .select("dancer_id, sort_order, display_name, korean_name, gender, height_cm")
     .eq("board_id", board.id)
     .order("sort_order", { ascending: true });
-  const ids = (members ?? []).map((m) => m.dancer_id as string);
-  if (ids.length === 0)
-    return {
-      id: board.id as string,
-      projectId: board.project_id as string,
-      title: (board.title as string) ?? null,
-      shareCode: board.share_code as string,
-      settings,
-      cards: [],
-      counts: { total: 0, male: 0, female: 0 },
-    };
 
-  const [{ data: dancers }, { data: priv }, { data: careers }] = await Promise.all([
-    admin.from("dancers").select("id, stage_name, korean_name, gender, slug, profile_img, social_links").in("id", ids),
-    admin.from("dancer_private_info").select("dancer_id, height_cm").in("dancer_id", ids),
-    admin.from("careers").select("dancer_id, title, is_representative, sort_order, date, is_public").in("dancer_id", ids),
-  ]);
+  const meta = {
+    id: board.id as string,
+    projectId: board.project_id as string,
+    title: (board.title as string) ?? null,
+    shareCode: board.share_code as string,
+    settings,
+  };
+  if (!members || members.length === 0)
+    return { ...meta, cards: [], listOnly: [], counts: { total: 0, male: 0, female: 0, withPhoto: 0 } };
+
+  const deetzIds = (members as Array<{ dancer_id: string | null }>)
+    .map((m) => m.dancer_id)
+    .filter((v): v is string => !!v);
+
+  const [{ data: dancers }, { data: priv }, { data: careers }] =
+    deetzIds.length
+      ? await Promise.all([
+          admin.from("dancers").select("id, stage_name, korean_name, gender, slug, profile_img, social_links").in("id", deetzIds),
+          admin.from("dancer_private_info").select("dancer_id, height_cm").in("dancer_id", deetzIds),
+          admin.from("careers").select("dancer_id, title, is_representative, sort_order, date, is_public").in("dancer_id", deetzIds),
+        ])
+      : [{ data: [] }, { data: [] }, { data: [] }];
 
   const heightOf = new Map<string, number | null>();
   for (const p of (priv ?? []) as Array<{ dancer_id: string; height_cm: number | null }>)
     heightOf.set(p.dancer_id, p.height_cm);
 
-  // 댄서별 대표경력 1개 (대표 우선 → sort_order → 최신).
   const careerOf = new Map<string, string>();
   const cRows = ((careers ?? []) as Array<{
     dancer_id: string; title: string | null; is_representative: boolean | null;
@@ -97,59 +103,82 @@ export async function getCastingBoardByCode(
   );
   for (const c of cRows) if (!careerOf.has(c.dancer_id)) careerOf.set(c.dancer_id, c.title as string);
 
-  const byId = new Map<string, BoardCard>();
+  const liveById = new Map<string, {
+    stage_name: string | null; korean_name: string | null; gender: string | null;
+    slug: string | null; profile_img: string | null; social_links: { instagram?: string } | null;
+  }>();
   for (const d of (dancers ?? []) as Array<{
-    id: string; stage_name: string | null; korean_name: string | null;
-    gender: string | null; slug: string | null; profile_img: string | null;
-    social_links: { instagram?: string } | null;
-  }>) {
-    byId.set(d.id, {
-      dancerId: d.id,
-      name: d.stage_name || d.korean_name || "(이름 없음)",
-      koreanName: d.korean_name,
-      gender: d.gender,
-      height: heightOf.get(d.id) ?? null,
-      photo: d.profile_img && d.profile_img.trim() ? d.profile_img : null,
-      instagram: instaUrl(d.social_links?.instagram ?? null),
-      career: careerOf.get(d.id) ?? null,
-      slug: d.slug,
-    });
-  }
+    id: string; stage_name: string | null; korean_name: string | null; gender: string | null;
+    slug: string | null; profile_img: string | null; social_links: { instagram?: string } | null;
+  }>) liveById.set(d.id, d);
 
-  // 멤버 순서(sort_order) 유지하며 카드화
-  let cards = ids.map((id) => byId.get(id)).filter((c): c is BoardCard => !!c);
+  // 멤버 → 카드(라이브 우선, 없으면 스냅샷)
+  const entries: BoardCard[] = (members as Array<{
+    dancer_id: string | null; display_name: string | null; korean_name: string | null;
+    gender: string | null; height_cm: number | null;
+  }>).map((m) => {
+    const live = m.dancer_id ? liveById.get(m.dancer_id) : undefined;
+    if (live) {
+      return {
+        dancerId: m.dancer_id as string,
+        name: live.stage_name || live.korean_name || m.display_name || "(이름 없음)",
+        koreanName: live.korean_name ?? m.korean_name,
+        gender: live.gender ?? m.gender,
+        height: heightOf.get(m.dancer_id as string) ?? m.height_cm ?? null,
+        photo: live.profile_img && live.profile_img.trim() ? live.profile_img : null,
+        instagram: instaUrl(live.social_links?.instagram ?? null),
+        career: careerOf.get(m.dancer_id as string) ?? null,
+        slug: live.slug,
+      };
+    }
+    // 외부(비-deetz) 스냅샷
+    return {
+      dancerId: m.dancer_id ?? `ext-${m.display_name ?? Math.random()}`,
+      name: m.display_name || "(이름 없음)",
+      koreanName: m.korean_name,
+      gender: m.gender,
+      height: m.height_cm ?? null,
+      photo: null,
+      instagram: null,
+      career: null,
+      slug: null,
+    };
+  });
 
-  // 필터: 사진 필수
-  if (settings.requirePhoto !== false) cards = cards.filter((c) => c.photo);
+  // 성별·키 필터(드롭). 사진 유무는 카드/리스트 분리에만 사용(드롭 안 함).
+  let filtered = entries;
   if (settings.genders && settings.genders.length)
-    cards = cards.filter((c) => c.gender && settings.genders!.includes(c.gender));
+    filtered = filtered.filter((c) => c.gender && settings.genders!.includes(c.gender));
   if (settings.minHeight != null)
-    cards = cards.filter((c) => (c.height ?? 0) >= settings.minHeight!);
+    filtered = filtered.filter((c) => (c.height ?? 0) >= settings.minHeight! || c.gender === "male");
 
-  // 정렬: 성별 우선 → 키 내림차순
   const gp = settings.genderPriority;
-  cards.sort((a, b) => {
+  const byGenderThenHeight = (a: BoardCard, b: BoardCard) => {
     if (gp) {
       const ap = a.gender === gp ? 0 : 1;
       const bp = b.gender === gp ? 0 : 1;
       if (ap !== bp) return ap - bp;
     }
     return (b.height ?? -1) - (a.height ?? -1);
+  };
+
+  const cards = filtered.filter((c) => c.photo).sort(byGenderThenHeight);
+  const listOnly = filtered.filter((c) => !c.photo).sort((a, b) => {
+    if (gp) {
+      const ap = a.gender === gp ? 0 : 1;
+      const bp = b.gender === gp ? 0 : 1;
+      if (ap !== bp) return ap - bp;
+    }
+    return (a.name || "").localeCompare(b.name || "");
   });
 
+  const all = [...cards, ...listOnly];
   const counts = {
-    total: cards.length,
-    male: cards.filter((c) => c.gender === "male").length,
-    female: cards.filter((c) => c.gender === "female").length,
+    total: all.length,
+    male: all.filter((c) => c.gender === "male").length,
+    female: all.filter((c) => c.gender === "female").length,
+    withPhoto: cards.length,
   };
 
-  return {
-    id: board.id as string,
-    projectId: board.project_id as string,
-    title: (board.title as string) ?? null,
-    shareCode: board.share_code as string,
-    settings,
-    cards,
-    counts,
-  };
+  return { ...meta, cards, listOnly, counts };
 }
