@@ -26,7 +26,7 @@ export default async function ProjectEditPage({
     .select(
       `id, short_code, owner_id, title, description, visibility, status, category, genre_id,
        region_text, pay_amount, pay_type, recruitment_count,
-       application_deadline, posted_by_label`,
+       application_deadline, collect_applicant_fee, posted_by_label`,
     )
     .is("deleted_at", null);
 
@@ -62,6 +62,7 @@ export default async function ProjectEditPage({
     recruitment_count: project.recruitment_count as number,
     application_deadline:
       (project.application_deadline as string | null) ?? null,
+    collect_applicant_fee: Boolean(project.collect_applicant_fee),
     posted_by_label: (project.posted_by_label as string | null) ?? null,
   };
 

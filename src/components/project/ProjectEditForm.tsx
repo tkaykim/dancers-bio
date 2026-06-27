@@ -29,6 +29,7 @@ export type ProjectEditInitial = {
   pay_type: "per_session" | "total" | "negotiable" | null;
   recruitment_count: number;
   application_deadline: string | null;
+  collect_applicant_fee: boolean;
   posted_by_label: string | null;
 };
 
@@ -56,6 +57,7 @@ export function ProjectEditForm({
   const [category, setCategory] = useState<ProjectCategory | "">(
     initial.category ?? "",
   );
+  const [collectFee, setCollectFee] = useState(initial.collect_applicant_fee);
 
   function onPayChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/[^\d]/g, "");
@@ -191,6 +193,24 @@ export function ProjectEditForm({
           </select>
         </div>
       </div>
+
+      <label className="flex flex-col gap-1 rounded-xl border border-border p-4">
+        <span className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            name="collect_applicant_fee"
+            checked={collectFee}
+            onChange={(e) => setCollectFee(e.target.checked)}
+            className="h-4 w-4"
+          />
+          지원자에게 단가(견적) 제출 받기
+        </span>
+        <span className="ml-6 text-xs text-muted-foreground">
+          {collectFee
+            ? "지원 시 댄서가 본인 단가를 적어 제출합니다. 잘 모르면 '협의 희망'으로도 낼 수 있어요. 단가는 운영자만 봅니다."
+            : "켜면 위 고정 페이 대신, 지원자가 각자 단가를 불러서 제출하는 공고가 됩니다."}
+        </span>
+      </label>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">

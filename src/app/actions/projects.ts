@@ -51,6 +51,9 @@ export async function createProjectAction(
     is_standing_pool:
       formData.get("is_standing_pool") === "on" ||
       formData.get("is_standing_pool") === "true",
+    collect_applicant_fee:
+      formData.get("collect_applicant_fee") === "on" ||
+      formData.get("collect_applicant_fee") === "true",
     posted_by_label: strOrNull(formData, "posted_by_label"),
   });
   if (!parsed.success) {
@@ -87,6 +90,7 @@ export async function createProjectAction(
       allow_team_apply: false,
       application_deadline: applicationDeadline,
       is_standing_pool: isStandingPool,
+      collect_applicant_fee: parsed.data.collect_applicant_fee,
       posted_by_label: parsed.data.posted_by_label ?? null,
     })
     .select("id, short_code")
@@ -257,6 +261,9 @@ export async function updateProjectAction(
     application_deadline: localDateTimeToIso(
       strOrNull(formData, "application_deadline"),
     ),
+    collect_applicant_fee:
+      formData.get("collect_applicant_fee") === "on" ||
+      formData.get("collect_applicant_fee") === "true",
     posted_by_label: strOrNull(formData, "posted_by_label"),
     status: strOrNull(formData, "status") ?? undefined,
   });
@@ -295,6 +302,7 @@ export async function updateProjectAction(
     pay_type: parsed.data.pay_type ?? null,
     recruitment_count: parsed.data.recruitment_count,
     application_deadline: parsed.data.application_deadline ?? null,
+    collect_applicant_fee: parsed.data.collect_applicant_fee,
     posted_by_label: parsed.data.posted_by_label ?? null,
   };
   if (parsed.data.status) updatePayload.status = parsed.data.status;
