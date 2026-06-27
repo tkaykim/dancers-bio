@@ -10,11 +10,13 @@ import {
   syncCastingBoardMembersAction,
   sendCastingBoardEmailAction,
 } from "@/app/actions/project-casting";
+import { markCastingCommentReadAction } from "@/app/actions/casting-comments";
 
 type Settings = {
   genderPriority?: "male" | "female" | null;
   requirePhoto?: boolean;
   minHeight?: number | null;
+  note?: string | null;
 };
 
 export type CastingBoardSend = {
@@ -23,12 +25,21 @@ export type CastingBoardSend = {
   sentAt: string;
 };
 
+export type CastingBoardComment = {
+  id: string;
+  authorName: string | null;
+  body: string;
+  isRead: boolean;
+  createdAt: string;
+};
+
 export type CastingBoardInfo = {
   id: string;
   shareCode: string;
   settings: Settings;
   memberCount: number;
   sends: CastingBoardSend[];
+  comments: CastingBoardComment[];
 };
 
 export function CastingBoardPanel({
@@ -52,8 +63,10 @@ export function CastingBoardPanel({
   const [minHeight, setMinHeight] = useState<string>(
     board?.settings.minHeight != null ? String(board.settings.minHeight) : "",
   );
+  const [note, setNote] = useState<string>(board?.settings.note ?? "");
 
   const shareUrl = board ? `https://deetz.kr/cast/${board.shareCode}` : "";
+  const unreadCount = board?.comments.filter((c) => !c.isRead).length ?? 0;
 
   function create() {
     const fd = new FormData();
@@ -81,6 +94,7 @@ export function CastingBoardPanel({
         genderPriority: gp ?? null,
         requirePhoto,
         minHeight: minHeight.trim() ? Number(minHeight) : null,
+        note: note.trim() || null,
         sortBy: "height",
       }),
     );
@@ -107,6 +121,22 @@ export function CastingBoardPanel({
         return;
       }
       toast.success(`합격자 ${r.data?.count ?? 0}명과 동기화했습니다`);
+      router.refresh();
+    });
+  }
+
+  function toggleRead(commentId: string, isRead: boolean) {
+    if (!board) return;
+    const fd = new FormData();
+    fd.set("project_id", projectId);
+    fd.set("comment_id", commentId);
+    fd.set("is_read", String(isRead));
+    start(async () => {
+      const r = await markCastingCommentReadAction(fd);
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
       router.refresh();
     });
   }
@@ -239,6 +269,18 @@ export function CastingBoardPanel({
                 className="h-7 w-24 rounded-md border border-border bg-background px-2 text-xs"
               />
             </label>
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] text-ink-3">
+                참고사항 / 공지 (클라이언트 화면 헤더 아래 표시)
+              </span>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={3}
+                placeholder="예) 남자 비율 요청 주셔서 100명 초과 모집했습니다. 바라클라바 착용 시 키 큰 여성도 덩치·팔 길이가 잘 나올 여지가 있어 함께 전달드립니다."
+                className="resize-none rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+              />
+            </div>
             <button
               type="button"
               disabled={busy}
@@ -247,6 +289,57 @@ export function CastingBoardPanel({
             >
               설정 저장
             </button>
+          </div>
+
+          {/* 클라이언트 코멘트 */}
+          <div className="flex flex-col gap-2 rounded-xl border border-hairline-2 p-3">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold text-ink-2">
+              클라이언트 코멘트
+              {unreadCount > 0 ? (
+                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
+                  새 {unreadCount}
+                </span>
+              ) : null}
+            </p>
+            {board.comments.length === 0 ? (
+              <p className="text-[11px] text-ink-3">아직 받은 코멘트가 없습니다.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {board.comments.map((c) => (
+                  <li
+                    key={c.id}
+                    className={`rounded-lg border p-2.5 text-[12px] ${
+                      c.isRead
+                        ? "border-hairline-2 bg-secondary/30"
+                        : "border-primary/30 bg-primary/5"
+                    }`}
+                  >
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="font-semibold text-ink-2">
+                        {c.authorName || "익명"}
+                      </span>
+                      <span className="shrink-0 text-[10px] text-ink-3">
+                        {new Date(c.createdAt).toLocaleString("ko-KR", {
+                          month: "numeric",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                    <p className="whitespace-pre-wrap text-ink-2">{c.body}</p>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => toggleRead(c.id, !c.isRead)}
+                      className="mt-1.5 text-[10px] font-medium text-ink-3 underline-offset-2 hover:underline disabled:opacity-50"
+                    >
+                      {c.isRead ? "안읽음으로 표시" : "읽음으로 표시"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {/* 클라이언트에게 메일 발송 */}
