@@ -62,7 +62,7 @@ export default async function CareersPage({
   }));
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-8">
+    <div className="mx-auto flex max-w-md flex-col lg:max-w-2xl gap-8 px-6 py-8">
       <header className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">

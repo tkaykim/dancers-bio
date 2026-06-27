@@ -32,7 +32,7 @@ export default async function EditTeamPage({
   const publicHref = `/t/${team.slug ?? team.id}`;
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-8 pb-40">
+    <div className="mx-auto flex max-w-md flex-col lg:max-w-2xl gap-8 px-6 py-8 pb-40">
       <header className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 팀 편집</p>

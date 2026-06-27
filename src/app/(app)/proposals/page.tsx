@@ -103,7 +103,7 @@ export default async function ProposalsPage() {
   const resolved = proposals.filter((p) => p.status !== "pending");
 
   return (
-    <div className="mx-auto w-full max-w-md px-5 py-8">
+    <div className="mx-auto w-full max-w-md lg:max-w-2xl px-5 py-8">
       <h1 className="text-2xl font-bold tracking-tight">받은 제안</h1>
       <p className="mt-1 text-sm text-ink-3">
         나에게 도착한 캐스팅 제안을 확인하고 응답하세요.

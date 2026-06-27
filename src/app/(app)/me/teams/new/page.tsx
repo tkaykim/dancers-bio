@@ -21,7 +21,7 @@ export default async function NewTeamPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-8 px-6 py-8 pb-40">
+    <div className="mx-auto flex max-w-md flex-col lg:max-w-2xl gap-8 px-6 py-8 pb-40">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 팀 만들기</p>
         <h1 className="text-2xl font-bold tracking-tight">새 팀 프로필</h1>

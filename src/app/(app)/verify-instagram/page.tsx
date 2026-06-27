@@ -66,7 +66,7 @@ export default async function VerifyInstagramPage({
   const recentReject = (pending ?? []).find((v) => v.status === "rejected");
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
+    <div className="mx-auto flex max-w-md flex-col lg:max-w-2xl gap-6 px-6 py-8">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
           ↳ 본인인증

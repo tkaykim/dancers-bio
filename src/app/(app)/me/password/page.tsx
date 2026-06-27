@@ -6,7 +6,7 @@ export default async function ChangePasswordPage() {
   await requireUser();
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
+    <div className="mx-auto flex max-w-md flex-col lg:max-w-2xl gap-6 px-6 py-8">
       <Link
         href="/me"
         className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
