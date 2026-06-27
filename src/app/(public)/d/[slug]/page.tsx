@@ -8,6 +8,8 @@ import { CAREER_CATEGORY_LABELS } from "@/lib/validation/portfolio";
 import { VideoThumbnail } from "@/components/portfolio/VideoEmbed";
 import { CareerGroup } from "@/components/portfolio/CareerGroup";
 import { ProfileFooterCTA } from "@/components/portfolio/ProfileFooterCTA";
+import { ShareLinkButton } from "@/components/share/ShareLinkButton";
+import { ProfileShareCard } from "@/components/share/ProfileShareCard";
 import { BackButton } from "@/components/ui/back-button";
 // parseVideoUrl is now used inside CareerGroup's dialog
 import { SendProposalDialog } from "@/components/project/SendProposalDialog";
@@ -286,19 +288,26 @@ export default async function PublicDancerPage({
           <path d="M12 19l-7-7 7-7" />
         </svg>
       </BackButton>
-      {/* Edit button (top-right, over hero) — owner/manager/admin only */}
-      {canEdit ? (
-        <Link
-          href={editHref}
-          aria-label="프로필 수정"
-          className="absolute right-4 top-4 z-40 flex h-10 items-center gap-1.5 rounded-full bg-background/70 px-4 text-sm font-semibold text-foreground backdrop-blur hover:bg-background/90"
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-          </svg>
-          수정
-        </Link>
-      ) : null}
+      {/* Top-right actions (over hero) — 공유는 모두에게, 수정은 owner/manager/admin */}
+      <div className="absolute right-4 top-4 z-40 flex items-center gap-2">
+        <ShareLinkButton
+          url={canonicalUrl}
+          title={`${dancerDisplayName(dancer)} | 댄서 프로필`}
+          variant="icon"
+        />
+        {canEdit ? (
+          <Link
+            href={editHref}
+            aria-label="프로필 수정"
+            className="flex h-10 items-center gap-1.5 rounded-full bg-background/70 px-4 text-sm font-semibold text-foreground backdrop-blur hover:bg-background/90"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+            </svg>
+            수정
+          </Link>
+        ) : null}
+      </div>
       {/* Hero */}
       <div className="relative h-[420px] overflow-hidden">
         {dancer.profile_img ? (
@@ -563,6 +572,16 @@ export default async function PublicDancerPage({
               사진·소개·경력·영상을 수정하고 저장하면 이 페이지에 바로 반영돼요
             </p>
           </Link>
+        </section>
+      ) : null}
+
+      {/* 본인 프로필이면 공유 유도 카드 (카카오·인스타 공유 + 링크 복붙). 승인 무관 — URL 직접 접근 가능. */}
+      {isOwner ? (
+        <section className="mx-6 mt-6">
+          <ProfileShareCard
+            url={canonicalUrl}
+            title={`${dancerDisplayName(dancer)} | 댄서 프로필`}
+          />
         </section>
       ) : null}
 

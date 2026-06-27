@@ -5,6 +5,7 @@ import { logoutAction } from "@/app/actions/auth";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileCard } from "@/components/profile/ProfileCard";
+import { ProfileShareCard } from "@/components/share/ProfileShareCard";
 import { PushPrompt } from "@/components/layout/PushPrompt";
 import { BugReportRow } from "@/components/feedback/BugReport";
 
@@ -23,11 +24,20 @@ export default async function MePage() {
 
   const { data: ownDancers } = await supabase
     .from("dancers")
-    .select("id, slug")
+    .select("id, slug, approval_status, is_active")
     .eq("profile_id", user.id)
     .order("created_at", { ascending: true })
     .limit(1);
   const ownDancer = (ownDancers ?? [])[0] ?? null;
+  // 공유 링크는 활성 프로필이면 노출 — 승인 무관(URL 직접 접근 가능, project URL 모델).
+  // 미승인 프로필은 SEO엔 안 뜨지만 링크를 아는 사람은 볼 수 있다.
+  const shareable = ownDancer && ownDancer.is_active !== false;
+  const shareUrl = shareable
+    ? ownDancer.slug
+      ? `https://dancers.bio/${ownDancer.slug}`
+      : `https://dancers.bio/d/${ownDancer.id}`
+    : null;
+  const shareTitle = `${profile.display_name ?? "댄서"} | 댄서 프로필 · dancers.bio`;
 
   return (
     <div className="flex flex-col gap-6 px-6 pb-10 pt-8">
@@ -38,6 +48,10 @@ export default async function MePage() {
         avatarUrl={profile.avatar_url}
         phone={profile.phone ?? null}
       />
+
+      {shareUrl ? (
+        <ProfileShareCard url={shareUrl} title={shareTitle} />
+      ) : null}
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-bold text-ink-2">활동</h2>

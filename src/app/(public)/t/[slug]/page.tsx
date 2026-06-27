@@ -8,6 +8,7 @@ import { CAREER_CATEGORY_LABELS } from "@/lib/validation/portfolio";
 import { VideoThumbnail } from "@/components/portfolio/VideoEmbed";
 import { parseVideoUrl } from "@/lib/utils/video";
 import { SendProposalDialog } from "@/components/project/SendProposalDialog";
+import { ShareLinkButton } from "@/components/share/ShareLinkButton";
 
 type Career = {
   id: number;
@@ -244,6 +245,14 @@ export default async function PublicTeamPage({
           <path d="M12 19l-7-7 7-7" />
         </svg>
       </Link>
+      {/* Share button (top-right, over hero) — 모두에게. URL 직접 접근은 승인 무관(teams_select_all). */}
+      <div className="absolute right-4 top-4 z-40">
+        <ShareLinkButton
+          url={canonicalUrl}
+          title={`${teamDisplayName(team)} | 댄스팀`}
+          variant="icon"
+        />
+      </div>
       {/* Hero */}
       <div className="relative h-[420px] overflow-hidden">
         {team.profile_img ? (
