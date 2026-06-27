@@ -30,8 +30,7 @@ export type BoardView = {
   title: string | null;
   shareCode: string;
   settings: BoardSettings;
-  cards: BoardCard[]; // 사진 있는 인원 (카드)
-  listOnly: BoardCard[]; // 사진 없는 인원 (간략 리스트)
+  cards: BoardCard[]; // 전체 (사진 있는 인원 먼저, 사진 없는 인원 뒤)
   counts: { total: number; male: number; female: number; withPhoto: number };
 };
 
@@ -72,7 +71,7 @@ export async function getCastingBoardByCode(
     settings,
   };
   if (!members || members.length === 0)
-    return { ...meta, cards: [], listOnly: [], counts: { total: 0, male: 0, female: 0, withPhoto: 0 } };
+    return { ...meta, cards: [], counts: { total: 0, male: 0, female: 0, withPhoto: 0 } };
 
   const deetzIds = (members as Array<{ dancer_id: string | null }>)
     .map((m) => m.dancer_id)
@@ -152,33 +151,21 @@ export async function getCastingBoardByCode(
   if (settings.minHeight != null)
     filtered = filtered.filter((c) => (c.height ?? 0) >= settings.minHeight! || c.gender === "male");
 
-  const gp = settings.genderPriority;
-  const byGenderThenHeight = (a: BoardCard, b: BoardCard) => {
-    if (gp) {
-      const ap = a.gender === gp ? 0 : 1;
-      const bp = b.gender === gp ? 0 : 1;
-      if (ap !== bp) return ap - bp;
-    }
-    return (b.height ?? -1) - (a.height ?? -1);
-  };
-
-  const cards = filtered.filter((c) => c.photo).sort(byGenderThenHeight);
-  const listOnly = filtered.filter((c) => !c.photo).sort((a, b) => {
-    if (gp) {
-      const ap = a.gender === gp ? 0 : 1;
-      const bp = b.gender === gp ? 0 : 1;
-      if (ap !== bp) return ap - bp;
-    }
-    return (a.name || "").localeCompare(b.name || "");
+  // 사진 있는 인원 먼저(키 내림차순) → 사진 없는 인원 뒤로(키 내림차순/이름).
+  const cards = filtered.slice().sort((a, b) => {
+    const ap = a.photo ? 0 : 1;
+    const bp = b.photo ? 0 : 1;
+    if (ap !== bp) return ap - bp;
+    if (a.photo) return (b.height ?? -1) - (a.height ?? -1);
+    return (b.height ?? -1) - (a.height ?? -1) || (a.name || "").localeCompare(b.name || "");
   });
 
-  const all = [...cards, ...listOnly];
   const counts = {
-    total: all.length,
-    male: all.filter((c) => c.gender === "male").length,
-    female: all.filter((c) => c.gender === "female").length,
-    withPhoto: cards.length,
+    total: cards.length,
+    male: cards.filter((c) => c.gender === "male").length,
+    female: cards.filter((c) => c.gender === "female").length,
+    withPhoto: cards.filter((c) => c.photo).length,
   };
 
-  return { ...meta, cards, listOnly, counts };
+  return { ...meta, cards, counts };
 }
