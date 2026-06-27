@@ -4,6 +4,7 @@ import "./globals.css";
 import { SessionRefresher } from "@/components/auth/SessionRefresher";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
+import { InstallPrompt } from "@/components/layout/InstallPrompt";
 import { ErrorReporter } from "@/components/feedback/ErrorReporter";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -109,6 +110,7 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <SessionRefresher />
         <ServiceWorkerRegister />
+        <InstallPrompt />
         <ErrorReporter />
         {children}
         <GoogleAnalytics />

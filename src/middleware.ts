@@ -77,9 +77,24 @@ export async function middleware(request: NextRequest) {
   );
 
   // refresh session cookie if needed
-  const {
+  let {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // PWA 백그라운드 복귀 race 완화: auth 쿠키는 있는데 getUser가 일시 실패하면
+  // (refresh_token "Already Used" 등) 250ms 후 1회만 재시도해 세션 쿠키 갱신 기회를
+  // 한 번 더 준다. 익명 요청(쿠키 없음)에는 영향 없음. ref: reference_pwa_session_push_fixes
+  if (!user) {
+    const hasAuthCookie = request.cookies
+      .getAll()
+      .some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+    if (hasAuthCookie) {
+      await new Promise((r) => setTimeout(r, 250));
+      ({
+        data: { user },
+      } = await supabase.auth.getUser());
+    }
+  }
 
   // DAU/MAU 활동 기록: 로그인 사용자당 하루 1회(쿠키 스로틀)만 기록해
   // 요청마다 쓰지 않는다. touch_activity()는 멱등(on conflict do nothing).
