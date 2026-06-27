@@ -10,7 +10,9 @@ import { CareerGroup } from "@/components/portfolio/CareerGroup";
 import { ProfileFooterCTA } from "@/components/portfolio/ProfileFooterCTA";
 import { ShareLinkButton } from "@/components/share/ShareLinkButton";
 import { ProfileShareCard } from "@/components/share/ProfileShareCard";
+import { SocialIconRow } from "@/components/share/SocialIconRow";
 import { BackButton } from "@/components/ui/back-button";
+import { Pencil, ChevronRight } from "lucide-react";
 // parseVideoUrl is now used inside CareerGroup's dialog
 import { SendProposalDialog } from "@/components/project/SendProposalDialog";
 
@@ -143,17 +145,19 @@ export default async function PublicDancerPage({
   if (!dancer) notFound();
 
   const supabase = await createClient();
-  const [{ data: careers }, viewer, viewerProfile] = await Promise.all([
-    supabase
-      .from("careers")
-      .select("id, type, title, date, details, is_representative")
-      .eq("dancer_id", dancer.id)
-      .eq("is_public", true)
-      .order("is_representative", { ascending: false })
-      .order("date", { ascending: false }),
-    getUser(),
-    getProfile(),
-  ]);
+  const [{ data: careers }, viewer, viewerProfile, { data: dancerCount }] =
+    await Promise.all([
+      supabase
+        .from("careers")
+        .select("id, type, title, date, details, is_representative")
+        .eq("dancer_id", dancer.id)
+        .eq("is_public", true)
+        .order("is_representative", { ascending: false })
+        .order("date", { ascending: false }),
+      getUser(),
+      getProfile(),
+      supabase.rpc("count_all_dancers"),
+    ]);
 
   // claim 상태
   const isCuration = !dancer.profile_id && !dancer.is_verified;
@@ -365,6 +369,7 @@ export default async function PublicDancerPage({
               <p className="text-sm font-medium text-white/80">{subtitle}</p>
             ) : null;
           })()}
+          <SocialIconRow social={social} className="pt-1" />
         </div>
       </div>
 
@@ -565,12 +570,16 @@ export default async function PublicDancerPage({
         <section className="mx-6 mt-6">
           <Link
             href={editHref}
-            className="block rounded-2xl border border-primary/30 bg-primary/5 px-5 py-4 text-center transition-colors hover:bg-primary/10"
+            className="flex items-center gap-3 rounded-2xl bg-primary px-5 py-3.5 text-primary-foreground transition-opacity hover:opacity-90"
           >
-            <p className="text-sm font-semibold text-foreground">✏️ 내 프로필 수정하기</p>
-            <p className="mt-1 text-xs text-ink-3">
-              사진·소개·경력·영상을 수정하고 저장하면 이 페이지에 바로 반영돼요
-            </p>
+            <Pencil className="size-5 shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">내 프로필 수정하기</span>
+              <span className="mt-0.5 block text-xs text-primary-foreground/70">
+                사진·소개·경력·영상을 수정하면 이 페이지에 바로 반영돼요
+              </span>
+            </span>
+            <ChevronRight className="size-5 shrink-0 text-primary-foreground/60" aria-hidden />
           </Link>
         </section>
       ) : null}
@@ -589,6 +598,7 @@ export default async function PublicDancerPage({
       <ProfileFooterCTA
         dancerId={dancer.id}
         dancerName={dancer.stage_name}
+        dancerCount={typeof dancerCount === "number" ? dancerCount : null}
         isCuration={isCuration}
         isOwner={isOwner}
         mode={
@@ -612,32 +622,7 @@ export default async function PublicDancerPage({
         </section>
       ) : null}
 
-      {/* Sticky social CTA — only shown when there are links */}
-      {Object.keys(social).length > 0 ? (
-        <div className="fixed bottom-0 left-1/2 z-30 mb-4 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 gap-2 rounded-full border border-hairline-2 bg-background/80 p-1.5 backdrop-blur">
-          {social.instagram ? (
-            <SocialPill
-              platform="instagram"
-              raw={social.instagram}
-              label="Instagram"
-            />
-          ) : null}
-          {social.youtube ? (
-            <SocialPill
-              platform="youtube"
-              raw={social.youtube}
-              label="YouTube"
-            />
-          ) : null}
-          {social.tiktok ? (
-            <SocialPill
-              platform="tiktok"
-              raw={social.tiktok}
-              label="TikTok"
-            />
-          ) : null}
-        </div>
-      ) : null}
+      {/* Social links live as icon buttons in the hero (see SocialIconRow). */}
     </div>
   );
 }
@@ -660,27 +645,6 @@ function normalizeSocialUrl(
     case "tiktok":
       return `https://www.tiktok.com/@${handle}`;
   }
-}
-
-function SocialPill({
-  platform,
-  raw,
-  label,
-}: {
-  platform: "instagram" | "youtube" | "tiktok";
-  raw: string;
-  label: string;
-}) {
-  return (
-    <Link
-      href={normalizeSocialUrl(platform, raw)}
-      target="_blank"
-      rel="noopener"
-      className="flex flex-1 items-center justify-center rounded-full px-4 py-2 text-xs font-medium text-ink-2 hover:text-foreground"
-    >
-      {label} ↗
-    </Link>
-  );
 }
 
 function formatFileSize(bytes: number): string {

@@ -3,7 +3,59 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { ArrowRight } from "lucide-react";
 import { claimDancerProfileAction } from "@/app/actions/claim";
+
+function CreateProfileCard({
+  href,
+  dancerCount,
+}: {
+  href: string;
+  dancerCount?: number | null;
+}) {
+  const avatars = [
+    { label: "정", cls: "bg-primary/10 text-foreground" },
+    { label: "하", cls: "bg-pink-100 text-pink-700" },
+    { label: "민", cls: "bg-emerald-100 text-emerald-700" },
+  ];
+  return (
+    <Link
+      href={href}
+      className="block rounded-2xl border border-hairline-2 bg-card p-5 transition-colors hover:border-primary/30"
+    >
+      <div className="mb-3 flex items-center gap-2.5">
+        <div className="flex -space-x-2">
+          {avatars.map((a) => (
+            <span
+              key={a.label}
+              className={
+                "flex size-6 items-center justify-center rounded-full text-[10px] font-semibold ring-2 ring-card " +
+                a.cls
+              }
+            >
+              {a.label}
+            </span>
+          ))}
+        </div>
+        <p className="text-xs text-ink-3">
+          {dancerCount && dancerCount > 0
+            ? `${dancerCount.toLocaleString("ko-KR")}명의 댄서들이 deetz에서 활동 중`
+            : "댄서들이 deetz에서 활동 중"}
+        </p>
+      </div>
+      <p className="text-[15px] font-semibold text-foreground">
+        나만의 댄서 포트폴리오 만들기
+      </p>
+      <p className="mt-0.5 text-xs text-ink-3">
+        경력·영상·SNS를 한 페이지에. 30초면 충분해요.
+      </p>
+      <span className="mt-4 flex h-11 items-center justify-center gap-1.5 rounded-xl bg-primary text-sm font-semibold text-primary-foreground">
+        무료로 시작하기
+        <ArrowRight className="size-4" aria-hidden />
+      </span>
+    </Link>
+  );
+}
 
 type Mode =
   | { kind: "guest" }
@@ -12,12 +64,14 @@ type Mode =
 export function ProfileFooterCTA({
   dancerId,
   dancerName,
+  dancerCount,
   isCuration,
   isOwner,
   mode,
 }: {
   dancerId: string;
   dancerName: string;
+  dancerCount?: number | null;
   isCuration: boolean;
   isOwner: boolean;
   mode: Mode;
@@ -57,17 +111,7 @@ export function ProfileFooterCTA({
       {/* Guest CTA */}
       {mode.kind === "guest" ? (
         <>
-          <Link
-            href="/signup"
-            className="block rounded-2xl border border-primary/30 bg-primary/5 px-5 py-4 text-center"
-          >
-            <p className="text-sm font-semibold text-foreground">
-              나도 프로필 만들어보기
-            </p>
-            <p className="mt-1 text-xs text-ink-3">
-              30초만에 댄서 포트폴리오를 만들 수 있어요
-            </p>
-          </Link>
+          <CreateProfileCard href="/signup" dancerCount={dancerCount} />
           {isCuration ? (
             <Link
               href={`/signup?claim=${dancerId}`}
@@ -210,17 +254,7 @@ export function ProfileFooterCTA({
 
       {/* Generic 'create your own' CTA for any logged-in non-owner */}
       {mode.kind === "logged" && !isCuration ? (
-        <Link
-          href="/onboarding/create"
-          className="block rounded-2xl border border-primary/30 bg-primary/5 px-5 py-4 text-center"
-        >
-          <p className="text-sm font-semibold text-foreground">
-            나도 프로필 만들어보기
-          </p>
-          <p className="mt-1 text-xs text-ink-3">
-            지금 바로 댄서 포트폴리오를 만들 수 있어요
-          </p>
-        </Link>
+        <CreateProfileCard href="/onboarding/create" dancerCount={dancerCount} />
       ) : null}
     </section>
   );

@@ -9,6 +9,7 @@ import { VideoThumbnail } from "@/components/portfolio/VideoEmbed";
 import { parseVideoUrl } from "@/lib/utils/video";
 import { SendProposalDialog } from "@/components/project/SendProposalDialog";
 import { ShareLinkButton } from "@/components/share/ShareLinkButton";
+import { SocialIconRow } from "@/components/share/SocialIconRow";
 
 type Career = {
   id: number;
@@ -308,6 +309,7 @@ export default async function PublicTeamPage({
               <p className="text-sm font-medium text-white/80">{subtitle}</p>
             ) : null;
           })()}
+          <SocialIconRow social={social} className="pt-1" />
         </div>
       </div>
 
@@ -475,27 +477,7 @@ export default async function PublicTeamPage({
         </section>
       ) : null}
 
-      {/* Sticky social */}
-      {Object.keys(social).length > 0 ? (
-        <div className="fixed bottom-0 left-1/2 z-30 mb-4 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 gap-2 rounded-full border border-hairline-2 bg-background/80 p-1.5 backdrop-blur">
-          {social.instagram ? <SocialPill href={social.instagram} label="Instagram" /> : null}
-          {social.youtube ? <SocialPill href={social.youtube} label="YouTube" /> : null}
-          {social.tiktok ? <SocialPill href={social.tiktok} label="TikTok" /> : null}
-        </div>
-      ) : null}
+      {/* Social links live as icon buttons in the hero (see SocialIconRow). */}
     </div>
-  );
-}
-
-function SocialPill({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      href={href}
-      target="_blank"
-      rel="noopener"
-      className="flex flex-1 items-center justify-center rounded-full px-4 py-2 text-xs font-medium text-ink-2 hover:text-foreground"
-    >
-      {label} ↗
-    </Link>
   );
 }
