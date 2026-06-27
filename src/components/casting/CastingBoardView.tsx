@@ -38,14 +38,21 @@ export function CastingBoardView({ board }: { board: BoardView }) {
         </div>
       </header>
 
-      {board.note ? (
+      {board.notes.length ? (
         <div className="mt-4 rounded-2xl border border-border bg-secondary/40 px-4 py-3.5">
-          <p className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-ink-3">
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-ink-3">
             참고사항
           </p>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2">
-            {board.note}
-          </p>
+          <div className="flex flex-col gap-3">
+            {board.notes.map((n, i) => (
+              <p
+                key={i}
+                className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2 [&:not(:first-child)]:border-t [&:not(:first-child)]:border-border [&:not(:first-child)]:pt-3"
+              >
+                {n}
+              </p>
+            ))}
+          </div>
         </div>
       ) : null}
 
