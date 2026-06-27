@@ -111,8 +111,8 @@ export async function sendApplicationRejectionEmail(params: {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 12px;"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #ececef;border-radius:18px;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun Gothic',Helvetica,Arial,sans-serif;">
 <tr><td style="padding:28px 32px 18px;border-bottom:1px solid #ececef;">
-  <div style="font-size:26px;font-weight:800;letter-spacing:-1px;color:#111111;line-height:1;">deetz<span style="color:#d4d4d8;">.</span></div>
-  <div style="font-size:12px;color:#6b7280;margin-top:6px;">댄서 매거진 &amp; 캐스팅 플랫폼</div></td></tr>
+  <img src="https://www.deetz.kr/brand/deetz-logo-black.png" alt="deetz" width="58" height="28" style="display:block;height:28px;width:auto;border:0;">
+  <div style="font-size:12px;color:#6b7280;margin-top:10px;">댄서 매거진 &amp; 캐스팅 플랫폼</div></td></tr>
 <tr><td style="padding:30px 32px 8px;color:#111111;">
   <span style="display:inline-block;background:#f1f1f3;color:#6b7280;font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;">지원 결과 안내</span>
   <p style="font-size:18px;font-weight:700;margin:18px 0 4px;line-height:1.5;">${safeName}님, 안녕하세요.</p>
@@ -128,8 +128,8 @@ export async function sendApplicationRejectionEmail(params: {
 <tr><td style="padding:16px 32px 24px;">
   <a href="https://deetz.kr/feed" style="display:block;background:#111111;color:#ffffff;text-decoration:none;text-align:center;font-size:15px;font-weight:700;padding:15px 0;border-radius:12px;">다른 캐스팅 둘러보기 →</a></td></tr>
 <tr><td style="padding:22px 32px 28px;border-top:1px solid #ececef;background:#fafafa;">
-  <div style="font-size:16px;font-weight:800;letter-spacing:-0.5px;color:#111111;">deetz<span style="color:#d4d4d8;">.</span></div>
-  <div style="font-size:12px;color:#6b7280;margin:6px 0 14px;">댄서 매거진 &amp; 캐스팅 플랫폼</div>
+  <img src="https://www.deetz.kr/brand/deetz-logo-black.png" alt="deetz" width="41" height="20" style="display:block;height:20px;width:auto;border:0;">
+  <div style="font-size:12px;color:#6b7280;margin:10px 0 14px;">댄서 매거진 &amp; 캐스팅 플랫폼</div>
   <table role="presentation" cellpadding="0" cellspacing="0"><tr>
     <td style="padding-right:10px;"><a href="https://www.youtube.com/@deetzmagazine"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/youtube.png" width="30" height="30" alt="YouTube" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
     <td><a href="https://www.instagram.com/deetz_magazine/"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/instagram.png" width="30" height="30" alt="Instagram" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
