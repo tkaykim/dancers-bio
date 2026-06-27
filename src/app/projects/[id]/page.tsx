@@ -111,6 +111,7 @@ type ProjectRow = {
   posted_by_label: string | null;
   application_deadline: string | null;
   is_standing_pool: boolean | null;
+  collect_applicant_fee: boolean | null;
   created_at: string;
   region_text: string | null;
   genre: { label_ko: string } | null;
@@ -177,7 +178,7 @@ export default async function ProjectDetailPage({
     .select(
       `id, short_code, owner_id, title, description, visibility, status, pay_amount, pay_type,
        agreed_pay, recruitment_count, posted_by_label,
-       application_deadline, is_standing_pool, created_at, region_text,
+       application_deadline, is_standing_pool, collect_applicant_fee, created_at, region_text,
        genre:genres ( label_ko ),
        region:regions ( label_ko )`,
     )
@@ -573,6 +574,7 @@ export default async function ProjectDetailPage({
               projectId={p.id}
               projectShortCode={p.short_code}
               hasDancer={hasDancer}
+              collectFee={!!p.collect_applicant_fee}
               recruitmentChannelId={activeRecruitmentChannel?.id ?? null}
               recruitmentChannelName={activeRecruitmentChannel?.name ?? null}
               recruitmentChannelCode={activeRecruitmentChannel?.share_code ?? null}

@@ -29,7 +29,7 @@ export async function applyToProjectAction(
   const supabase = await createClient();
   const { data: project } = await supabase
     .from("projects")
-    .select("owner_id, status, visibility, deleted_at, application_deadline, is_standing_pool")
+    .select("owner_id, status, visibility, deleted_at, application_deadline, is_standing_pool, collect_applicant_fee")
     .eq("id", project_id)
     .single();
 
@@ -82,6 +82,30 @@ export async function applyToProjectAction(
     return { ok: false, error: NEEDS_DANCER_ERROR };
   }
 
+  // 단가(견적) — collect_applicant_fee 공고에서만 수집. 그 외엔 모두 null.
+  // 잘 모르겠어요(또는 금액 미입력) → unsure(협의희망). 금액+협의가능 → negotiable. 금액만 → quoted.
+  const FEE_CURRENCIES = ["KRW", "USD", "JPY", "EUR"];
+  let proposed_fee: number | null = null;
+  let proposed_fee_currency = "KRW";
+  let proposed_fee_unit: string | null = null;
+  let fee_status: "quoted" | "negotiable" | "unsure" | null = null;
+  if (project.collect_applicant_fee) {
+    const unsure = formData.get("fee_unsure") === "1";
+    const negotiable = formData.get("fee_negotiable") === "1";
+    const amountRaw = (formData.get("fee_amount") ?? "").toString().replace(/[^\d]/g, "");
+    const amount = amountRaw ? Math.min(Number(amountRaw), 1_000_000_000) : null;
+    const currencyRaw = (formData.get("fee_currency") ?? "KRW").toString();
+    proposed_fee_currency = FEE_CURRENCIES.includes(currencyRaw) ? currencyRaw : "KRW";
+    const unitRaw = (formData.get("fee_unit") ?? "").toString().trim();
+    if (unsure || amount === null) {
+      fee_status = "unsure";
+    } else {
+      proposed_fee = amount;
+      proposed_fee_unit = unitRaw ? unitRaw.slice(0, 10) : null;
+      fee_status = negotiable ? "negotiable" : "quoted";
+    }
+  }
+
   const { error } = await supabase.from("applications").insert({
     project_id,
     applicant_id: user.id,
@@ -91,6 +115,10 @@ export async function applyToProjectAction(
     status: "pending" as const,
     cover_message: cover_message || null,
     recruitment_channel_id,
+    proposed_fee,
+    proposed_fee_currency,
+    proposed_fee_unit,
+    fee_status,
   });
 
   if (error) {

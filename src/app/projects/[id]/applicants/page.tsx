@@ -41,6 +41,10 @@ type Application = {
   created_at: string;
   rejection_reason: string | null;
   recruitment_channel_id: string | null;
+  proposed_fee: number | null;
+  proposed_fee_currency: string | null;
+  proposed_fee_unit: string | null;
+  fee_status: string | null;
   applicant: { id: string; display_name: string; avatar_url: string | null } | null;
   dancer:
     | {
@@ -307,6 +311,7 @@ export default async function ApplicantsPage({
     .from("applications")
     .select(
       `id, status, source, cover_message, created_at, rejection_reason, recruitment_channel_id,
+       proposed_fee, proposed_fee_currency, proposed_fee_unit, fee_status,
        applicant:profiles!applications_applicant_id_fkey ( id, display_name, avatar_url ),
        dancer:dancers!applications_dancer_id_fkey ( id, stage_name, korean_name, slug, profile_img, genres, location ),
        team:teams!applications_team_id_fkey ( id, team_name, slug, profile_img )`,
@@ -370,6 +375,10 @@ export default async function ApplicantsPage({
       recruitmentChannelName: a.recruitment_channel_id
         ? channelById.get(a.recruitment_channel_id)?.name ?? null
         : null,
+      proposed_fee: a.proposed_fee ?? null,
+      proposed_fee_currency: a.proposed_fee_currency ?? null,
+      proposed_fee_unit: a.proposed_fee_unit ?? null,
+      fee_status: a.fee_status ?? null,
     };
   });
   const recruitmentChannels: RecruitmentChannel[] = channelRows.map((channel) => {

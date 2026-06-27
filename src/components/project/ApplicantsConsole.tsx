@@ -33,7 +33,28 @@ export type ConsoleApplicant = {
   rejection_reason: string | null;
   recruitmentChannelId: string | null;
   recruitmentChannelName: string | null;
+  proposed_fee: number | null;
+  proposed_fee_currency: string | null;
+  proposed_fee_unit: string | null;
+  fee_status: string | null;
 };
+
+const CURRENCY_SYMBOL: Record<string, string> = {
+  KRW: "₩",
+  USD: "$",
+  JPY: "¥",
+  EUR: "€",
+};
+
+function formatFee(a: ConsoleApplicant): string | null {
+  if (!a.fee_status) return null;
+  if (a.fee_status === "unsure") return "협의 희망";
+  const sym = CURRENCY_SYMBOL[a.proposed_fee_currency ?? "KRW"] ?? "";
+  const amount = a.proposed_fee != null ? a.proposed_fee.toLocaleString("ko-KR") : "";
+  const unit = a.proposed_fee_unit ? ` · ${a.proposed_fee_unit}` : "";
+  const nego = a.fee_status === "negotiable" ? " · 협의가능" : "";
+  return `${sym}${amount}${unit}${nego}`;
+}
 
 type Tab = "pending" | "accepted" | "rejected" | "all";
 type ChannelFilter = "all" | "none" | string;
@@ -470,6 +491,18 @@ export function ApplicantsConsole({
                     ) : null}
                   </p>
                   <div className="flex flex-wrap items-center gap-1">
+                    {formatFee(a) ? (
+                      <span
+                        className={
+                          "rounded-full px-1.5 py-0.5 text-[10px] font-semibold " +
+                          (a.fee_status === "unsure"
+                            ? "bg-warn/15 text-warn"
+                            : "bg-foreground/10 text-foreground")
+                        }
+                      >
+                        {formatFee(a)}
+                      </span>
+                    ) : null}
                     {a.recruitmentChannelName ? (
                       <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
                         {a.recruitmentChannelName}

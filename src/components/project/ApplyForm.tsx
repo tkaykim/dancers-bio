@@ -8,10 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
 // Lite: 본인 own dancer 1개로만 지원. dancer 없으면 onboarding 유도.
+const FEE_CURRENCIES = ["KRW", "USD", "JPY", "EUR"] as const;
+const FEE_UNITS = ["회당", "일당", "건당", "총액"] as const;
+
 export function ApplyForm({
   projectId,
   projectShortCode,
   hasDancer,
+  collectFee = false,
   recruitmentChannelId,
   recruitmentChannelName,
   recruitmentChannelCode,
@@ -21,6 +25,8 @@ export function ApplyForm({
   /** 6자 short_code — returnTo URL 등 외부 노출용. */
   projectShortCode: string;
   hasDancer: boolean;
+  /** 이 공고가 지원자에게 단가를 받는지 (projects.collect_applicant_fee) */
+  collectFee?: boolean;
   recruitmentChannelId?: string | null;
   recruitmentChannelName?: string | null;
   recruitmentChannelCode?: string | null;
@@ -29,6 +35,18 @@ export function ApplyForm({
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [needsDancer, setNeedsDancer] = useState<boolean>(!hasDancer);
   const [pending, startTransition] = useTransition();
+
+  // 단가(견적) 입력 — collectFee 공고에서만 노출.
+  const [feeAmount, setFeeAmount] = useState("");
+  const [feeCurrency, setFeeCurrency] = useState<string>("KRW");
+  const [feeUnit, setFeeUnit] = useState<string>("회당");
+  const [feeNegotiable, setFeeNegotiable] = useState(false);
+  const [feeUnsure, setFeeUnsure] = useState(false);
+
+  function onFeeAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const digits = e.target.value.replace(/[^\d]/g, "").slice(0, 10);
+    setFeeAmount(digits ? Number(digits).toLocaleString("ko-KR") : "");
+  }
 
   if (needsDancer) {
     const params = new URLSearchParams({ apply: "1" });
@@ -62,6 +80,13 @@ export function ApplyForm({
         if (recruitmentChannelId) {
           formData.set("recruitment_channel_id", recruitmentChannelId);
         }
+        if (collectFee) {
+          formData.set("fee_amount", feeAmount.replace(/[^\d]/g, ""));
+          formData.set("fee_currency", feeCurrency);
+          formData.set("fee_unit", feeUnit);
+          formData.set("fee_negotiable", feeNegotiable ? "1" : "");
+          formData.set("fee_unsure", feeUnsure ? "1" : "");
+        }
         startTransition(async () => {
           const result = await applyToProjectAction(formData);
           if (!result.ok) {
@@ -94,6 +119,73 @@ export function ApplyForm({
         placeholder="예: 무대 댄서 7년차, K-pop 다수 경험 보유. 빠른 캐치 자신 있어요."
         className="rounded-md border border-input bg-background px-3 py-2 text-sm"
       />
+
+      {collectFee ? (
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/30 p-3">
+          <div className="flex items-baseline justify-between">
+            <Label className="text-xs uppercase tracking-[0.14em] text-ink-3">
+              ↳ 제안 단가
+            </Label>
+            <span className="text-[11px] text-ink-3">운영자만 봅니다</span>
+          </div>
+
+          {!feeUnsure ? (
+            <>
+              <div className="flex gap-2">
+                <div className="flex flex-1 items-center rounded-md border border-input bg-background px-2">
+                  <select
+                    aria-label="통화"
+                    value={feeCurrency}
+                    onChange={(e) => setFeeCurrency(e.target.value)}
+                    className="bg-transparent py-2 pr-1 text-sm focus:outline-none"
+                  >
+                    {FEE_CURRENCIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <input
+                    inputMode="numeric"
+                    value={feeAmount}
+                    onChange={onFeeAmountChange}
+                    placeholder="예: 1,500,000"
+                    className="h-9 w-full min-w-0 bg-transparent px-1 text-sm focus:outline-none"
+                  />
+                </div>
+                <select
+                  aria-label="단위"
+                  value={feeUnit}
+                  onChange={(e) => setFeeUnit(e.target.value)}
+                  className="w-20 rounded-md border border-input bg-background px-2 text-sm"
+                >
+                  {FEE_UNITS.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-ink-2">
+                <input
+                  type="checkbox"
+                  checked={feeNegotiable}
+                  onChange={(e) => setFeeNegotiable(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                협의 가능
+              </label>
+            </>
+          ) : null}
+
+          <label className="flex items-center gap-2 text-xs text-ink-2">
+            <input
+              type="checkbox"
+              checked={feeUnsure}
+              onChange={(e) => setFeeUnsure(e.target.checked)}
+              className="h-4 w-4"
+            />
+            단가를 잘 모르겠어요 — <span className="text-foreground">협의 희망</span>으로 제출
+          </label>
+        </div>
+      ) : null}
+
       {message ? (
         <p
           className={
