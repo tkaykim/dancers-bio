@@ -1,5 +1,6 @@
 import type { BoardView } from "@/lib/casting/board-data";
 import { CardSection } from "@/components/casting/CardSection";
+import { DeetzLogo } from "@/components/brand/DeetzLogo";
 
 export function CastingBoardView({ board }: { board: BoardView }) {
   const { settings, cards, counts } = board;
@@ -19,10 +20,7 @@ export function CastingBoardView({ board }: { board: BoardView }) {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <header className="border-b-2 border-ink-1 pb-5">
-        <div className="text-3xl font-extrabold leading-none tracking-tight">
-          deetz<span className="text-hairline">.</span>
-        </div>
-        <div className="mt-1 text-xs text-ink-3">댄서 매거진 &amp; 캐스팅 플랫폼</div>
+        <DeetzLogo className="h-8 w-auto" priority />
         {board.title ? (
           <h1 className="mt-4 text-xl font-bold">{board.title}</h1>
         ) : null}
