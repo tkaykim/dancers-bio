@@ -26,6 +26,10 @@ import {
   type AnnouncementRow,
 } from "@/components/project/AnnouncementsPanel";
 import { WithdrawalLinkPanel } from "@/components/project/WithdrawalLinkPanel";
+import {
+  CastingBoardPanel,
+  type CastingBoardInfo,
+} from "@/components/casting/CastingBoardPanel";
 import { formatWhen } from "@/lib/format-when";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 
@@ -158,6 +162,30 @@ export default async function ApplicantsPage({
   // 소유자·슈퍼관리자·공동관리자만 접근.
   if (!(await canManageProject(p.id))) notFound();
   const canEditManagers = isAdmin || p.owner_id === user.id;
+
+  // 클라이언트 캐스팅 보드 (가장 최근 1개) + 멤버 수.
+  let castingBoard: CastingBoardInfo | null = null;
+  {
+    const { data: cb } = await supabase
+      .from("casting_boards")
+      .select("id, share_code, settings")
+      .eq("project_id", p.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (cb) {
+      const { count } = await supabase
+        .from("casting_board_members")
+        .select("id", { count: "exact", head: true })
+        .eq("board_id", cb.id as string);
+      castingBoard = {
+        id: cb.id as string,
+        shareCode: cb.share_code as string,
+        settings: (cb.settings ?? {}) as CastingBoardInfo["settings"],
+        memberCount: count ?? 0,
+      };
+    }
+  }
 
   // 공동관리자 명단 (profile_id FK 기준 임베드 — added_by와 구분 필요).
   const { data: mgrRows } = await supabase
@@ -501,6 +529,8 @@ export default async function ApplicantsPage({
             schedules={scheduleRows}
             surveyUrl={`https://deetz.kr/sr/${p.schedule_survey_code}`}
           />
+
+          <CastingBoardPanel projectId={p.id} board={castingBoard} />
 
           <ProjectEventsPanel events={standaloneEvents} />
 
