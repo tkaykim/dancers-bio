@@ -39,11 +39,13 @@ export function CastingBoardView({ board }: { board: BoardView }) {
       </header>
 
       {board.note ? (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5 text-sm leading-relaxed text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+        <div className="mt-4 rounded-2xl border border-border bg-secondary/40 px-4 py-3.5">
+          <p className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-ink-3">
             참고사항
           </p>
-          <p className="whitespace-pre-wrap">{board.note}</p>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2">
+            {board.note}
+          </p>
         </div>
       ) : null}
 

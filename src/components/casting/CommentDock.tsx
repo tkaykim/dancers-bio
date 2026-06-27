@@ -81,7 +81,7 @@ export function CommentDock({ shareCode }: { shareCode: string }) {
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="예) AST컴퍼니 정현수"
+                placeholder="예) OO컴퍼니 / OOO PD"
                 className="mb-3 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
               />
               <label className="mb-1 block text-[11px] font-medium text-ink-2">
