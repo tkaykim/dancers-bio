@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getCastingBoardByCode } from "@/lib/casting/board-data";
 import { CastingBoardView } from "@/components/casting/CastingBoardView";
+import { canManageProject } from "@/lib/auth/guard";
 
 export const dynamic = "force-dynamic";
 
@@ -22,5 +23,8 @@ export default async function CastingBoardPage({
   const board = await getCastingBoardByCode(code);
   if (!board) notFound();
 
-  return <CastingBoardView board={board} />;
+  // 로그인한 관리자/매니저면 인라인 공지 편집 노출(클라이언트에겐 비노출).
+  const canManage = await canManageProject(board.projectId);
+
+  return <CastingBoardView board={board} canManage={canManage} />;
 }
