@@ -54,7 +54,7 @@ function Card({ c, fields }: { c: BoardCard; fields: BoardView["settings"]["fiel
           ) : null}
           {c.slug ? (
             <a
-              href={`https://deetz.kr/d/${c.slug}`}
+              href={`https://dancers.bio/d/${c.slug}`}
               target="_blank"
               rel="noreferrer"
               className="text-[10px] font-semibold text-ink-1"

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendGmailEmail } from "@/lib/gmail";
+import { buildCastingBoardEmail } from "@/lib/casting/board-email";
 import type { ActionResult } from "./auth";
 
 type Settings = {
@@ -128,6 +130,55 @@ export async function syncCastingBoardMembersAction(
       .insert(ids.map((dancer_id) => ({ board_id: boardId, dancer_id })));
   revalidatePath(`/projects/${projectId}/applicants`);
   return { ok: true, data: { count: ids.length } };
+}
+
+// 클라이언트에게 보드 링크를 deetz 메일로 발송 + 이력 기록.
+export async function sendCastingBoardEmailAction(
+  fd: FormData,
+): Promise<ActionResult<{ sentTo: string }>> {
+  const user = await requireUser();
+  const boardId = (fd.get("board_id") ?? "").toString().trim();
+  const projectId = (fd.get("project_id") ?? "").toString().trim();
+  const email = (fd.get("recipient_email") ?? "").toString().trim();
+  const name = (fd.get("recipient_name") ?? "").toString().trim() || null;
+  const message = (fd.get("message") ?? "").toString().trim() || null;
+  if (!boardId || !projectId) return { ok: false, error: "잘못된 요청입니다." };
+  if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email))
+    return { ok: false, error: "받는 사람 이메일을 정확히 입력해 주세요." };
+  if (!(await canManageProject(projectId)))
+    return { ok: false, error: "권한이 없습니다." };
+
+  const admin = createAdminClient();
+  const { data: board } = await admin
+    .from("casting_boards")
+    .select("id, title, share_code, project_id")
+    .eq("id", boardId)
+    .maybeSingle();
+  if (!board || board.project_id !== projectId)
+    return { ok: false, error: "보드를 찾을 수 없습니다." };
+
+  const url = `https://deetz.kr/cast/${board.share_code as string}`;
+  const mail = buildCastingBoardEmail({
+    boardTitle: (board.title as string) ?? null,
+    boardUrl: url,
+    recipientName: name,
+    message,
+  });
+
+  const res = await sendGmailEmail({ to: email, ...mail });
+  await admin.from("casting_board_sends").insert({
+    board_id: boardId,
+    recipient_email: email,
+    recipient_name: name,
+    message,
+    status: res.ok ? "sent" : "failed",
+    error: res.ok ? null : "send_failed",
+    sent_by: user.id,
+  });
+  if (!res.ok) return { ok: false, error: "메일 발송에 실패했습니다." };
+
+  revalidatePath(`/projects/${projectId}/applicants`);
+  return { ok: true, data: { sentTo: email } };
 }
 
 // 개별 댄서 포함/제외 토글.

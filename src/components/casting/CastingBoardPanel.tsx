@@ -8,6 +8,7 @@ import {
   createCastingBoardAction,
   updateCastingBoardAction,
   syncCastingBoardMembersAction,
+  sendCastingBoardEmailAction,
 } from "@/app/actions/project-casting";
 
 type Settings = {
@@ -16,11 +17,18 @@ type Settings = {
   minHeight?: number | null;
 };
 
+export type CastingBoardSend = {
+  email: string;
+  name: string | null;
+  sentAt: string;
+};
+
 export type CastingBoardInfo = {
   id: string;
   shareCode: string;
   settings: Settings;
   memberCount: number;
+  sends: CastingBoardSend[];
 };
 
 export function CastingBoardPanel({
@@ -32,6 +40,9 @@ export function CastingBoardPanel({
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
+  const [toEmail, setToEmail] = useState("");
+  const [toName, setToName] = useState("");
+  const [msg, setMsg] = useState("");
   const [gp, setGp] = useState<Settings["genderPriority"]>(
     board?.settings.genderPriority ?? "male",
   );
@@ -96,6 +107,32 @@ export function CastingBoardPanel({
         return;
       }
       toast.success(`합격자 ${r.data?.count ?? 0}명과 동기화했습니다`);
+      router.refresh();
+    });
+  }
+
+  function send() {
+    if (!board) return;
+    if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(toEmail.trim())) {
+      toast.error("받는 사람 이메일을 정확히 입력해 주세요.");
+      return;
+    }
+    const fd = new FormData();
+    fd.set("project_id", projectId);
+    fd.set("board_id", board.id);
+    fd.set("recipient_email", toEmail.trim());
+    if (toName.trim()) fd.set("recipient_name", toName.trim());
+    if (msg.trim()) fd.set("message", msg.trim());
+    start(async () => {
+      const r = await sendCastingBoardEmailAction(fd);
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      toast.success(`${r.data?.sentTo}로 발송했습니다`);
+      setToEmail("");
+      setToName("");
+      setMsg("");
       router.refresh();
     });
   }
@@ -210,6 +247,65 @@ export function CastingBoardPanel({
             >
               설정 저장
             </button>
+          </div>
+
+          {/* 클라이언트에게 메일 발송 */}
+          <div className="flex flex-col gap-2 rounded-xl border border-hairline-2 p-3">
+            <p className="text-[11px] font-semibold text-ink-2">클라이언트에게 발송</p>
+            <p className="text-[11px] text-ink-3">
+              발송 전 위 “열기”로 내용을 검토하세요. deetz 메일로 보드 링크가 전달됩니다.
+            </p>
+            <input
+              value={toEmail}
+              onChange={(e) => setToEmail(e.target.value)}
+              placeholder="받는 사람 이메일"
+              className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+            />
+            <input
+              value={toName}
+              onChange={(e) => setToName(e.target.value)}
+              placeholder="받는 사람 이름 (선택)"
+              className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+            />
+            <textarea
+              value={msg}
+              onChange={(e) => setMsg(e.target.value)}
+              rows={2}
+              placeholder="인사말 (선택) — 비우면 기본 문구"
+              className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+            />
+            <button
+              type="button"
+              disabled={busy}
+              onClick={send}
+              className="h-9 rounded-lg bg-primary text-xs font-semibold text-primary-foreground disabled:opacity-50"
+            >
+              메일로 보내기
+            </button>
+
+            {board.sends.length > 0 ? (
+              <div className="mt-1 border-t border-hairline-2 pt-2">
+                <p className="mb-1 text-[10px] uppercase tracking-wide text-ink-3">
+                  발송 이력 ({board.sends.length})
+                </p>
+                <ul className="flex flex-col gap-0.5">
+                  {board.sends.slice(0, 5).map((s, i) => (
+                    <li key={i} className="flex justify-between gap-2 text-[11px] text-ink-2">
+                      <span className="truncate">
+                        {s.name ? `${s.name} · ` : ""}
+                        {s.email}
+                      </span>
+                      <span className="shrink-0 text-ink-3">
+                        {new Date(s.sentAt).toLocaleDateString("ko-KR", {
+                          month: "numeric",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         </>
       )}
