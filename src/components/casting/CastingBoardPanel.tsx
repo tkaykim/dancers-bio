@@ -16,7 +16,8 @@ type Settings = {
   genderPriority?: "male" | "female" | null;
   requirePhoto?: boolean;
   minHeight?: number | null;
-  note?: string | null;
+  note?: string | null; // 레거시 단일 공지
+  notes?: string[]; // 공지 목록
 };
 
 export type CastingBoardSend = {
@@ -63,7 +64,13 @@ export function CastingBoardPanel({
   const [minHeight, setMinHeight] = useState<string>(
     board?.settings.minHeight != null ? String(board.settings.minHeight) : "",
   );
-  const [note, setNote] = useState<string>(board?.settings.note ?? "");
+  const [notes, setNotes] = useState<string[]>(
+    board?.settings.notes && board.settings.notes.length
+      ? board.settings.notes
+      : board?.settings.note
+        ? [board.settings.note]
+        : [],
+  );
 
   const shareUrl = board ? `https://deetz.kr/cast/${board.shareCode}` : "";
   const unreadCount = board?.comments.filter((c) => !c.isRead).length ?? 0;
@@ -94,7 +101,8 @@ export function CastingBoardPanel({
         genderPriority: gp ?? null,
         requirePhoto,
         minHeight: minHeight.trim() ? Number(minHeight) : null,
-        note: note.trim() || null,
+        notes: notes.map((n) => n.trim()).filter(Boolean),
+        note: null,
         sortBy: "height",
       }),
     );
@@ -269,17 +277,45 @@ export function CastingBoardPanel({
                 className="h-7 w-24 rounded-md border border-border bg-background px-2 text-xs"
               />
             </label>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <span className="text-[11px] text-ink-3">
-                참고사항 / 공지 (클라이언트 화면 헤더 아래 표시)
+                참고사항 / 공지 (클라이언트 화면 헤더 아래 표시 · 여러 개 등록 가능)
               </span>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={3}
-                placeholder="예) 남자 비율 요청 주셔서 100명 초과 모집했습니다. 바라클라바 착용 시 키 큰 여성도 덩치·팔 길이가 잘 나올 여지가 있어 함께 전달드립니다."
-                className="resize-none rounded-md border border-border bg-background px-2 py-1.5 text-xs"
-              />
+              {notes.length === 0 ? (
+                <p className="text-[11px] text-ink-3">등록된 공지가 없습니다.</p>
+              ) : (
+                notes.map((n, i) => (
+                  <div key={i} className="flex items-start gap-1.5">
+                    <textarea
+                      value={n}
+                      onChange={(e) =>
+                        setNotes((prev) =>
+                          prev.map((v, j) => (j === i ? e.target.value : v)),
+                        )
+                      }
+                      rows={2}
+                      placeholder={`공지 ${i + 1}`}
+                      className="flex-1 resize-none rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setNotes((prev) => prev.filter((_, j) => j !== i))
+                      }
+                      className="shrink-0 rounded-md border border-border px-2 py-1.5 text-[11px] text-ink-3 hover:bg-secondary"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                ))
+              )}
+              <button
+                type="button"
+                onClick={() => setNotes((prev) => [...prev, ""])}
+                className="self-start rounded-md border border-dashed border-border px-2.5 py-1 text-[11px] font-medium text-ink-2 hover:bg-secondary"
+              >
+                + 공지 추가
+              </button>
             </div>
             <button
               type="button"

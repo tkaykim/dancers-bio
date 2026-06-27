@@ -22,7 +22,8 @@ export type BoardSettings = {
   genders?: string[];
   minHeight?: number | null;
   fields?: { height?: boolean; instagram?: boolean; career?: boolean };
-  note?: string | null; // 클라이언트에게 보여줄 참고사항/공지 (헤더 아래 표시)
+  note?: string | null; // (레거시) 단일 참고사항 — notes로 대체됨
+  notes?: string[]; // 클라이언트에게 보여줄 참고사항/공지 목록 (헤더 아래 표시)
 };
 
 export type BoardView = {
@@ -31,10 +32,16 @@ export type BoardView = {
   title: string | null;
   shareCode: string;
   settings: BoardSettings;
-  note: string | null; // settings.note 노출
+  notes: string[]; // settings.notes(없으면 레거시 note) 노출
   cards: BoardCard[]; // 전체 (사진 있는 인원 먼저, 사진 없는 인원 뒤)
   counts: { total: number; male: number; female: number; withPhoto: number };
 };
+
+// 공지 목록 정규화: notes 우선, 없으면 레거시 단일 note 폴백. 빈 문자열 제거.
+function resolveNotes(s: BoardSettings): string[] {
+  const list = Array.isArray(s.notes) && s.notes.length ? s.notes : s.note ? [s.note] : [];
+  return list.map((n) => (n ?? "").trim()).filter(Boolean);
+}
 
 function instaUrl(v: string | null | undefined): string | null {
   if (!v) return null;
@@ -71,7 +78,7 @@ export async function getCastingBoardByCode(
     title: (board.title as string) ?? null,
     shareCode: board.share_code as string,
     settings,
-    note: (settings.note ?? null) || null,
+    notes: resolveNotes(settings),
   };
   if (!members || members.length === 0)
     return { ...meta, cards: [], counts: { total: 0, male: 0, female: 0, withPhoto: 0 } };
