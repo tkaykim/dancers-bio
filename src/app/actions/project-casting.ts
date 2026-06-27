@@ -132,6 +132,51 @@ export async function syncCastingBoardMembersAction(
   return { ok: true, data: { count: ids.length } };
 }
 
+// 공지(notes)만 인라인 저장 — 공개 보드 페이지(/cast)에서 관리자가 바로 편집할 때 사용.
+export async function updateCastingBoardNotesAction(
+  fd: FormData,
+): Promise<ActionResult> {
+  await requireUser();
+  const boardId = (fd.get("board_id") ?? "").toString().trim();
+  if (!boardId) return { ok: false, error: "잘못된 요청입니다." };
+
+  let notes: string[];
+  try {
+    const raw = JSON.parse((fd.get("notes") ?? "[]").toString());
+    if (!Array.isArray(raw)) throw new Error("not array");
+    notes = raw
+      .map((n) => (typeof n === "string" ? n.trim() : ""))
+      .filter(Boolean)
+      .slice(0, 20);
+  } catch {
+    return { ok: false, error: "공지 형식 오류" };
+  }
+
+  const admin = createAdminClient();
+  const { data: board } = await admin
+    .from("casting_boards")
+    .select("id, project_id, share_code, settings")
+    .eq("id", boardId)
+    .maybeSingle();
+  if (!board) return { ok: false, error: "보드를 찾을 수 없습니다." };
+  if (!(await canManageProject(board.project_id as string)))
+    return { ok: false, error: "권한이 없습니다." };
+
+  const settings = { ...((board.settings ?? {}) as Record<string, unknown>) };
+  settings.notes = notes;
+  delete settings.note; // 레거시 단일 공지 제거
+
+  const { error } = await admin
+    .from("casting_boards")
+    .update({ settings, updated_at: new Date().toISOString() })
+    .eq("id", boardId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/cast/${board.share_code as string}`);
+  revalidatePath(`/projects/${board.project_id as string}/applicants`);
+  return { ok: true };
+}
+
 // 클라이언트에게 보드 링크를 deetz 메일로 발송 + 이력 기록.
 export async function sendCastingBoardEmailAction(
   fd: FormData,

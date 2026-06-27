@@ -1,9 +1,16 @@
 import type { BoardView } from "@/lib/casting/board-data";
 import { CardSection } from "@/components/casting/CardSection";
 import { CommentDock } from "@/components/casting/CommentDock";
+import { BoardNotesEditor } from "@/components/casting/BoardNotesEditor";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 
-export function CastingBoardView({ board }: { board: BoardView }) {
+export function CastingBoardView({
+  board,
+  canManage = false,
+}: {
+  board: BoardView;
+  canManage?: boolean;
+}) {
   const { settings, cards, counts } = board;
   const gp = settings.genderPriority;
   const males = cards.filter((c) => c.gender === "male");
@@ -38,7 +45,9 @@ export function CastingBoardView({ board }: { board: BoardView }) {
         </div>
       </header>
 
-      {board.notes.length ? (
+      {canManage ? (
+        <BoardNotesEditor boardId={board.id} initialNotes={board.notes} />
+      ) : board.notes.length ? (
         <div className="mt-4 rounded-2xl border border-border bg-secondary/40 px-4 py-3.5">
           <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-ink-3">
             참고사항
