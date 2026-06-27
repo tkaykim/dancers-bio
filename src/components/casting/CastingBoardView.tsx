@@ -157,9 +157,6 @@ export function CastingBoardView({ board }: { board: BoardView }) {
           <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
             여 <b>{counts.female}</b>
           </span>
-          <span className="rounded-xl border border-border bg-secondary px-3 py-1.5 text-ink-3">
-            사진 <b className="text-ink-1">{counts.withPhoto}</b>
-          </span>
         </div>
       </header>
 
