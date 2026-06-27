@@ -174,15 +174,32 @@ export default async function ApplicantsPage({
       .limit(1)
       .maybeSingle();
     if (cb) {
-      const { count } = await supabase
-        .from("casting_board_members")
-        .select("id", { count: "exact", head: true })
-        .eq("board_id", cb.id as string);
+      const [{ count }, { data: sendRows }] = await Promise.all([
+        supabase
+          .from("casting_board_members")
+          .select("id", { count: "exact", head: true })
+          .eq("board_id", cb.id as string),
+        supabase
+          .from("casting_board_sends")
+          .select("recipient_email, recipient_name, sent_at")
+          .eq("board_id", cb.id as string)
+          .order("sent_at", { ascending: false })
+          .limit(10),
+      ]);
       castingBoard = {
         id: cb.id as string,
         shareCode: cb.share_code as string,
         settings: (cb.settings ?? {}) as CastingBoardInfo["settings"],
         memberCount: count ?? 0,
+        sends: ((sendRows ?? []) as Array<{
+          recipient_email: string;
+          recipient_name: string | null;
+          sent_at: string;
+        }>).map((s) => ({
+          email: s.recipient_email,
+          name: s.recipient_name,
+          sentAt: s.sent_at,
+        })),
       };
     }
   }

@@ -573,8 +573,8 @@ export async function sendOutreachAction(
   if (!dancer) return { ok: false, error: "댄서를 찾을 수 없습니다." };
 
   const now = new Date().toISOString();
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://deetz.kr";
-  const claimUrl = `${site}/d/${dancer.slug as string}?o=${outreach.token as string}`;
+  // 댄서 프로필(포트폴리오) 링크는 dancers.bio 도메인을 쓴다.
+  const claimUrl = `https://dancers.bio/d/${dancer.slug as string}?o=${outreach.token as string}`;
 
   if (outreach.channel === "email") {
     const target = (outreach.target as string | null) ?? null;
