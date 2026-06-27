@@ -28,7 +28,7 @@ export default async function ResetPasswordPage({
   // 해시는 서버에서 못 읽으므로 폼을 렌더하고 클라이언트가 세션을 감지하게 둔다.
 
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-8 px-6 pb-10 pt-12">
+    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col lg:justify-center gap-8 px-6 pb-10 pt-12">
       <Link href="/" className="inline-flex self-start">
         <DeetzLogo className="h-8 w-auto" priority />
       </Link>

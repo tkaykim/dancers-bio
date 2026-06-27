@@ -36,7 +36,7 @@ export default async function ClaimPage({
   const dancerPreview = await fetchDancerPreview(dancer);
 
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-6 px-6 pb-12 pt-10">
+    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col lg:justify-center gap-6 px-6 pb-12 pt-10">
       <Link href="/" className="inline-flex self-start">
         <DeetzLogo className="h-8 w-auto" priority />
       </Link>

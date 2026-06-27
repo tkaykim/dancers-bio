@@ -15,7 +15,7 @@ export default async function LoginPage({
   const { next } = await searchParams;
   const safeNext = safeReturnTo(next, "");
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-8 px-6 pb-10 pt-12">
+    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col lg:justify-center gap-8 px-6 pb-10 pt-12">
       <Link href="/" className="inline-flex self-start">
         <DeetzLogo className="h-8 w-auto" priority />
       </Link>
