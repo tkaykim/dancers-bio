@@ -583,6 +583,14 @@ export default async function ApplicantsPage({
             url={`https://deetz.kr/w/${p.settlement_share_code}`}
           />
 
+          <Link
+            href={`/projects/${p.id}/settlements`}
+            className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3.5 text-sm font-semibold active:bg-secondary"
+          >
+            <span>정산 관리 · 수집 링크</span>
+            <span className="text-ink-3">→</span>
+          </Link>
+
           {/* 세팅·초대 도구: 접힘 */}
           <details className="group rounded-2xl border border-border bg-card">
             <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium">

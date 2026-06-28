@@ -13,7 +13,7 @@ import {
   type ApplicantPortfolio,
 } from "@/app/actions/applicant-portfolio";
 import { setSettlementAmountAction } from "@/app/actions/settlements";
-import { calcSettlement, formatWon } from "@/lib/settlement";
+import { calcSettlement, formatWon, formatWonInput } from "@/lib/settlement";
 
 export type SheetApplicant = {
   applicationId: string;
@@ -59,9 +59,7 @@ function SettlementField({
 }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
-  const [value, setValue] = useState(
-    initialAmount != null ? String(initialAmount) : "",
-  );
+  const [value, setValue] = useState(formatWonInput(initialAmount));
   const locked = status === "paid";
   const num = Number(value.replace(/[,\s]/g, ""));
   const preview = Number.isFinite(num) && num > 0 ? calcSettlement(num) : null;
@@ -89,8 +87,8 @@ function SettlementField({
         <input
           inputMode="numeric"
           value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="예: 400000"
+          onChange={(e) => setValue(formatWonInput(e.target.value))}
+          placeholder="예: 400,000"
           disabled={locked || busy}
           className="h-9 flex-1 rounded-lg border border-border bg-background px-3 text-sm placeholder:text-ink-3 disabled:opacity-60"
         />

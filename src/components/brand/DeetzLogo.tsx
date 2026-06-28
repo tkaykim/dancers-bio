@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 type DeetzLogoProps = {
   className?: string;
@@ -24,7 +25,8 @@ export function DeetzLogo({
       height={1632}
       priority={priority}
       sizes="120px"
-      className={className}
+      // self-start·shrink-0·w-fit: flex/grid 부모(items-stretch)에서 가로로 늘어나 깨지는 것 방지.
+      className={cn("w-fit shrink-0 self-start", className)}
     />
   );
 }

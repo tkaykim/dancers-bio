@@ -19,6 +19,14 @@ export function formatWon(n: number): string {
   return `${Math.round(n || 0).toLocaleString("ko-KR")}원`;
 }
 
+// 금액 입력용 천단위 콤마 포맷. 숫자만 남기고 콤마 삽입(예: "1000000" → "1,000,000").
+// 서버 액션의 parseWon이 콤마를 제거하므로 콤마 포함 문자열을 그대로 제출해도 안전.
+export function formatWonInput(v: string | number | null | undefined): string {
+  const digits = String(v ?? "").replace(/[^\d]/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString("ko-KR");
+}
+
 // 4단계 개념: 정산대기(금액 미입력=행 없음) → 정산완료(pending) → 출금신청(requested) → 입금완료(paid)
 export const SETTLEMENT_STATUS_LABEL: Record<SettlementStatus, string> = {
   pending: "정산완료",

@@ -677,6 +677,11 @@ export async function buildTransferFileAction(
       skipped++;
       continue;
     }
+    // 셀프 수집 직후 등 금액 미입력(null/0) 건은 이체 대상에서 제외.
+    if (s.gross_amount == null || (s.gross_amount as number) <= 0) {
+      skipped++;
+      continue;
+    }
     const acct = acctById.get(s.dancer_id as string);
     const accountNumber = (acct?.bank_account_number ?? "")
       .toString()
@@ -721,4 +726,167 @@ export async function buildTransferFileAction(
       skipped,
     },
   };
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  구글폼 흡수 = 댄서 지급정보 셀프 수집 (멀티테넌트 정산 MVP)
+//  - 소유자(안무가/팀)가 프로젝트에 "정산 수집 링크" 발급 → /settle/<code>
+//  - 댄서가 로그인해 본인 계좌·주민번호 셀프 제출 → settlements 행 보장(금액 미정)
+//  - 소유자가 콘솔에서 댄서별 금액(gross) 입력 = 기존 setSettlementAmountAction 재사용
+// ════════════════════════════════════════════════════════════════════════
+
+// ── 소유자: 정산 수집 링크 발급/마감 (canManageProject) ─────────────────────
+export async function setSettlementCollectionAction(
+  fd: FormData,
+): Promise<ActionResult<{ code: string; open: boolean }>> {
+  await requireUser();
+  const projectId = (fd.get("project_id") ?? "").toString().trim();
+  const open = (fd.get("open") ?? "").toString() === "true";
+  if (!projectId) return { ok: false, error: "잘못된 요청입니다." };
+  if (!(await canManageProject(projectId)))
+    return { ok: false, error: "권한이 없습니다." };
+
+  const admin = createAdminClient();
+  const { data: proj } = await admin
+    .from("projects")
+    .select("settlement_collect_code")
+    .eq("id", projectId)
+    .maybeSingle();
+  let code = (proj?.settlement_collect_code as string | null) ?? null;
+  if (!code) {
+    const { data: gen } = await admin.rpc(
+      "gen_project_settlement_collect_code",
+    );
+    code = (gen as string | null) ?? null;
+    if (!code) return { ok: false, error: "코드 생성에 실패했습니다." };
+  }
+  const { error } = await admin
+    .from("projects")
+    .update({ settlement_collect_code: code, settlement_collection_open: open })
+    .eq("id", projectId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/projects/${projectId}/settlements`);
+  return { ok: true, data: { code, open } };
+}
+
+// ── 소유자: 수주액·실비 저장 (마진 계산용) ──────────────────────────────────
+export async function setProjectFinanceAction(
+  fd: FormData,
+): Promise<ActionResult> {
+  await requireUser();
+  const projectId = (fd.get("project_id") ?? "").toString().trim();
+  const revenue = parseWon(fd.get("client_revenue"));
+  const expense = parseWon(fd.get("expense_amount"));
+  if (!projectId) return { ok: false, error: "잘못된 요청입니다." };
+  if (!(await canManageProject(projectId)))
+    return { ok: false, error: "권한이 없습니다." };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("projects")
+    .update({ client_revenue: revenue, expense_amount: expense })
+    .eq("id", projectId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/projects/${projectId}/settlements`);
+  return { ok: true };
+}
+
+// ── 댄서: 수집 링크로 지급정보 셀프 제출 (계좌+주민번호 → settlements 행 보장) ──
+// 금액은 댄서가 정하지 않는다 — 소유자(안무가)가 콘솔에서 후기입.
+export async function submitSettlementCollectionAction(
+  fd: FormData,
+): Promise<ActionResult<{ dancerId: string }>> {
+  const user = await requireUser();
+  const code = (fd.get("code") ?? "").toString().trim();
+  let dancerId = (fd.get("dancer_id") ?? "").toString().trim();
+  const bank_name = strOrNull(fd, "bank_name");
+  const bank_code = strOrNull(fd, "bank_code");
+  const bank_account_number =
+    (fd.get("bank_account_number") ?? "")
+      .toString()
+      .replace(/[\s-]/g, "")
+      .trim() || null;
+  const bank_account_holder = strOrNull(fd, "bank_account_holder");
+  const rrn =
+    (fd.get("resident_registration_number") ?? "")
+      .toString()
+      .replace(/\s/g, "")
+      .trim() || null;
+  if (!code) return { ok: false, error: "잘못된 요청입니다." };
+  if (!bank_name || !bank_account_number || !bank_account_holder)
+    return { ok: false, error: "은행·계좌번호·예금주를 모두 입력해 주세요." };
+
+  const admin = createAdminClient();
+  const { data: proj } = await admin
+    .from("projects")
+    .select("id, settlement_collection_open")
+    .eq("settlement_collect_code", code)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!proj) return { ok: false, error: "유효하지 않은 수집 링크예요." };
+  if (proj.settlement_collection_open !== true)
+    return { ok: false, error: "정산 정보 수집이 마감되었어요." };
+  const projectId = proj.id as string;
+
+  // 본인 댄서 식별 (로그인 세션 = 신원). 여러 프로필이면 선택 필요.
+  const mine = await myDancerIds(user.id);
+  if (dancerId) {
+    if (!mine.has(dancerId))
+      return { ok: false, error: "본인 댄서 프로필만 제출할 수 있어요." };
+  } else if (mine.size === 1) {
+    dancerId = [...mine][0];
+  } else if (mine.size === 0) {
+    return {
+      ok: false,
+      error: "댄서 프로필이 필요해요. 포트폴리오를 먼저 만들어 주세요.",
+    };
+  } else {
+    return { ok: false, error: "제출할 댄서 프로필을 선택해 주세요." };
+  }
+
+  // 지급정보 upsert (민감정보 → dancer_private_info)
+  const { data: existingPi } = await admin
+    .from("dancer_private_info")
+    .select("dancer_id")
+    .eq("dancer_id", dancerId)
+    .maybeSingle();
+  const patch: Record<string, unknown> = {
+    bank_name,
+    bank_code,
+    bank_account_number,
+    bank_account_holder,
+  };
+  if (rrn) patch.resident_registration_number = rrn;
+  const piErr = existingPi
+    ? (await admin.from("dancer_private_info").update(patch).eq("dancer_id", dancerId)).error
+    : (await admin.from("dancer_private_info").insert({ dancer_id: dancerId, ...patch })).error;
+  if (piErr)
+    return { ok: false, error: "저장에 실패했습니다. 다시 시도해 주세요." };
+
+  // settlements 행 보장 — 없으면 origin=self_collected, 금액 미정으로 생성.
+  // 이미 있으면 금액(gross)·상태는 건드리지 않음(소유자 입력 보존, 멱등).
+  const { data: existingS } = await admin
+    .from("settlements")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("dancer_id", dancerId)
+    .maybeSingle();
+  if (!existingS) {
+    const { error: sErr } = await admin.from("settlements").insert({
+      project_id: projectId,
+      dancer_id: dancerId,
+      gross_amount: null,
+      withholding_rate: DEFAULT_WITHHOLDING_RATE,
+      status: "pending",
+      origin: "self_collected",
+      created_by: user.id,
+    });
+    if (sErr) return { ok: false, error: sErr.message };
+  }
+
+  revalidatePath(`/projects/${projectId}/settlements`);
+  revalidatePath("/me/settlements");
+  return { ok: true, data: { dancerId } };
 }

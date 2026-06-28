@@ -26,7 +26,7 @@ export type MySettlementRow = {
   dancerId: string;
   dancerName: string;
   projectTitle: string;
-  grossAmount: number;
+  grossAmount: number | null;
   rate: number;
   status: SettlementStatus;
   paidAt: string | null;
@@ -70,9 +70,11 @@ export function MySettlements({
 
   // 출금 가능 잔액 = 정산완료(pending) 건의 세전 금액 합계.
   // (출금신청·입금완료 건은 이미 처리 중/완료라 잔액에서 제외)
-  const pendingRows = settlements.filter((s) => s.status === "pending");
+  const pendingRows = settlements.filter(
+    (s) => s.status === "pending" && s.grossAmount != null,
+  );
   const withdrawableGross = pendingRows.reduce(
-    (sum, s) => sum + calcSettlement(s.grossAmount, s.rate).gross,
+    (sum, s) => sum + calcSettlement(s.grossAmount ?? 0, s.rate).gross,
     0,
   );
 
@@ -89,7 +91,7 @@ export function MySettlements({
   const receivedForYear = paidRows.reduce(
     (sum, s) =>
       new Date(s.paidAt as string).getFullYear() === receivedYear
-        ? sum + calcSettlement(s.grossAmount, s.rate).net
+        ? sum + calcSettlement(s.grossAmount ?? 0, s.rate).net
         : sum,
     0,
   );
@@ -173,8 +175,35 @@ export function MySettlements({
         ) : (
           <ul className="flex flex-col gap-3">
             {settlements.map((s) => {
-              const calc = calcSettlement(s.grossAmount, s.rate);
               const hasAccount = !!accounts[s.dancerId];
+              // 셀프 제출 직후 등 금액 미정 건 = 금액 산정 대기 카드.
+              if (s.grossAmount == null) {
+                return (
+                  <li
+                    key={s.id}
+                    className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-semibold leading-tight">
+                          {s.projectTitle}
+                        </span>
+                        <span className="text-xs text-ink-3">
+                          {s.dancerName}
+                        </span>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold text-ink-3">
+                        금액 산정 대기
+                      </span>
+                    </div>
+                    <p className="text-xs text-ink-3">
+                      정산 정보 제출이 완료됐어요. 담당자가 금액을 확정하면
+                      알려드릴게요.
+                    </p>
+                  </li>
+                );
+              }
+              const calc = calcSettlement(s.grossAmount, s.rate);
               return (
                 <li
                   key={s.id}
@@ -439,7 +468,7 @@ function WithdrawDialog({
 }) {
   const [busy, startTransition] = useTransition();
   const [reveal, setReveal] = useState(false);
-  const calc = calcSettlement(row.grossAmount, row.rate);
+  const calc = calcSettlement(row.grossAmount ?? 0, row.rate);
 
   function submit() {
     const fd = new FormData();
