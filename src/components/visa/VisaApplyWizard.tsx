@@ -310,6 +310,8 @@ export function VisaApplyWizard({ initialLang = "en" }: { initialLang?: Lang }) 
   const [consent, setConsent] = useState(false);
   const [done, setDone] = useState<{ profileUrl: string | null } | null>(null);
   const [pending, startTransition] = useTransition();
+  // 입국 가능일은 과거 선택 불가 (오늘 이후만).
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const t = T[lang];
   const active = (i: number) => {
@@ -588,6 +590,7 @@ export function VisaApplyWizard({ initialLang = "en" }: { initialLang?: Lang }) 
               <input
                 type="date"
                 className={inputClass}
+                min={today}
                 value={a.entry}
                 onChange={(e) => setField("entry", e.target.value)}
               />

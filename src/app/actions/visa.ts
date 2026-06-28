@@ -9,6 +9,7 @@ import { visaLabel } from "@/lib/data/korea-visas";
 import { buildSocialUrl, type SocialPlatform } from "@/lib/utils/social";
 import { slugify } from "@/lib/utils/slug";
 import { sendVisaApplicationEmail } from "@/lib/notify/visa-application-mail";
+import { sendVisaApplicantConfirmationEmail } from "@/lib/notify/visa-applicant-confirmation-mail";
 import type { ActionResult } from "./auth";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -188,7 +189,18 @@ export async function submitVisaApplicationAction(
       created_at: (appRow.created_at as string) ?? new Date().toISOString(),
     });
   } catch (e) {
-    console.error("[submitVisaApplication] mail failed (non-fatal):", e);
+    console.error("[submitVisaApplication] ops mail failed (non-fatal):", e);
+  }
+
+  // 신청자 접수 확인 메일 (제출 언어로, 정본 양식). 비치명적.
+  try {
+    await sendVisaApplicantConfirmationEmail({
+      to: d.email,
+      name: stageName,
+      lang: d.lang,
+    });
+  } catch (e) {
+    console.error("[submitVisaApplication] applicant mail failed (non-fatal):", e);
   }
 
   revalidatePath("/admin/visa");

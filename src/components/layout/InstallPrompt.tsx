@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Download, Share, Plus, X } from "lucide-react";
 
 // 설치 유도 배너 — 전역 마운트(루트 레이아웃).
@@ -63,6 +64,7 @@ function dismissedRecently(): boolean {
 type Mode = "native" | "ios" | "ios-other";
 
 export function InstallPrompt() {
+  const pathname = usePathname();
   const [mode, setMode] = useState<Mode | null>(null);
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [showGuide, setShowGuide] = useState(false);
@@ -119,6 +121,8 @@ export function InstallPrompt() {
     }
   }
 
+  // 비자 온보딩 퍼널(/visa, /visa/apply)에서는 집중도를 위해 설치 배너 숨김.
+  if (pathname?.startsWith("/visa")) return null;
   if (!mode) return null;
 
   return (

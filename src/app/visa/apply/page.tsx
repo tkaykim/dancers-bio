@@ -7,6 +7,14 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function VisaApplyPage() {
-  return <VisaApplyWizard initialLang="en" />;
+type Lang = "en" | "ja" | "ko";
+
+export default async function VisaApplyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lang?: string }>;
+}) {
+  const { lang } = await searchParams;
+  const initialLang: Lang = lang === "ja" || lang === "ko" ? lang : "en";
+  return <VisaApplyWizard initialLang={initialLang} />;
 }
