@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { RecomputeScoresButton } from "@/components/admin/RecomputeScoresButton";
 
 export default async function AdminHomePage() {
@@ -54,6 +55,19 @@ export default async function AdminHomePage() {
       .eq("status", "requested"),
   ]);
 
+  // 비자 신청은 RLS default deny → service-role로만 카운트. 키 미설정 시 0.
+  let newVisaApps = 0;
+  try {
+    const admin = createAdminClient();
+    const { count } = await admin
+      .from("dancer_visa_applications")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "new");
+    newVisaApps = count ?? 0;
+  } catch {
+    newVisaApps = 0;
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
@@ -78,6 +92,13 @@ export default async function AdminHomePage() {
           href="/admin/analytics"
           title="성장 · KPI 분석"
           desc="가입·지원 추이, 수락률, 채널별 지원, 클레임률 등 핵심 지표"
+        />
+        <Tile
+          href="/admin/visa"
+          title="E-6-1 비자 신청"
+          desc="/visa 온보딩으로 들어온 해외 댄서 신청 검토 · 단계 관리"
+          badge={newVisaApps ? `${newVisaApps} 신규` : undefined}
+          accent={Boolean(newVisaApps)}
         />
         <Tile
           href="/admin/dancers"
