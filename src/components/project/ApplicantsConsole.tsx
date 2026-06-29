@@ -37,6 +37,10 @@ export type ConsoleApplicant = {
   proposed_fee_currency: string | null;
   proposed_fee_unit: string | null;
   fee_status: string | null;
+  confirmedAt: string | null;
+  evalCount: number;
+  avgScore: number | null;
+  myScore: number | null;
 };
 
 const CURRENCY_SYMBOL: Record<string, string> = {
@@ -56,8 +60,9 @@ function formatFee(a: ConsoleApplicant): string | null {
   return `${sym}${amount}${unit}${nego}`;
 }
 
-type Tab = "pending" | "accepted" | "rejected" | "all";
+type Tab = "pending" | "accepted" | "confirmed" | "rejected" | "all";
 type ChannelFilter = "all" | "none" | string;
+type SortMode = "newest" | "oldest" | "score";
 
 const STATUS_BADGE: Record<string, string> = {
   pending: "bg-secondary text-ink-2",
@@ -84,7 +89,7 @@ export function ApplicantsConsole({
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all");
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState<string | null>(null);
-  const [sortNewest, setSortNewest] = useState(true);
+  const [sortMode, setSortMode] = useState<SortMode>("newest");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [sheetId, setSheetId] = useState<string | null>(null);
@@ -93,13 +98,15 @@ export function ApplicantsConsole({
   const counts = useMemo(() => {
     let pending = 0,
       accepted = 0,
+      confirmed = 0,
       rejected = 0;
     for (const a of items) {
       if (a.status === "pending") pending++;
       else if (a.status === "accepted") accepted++;
       else if (a.status === "rejected" || a.status === "declined") rejected++;
+      if (a.confirmedAt) confirmed++;
     }
-    return { pending, accepted, rejected, total: items.length };
+    return { pending, accepted, confirmed, rejected, total: items.length };
   }, [items]);
 
   const allGenres = useMemo(() => {
@@ -141,6 +148,7 @@ export function ApplicantsConsole({
     let list = items.filter((a) => {
       if (tab === "pending" && a.status !== "pending") return false;
       if (tab === "accepted" && a.status !== "accepted") return false;
+      if (tab === "confirmed" && !a.confirmedAt) return false;
       if (tab === "rejected" && a.status !== "rejected" && a.status !== "declined")
         return false;
       if (channelFilter === "none" && a.recruitmentChannelId) return false;
@@ -158,13 +166,20 @@ export function ApplicantsConsole({
       if (genre && !a.genres.includes(genre)) return false;
       return true;
     });
-    list = [...list].sort((x, y) =>
-      sortNewest
+    list = [...list].sort((x, y) => {
+      if (sortMode === "score") {
+        // 점수 높은순 — 평가 없는 지원은 맨 뒤, 동점은 최신순.
+        const sx = x.avgScore ?? -1;
+        const sy = y.avgScore ?? -1;
+        if (sx !== sy) return sy - sx;
+        return y.created_at.localeCompare(x.created_at);
+      }
+      return sortMode === "newest"
         ? y.created_at.localeCompare(x.created_at)
-        : x.created_at.localeCompare(y.created_at),
-    );
+        : x.created_at.localeCompare(y.created_at);
+    });
     return list;
-  }, [items, tab, channelFilter, query, genre, sortNewest]);
+  }, [items, tab, channelFilter, query, genre, sortMode]);
 
   const sheetApplicant: SheetApplicant | null = useMemo(() => {
     const a = items.find((i) => i.id === sheetId);
@@ -176,11 +191,37 @@ export function ApplicantsConsole({
       status: a.status,
       publicHref: a.publicHref,
       rejectionReason: a.rejection_reason,
+      confirmedAt: a.confirmedAt,
     };
   }, [items, sheetId]);
 
   function patchItem(id: string, patch: Partial<ConsoleApplicant>) {
     setItems((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  }
+
+  // 내 점수 변경 시 목록의 평균·건수를 정확히 재계산(다른 평가자 합은 보존).
+  function patchMyScore(id: string, newScore: number | null) {
+    setItems((prev) =>
+      prev.map((a) => {
+        if (a.id !== id) return a;
+        let sum = (a.avgScore ?? 0) * a.evalCount;
+        let count = a.evalCount;
+        if (a.myScore != null) {
+          sum -= a.myScore;
+          count -= 1;
+        }
+        if (newScore != null) {
+          sum += newScore;
+          count += 1;
+        }
+        return {
+          ...a,
+          myScore: newScore,
+          evalCount: count,
+          avgScore: count > 0 ? sum / count : null,
+        };
+      }),
+    );
   }
 
   // 거절은 사유 입력 다이얼로그를 먼저 띄운다. 수락/대기는 즉시 처리.
@@ -294,6 +335,7 @@ export function ApplicantsConsole({
   const TABS: { key: Tab; label: string; n: number }[] = [
     { key: "pending", label: "대기", n: counts.pending },
     { key: "accepted", label: "수락", n: counts.accepted },
+    { key: "confirmed", label: "확정", n: counts.confirmed },
     { key: "rejected", label: "거절", n: counts.rejected },
     { key: "all", label: "전체", n: counts.total },
   ];
@@ -338,13 +380,16 @@ export function ApplicantsConsole({
           placeholder="이름·모집채널로 검색…"
           className="h-9 flex-1 rounded-lg border border-border bg-background px-3 text-sm placeholder:text-ink-3"
         />
-        <button
-          type="button"
-          onClick={() => setSortNewest((v) => !v)}
-          className="h-9 shrink-0 rounded-lg border border-border px-3 text-xs text-ink-2 hover:bg-secondary"
+        <select
+          value={sortMode}
+          onChange={(e) => setSortMode(e.target.value as SortMode)}
+          className="h-9 shrink-0 rounded-lg border border-border bg-background px-2 text-xs text-ink-2"
+          aria-label="정렬"
         >
-          {sortNewest ? "최신순" : "오래된순"}
-        </button>
+          <option value="newest">최신순</option>
+          <option value="oldest">오래된순</option>
+          <option value="score">점수 높은순</option>
+        </select>
       </div>
 
       {/* 채널·장르 필터 (드롭다운 — 채널 0건 숨김, 칩 벽 제거) */}
@@ -491,6 +536,11 @@ export function ApplicantsConsole({
                     ) : null}
                   </p>
                   <div className="flex flex-wrap items-center gap-1">
+                    {a.avgScore != null ? (
+                      <span className="rounded-full bg-ok/15 px-1.5 py-0.5 text-[10px] font-semibold text-ok">
+                        ★ {a.avgScore.toFixed(1)} · {a.evalCount}명
+                      </span>
+                    ) : null}
                     {formatFee(a) ? (
                       <span
                         className={
@@ -527,6 +577,11 @@ export function ApplicantsConsole({
                     </p>
                   ) : null}
                 </div>
+                {a.confirmedAt ? (
+                  <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                    확정
+                  </span>
+                ) : null}
                 <span
                   className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium sm:inline ${
                     STATUS_BADGE[a.status] ?? "bg-secondary text-ink-3"
@@ -587,6 +642,12 @@ export function ApplicantsConsole({
         canDecide={canDecide}
         onDecide={(decision) => {
           if (sheetId) requestDecide(sheetId, decision);
+        }}
+        onMyScoreChange={(score) => {
+          if (sheetId) patchMyScore(sheetId, score);
+        }}
+        onConfirmChange={(confirmedAt) => {
+          if (sheetId) patchItem(sheetId, { confirmedAt });
         }}
       />
 

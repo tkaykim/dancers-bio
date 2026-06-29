@@ -45,6 +45,7 @@ type Application = {
   proposed_fee_currency: string | null;
   proposed_fee_unit: string | null;
   fee_status: string | null;
+  confirmed_at: string | null;
   applicant: { id: string; display_name: string; avatar_url: string | null } | null;
   dancer:
     | {
@@ -311,7 +312,7 @@ export default async function ApplicantsPage({
     .from("applications")
     .select(
       `id, status, source, cover_message, created_at, rejection_reason, recruitment_channel_id,
-       proposed_fee, proposed_fee_currency, proposed_fee_unit, fee_status,
+       proposed_fee, proposed_fee_currency, proposed_fee_unit, fee_status, confirmed_at,
        applicant:profiles!applications_applicant_id_fkey ( id, display_name, avatar_url ),
        dancer:dancers!applications_dancer_id_fkey ( id, stage_name, korean_name, slug, profile_img, genres, location ),
        team:teams!applications_team_id_fkey ( id, team_name, slug, profile_img )`,
@@ -321,6 +322,38 @@ export default async function ApplicantsPage({
     .order("created_at", { ascending: false });
 
   const list = (rows ?? []) as unknown as Application[];
+
+  // 사전선별 평가 집계 — 지원별 평균/건수 + 내 점수. (RLS: 담당자만 조회 가능)
+  const evalAgg = new Map<
+    string,
+    { sum: number; count: number; myScore: number | null }
+  >();
+  if (list.length > 0) {
+    // 지원자 수가 많은 프로젝트(수백 건)에서도 안전하도록 application_id 나열 대신
+    // 임베드 조인으로 project_id 기준 필터링한다. (RLS가 담당 프로젝트로 추가 제한)
+    const { data: evalRows, error: evalErr } = await supabase
+      .from("application_evaluations")
+      .select("application_id, evaluator_id, score, app:applications!inner(project_id)")
+      .eq("stage", "prescreen")
+      .in("app.project_id", applicationProjectIds);
+    if (evalErr) console.error("[applicants] 평가 집계 조회 실패:", evalErr.message);
+    for (const ev of (evalRows ?? []) as Array<{
+      application_id: string;
+      evaluator_id: string;
+      score: number;
+    }>) {
+      const agg = evalAgg.get(ev.application_id) ?? {
+        sum: 0,
+        count: 0,
+        myScore: null,
+      };
+      agg.sum += ev.score;
+      agg.count += 1;
+      if (ev.evaluator_id === user.id) agg.myScore = ev.score;
+      evalAgg.set(ev.application_id, agg);
+    }
+  }
+
   const channelById = new Map(channelRows.map((ch) => [ch.id, ch]));
   const channelStats = new Map<
     string,
@@ -379,6 +412,13 @@ export default async function ApplicantsPage({
       proposed_fee_currency: a.proposed_fee_currency ?? null,
       proposed_fee_unit: a.proposed_fee_unit ?? null,
       fee_status: a.fee_status ?? null,
+      confirmedAt: a.confirmed_at ?? null,
+      evalCount: evalAgg.get(a.id)?.count ?? 0,
+      avgScore:
+        (evalAgg.get(a.id)?.count ?? 0) > 0
+          ? evalAgg.get(a.id)!.sum / evalAgg.get(a.id)!.count
+          : null,
+      myScore: evalAgg.get(a.id)?.myScore ?? null,
     };
   });
   const recruitmentChannels: RecruitmentChannel[] = channelRows.map((channel) => {

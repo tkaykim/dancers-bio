@@ -13,7 +13,9 @@ import {
   type ApplicantPortfolio,
 } from "@/app/actions/applicant-portfolio";
 import { setSettlementAmountAction } from "@/app/actions/settlements";
+import { setApplicationConfirmedAction } from "@/app/actions/evaluations";
 import { calcSettlement, formatWon, formatWonInput } from "@/lib/settlement";
+import { EvaluationPanel } from "@/components/project/EvaluationPanel";
 
 export type SheetApplicant = {
   applicationId: string;
@@ -22,6 +24,7 @@ export type SheetApplicant = {
   status: string;
   publicHref: string | null;
   rejectionReason: string | null;
+  confirmedAt: string | null;
 };
 
 const SOCIAL_KEYS = ["instagram", "youtube", "tiktok", "twitter", "x"] as const;
@@ -152,6 +155,8 @@ export function ApplicantPortfolioSheet({
   onDecide,
   deciding,
   canDecide = true,
+  onMyScoreChange,
+  onConfirmChange,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -160,12 +165,32 @@ export function ApplicantPortfolioSheet({
   onDecide: (decision: "accepted" | "rejected" | "pending") => void;
   deciding: boolean;
   canDecide?: boolean;
+  onMyScoreChange?: (score: number | null) => void;
+  onConfirmChange?: (confirmedAt: string | null) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ApplicantPortfolio | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const dancerId = applicant?.dancerId ?? null;
+
+  async function toggleConfirm() {
+    if (!applicant) return;
+    const next = !applicant.confirmedAt;
+    setConfirming(true);
+    const fd = new FormData();
+    fd.set("application_id", applicant.applicationId);
+    fd.set("confirmed", next ? "1" : "0");
+    const r = await setApplicationConfirmedAction(fd);
+    setConfirming(false);
+    if (!r.ok) {
+      toast.error(r.error);
+      return;
+    }
+    toast.success(next ? "확정했습니다" : "확정을 해제했습니다");
+    onConfirmChange?.(next ? new Date().toISOString() : null);
+  }
 
   useEffect(() => {
     if (!open || !dancerId) {
@@ -418,6 +443,16 @@ export function ApplicantPortfolioSheet({
           </>
         )}
 
+        {/* 사전선별 점수 — 영상·경력 본 그 자리에서 바로 평가 + 남 의견 공유. */}
+        {applicant && canDecide ? (
+          <EvaluationPanel
+            open={open}
+            applicationId={applicant.applicationId}
+            canScore={canDecide}
+            onMyScoreChange={onMyScoreChange}
+          />
+        ) : null}
+
         {/* 정산금액 — 수락된 지원자에게만. 사람을 보는 자리에서 바로 입력. */}
         {applicant?.status === "accepted" && dancerId ? (
           <SettlementField
@@ -426,6 +461,32 @@ export function ApplicantPortfolioSheet({
             initialAmount={data?.settlement?.gross_amount ?? null}
             status={data?.settlement?.status ?? null}
           />
+        ) : null}
+
+        {/* 확정 — 수락한 지원자만. status 위에 얹는 최종 잠금(캐스팅보드·정산 기준). */}
+        {applicant && canDecide && applicant.status === "accepted" ? (
+          applicant.confirmedAt ? (
+            <div className="flex items-center justify-between rounded-xl border border-primary/40 bg-primary/5 px-3 py-2.5">
+              <span className="text-sm font-semibold text-primary">✓ 확정됨</span>
+              <button
+                type="button"
+                onClick={toggleConfirm}
+                disabled={confirming}
+                className="text-[12px] text-ink-3 underline hover:text-foreground disabled:opacity-50"
+              >
+                확정 해제
+              </button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              className="w-full border-primary/50 text-primary"
+              disabled={confirming}
+              onClick={toggleConfirm}
+            >
+              이 지원자 확정하기
+            </Button>
+          )
         ) : null}
 
         {/* 결정 버튼 — 시트 콘텐츠 흐름에 포함(시트 전체가 스크롤되도록 sticky 제거) */}
