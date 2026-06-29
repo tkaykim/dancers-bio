@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { SessionRefresher } from "@/components/auth/SessionRefresher";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
@@ -114,6 +115,7 @@ export default function RootLayout({
         <ErrorReporter />
         {children}
         <GoogleAnalytics />
+        <Analytics />
         <Toaster />
       </body>
     </html>
