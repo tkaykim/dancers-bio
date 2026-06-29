@@ -1,12 +1,16 @@
 import { ImageResponse } from "next/og";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 // 사이트 전역 OG 이미지(전 라우트 기본 og:image / twitter:image).
-// 기본 폰트(라틴)만 쓰도록 영문 브랜드 표기 — deetz는 항상 소문자.
 export const alt = "deetz — 댄서 섭외·안무 제작 플랫폼";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OpengraphImage() {
+export default async function OpengraphImage() {
+  const logoData = await readFile(join(process.cwd(), "public", "brand", "deetz-logo-black.png"), "base64");
+  const logoSrc = `data:image/png;base64,${logoData}`;
+
   return new ImageResponse(
     (
       <div
@@ -35,13 +39,22 @@ export default function OpengraphImage() {
         <div
           style={{
             marginTop: 18,
-            fontSize: 176,
-            fontWeight: 800,
-            letterSpacing: -4,
-            lineHeight: 1,
+            display: "flex",
+            width: 560,
+            height: 272,
+            alignItems: "center",
           }}
         >
-          deetz.
+          {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse requires a plain img for data URL assets. */}
+          <img
+            src={logoSrc}
+            alt="dee'tz"
+            width={560}
+            height={272}
+            style={{
+              display: "block",
+            }}
+          />
         </div>
         <div
           style={{
