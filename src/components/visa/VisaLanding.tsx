@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, FileCheck, GraduationCap, Stamp } from "lucide-react";
+import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { cn } from "@/lib/utils";
 
 type Lang = "en" | "ja" | "ko";
@@ -83,7 +84,7 @@ export function VisaLanding({ initialLang = "en" }: { initialLang?: Lang }) {
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-6 pb-16 pt-6">
       <div className="mb-10 flex items-center justify-between">
-        <span className="text-lg font-bold tracking-tight">deetz</span>
+        <DeetzLogo className="h-7 w-auto" priority />
         <div className="flex gap-1.5">
           {LANGS.map((l) => (
             <button

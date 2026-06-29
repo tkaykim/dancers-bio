@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { ArrowLeft, Check, Loader2, Plus, X } from "lucide-react";
 import Link from "next/link";
 
+import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { SearchableSelect, type SearchableOption } from "@/components/ui/searchable-select";
 import { COUNTRIES } from "@/lib/data/countries";
 import { KOREA_VISAS } from "@/lib/data/korea-visas";
@@ -685,8 +686,8 @@ function Shell({
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-6 pb-10 pt-5">
       <div className="mb-3 flex items-center justify-between">
-        <Link href="/visa" className="text-lg font-bold tracking-tight">
-          deetz
+        <Link href="/visa" className="inline-flex">
+          <DeetzLogo className="h-7 w-auto" />
         </Link>
         <div className="flex gap-1.5">
           {LANGS.map((l) => (
