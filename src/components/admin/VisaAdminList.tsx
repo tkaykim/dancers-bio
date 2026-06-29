@@ -12,6 +12,7 @@ export type VisaAdminRow = {
   status: string;
   memo: string | null;
   skill_level: number | null;
+  korean_level: string | null;
   dance_video_url: string | null;
   currently_in_korea: boolean | null;
   has_residence_in_korea: boolean | null;
@@ -45,6 +46,12 @@ const SKILL: Record<number, string> = {
   2: "어느 정도",
   3: "현장 준비",
   4: "안무·무대 경험",
+};
+
+const KOREAN: Record<string, string> = {
+  none: "전혀",
+  some: "어느 정도",
+  fluent: "유창",
 };
 
 export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
@@ -123,6 +130,7 @@ function VisaCard({ row }: { row: VisaAdminRow }) {
           {row.has_visa == null ? "-" : row.has_visa ? `있음 (${row.visa_label ?? ""})` : "없음/예정"}
         </Field>
         <Field label="실력">{row.skill_level ? SKILL[row.skill_level] : "-"}</Field>
+        <Field label="한국어">{row.korean_level ? (KOREAN[row.korean_level] ?? row.korean_level) : "-"}</Field>
         <Field label="현재">
           {row.currently_in_korea == null ? "-" : row.currently_in_korea ? "한국" : "자국"}
         </Field>

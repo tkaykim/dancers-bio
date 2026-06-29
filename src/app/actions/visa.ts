@@ -38,6 +38,7 @@ const submitSchema = z.object({
   hasVisa: z.boolean(),
   visaType: z.string().trim().max(20).optional().nullable(),
   skillLevel: z.number().int().min(1).max(4),
+  koreanLevel: z.enum(["none", "some", "fluent"]).optional().nullable(),
   danceVideoUrl: z.string().trim().max(500).optional().nullable(),
   currentlyInKorea: z.boolean(),
   hasResidenceInKorea: z.boolean(),
@@ -145,6 +146,7 @@ export async function submitVisaApplicationAction(
     .insert({
       dancer_id: dancerId,
       skill_level: d.skillLevel,
+      korean_level: d.koreanLevel ?? null,
       dance_video_url: d.danceVideoUrl || null,
       currently_in_korea: d.currentlyInKorea,
       has_residence_in_korea: d.hasResidenceInKorea,
@@ -177,6 +179,7 @@ export async function submitVisaApplicationAction(
       has_visa: d.hasVisa,
       visa_label: d.hasVisa && d.visaType ? visaLabel(d.visaType) : null,
       skill_level: d.skillLevel,
+      korean_level: d.koreanLevel ?? null,
       email: d.email,
       contacts: d.contacts,
       currently_in_korea: d.currentlyInKorea,

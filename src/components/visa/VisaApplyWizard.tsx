@@ -212,6 +212,16 @@ const STEPS: StepDef[] = [
     ],
   },
   {
+    k: "korean",
+    type: "choice",
+    q: { en: "How's your Korean?", ja: "韓国語はどのくらい話せますか？", ko: "한국어는 어느 정도 하시나요?" },
+    opts: [
+      { v: "none", l: { en: "Not at all yet", ja: "まだ全く話せない", ko: "전혀 못 해요" } },
+      { v: "some", l: { en: "A little — getting by", ja: "少し話せる", ko: "어느 정도 해요" } },
+      { v: "fluent", l: { en: "Fluent — no problem communicating", ja: "問題なく話せる", ko: "의사소통에 문제없어요" } },
+    ],
+  },
+  {
     k: "video",
     type: "text",
     ph: "https://",
@@ -277,6 +287,7 @@ type Answers = {
   hasvisa: string;
   visatype: string;
   level: string;
+  korean: string;
   video: string;
   where: string;
   stay: string;
@@ -293,6 +304,7 @@ const initialAnswers: Answers = {
   hasvisa: "",
   visatype: "",
   level: "",
+  korean: "",
   video: "",
   where: "",
   stay: "",
@@ -360,6 +372,7 @@ export function VisaApplyWizard({ initialLang = "en" }: { initialLang?: Lang }) 
         hasVisa: a.hasvisa === "yes",
         visaType: a.visatype || null,
         skillLevel: Number(a.level) || 1,
+        koreanLevel: (a.korean || null) as "none" | "some" | "fluent" | null,
         danceVideoUrl: a.video.trim() || null,
         currentlyInKorea: a.where === "korea",
         hasResidenceInKorea: a.stay === "yes",
@@ -724,6 +737,8 @@ function ReviewCard({ a, lang }: { a: Answers; lang: Lang }) {
   const visa = KOREA_VISAS.find((v) => v.code === a.visatype);
   const levelLabel =
     STEPS.find((s) => s.k === "level")?.opts?.find((o) => o.v === a.level)?.l[lang] ?? "—";
+  const koreanLabel =
+    STEPS.find((s) => s.k === "korean")?.opts?.find((o) => o.v === a.korean)?.l[lang] ?? "—";
   const whereLabel =
     STEPS.find((s) => s.k === "where")?.opts?.find((o) => o.v === a.where)?.l[lang] ?? "—";
   const visaLabel =
@@ -740,6 +755,7 @@ function ReviewCard({ a, lang }: { a: Answers; lang: Lang }) {
     ["이메일 / Email", a.email || "—"],
     ["비자 / Visa", visaLabel],
     ["실력 / Level", levelLabel],
+    ["한국어 / Korean", koreanLabel],
     ["현재 / Now", whereLabel],
     ["입국 / Entry", a.entry || "—"],
   ];

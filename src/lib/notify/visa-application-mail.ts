@@ -11,6 +11,12 @@ const SKILL_LABEL: Record<number, string> = {
   4: "안무·무대 경험 (choreo & stage exp.)",
 };
 
+const KOREAN_LABEL: Record<string, string> = {
+  none: "전혀 못함 (none)",
+  some: "어느 정도 (some)",
+  fluent: "유창·의사소통 문제없음 (fluent)",
+};
+
 function escapeHtml(s: string): string {
   return s.replace(
     /[&<>"']/g,
@@ -26,6 +32,7 @@ export interface VisaApplicationEmail {
   has_visa: boolean | null;
   visa_label: string | null;
   skill_level: number | null;
+  korean_level: string | null;
   email: string;
   contacts: { type: string; handle: string }[];
   currently_in_korea: boolean | null;
@@ -86,6 +93,7 @@ export async function sendVisaApplicationEmail(app: VisaApplicationEmail): Promi
       <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #eee;border-radius:6px;overflow:hidden;">
         ${row("비자 현황", visaStatus)}
         ${row("실력 자기진단", app.skill_level ? escapeHtml(SKILL_LABEL[app.skill_level] ?? String(app.skill_level)) : "-")}
+        ${row("한국어 수준", app.korean_level ? escapeHtml(KOREAN_LABEL[app.korean_level] ?? app.korean_level) : "-")}
         ${row("이메일", escapeHtml(app.email))}
         ${row("메신저", contactsHtml)}
         ${row("현재 위치", app.currently_in_korea == null ? "-" : app.currently_in_korea ? "한국" : "자국")}
@@ -110,6 +118,7 @@ export async function sendVisaApplicationEmail(app: VisaApplicationEmail): Promi
     `국적: ${app.nationality ?? "-"}`,
     `비자: ${app.has_visa == null ? "-" : app.has_visa ? `있음 (${app.visa_label ?? ""})` : "없음/신청예정"}`,
     `실력: ${app.skill_level ? SKILL_LABEL[app.skill_level] : "-"}`,
+    `한국어: ${app.korean_level ? KOREAN_LABEL[app.korean_level] : "-"}`,
     `이메일: ${app.email}`,
     `메신저: ${app.contacts.map((c) => `${c.type}:${c.handle}`).join(", ") || "-"}`,
     `현재 위치: ${app.currently_in_korea == null ? "-" : app.currently_in_korea ? "한국" : "자국"}`,

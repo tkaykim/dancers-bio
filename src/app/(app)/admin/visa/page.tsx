@@ -12,6 +12,7 @@ type AppRow = {
   status: string;
   memo: string | null;
   skill_level: number | null;
+  korean_level: string | null;
   dance_video_url: string | null;
   currently_in_korea: boolean | null;
   has_residence_in_korea: boolean | null;
@@ -32,7 +33,7 @@ export default async function AdminVisaPage() {
   const { data: appsRaw } = await admin
     .from("dancer_visa_applications")
     .select(
-      "id, created_at, status, memo, skill_level, dance_video_url, currently_in_korea, has_residence_in_korea, residence_region, available_entry_date, email, contacts, preferred_lang, dancer_id",
+      "id, created_at, status, memo, skill_level, korean_level, dance_video_url, currently_in_korea, has_residence_in_korea, residence_region, available_entry_date, email, contacts, preferred_lang, dancer_id",
     )
     .order("created_at", { ascending: false })
     .limit(300);
@@ -82,6 +83,7 @@ export default async function AdminVisaPage() {
       status: a.status,
       memo: a.memo,
       skill_level: a.skill_level,
+      korean_level: a.korean_level,
       dance_video_url: a.dance_video_url,
       currently_in_korea: a.currently_in_korea,
       has_residence_in_korea: a.has_residence_in_korea,
