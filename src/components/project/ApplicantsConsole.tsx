@@ -28,6 +28,8 @@ export type ConsoleApplicant = {
   avatar: string | null;
   publicHref: string | null;
   dancerId: string | null;
+  gender: string | null;
+  heightCm: number | null;
   genres: string[];
   location: string | null;
   rejection_reason: string | null;
@@ -62,7 +64,8 @@ function formatFee(a: ConsoleApplicant): string | null {
 
 type Tab = "pending" | "accepted" | "confirmed" | "rejected" | "all";
 type ChannelFilter = "all" | "none" | string;
-type SortMode = "newest" | "oldest" | "score";
+type SortMode = "newest" | "oldest" | "score" | "score_asc";
+type GenderFilter = "all" | "male" | "female";
 
 const STATUS_BADGE: Record<string, string> = {
   pending: "bg-secondary text-ink-2",
@@ -90,6 +93,12 @@ export function ApplicantsConsole({
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("newest");
+  const [genderFilter, setGenderFilter] = useState<GenderFilter>("all");
+  const [heightMin, setHeightMin] = useState("");
+  const [heightMax, setHeightMax] = useState("");
+  const [scoreMin, setScoreMin] = useState("");
+  const [scoreMax, setScoreMax] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [sheetId, setSheetId] = useState<string | null>(null);
@@ -143,6 +152,11 @@ export function ApplicantsConsole({
       .sort((a, b) => b.count - a.count);
   }, [channels, channelCounts, channelFilter]);
 
+  const hMin = heightMin.trim() ? Number(heightMin) : null;
+  const hMax = heightMax.trim() ? Number(heightMax) : null;
+  const sMin = scoreMin.trim() ? Number(scoreMin) : null;
+  const sMax = scoreMax.trim() ? Number(scoreMax) : null;
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     let list = items.filter((a) => {
@@ -164,14 +178,31 @@ export function ApplicantsConsole({
         if (!hay.includes(q)) return false;
       }
       if (genre && !a.genres.includes(genre)) return false;
+      // 성별
+      if (genderFilter !== "all" && a.gender !== genderFilter) return false;
+      // 키 범위 (이상 hMin · 미만 hMax). 키 미입력자는 키 필터가 걸리면 제외.
+      if (hMin != null || hMax != null) {
+        if (a.heightCm == null) return false;
+        if (hMin != null && a.heightCm < hMin) return false;
+        if (hMax != null && a.heightCm >= hMax) return false;
+      }
+      // 점수 구간 (min~max, 평균점수 기준). 점수 필터가 걸리면 미평가자는 제외.
+      if (sMin != null || sMax != null) {
+        if (a.avgScore == null) return false;
+        if (sMin != null && a.avgScore < sMin) return false;
+        if (sMax != null && a.avgScore > sMax) return false;
+      }
       return true;
     });
     list = [...list].sort((x, y) => {
-      if (sortMode === "score") {
-        // 점수 높은순 — 평가 없는 지원은 맨 뒤, 동점은 최신순.
-        const sx = x.avgScore ?? -1;
-        const sy = y.avgScore ?? -1;
-        if (sx !== sy) return sy - sx;
+      if (sortMode === "score" || sortMode === "score_asc") {
+        // 평가 없는 지원은 항상 맨 뒤. 동점은 최신순.
+        const sx = x.avgScore;
+        const sy = y.avgScore;
+        if (sx == null && sy == null) return y.created_at.localeCompare(x.created_at);
+        if (sx == null) return 1;
+        if (sy == null) return -1;
+        if (sx !== sy) return sortMode === "score" ? sy - sx : sx - sy;
         return y.created_at.localeCompare(x.created_at);
       }
       return sortMode === "newest"
@@ -179,7 +210,24 @@ export function ApplicantsConsole({
         : x.created_at.localeCompare(y.created_at);
     });
     return list;
-  }, [items, tab, channelFilter, query, genre, sortMode]);
+  }, [
+    items,
+    tab,
+    channelFilter,
+    query,
+    genre,
+    sortMode,
+    genderFilter,
+    hMin,
+    hMax,
+    sMin,
+    sMax,
+  ]);
+
+  const activeFilterCount =
+    (genderFilter !== "all" ? 1 : 0) +
+    (hMin != null || hMax != null ? 1 : 0) +
+    (sMin != null || sMax != null ? 1 : 0);
 
   const sheetApplicant: SheetApplicant | null = useMemo(() => {
     const a = items.find((i) => i.id === sheetId);
@@ -389,8 +437,117 @@ export function ApplicantsConsole({
           <option value="newest">최신순</option>
           <option value="oldest">오래된순</option>
           <option value="score">점수 높은순</option>
+          <option value="score_asc">점수 낮은순</option>
         </select>
+        <button
+          type="button"
+          onClick={() => setShowFilters((v) => !v)}
+          className={`h-9 shrink-0 rounded-lg border px-3 text-xs font-medium ${
+            activeFilterCount > 0
+              ? "border-primary/40 bg-primary/5 text-primary"
+              : "border-border bg-background text-ink-2"
+          }`}
+          aria-label="상세 필터"
+        >
+          필터{activeFilterCount > 0 ? ` ${activeFilterCount}` : ""}
+        </button>
       </div>
+
+      {/* 상세 필터: 성별 · 키 범위 · 점수 구간 */}
+      {showFilters ? (
+        <div className="flex flex-col gap-2.5 rounded-xl border border-hairline-2 bg-secondary/30 p-3">
+          <div className="flex items-center gap-2">
+            <span className="w-12 shrink-0 text-[11px] font-medium text-ink-3">성별</span>
+            <div className="inline-flex overflow-hidden rounded-lg border border-border">
+              {([
+                { v: "all", l: "전체" },
+                { v: "male", l: "남자" },
+                { v: "female", l: "여자" },
+              ] as const).map((g) => (
+                <button
+                  key={g.v}
+                  type="button"
+                  onClick={() => setGenderFilter(g.v)}
+                  className={`px-3 py-1 text-xs font-medium transition-colors ${
+                    genderFilter === g.v
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-ink-2 hover:bg-secondary"
+                  }`}
+                >
+                  {g.l}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-12 shrink-0 text-[11px] font-medium text-ink-3">키(cm)</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={heightMin}
+              onChange={(e) => setHeightMin(e.target.value)}
+              placeholder="이상"
+              className="h-8 w-20 rounded-lg border border-border bg-background px-2 text-xs"
+            />
+            <span className="text-ink-3">~</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={heightMax}
+              onChange={(e) => setHeightMax(e.target.value)}
+              placeholder="미만"
+              className="h-8 w-20 rounded-lg border border-border bg-background px-2 text-xs"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-12 shrink-0 text-[11px] font-medium text-ink-3">점수</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={10}
+              value={scoreMin}
+              onChange={(e) => setScoreMin(e.target.value)}
+              placeholder="최소"
+              className="h-8 w-20 rounded-lg border border-border bg-background px-2 text-xs"
+            />
+            <span className="text-ink-3">~</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={10}
+              value={scoreMax}
+              onChange={(e) => setScoreMax(e.target.value)}
+              placeholder="최대"
+              className="h-8 w-20 rounded-lg border border-border bg-background px-2 text-xs"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] text-ink-3">
+              조건 일치 <span className="font-semibold text-foreground">{filtered.length}</span>명
+              {(hMin != null || hMax != null || sMin != null || sMax != null) ? (
+                <span className="ml-1">· 키·점수 미보유자는 해당 필터 시 제외</span>
+              ) : null}
+            </p>
+            {activeFilterCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setGenderFilter("all");
+                  setHeightMin("");
+                  setHeightMax("");
+                  setScoreMin("");
+                  setScoreMax("");
+                }}
+                className="text-[11px] text-ink-3 underline hover:text-foreground"
+              >
+                필터 초기화
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {/* 채널·장르 필터 (드롭다운 — 채널 0건 숨김, 칩 벽 제거) */}
       {channels.length > 0 || channelCounts.none > 0 || allGenres.length > 0 ? (
@@ -539,6 +696,16 @@ export function ApplicantsConsole({
                     {a.avgScore != null ? (
                       <span className="rounded-full bg-ok/15 px-1.5 py-0.5 text-[10px] font-semibold text-ok">
                         ★ {a.avgScore.toFixed(1)} · {a.evalCount}명
+                      </span>
+                    ) : null}
+                    {a.gender === "male" || a.gender === "female" ? (
+                      <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] text-ink-2">
+                        {a.gender === "male" ? "남" : "여"}
+                      </span>
+                    ) : null}
+                    {a.heightCm != null ? (
+                      <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] text-ink-2">
+                        {a.heightCm}cm
                       </span>
                     ) : null}
                     {formatFee(a) ? (

@@ -9,6 +9,7 @@ import {
   deleteScheduleAction,
   sendProjectScheduleRequestsAction,
   getScheduleRespondersAction,
+  setScheduleResponderActiveAction,
   updateScheduleStatusAction,
 } from "@/app/actions/project-schedules";
 import { confirmScheduleAndCreateBoardAction } from "@/app/actions/project-events";
@@ -65,10 +66,46 @@ export function SchedulePanel({
   const [open, setOpen] = useState(false);
   const [busy, startTransition] = useTransition();
   const [expand, setExpand] = useState<string | null>(null);
-  const [responders, setResponders] = useState<
-    Record<string, { name: string; status: string; note: string | null }[]>
-  >({});
+  type Responder = {
+    dancer_id: string;
+    name: string;
+    status: string;
+    note: string | null;
+    is_active: boolean;
+  };
+  const [responders, setResponders] = useState<Record<string, Responder[]>>({});
   const origin = "https://deetz.kr";
+
+  function toggleResponderActive(
+    scheduleId: string,
+    dancerId: string,
+    next: boolean,
+  ) {
+    // 낙관적 업데이트
+    setResponders((p) => ({
+      ...p,
+      [scheduleId]: (p[scheduleId] ?? []).map((r) =>
+        r.dancer_id === dancerId ? { ...r, is_active: next } : r,
+      ),
+    }));
+    const fd = new FormData();
+    fd.set("schedule_id", scheduleId);
+    fd.set("dancer_id", dancerId);
+    fd.set("is_active", next ? "1" : "0");
+    startTransition(async () => {
+      const r = await setScheduleResponderActiveAction(fd);
+      if (!r.ok) {
+        toast.error(r.error);
+        // 롤백
+        setResponders((p) => ({
+          ...p,
+          [scheduleId]: (p[scheduleId] ?? []).map((x) =>
+            x.dancer_id === dancerId ? { ...x, is_active: !next } : x,
+          ),
+        }));
+      }
+    });
+  }
 
   function setStatus(scheduleId: string, status: string) {
     const fd = new FormData();
@@ -424,18 +461,51 @@ export function SchedulePanel({
                   {(responders[s.id] ?? []).length === 0 ? (
                     <li className="text-[11px] text-ink-3">아직 응답이 없습니다.</li>
                   ) : (
-                    (responders[s.id] ?? []).map((r, i) => (
-                      <li
-                        key={i}
-                        className="flex items-center justify-between text-xs"
-                      >
-                        <span className="font-medium">{r.name}</span>
-                        <span className="text-ink-3">
-                          {STATUS_LABEL[r.status] ?? r.status}
-                          {r.note ? ` · ${r.note}` : ""}
+                    <>
+                      <li className="flex items-center justify-between pb-1 text-[10px] text-ink-3">
+                        <span>
+                          활성{" "}
+                          {(responders[s.id] ?? []).filter((r) => r.is_active).length}
+                          {" / "}
+                          {(responders[s.id] ?? []).length}명
                         </span>
+                        <span>탭하면 후보 포함/제외</span>
                       </li>
-                    ))
+                      {(responders[s.id] ?? []).map((r) => (
+                        <li
+                          key={r.dancer_id}
+                          className={`flex items-center justify-between gap-2 text-xs ${
+                            r.is_active ? "" : "opacity-45"
+                          }`}
+                        >
+                          <span
+                            className={`min-w-0 flex-1 truncate font-medium ${
+                              r.is_active ? "" : "line-through"
+                            }`}
+                          >
+                            {r.name}
+                          </span>
+                          <span className="shrink-0 text-ink-3">
+                            {STATUS_LABEL[r.status] ?? r.status}
+                            {r.note ? ` · ${r.note}` : ""}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              toggleResponderActive(s.id, r.dancer_id, !r.is_active)
+                            }
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-50 ${
+                              r.is_active
+                                ? "bg-ok/15 text-ok hover:bg-ok/25"
+                                : "border border-border text-ink-3 hover:bg-secondary"
+                            }`}
+                          >
+                            {r.is_active ? "활성" : "비활성"}
+                          </button>
+                        </li>
+                      ))}
+                    </>
                   )}
                 </ul>
               ) : null}

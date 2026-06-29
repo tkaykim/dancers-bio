@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { RecommendedDancers } from "@/components/project/RecommendedDancers";
 import { SearchAndPropose } from "@/components/project/SearchAndPropose";
 import {
@@ -56,6 +57,7 @@ type Application = {
         profile_img: string | null;
         genres: string[] | null;
         location: string | null;
+        gender: string | null;
       }
     | null;
   team: { id: string; team_name: string; slug: string | null; profile_img: string | null } | null;
@@ -314,7 +316,7 @@ export default async function ApplicantsPage({
       `id, status, source, cover_message, created_at, rejection_reason, recruitment_channel_id,
        proposed_fee, proposed_fee_currency, proposed_fee_unit, fee_status, confirmed_at,
        applicant:profiles!applications_applicant_id_fkey ( id, display_name, avatar_url ),
-       dancer:dancers!applications_dancer_id_fkey ( id, stage_name, korean_name, slug, profile_img, genres, location ),
+       dancer:dancers!applications_dancer_id_fkey ( id, stage_name, korean_name, slug, profile_img, genres, location, gender ),
        team:teams!applications_team_id_fkey ( id, team_name, slug, profile_img )`,
     )
     .in("project_id", applicationProjectIds)
@@ -322,6 +324,27 @@ export default async function ApplicantsPage({
     .order("created_at", { ascending: false });
 
   const list = (rows ?? []) as unknown as Application[];
+
+  // 키(height_cm) — dancer_private_info는 본인+admin/owner만 RLS 허용이라,
+  // 공동관리자도 필터에 쓸 수 있게 service-role로 조회(이 페이지는 canManageProject 통과済).
+  const dancerIdsForHeight = Array.from(
+    new Set(list.map((a) => a.dancer?.id).filter((id): id is string => !!id)),
+  );
+  const heightByDancer = new Map<string, number>();
+  if (dancerIdsForHeight.length > 0) {
+    const admin = createAdminClient();
+    const { data: heightRows } = await admin
+      .from("dancer_private_info")
+      .select("dancer_id, height_cm")
+      .in("dancer_id", dancerIdsForHeight)
+      .not("height_cm", "is", null);
+    for (const h of (heightRows ?? []) as Array<{
+      dancer_id: string;
+      height_cm: number | null;
+    }>) {
+      if (h.height_cm != null) heightByDancer.set(h.dancer_id, h.height_cm);
+    }
+  }
 
   // 사전선별 평가 집계 — 지원별 평균/건수 + 내 점수. (RLS: 담당자만 조회 가능)
   const evalAgg = new Map<
@@ -401,6 +424,8 @@ export default async function ApplicantsPage({
       avatar,
       publicHref,
       dancerId: a.dancer?.id ?? null,
+      gender: isTeam ? null : a.dancer?.gender ?? null,
+      heightCm: a.dancer?.id ? heightByDancer.get(a.dancer.id) ?? null : null,
       genres: (a.dancer?.genres ?? []) as string[],
       location: a.dancer?.location ?? null,
       rejection_reason: a.rejection_reason ?? null,

@@ -38,6 +38,7 @@ type ApplicationRow = {
         profile_img: string | null;
         genres: string[] | null;
         location: string | null;
+        gender: string | null;
       }
     | null;
   applicant:
@@ -77,12 +78,31 @@ export default async function ChannelApplicantsPage({
       `id, status, source, cover_message, created_at, rejection_reason, recruitment_channel_id,
        proposed_fee, proposed_fee_currency, proposed_fee_unit, fee_status, confirmed_at,
        applicant:profiles!applications_applicant_id_fkey ( id, display_name, avatar_url ),
-       dancer:dancers!applications_dancer_id_fkey ( id, stage_name, korean_name, slug, profile_img, genres, location )`,
+       dancer:dancers!applications_dancer_id_fkey ( id, stage_name, korean_name, slug, profile_img, genres, location, gender )`,
     )
     .eq("recruitment_channel_id", channel.id)
     .is("archived_at", null)
     .order("created_at", { ascending: false });
   const applications = (rows ?? []) as unknown as ApplicationRow[];
+
+  // 키(height_cm) — 채널 담당자도 필터에 쓸 수 있게 service-role로 조회.
+  const channelDancerIds = Array.from(
+    new Set(applications.map((a) => a.dancer?.id).filter((id): id is string => !!id)),
+  );
+  const heightByDancer = new Map<string, number>();
+  if (channelDancerIds.length > 0) {
+    const { data: heightRows } = await admin
+      .from("dancer_private_info")
+      .select("dancer_id, height_cm")
+      .in("dancer_id", channelDancerIds)
+      .not("height_cm", "is", null);
+    for (const h of (heightRows ?? []) as Array<{
+      dancer_id: string;
+      height_cm: number | null;
+    }>) {
+      if (h.height_cm != null) heightByDancer.set(h.dancer_id, h.height_cm);
+    }
+  }
   const { data: canDecideRaw } = await supabase.rpc(
     "can_decide_recruitment_channel_applications",
     { p_channel_id: channel.id },
@@ -117,6 +137,8 @@ export default async function ChannelApplicantsPage({
           ? `/u/${app.applicant.id}`
           : null,
       dancerId: app.dancer?.id ?? null,
+      gender: app.dancer?.gender ?? null,
+      heightCm: app.dancer?.id ? heightByDancer.get(app.dancer.id) ?? null : null,
       genres: (app.dancer?.genres ?? []) as string[],
       location: app.dancer?.location ?? null,
       rejection_reason: app.rejection_reason ?? null,

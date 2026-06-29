@@ -316,7 +316,13 @@ export async function getScheduleRespondersAction(
   scheduleId: string,
 ): Promise<
   ActionResult<
-    Array<{ dancer_id: string; name: string; status: string; note: string | null }>
+    Array<{
+      dancer_id: string;
+      name: string;
+      status: string;
+      note: string | null;
+      is_active: boolean;
+    }>
   >
 > {
   await requireUser();
@@ -325,7 +331,7 @@ export async function getScheduleRespondersAction(
   const { data, error } = await supabase
     .from("project_schedule_responses")
     .select(
-      "dancer_id, status, note, dancer:dancers!project_schedule_responses_dancer_id_fkey ( stage_name )",
+      "dancer_id, status, note, is_active, dancer:dancers!project_schedule_responses_dancer_id_fkey ( stage_name )",
     )
     .eq("schedule_id", scheduleId)
     .order("status");
@@ -334,6 +340,7 @@ export async function getScheduleRespondersAction(
     dancer_id: string;
     status: string;
     note: string | null;
+    is_active: boolean | null;
     dancer: { stage_name: string | null } | { stage_name: string | null }[] | null;
   }>;
   return {
@@ -345,9 +352,42 @@ export async function getScheduleRespondersAction(
         name: dn?.stage_name ?? "(이름 없음)",
         status: r.status,
         note: r.note,
+        is_active: r.is_active ?? true,
       };
     }),
   };
+}
+
+// 응답자(가능자) 활성/비활성 토글 — 이 일정 후보에서 포함/제외(기록은 보존).
+// scheduleId로 프로젝트를 역참조해 canManageProject 게이트 후 admin 클라이언트로 갱신.
+export async function setScheduleResponderActiveAction(
+  fd: FormData,
+): Promise<ActionResult<{ is_active: boolean }>> {
+  await requireUser();
+  const scheduleId = (fd.get("schedule_id") ?? "").toString().trim();
+  const dancerId = (fd.get("dancer_id") ?? "").toString().trim();
+  const isActive = (fd.get("is_active") ?? "").toString() === "1";
+  if (!scheduleId || !dancerId) return { ok: false, error: "잘못된 요청입니다." };
+
+  const admin = createAdminClient();
+  const { data: sch } = await admin
+    .from("project_schedules")
+    .select("project_id")
+    .eq("id", scheduleId)
+    .maybeSingle();
+  if (!sch?.project_id) return { ok: false, error: "일정을 찾을 수 없습니다." };
+  if (!(await canManageProject(sch.project_id as string)))
+    return { ok: false, error: "권한이 없습니다." };
+
+  const { error } = await admin
+    .from("project_schedule_responses")
+    .update({ is_active: isActive })
+    .eq("schedule_id", scheduleId)
+    .eq("dancer_id", dancerId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/projects/${sch.project_id as string}/applicants`);
+  return { ok: true, data: { is_active: isActive } };
 }
 
 // 여러 일정 응답을 한 (projectId, dancerId)로 일괄 upsert. 코드/토큰 경로 공용.
