@@ -75,7 +75,7 @@ const T: Record<Lang, Dict> = {
     consent: "I agree to deetz handling my info for visa support.",
     done_title: "Got it — application received",
     done_body:
-      "A deetz coordinator will reach out at the email you gave us, usually within 2–3 business days.",
+      "A deetz coordinator will reach out at the email you gave us once we've gathered applicants and sorted out the schedule.",
     done_extra: "In the meantime, follow @deetz.kr.",
     name_l: "Full name (passport)",
     stage_l: "Stage name (optional)",
@@ -97,7 +97,7 @@ const T: Record<Lang, Dict> = {
     consent: "ビザ支援のための個人情報の取り扱いに同意します。",
     done_title: "申請を受け付けました",
     done_body:
-      "ご記入のメールへ、deetz担当者より通常2〜3営業日以内にご連絡します。",
+      "申請者と日程を取りまとめ次第、ご記入のメールへdeetz担当者よりご連絡します。",
     done_extra: "それまで@deetz.krをフォローしてください。",
     name_l: "氏名（パスポート）",
     stage_l: "活動名（任意）",
@@ -119,7 +119,7 @@ const T: Record<Lang, Dict> = {
     consent: "비자 지원을 위한 개인정보 처리에 동의합니다.",
     done_title: "신청이 접수됐어요",
     done_body:
-      "deetz 담당자가 입력하신 이메일로 보통 영업일 기준 2~3일 내에 연락드립니다.",
+      "신청자와 일정을 취합하는 대로 deetz 담당자가 입력하신 이메일로 연락드립니다.",
     done_extra: "그동안 @deetz.kr 팔로우해 주세요.",
     name_l: "이름 (여권)",
     stage_l: "활동명 (선택)",
