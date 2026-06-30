@@ -9,6 +9,35 @@ function sign(payload: string, key: string): string {
   return createHmac("sha256", key).update(payload).digest("base64url");
 }
 
+// 교통비 계좌수집 매직링크 토큰 — payload = `tp:${travelPayoutId}`.
+// 메일 CTA로 발송. 로그인 없이 본인(travel_payouts 행)으로 식별돼 계좌정보를 제출.
+export function makePayoutToken(payoutId: string): string {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY 미설정");
+  const payload = `tp:${payoutId}`;
+  return `${Buffer.from(payload, "utf8").toString("base64url")}.${sign(payload, key)}`;
+}
+
+export function verifyPayoutToken(token: string): string | null {
+  try {
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!key || !token) return null;
+    const dot = token.lastIndexOf(".");
+    if (dot < 1) return null;
+    const payload = Buffer.from(token.slice(0, dot), "base64url").toString("utf8");
+    const sig = token.slice(dot + 1);
+    const expected = sign(payload, key);
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+    const parts = payload.split(":");
+    if (parts[0] !== "tp" || !parts[1]) return null;
+    return parts[1];
+  } catch {
+    return null;
+  }
+}
+
 export function makeHeightToken(dancerId: string): string {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY 미설정");
