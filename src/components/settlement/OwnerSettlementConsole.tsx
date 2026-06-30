@@ -13,7 +13,7 @@ import {
   calcSettlement,
   formatWon,
   formatWonInput,
-  SETTLEMENT_STATUS_LABEL,
+  settlementStageLabel,
   type SettlementStatus,
 } from "@/lib/settlement";
 
@@ -358,7 +358,7 @@ function DancerRow({
           </div>
         </div>
         <span className="shrink-0 rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold text-ink-2">
-          {SETTLEMENT_STATUS_LABEL[row.status]}
+          {settlementStageLabel(row.status, row.grossAmount)}
         </span>
       </div>
 

@@ -20,7 +20,8 @@ import { Drawer } from "@/components/ui/drawer";
 import {
   calcSettlement,
   formatWon,
-  SETTLEMENT_STATUS_LABEL,
+  isAwaitingAmount,
+  settlementStageLabel,
   type SettlementStatus,
 } from "@/lib/settlement";
 
@@ -56,16 +57,23 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [bulkBusy, startBulk] = useTransition();
   const requested = rows.filter((r) => r.status === "requested");
-  const awaiting = rows.filter((r) => r.status === "pending");
+  // 금액 미입력(셀프 계좌제출만 한) pending = '정산대기'. '정산완료'와 분리한다.
+  const awaitingAmount = rows.filter((r) =>
+    isAwaitingAmount(r.status, r.grossAmount),
+  );
+  const awaiting = rows.filter(
+    (r) => r.status === "pending" && !isAwaitingAmount(r.status, r.grossAmount),
+  );
   const paid = rows.filter((r) => r.status === "paid");
   const selected = rows.find((r) => r.id === selectedId) ?? null;
 
-  // 입금완료로 넘길 수 있는 건(아직 미지급 + 계좌 등록됨)만 선택 대상.
+  // 입금완료로 넘길 수 있는 건(아직 미지급 + 계좌 등록됨 + 금액 입력됨)만 선택 대상.
   const payableById = new Map(
     rows
       .filter(
         (r) =>
           r.status !== "paid" &&
+          !isAwaitingAmount(r.status, r.grossAmount) &&
           !!(r.bankName && r.accountNumber && r.accountHolder),
       )
       .map((r) => [r.id, r]),
@@ -217,6 +225,14 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
         </Section>
       ) : null}
 
+      {awaitingAmount.length > 0 ? (
+        <Section title="정산대기 · 금액 미입력" count={awaitingAmount.length}>
+          {awaitingAmount.map((r) => (
+            <Row key={r.id} row={r} onOpen={() => setSelectedId(r.id)} />
+          ))}
+        </Section>
+      ) : null}
+
       {paid.length > 0 ? (
         <Section title="입금완료" count={paid.length}>
           {paid.map((r) => (
@@ -285,6 +301,7 @@ function Row({
   busy?: boolean;
 }) {
   const calc = calcSettlement(row.grossAmount, row.rate);
+  const awaitingAmt = isAwaitingAmount(row.status, row.grossAmount);
   const hasAccount = !!(row.bankName && row.accountNumber && row.accountHolder);
   const docCount = (row.hasIdCard ? 1 : 0) + (row.hasBankbook ? 1 : 0);
   return (
@@ -313,7 +330,7 @@ function Row({
             <span
               className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_TONE[row.status]}`}
             >
-              {SETTLEMENT_STATUS_LABEL[row.status]}
+              {settlementStageLabel(row.status, row.grossAmount)}
             </span>
           </div>
           <span className="truncate text-xs text-ink-3">{row.projectTitle}</span>
@@ -324,8 +341,14 @@ function Row({
           </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-0.5">
-          <span className="text-sm font-bold">{formatWon(calc.net)}</span>
-          <span className="text-[10px] text-ink-3">실수령</span>
+          {awaitingAmt ? (
+            <span className="text-xs font-semibold text-amber-600">금액 미입력</span>
+          ) : (
+            <>
+              <span className="text-sm font-bold">{formatWon(calc.net)}</span>
+              <span className="text-[10px] text-ink-3">실수령</span>
+            </>
+          )}
         </div>
       </button>
       {payable && onMarkPaid ? (
@@ -414,7 +437,7 @@ function SettlementDetail({
         <span
           className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_TONE[row.status]}`}
         >
-          {SETTLEMENT_STATUS_LABEL[row.status]}
+          {settlementStageLabel(row.status, row.grossAmount)}
         </span>
       </div>
 
