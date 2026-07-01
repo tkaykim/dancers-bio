@@ -37,3 +37,9 @@ export const LENGTH_CMS = [
   "120",
   "125",
 ];
+
+// 직접입력(콤보) 허용 범위. 드롭다운 추천값을 벗어나는 숫자도 이 범위면 허용.
+export const WAIST_MIN = 20;
+export const WAIST_MAX = 60;
+export const LENGTH_MIN = 60;
+export const LENGTH_MAX = 160;

@@ -42,6 +42,44 @@ function Select({
   );
 }
 
+// 드롭다운 추천 + 직접 숫자 입력 콤보. (네이티브 input+datalist)
+function ComboNumber({
+  id,
+  label,
+  unit,
+  defaultValue,
+  options,
+}: {
+  id: string;
+  label: string;
+  unit: string;
+  defaultValue: string;
+  options: string[];
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium">
+        {label} <span className="text-ink-3">· {unit}</span>
+      </label>
+      <input
+        id={id}
+        name={id}
+        list={`${id}-list`}
+        type="number"
+        inputMode="numeric"
+        defaultValue={defaultValue}
+        placeholder={`선택 또는 직접입력 (${unit})`}
+        className="h-12 rounded-xl border border-border bg-background px-4 text-base placeholder:text-ink-3"
+      />
+      <datalist id={`${id}-list`}>
+        {options.map((o) => (
+          <option key={o} value={o} />
+        ))}
+      </datalist>
+    </div>
+  );
+}
+
 export function QuickFitForm({
   token,
   name,
@@ -97,23 +135,24 @@ export function QuickFitForm({
       <div className="rounded-xl border border-border/70 bg-muted/30 p-3">
         <p className="mb-2 text-sm font-medium">하의 사이즈</p>
         <div className="grid grid-cols-2 gap-3">
-          <Select
+          <ComboNumber
             id="pants_waist_inch"
             label="허리"
-            hint="인치"
+            unit="인치"
             defaultValue={waist ?? ""}
             options={WAIST_INCHES}
-            render={(v) => `${v}인치`}
           />
-          <Select
+          <ComboNumber
             id="pants_length_cm"
             label="기장"
-            hint="cm"
+            unit="cm"
             defaultValue={length ?? ""}
             options={LENGTH_CMS}
-            render={(v) => `${v}cm`}
           />
         </div>
+        <p className="mt-2 text-[11px] text-ink-3">
+          목록에서 선택하거나 숫자를 직접 입력해도 됩니다.
+        </p>
       </div>
 
       {error ? (
