@@ -292,10 +292,14 @@ export function ApplicantsConsole({
     reason: string | null,
   ) {
     setBusy(true);
-    const prev = items.find((a) => a.id === id)?.status;
+    const prevItem = items.find((a) => a.id === id);
+    const prev = prevItem?.status;
+    const prevConfirmedAt = prevItem?.confirmedAt ?? null;
     patchItem(id, {
       status: decision,
       rejection_reason: decision === "rejected" ? reason : null,
+      // 대기·거절로 되돌리면 확정도 함께 해제(서버와 동일).
+      ...(decision !== "accepted" ? { confirmedAt: null } : {}),
     }); // 낙관적 업데이트
     const fd = new FormData();
     fd.set("application_id", id);
@@ -304,7 +308,7 @@ export function ApplicantsConsole({
     const r = await decideApplicationAction(fd);
     setBusy(false);
     if (!r.ok) {
-      if (prev) patchItem(id, { status: prev }); // 롤백
+      if (prev) patchItem(id, { status: prev, confirmedAt: prevConfirmedAt }); // 롤백
       toast.error(r.error);
       return;
     }
@@ -354,7 +358,8 @@ export function ApplicantsConsole({
       toast.error(r.error);
       return;
     }
-    ids.forEach((id) => patchItem(id, { status: decision }));
+    // 일괄은 항상 대기/거절 → 확정도 함께 해제.
+    ids.forEach((id) => patchItem(id, { status: decision, confirmedAt: null }));
     setSelected(new Set());
     toast.success(`${r.data?.updated ?? ids.length}명 처리했습니다`);
   }

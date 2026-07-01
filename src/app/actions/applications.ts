@@ -208,15 +208,18 @@ export async function decideApplicationAction(
 
   // 거절 사유(선택) — 거절일 때만 저장, 수락/대기복귀 시 비움.
   const reason = (formData.get("rejection_reason") ?? "").toString().trim() || null;
+  // 대기·거절로 되돌리면 확정(confirmed) 상태도 함께 해제 — "확정이면서 거절" 같은 모순 방지.
   const update: {
     status: "accepted" | "rejected" | "pending";
     responded_at: string | null;
     rejection_reason: string | null;
+    confirmed_at?: null;
+    confirmed_by?: null;
   } =
     decision === "pending"
-      ? { status: "pending", responded_at: null, rejection_reason: null }
+      ? { status: "pending", responded_at: null, rejection_reason: null, confirmed_at: null, confirmed_by: null }
       : decision === "rejected"
-        ? { status: "rejected", responded_at: new Date().toISOString(), rejection_reason: reason }
+        ? { status: "rejected", responded_at: new Date().toISOString(), rejection_reason: reason, confirmed_at: null, confirmed_by: null }
         : { status: "accepted", responded_at: new Date().toISOString(), rejection_reason: null };
 
   const { error } = await supabase
@@ -310,8 +313,13 @@ export async function bulkDecideApplicationsAction(
   const supabase = await createClient();
   const update =
     decision === "pending"
-      ? { status: "pending" as const, responded_at: null }
-      : { status: "rejected" as const, responded_at: new Date().toISOString() };
+      ? { status: "pending" as const, responded_at: null, confirmed_at: null, confirmed_by: null }
+      : {
+          status: "rejected" as const,
+          responded_at: new Date().toISOString(),
+          confirmed_at: null,
+          confirmed_by: null,
+        };
 
   const { data, error } = await supabase
     .from("applications")

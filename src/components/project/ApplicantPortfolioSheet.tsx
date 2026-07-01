@@ -175,9 +175,8 @@ export function ApplicantPortfolioSheet({
 
   const dancerId = applicant?.dancerId ?? null;
 
-  async function toggleConfirm() {
+  async function setConfirmed(next: boolean) {
     if (!applicant) return;
-    const next = !applicant.confirmedAt;
     setConfirming(true);
     const fd = new FormData();
     fd.set("application_id", applicant.applicationId);
@@ -190,6 +189,31 @@ export function ApplicantPortfolioSheet({
     }
     toast.success(next ? "확정했습니다" : "확정을 해제했습니다");
     onConfirmChange?.(next ? new Date().toISOString() : null);
+  }
+
+  // 현재 상태(확정은 accepted의 세부 상태이므로 세그먼트에선 '수락'으로 표시).
+  const statusKey: "pending" | "accepted" | "rejected" =
+    applicant?.status === "accepted"
+      ? "accepted"
+      : applicant?.status === "rejected" || applicant?.status === "declined"
+        ? "rejected"
+        : "pending";
+
+  // 세그먼트 클릭 → 상태 전환. 확정된 사람도 대기/수락/거절로 되돌릴 수 있다.
+  function selectStatus(target: "pending" | "accepted" | "rejected") {
+    if (!applicant || deciding || confirming) return;
+    if (target === "accepted") {
+      // 확정 상태에서 '수락'을 누르면 = 확정만 해제하고 수락 유지.
+      if (applicant.confirmedAt) {
+        void setConfirmed(false);
+        return;
+      }
+      if (statusKey === "accepted") return; // 이미 수락
+      onDecide("accepted");
+      return;
+    }
+    if (target === statusKey) return; // 동일 상태는 무시
+    onDecide(target); // 대기/거절 — 서버가 확정도 함께 해제
   }
 
   useEffect(() => {
@@ -227,8 +251,6 @@ export function ApplicantPortfolioSheet({
     ...(d?.genres ?? []),
     ...extraSpecialties,
   ].filter(Boolean) as string[];
-  const decided =
-    applicant?.status === "accepted" || applicant?.status === "rejected";
   const videos = (data?.careers ?? []).filter((c) => c.link);
   const otherCareers = (data?.careers ?? []).filter((c) => !c.link);
   const social = (d?.social_links ?? {}) as Record<string, string>;
@@ -463,58 +485,63 @@ export function ApplicantPortfolioSheet({
           />
         ) : null}
 
-        {/* 확정 — 수락한 지원자만. status 위에 얹는 최종 잠금(캐스팅보드·정산 기준). */}
-        {applicant && canDecide && applicant.status === "accepted" ? (
-          applicant.confirmedAt ? (
-            <div className="flex items-center justify-between rounded-xl border border-primary/40 bg-primary/5 px-3 py-2.5">
-              <span className="text-sm font-semibold text-primary">✓ 확정됨</span>
-              <button
-                type="button"
-                onClick={toggleConfirm}
-                disabled={confirming}
-                className="text-[12px] text-ink-3 underline hover:text-foreground disabled:opacity-50"
-              >
-                확정 해제
-              </button>
-            </div>
-          ) : (
-            <Button
-              variant="outline"
-              className="w-full border-primary/50 text-primary"
-              disabled={confirming}
-              onClick={toggleConfirm}
-            >
-              이 지원자 확정하기
-            </Button>
-          )
-        ) : null}
-
-        {/* 결정 버튼 — 시트 콘텐츠 흐름에 포함(시트 전체가 스크롤되도록 sticky 제거) */}
+        {/* 상태 — 대기·수락·거절 세그먼트. 확정된 사람도 여기서 바로 되돌린다. */}
         {applicant && canDecide ? (
-          <div className="mt-1 flex gap-2 border-t border-hairline-2 pt-4">
-            <Button
-              className="flex-1"
-              disabled={deciding}
-              onClick={() => onDecide("accepted")}
-            >
-              수락
-            </Button>
-            <Button
-              className="flex-1"
-              variant="outline"
-              disabled={deciding}
-              onClick={() => onDecide("rejected")}
-            >
-              거절
-            </Button>
-            {decided ? (
-              <Button
-                variant="ghost"
-                disabled={deciding}
-                onClick={() => onDecide("pending")}
-              >
-                대기로
-              </Button>
+          <div className="mt-1 border-t border-hairline-2 pt-4">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
+              상태
+            </p>
+            <div className="grid grid-cols-3 gap-1 rounded-xl bg-secondary/50 p-1">
+              {(
+                [
+                  { k: "pending", label: "대기", active: "bg-background text-foreground shadow-sm" },
+                  { k: "accepted", label: "수락", active: "bg-primary text-primary-foreground shadow-sm" },
+                  { k: "rejected", label: "거절", active: "bg-destructive text-white shadow-sm" },
+                ] as const
+              ).map((s) => {
+                const isActive = statusKey === s.k;
+                return (
+                  <button
+                    key={s.k}
+                    type="button"
+                    disabled={deciding || confirming}
+                    onClick={() => selectStatus(s.k)}
+                    className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+                      isActive ? s.active : "text-ink-3 hover:text-foreground"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 확정 — 수락 상태 위에 얹는 최종 잠금(캐스팅보드·정산 기준). */}
+            {applicant.status === "accepted" ? (
+              applicant.confirmedAt ? (
+                <div className="mt-2 flex items-center justify-between rounded-xl border border-primary/40 bg-primary/5 px-3 py-2.5">
+                  <span className="text-sm font-semibold text-primary">
+                    ✓ 확정됨
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmed(false)}
+                    disabled={confirming}
+                    className="text-[12px] text-ink-3 underline hover:text-foreground disabled:opacity-50"
+                  >
+                    확정 해제
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="mt-2 w-full border-primary/50 text-primary"
+                  disabled={confirming}
+                  onClick={() => setConfirmed(true)}
+                >
+                  이 지원자 확정하기
+                </Button>
+              )
             ) : null}
           </div>
         ) : null}
