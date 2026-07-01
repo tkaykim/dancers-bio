@@ -26,4 +26,14 @@ export const WAIST_INCHES = [
   "39",
   "40",
 ];
-export const LENGTH_CMS = ["85", "90", "95", "100", "105", "110", "115"];
+export const LENGTH_CMS = [
+  "85",
+  "90",
+  "95",
+  "100",
+  "105",
+  "110",
+  "115",
+  "120",
+  "125",
+];
