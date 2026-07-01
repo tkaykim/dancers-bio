@@ -27,6 +27,8 @@ import {
   type AnnouncementRow,
 } from "@/components/project/AnnouncementsPanel";
 import { WithdrawalLinkPanel } from "@/components/project/WithdrawalLinkPanel";
+import { FitSizePanel, type FitRow } from "@/components/project/FitSizePanel";
+import { makeHeightToken } from "@/lib/quick-token";
 import {
   CastingBoardPanel,
   type CastingBoardInfo,
@@ -325,24 +327,37 @@ export default async function ApplicantsPage({
 
   const list = (rows ?? []) as unknown as Application[];
 
-  // 키(height_cm) — dancer_private_info는 본인+admin/owner만 RLS 허용이라,
-  // 공동관리자도 필터에 쓸 수 있게 service-role로 조회(이 페이지는 canManageProject 통과済).
+  // 키(height_cm) + 의상 사이즈 — dancer_private_info는 본인+admin/owner만 RLS 허용이라,
+  // 공동관리자도 쓸 수 있게 service-role로 조회(이 페이지는 canManageProject 통과済).
   const dancerIdsForHeight = Array.from(
     new Set(list.map((a) => a.dancer?.id).filter((id): id is string => !!id)),
   );
   const heightByDancer = new Map<string, number>();
+  const sizeByDancer = new Map<
+    string,
+    { top: string | null; waist: string | null; length: string | null }
+  >();
   if (dancerIdsForHeight.length > 0) {
     const admin = createAdminClient();
-    const { data: heightRows } = await admin
+    const { data: privRows } = await admin
       .from("dancer_private_info")
-      .select("dancer_id, height_cm")
-      .in("dancer_id", dancerIdsForHeight)
-      .not("height_cm", "is", null);
-    for (const h of (heightRows ?? []) as Array<{
+      .select(
+        "dancer_id, height_cm, top_size, pants_waist_inch, pants_length_cm",
+      )
+      .in("dancer_id", dancerIdsForHeight);
+    for (const h of (privRows ?? []) as Array<{
       dancer_id: string;
       height_cm: number | null;
+      top_size: string | null;
+      pants_waist_inch: string | null;
+      pants_length_cm: string | null;
     }>) {
       if (h.height_cm != null) heightByDancer.set(h.dancer_id, h.height_cm);
+      sizeByDancer.set(h.dancer_id, {
+        top: h.top_size,
+        waist: h.pants_waist_inch,
+        length: h.pants_length_cm,
+      });
     }
   }
 
@@ -446,6 +461,30 @@ export default async function ApplicantsPage({
       myScore: evalAgg.get(a.id)?.myScore ?? null,
     };
   });
+  // 의상 사이즈 현황 — 확정자(confirmed_at) 대상. 개인 /fit 링크 + 제출값.
+  const fitRows: FitRow[] = applicants
+    .filter((a) => a.confirmedAt && a.dancerId && !a.isTeam)
+    .map((a) => {
+      const s = sizeByDancer.get(a.dancerId!) ?? {
+        top: null,
+        waist: null,
+        length: null,
+      };
+      return {
+        name: a.name,
+        link: `https://deetz.kr/fit/${makeHeightToken(a.dancerId!)}`,
+        top: s.top,
+        waist: s.waist,
+        length: s.length,
+        submitted: !!(s.top && s.waist && s.length),
+      };
+    })
+    .sort(
+      (x, y) =>
+        Number(x.submitted) - Number(y.submitted) ||
+        x.name.localeCompare(y.name),
+    );
+
   const recruitmentChannels: RecruitmentChannel[] = channelRows.map((channel) => {
     const stats = channelStats.get(channel.id) ?? {
       applicantCount: 0,
@@ -639,6 +678,8 @@ export default async function ApplicantsPage({
             schedules={scheduleRows}
             surveyUrl={`https://deetz.kr/sr/${p.schedule_survey_code}`}
           />
+
+          {fitRows.length > 0 ? <FitSizePanel rows={fitRows} /> : null}
 
           <CastingBoardPanel projectId={p.id} board={castingBoard} />
 
