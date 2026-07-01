@@ -1,12 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  submitQuickFitAction,
-  TOP_SIZES,
-  WAIST_INCHES,
-  LENGTH_CMS,
-} from "@/app/actions/quick-fit";
+import { submitQuickFitAction } from "@/app/actions/quick-fit";
+import { TOP_SIZES, WAIST_INCHES, LENGTH_CMS } from "@/lib/fit/sizes";
 
 function Select({
   id,

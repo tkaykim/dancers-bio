@@ -2,36 +2,8 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyHeightToken } from "@/lib/quick-token";
+import { TOP_SIZES, WAIST_INCHES, LENGTH_CMS } from "@/lib/fit/sizes";
 import type { ActionResult } from "./auth";
-
-// 상의: 숫자(가슴둘레 호수)+영문 병기. 하의: 허리(인치)·기장(cm).
-export const TOP_SIZES = [
-  "85(XS)",
-  "90(S)",
-  "95(M)",
-  "100(L)",
-  "105(XL)",
-  "110(XXL)",
-  "115(3XL)",
-];
-export const WAIST_INCHES = [
-  "26",
-  "27",
-  "28",
-  "29",
-  "30",
-  "31",
-  "32",
-  "33",
-  "34",
-  "35",
-  "36",
-  "37",
-  "38",
-  "39",
-  "40",
-];
-export const LENGTH_CMS = ["85", "90", "95", "100", "105", "110", "115"];
 
 function pick(v: FormDataEntryValue | null, allowed: string[]): string | null {
   const t = (v ?? "").toString().trim();
