@@ -24,7 +24,7 @@ export default async function QuickFitPage({
   if (!d) notFound();
   const { data: priv } = await admin
     .from("dancer_private_info")
-    .select("top_size, bottom_size")
+    .select("top_size, pants_waist_inch, pants_length_cm")
     .eq("dancer_id", dancerId)
     .maybeSingle();
 
@@ -48,7 +48,8 @@ export default async function QuickFitPage({
         token={token}
         name={name}
         top={(priv?.top_size as string | null) ?? null}
-        bottom={(priv?.bottom_size as string | null) ?? null}
+        waist={(priv?.pants_waist_inch as string | null) ?? null}
+        length={(priv?.pants_length_cm as string | null) ?? null}
       />
     </div>
   );

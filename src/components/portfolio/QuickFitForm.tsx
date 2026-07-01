@@ -1,20 +1,63 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { submitQuickFitAction } from "@/app/actions/quick-fit";
+import {
+  submitQuickFitAction,
+  TOP_SIZES,
+  WAIST_INCHES,
+  LENGTH_CMS,
+} from "@/app/actions/quick-fit";
 
-const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
+function Select({
+  id,
+  label,
+  hint,
+  defaultValue,
+  options,
+  render,
+}: {
+  id: string;
+  label: string;
+  hint?: string;
+  defaultValue: string;
+  options: string[];
+  render?: (v: string) => string;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+        {hint ? <span className="text-ink-3"> · {hint}</span> : null}
+      </label>
+      <select
+        id={id}
+        name={id}
+        defaultValue={defaultValue}
+        className="h-12 rounded-xl border border-border bg-background px-4 text-base"
+      >
+        <option value="">선택</option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {render ? render(o) : o}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 export function QuickFitForm({
   token,
   name,
   top,
-  bottom,
+  waist,
+  length,
 }: {
   token: string;
   name: string;
   top: string | null;
-  bottom: string | null;
+  waist: string | null;
+  length: string | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
@@ -47,42 +90,36 @@ export function QuickFitForm({
       className="flex flex-col gap-4"
     >
       <input type="hidden" name="token" value={token} />
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="top_size" className="text-sm font-medium">
-          상의 사이즈
-        </label>
-        <select
-          id="top_size"
-          name="top_size"
-          defaultValue={top ?? ""}
-          className="h-12 rounded-xl border border-border bg-background px-4 text-base"
-        >
-          <option value="">선택</option>
-          {SIZES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+
+      <Select
+        id="top_size"
+        label="상의 사이즈"
+        defaultValue={top ?? ""}
+        options={TOP_SIZES}
+      />
+
+      <div className="rounded-xl border border-border/70 bg-muted/30 p-3">
+        <p className="mb-2 text-sm font-medium">하의 사이즈</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Select
+            id="pants_waist_inch"
+            label="허리"
+            hint="인치"
+            defaultValue={waist ?? ""}
+            options={WAIST_INCHES}
+            render={(v) => `${v}인치`}
+          />
+          <Select
+            id="pants_length_cm"
+            label="기장"
+            hint="cm"
+            defaultValue={length ?? ""}
+            options={LENGTH_CMS}
+            render={(v) => `${v}cm`}
+          />
+        </div>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="bottom_size" className="text-sm font-medium">
-          하의 사이즈
-        </label>
-        <select
-          id="bottom_size"
-          name="bottom_size"
-          defaultValue={bottom ?? ""}
-          className="h-12 rounded-xl border border-border bg-background px-4 text-base"
-        >
-          <option value="">선택</option>
-          {SIZES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </div>
+
       {error ? (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
