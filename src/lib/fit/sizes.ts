@@ -8,6 +8,7 @@ export const TOP_SIZES = [
   "105(XL)",
   "110(XXL)",
   "115(3XL)",
+  "120(4XL)",
 ];
 export const WAIST_INCHES = [
   "26",
