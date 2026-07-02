@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { submitQuickFitAction } from "@/app/actions/quick-fit";
+import {
+  submitQuickFitAction,
+  submitFitBySessionAction,
+} from "@/app/actions/quick-fit";
 import { TOP_SIZES, WAIST_INCHES, LENGTH_CMS } from "@/lib/fit/sizes";
 
 function Select({
@@ -82,12 +85,14 @@ function ComboNumber({
 
 export function QuickFitForm({
   token,
+  code,
   name,
   top,
   waist,
   length,
 }: {
-  token: string;
+  token?: string;
+  code?: string;
   name: string;
   top: string | null;
   waist: string | null;
@@ -113,7 +118,9 @@ export function QuickFitForm({
       action={(fd) => {
         setError(null);
         startTransition(async () => {
-          const r = await submitQuickFitAction(fd);
+          const r = code
+            ? await submitFitBySessionAction(fd)
+            : await submitQuickFitAction(fd);
           if (!r.ok) {
             setError(r.error);
             return;
@@ -123,7 +130,11 @@ export function QuickFitForm({
       }}
       className="flex flex-col gap-4"
     >
-      <input type="hidden" name="token" value={token} />
+      {code ? (
+        <input type="hidden" name="code" value={code} />
+      ) : (
+        <input type="hidden" name="token" value={token ?? ""} />
+      )}
 
       <Select
         id="top_size"

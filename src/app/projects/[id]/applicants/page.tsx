@@ -679,7 +679,12 @@ export default async function ApplicantsPage({
             surveyUrl={`https://deetz.kr/sr/${p.schedule_survey_code}`}
           />
 
-          {fitRows.length > 0 ? <FitSizePanel rows={fitRows} /> : null}
+          {fitRows.length > 0 ? (
+            <FitSizePanel
+              rows={fitRows}
+              shareUrl={`https://deetz.kr/fr/${p.short_code}`}
+            />
+          ) : null}
 
           <CastingBoardPanel projectId={p.id} board={castingBoard} />
 

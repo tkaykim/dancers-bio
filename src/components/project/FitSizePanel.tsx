@@ -14,12 +14,15 @@ export type FitRow = {
 export function FitSizePanel({
   title = "의상 사이즈 현황",
   rows,
+  shareUrl,
 }: {
   title?: string;
   rows: FitRow[];
+  shareUrl?: string;
 }) {
   const [onlyMissing, setOnlyMissing] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const total = rows.length;
   const done = useMemo(() => rows.filter((r) => r.submitted).length, [rows]);
@@ -75,6 +78,24 @@ export function FitSizePanel({
           style={{ width: `${pct}%` }}
         />
       </div>
+
+      {shareUrl ? (
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(shareUrl);
+              setShareCopied(true);
+              setTimeout(() => setShareCopied(false), 1500);
+            } catch {
+              /* noop */
+            }
+          }}
+          className="mt-3 w-full rounded-lg border border-primary bg-primary/10 px-3 py-2 text-xs font-semibold text-foreground"
+        >
+          {shareCopied ? "복사됨 — 단톡방에 붙여넣기" : "단톡방 공유 링크 복사 (로그인 후 입력)"}
+        </button>
+      ) : null}
 
       <div className="mt-3 flex items-center gap-2">
         <button

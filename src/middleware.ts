@@ -21,7 +21,7 @@ const RESERVED_FIRST_SEGMENTS = new Set([
   "admin", "applications", "me", "proposals", "verify-instagram",
   "claim", "forgot-password", "login", "signup",
   "d", "dancers", "feed", "t", "u",
-  "api", "h", "onboarding", "projects", "reset-password", "s", "sr", "welcome",
+  "api", "h", "onboarding", "projects", "reset-password", "s", "sr", "fr", "fit", "welcome",
 ]);
 
 export async function middleware(request: NextRequest) {
