@@ -251,8 +251,18 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
   const foreignVisaUnanswered =
     !data.nationalityVisa.is_korean_national &&
     data.nationalityVisa.has_visa == null;
+  // SNS 단계(5): 아이디에 허용 안 되는 문자(한글·공백·특수문자)가 하나라도 있으면
+  // 그 자리에서 "다음"을 막는다 — 마지막 제출까지 가서야 막혀 원인을 못 찾던 문제 방지.
+  // (입력칸 아래 빨간 안내가 이유를 바로 보여준다.)
+  const socialHandleInvalid = (["instagram", "youtube", "tiktok"] as const).some(
+    (k) => {
+      const v = data.social[k] ?? "";
+      return v.length > 0 && /[^A-Za-z0-9._-]/.test(v);
+    },
+  );
   const cannotProceed =
-    step === 1 && (!data.stage_name.trim() || foreignVisaUnanswered);
+    (step === 1 && (!data.stage_name.trim() || foreignVisaUnanswered)) ||
+    (step === 5 && socialHandleInvalid);
 
   return (
     <div className="min-h-screen pb-32">
