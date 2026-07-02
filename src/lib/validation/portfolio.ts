@@ -13,8 +13,11 @@ const slugSchema = z
 const handleSchema = z
   .string()
   .trim()
-  .max(60, "60자 이하로 입력해 주세요.")
-  .regex(/^[A-Za-z0-9._-]*$/, "영문/숫자/._- 만 사용할 수 있습니다.");
+  .max(60, "아이디는 60자 이하로 입력해 주세요.")
+  .regex(
+    /^[A-Za-z0-9._-]*$/,
+    "SNS 아이디에는 한글·공백·특수문자를 넣을 수 없어요. 영문·숫자와 점(.) 밑줄(_) 붙임표(-)만 사용해 주세요. (예: dancer_kim)",
+  );
 
 export const dancerProfileSchema = z.object({
   stage_name: z.string().trim().min(1, "활동명을 입력해 주세요.").max(80),

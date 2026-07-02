@@ -143,7 +143,21 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
         );
         setUploading(false);
         if (!upload.ok) {
-          failWith(upload.error);
+          // 사진 업로드는 클라이언트에서 일어나 서버액션 리포트에 안 잡히므로 여기서 직접 리포트.
+          // 원문(개발자 메시지)은 사용자에게 노출하지 않고 리포트로만 남긴다.
+          void fetch("/api/log-error", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: `[온보딩] 프로필 사진 업로드 실패: ${upload.error}`,
+              url: typeof window !== "undefined" ? window.location.href : null,
+              source: "client",
+              context: { area: "dancer_onboarding", step: "photo_upload" },
+            }),
+          }).catch(() => {});
+          failWith(
+            "프로필 사진을 올리지 못했어요. 잠시 후 다시 시도하거나, 사진 없이 진행해 주세요.",
+          );
           return;
         }
         profileImgUrl = upload.url;

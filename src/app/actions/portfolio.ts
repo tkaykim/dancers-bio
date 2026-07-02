@@ -1,8 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import type { ZodError } from "zod";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { reportServerError } from "@/lib/errors/report-server-error";
 import { isValidProfilePhotoUrl } from "@/lib/storage/profile-photos";
 import {
   DANCER_PORTFOLIO_BUCKET,
@@ -353,19 +356,55 @@ export async function upsertDancerProfileAction(
   return { ok: true, data: { id: dancerId } };
 }
 
+// DB 원문 에러(영문·스키마명 포함)를 절대 사용자에게 그대로 보이지 않도록 한글 안내로 변환.
+// 매칭 안 되는 경우도 원문 대신 일반 안내를 돌려준다(개발자 워딩/스키마명 노출 금지).
 function humanizeDancerError(message: string): string {
-  // 세션(JWT)이 만료/갱신 중이면 RLS(auth.uid() null)로 INSERT가 거부된다.
-  // 온보딩 6단계에서 세션 레이스로 자주 발생 → 원문(영문 Postgres) 대신 안내 문구로.
+  // 세션(JWT)이 만료/갱신 중이면 RLS로 INSERT가 거부된다(온보딩 세션 레이스).
   if (message.includes("row-level security") || message.includes("42501")) {
     return "로그인이 만료되었어요. 페이지를 새로고침한 뒤 다시 시도해 주세요.";
   }
-  if (message.includes("dancers_slug_key") || message.toLowerCase().includes("duplicate") && message.includes("slug")) {
-    return "이미 사용 중인 slug입니다. 다른 값을 입력해 주세요.";
+  if (
+    message.includes("dancers_slug_key") ||
+    (message.toLowerCase().includes("duplicate") && message.includes("slug"))
+  ) {
+    return "프로필 주소가 다른 분과 겹쳤어요. 활동명을 조금 바꿔서 다시 시도해 주세요.";
   }
   if (message.includes("dancers_profile_id_unique")) {
-    return "이미 댄서 프로필이 존재합니다.";
+    return "이미 프로필이 만들어져 있어요. 내 프로필에서 확인해 주세요.";
   }
-  return message;
+  return "프로필을 저장하는 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요. 계속되면 문의해 주세요.";
+}
+
+// 온보딩 입력 필드의 사용자용 한글 이름(검증 에러를 '어느 칸'인지 알려주기 위함).
+const ONBOARDING_FIELD_LABELS: Record<string, string> = {
+  stage_name: "활동명",
+  korean_name: "한글 이름",
+  location: "활동 지역",
+  gender: "성별",
+  bio: "소개",
+  specialties: "전문 분야",
+  genres: "장르",
+  social_instagram_handle: "인스타그램 아이디",
+  social_youtube_handle: "유튜브 아이디",
+  social_tiktok_handle: "틱톡 아이디",
+};
+
+// zod 검증 실패를 사용자가 이해할 수 있는 한 문장으로. 어느 칸이 문제인지 이름을 붙인다.
+function friendlyValidationError(err: ZodError): string {
+  const issue = err.issues[0];
+  if (!issue) return "입력한 정보를 다시 확인해 주세요.";
+  const key = String(issue.path[0] ?? "");
+  const label = ONBOARDING_FIELD_LABELS[key];
+  const msg = issue.message || "형식이 올바르지 않아요.";
+  return label ? `${label} — ${msg}` : msg;
+}
+
+async function currentUserAgent(): Promise<string | null> {
+  try {
+    return (await headers()).get("user-agent");
+  } catch {
+    return null;
+  }
 }
 
 export async function createDancerProfileAction(
@@ -374,16 +413,23 @@ export async function createDancerProfileAction(
   // 인증과 INSERT를 같은 supabase 클라이언트로 처리해 요청 내 토큰을 일관되게 유지한다.
   // (기존엔 requireUser가 별도 클라이언트로 세션을 확인해, 인앱 브라우저 토큰 갱신 레이스 시
   //  INSERT용 클라이언트가 만료 토큰을 읽어 RLS(auth.uid() null)로 조용히 거부되던 버그가 있었다.)
+  const userAgent = await currentUserAgent();
   const supabase = await createClient();
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
   if (authError || !user) {
-    return {
-      ok: false,
-      error: "로그인이 만료되었어요. 페이지를 새로고침한 뒤 다시 시도해 주세요.",
-    };
+    const msg = "로그인이 만료되었어요. 페이지를 새로고침한 뒤 다시 시도해 주세요.";
+    await reportServerError({
+      area: "dancer_onboarding",
+      code: "auth_expired",
+      detail: authError?.message ?? "auth.getUser() returned no user",
+      userMessage: msg,
+      userAgent,
+      severity: "high",
+    });
+    return { ok: false, error: msg };
   }
 
   const roleRaw = (formData.get("role") ?? "self").toString();
@@ -402,20 +448,43 @@ export async function createDancerProfileAction(
     social_tiktok_handle: strOrNull(formData, "social_tiktok_handle"),
   });
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
-    };
+    const msg = friendlyValidationError(parsed.error);
+    // 어느 칸이 왜 막혔는지 자동 리포트(예: SNS 아이디에 한글). 사용자 잘못이라 severity=low.
+    await reportServerError({
+      area: "dancer_onboarding",
+      code: "validation",
+      detail: JSON.stringify(
+        parsed.error.issues.slice(0, 5).map((i) => ({ path: i.path, message: i.message })),
+      ),
+      userMessage: msg,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      userAgent,
+      severity: "low",
+      meta: {
+        role,
+        failed_field: String(parsed.error.issues[0]?.path[0] ?? ""),
+      },
+    });
+    return { ok: false, error: msg };
   }
 
   const profileImgUrlRaw = strOrNull(formData, "profile_img_url");
   // 업로드 후 받은 URL이 우리 Supabase storage 버킷과 다르면 에러.
   // (이전엔 silently null이어서 사진이 사라지는 버그 발생)
   if (profileImgUrlRaw && !isValidProfilePhotoUrl(profileImgUrlRaw)) {
-    return {
-      ok: false,
-      error: "프로필 사진 업로드에 문제가 있습니다. 다시 시도해 주세요.",
-    };
+    const msg = "프로필 사진을 저장하지 못했어요. 사진을 다시 올리거나, 사진 없이 진행해 주세요.";
+    await reportServerError({
+      area: "dancer_onboarding",
+      code: "photo_invalid",
+      detail: `profile_img_url rejected by isValidProfilePhotoUrl: ${profileImgUrlRaw.slice(0, 200)}`,
+      userMessage: msg,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      userAgent,
+      severity: "normal",
+    });
+    return { ok: false, error: msg };
   }
   const profileImgUrl = profileImgUrlRaw ?? null;
 
@@ -476,7 +545,23 @@ export async function createDancerProfileAction(
         .maybeSingle();
       if (dup?.id) return { ok: true, data: { id: dup.id as string } };
     }
-    return { ok: false, error: humanizeDancerError(insertError.message) };
+    const msg = humanizeDancerError(insertError.message);
+    const isRls =
+      insertError.message.includes("row-level security") ||
+      insertError.message.includes("42501") ||
+      insertError.code === "42501";
+    await reportServerError({
+      area: "dancer_onboarding",
+      code: isRls ? "rls_denied" : "insert_failed",
+      detail: `${insertError.code ?? ""} ${insertError.message}`.trim(),
+      userMessage: msg,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      userAgent,
+      severity: "high",
+      meta: { role },
+    });
+    return { ok: false, error: msg };
   }
   const dancerId = inserted.id as string;
 
@@ -490,7 +575,19 @@ export async function createDancerProfileAction(
     if (mgrError) {
       // 댄서 row 정리 (best-effort)
       await supabase.from("dancers").delete().eq("id", dancerId);
-      return { ok: false, error: "매니저 등록에 실패했습니다: " + mgrError.message };
+      const msg = "매니저 등록에 문제가 생겼어요. 잠시 후 다시 시도해 주세요. 계속되면 문의해 주세요.";
+      await reportServerError({
+        area: "dancer_onboarding",
+        code: "manager_insert_failed",
+        detail: `${mgrError.code ?? ""} ${mgrError.message}`.trim(),
+        userMessage: msg,
+        userId: user.id,
+        userEmail: user.email ?? null,
+        userAgent,
+        severity: "high",
+        meta: { dancerId },
+      });
+      return { ok: false, error: msg };
     }
   }
 

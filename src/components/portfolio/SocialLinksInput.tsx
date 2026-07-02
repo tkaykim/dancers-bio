@@ -71,36 +71,57 @@ const FIELDS: Array<{
   },
 ];
 
+// SNS 아이디에 허용되지 않는 문자(한글·공백·특수문자 등)가 있는지.
+const DISALLOWED_HANDLE_CHARS = /[^A-Za-z0-9._-]/;
+
 export function SocialLinksInput({ value, onChange }: Props) {
   return (
     <div className="flex flex-col gap-4">
-      {FIELDS.map(({ key, label, Icon, iconClass, focusClass, hint }) => (
-        <div key={key} className="flex flex-col gap-2">
-          <label className="flex items-center gap-2 text-sm font-medium text-ink-2">
-            <Icon className={cn("size-4", iconClass)} />
-            {label}
-          </label>
-          <div className="flex items-center gap-2 rounded-lg border border-hairline-2 bg-surface-2 px-4 py-3 transition-colors focus-within:border-primary">
-            <span className="shrink-0 text-sm text-ink-3">@</span>
-            <input
-              type="text"
-              autoComplete="off"
-              autoCapitalize="none"
-              spellCheck={false}
-              placeholder="username"
+      {FIELDS.map(({ key, label, Icon, iconClass, focusClass, hint }) => {
+        const current = value[key] ?? "";
+        const invalid = current.length > 0 && DISALLOWED_HANDLE_CHARS.test(current);
+        return (
+          <div key={key} className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-ink-2">
+              <Icon className={cn("size-4", iconClass)} />
+              {label}
+            </label>
+            <div
               className={cn(
-                "w-full bg-transparent text-sm text-foreground placeholder:text-ink-4 focus:outline-none",
-                focusClass,
+                "flex items-center gap-2 rounded-lg border bg-surface-2 px-4 py-3 transition-colors",
+                invalid
+                  ? "border-destructive focus-within:border-destructive"
+                  : "border-hairline-2 focus-within:border-primary",
               )}
-              value={value[key] ?? ""}
-              onChange={(e) =>
-                onChange({ ...value, [key]: e.target.value.replace(/^@/, "") })
-              }
-            />
+            >
+              <span className="shrink-0 text-sm text-ink-3">@</span>
+              <input
+                type="text"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                placeholder="username"
+                aria-invalid={invalid}
+                className={cn(
+                  "w-full bg-transparent text-sm text-foreground placeholder:text-ink-4 focus:outline-none",
+                  focusClass,
+                )}
+                value={current}
+                onChange={(e) =>
+                  onChange({ ...value, [key]: e.target.value.replace(/^@/, "") })
+                }
+              />
+            </div>
+            {invalid ? (
+              <p className="text-xs text-destructive">
+                한글·공백·특수문자는 넣을 수 없어요. 영문 아이디만 입력해 주세요. (예: dancer_kim)
+              </p>
+            ) : (
+              <p className="text-xs text-ink-3">{hint}</p>
+            )}
           </div>
-          <p className="text-xs text-ink-3">{hint}</p>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
