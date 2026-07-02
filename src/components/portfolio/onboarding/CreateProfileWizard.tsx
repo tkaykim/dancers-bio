@@ -225,8 +225,10 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
         careerFailedCount > 0
           ? (dancerId ? `/me/portfolio/${dancerId}/careers` : "/me/portfolio")
           : (returnTo ?? (dancerId ? `/me/portfolio/${dancerId}/careers` : "/me/portfolio"));
-      router.push(next);
-      router.refresh();
+      // 온보딩 완료 후에는 위저드를 완전히 떠난다. router.push+refresh 소프트 내비게이션이
+      // 트랜지션(pending) 안에서 커밋되지 않고 스피너가 무한정 도는 경우가 있어(=사용자가 겪은
+      // "로딩만" 증상의 한 축), 하드 내비게이션으로 확실히 이동한다. 세션도 새로 확립됨.
+      window.location.assign(next);
     });
   };
 
