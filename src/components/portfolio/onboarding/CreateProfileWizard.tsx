@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronRight, Loader2, Shield } from "lucide-react";
 
 import { createDancerProfileAction } from "@/app/actions/portfolio";
+import { getBrowserClient } from "@/lib/supabase/browser";
 import { uploadAvatarFromBrowser } from "@/lib/storage/upload-client";
 import { ProfilePhotoUpload } from "@/components/portfolio/ProfilePhotoUpload";
 import {
@@ -115,9 +116,23 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
   const goNext = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS));
   const goPrev = () => setStep((s) => Math.max(s - 1, 1));
 
+  const failWith = (message: string) => {
+    setError(message);
+    // 에러 배너가 상단에 뜨므로 위로 스크롤(모바일에서 하단 접힘으로 못 보던 문제 방지).
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const handleSubmit = () => {
     setError(null);
     startTransition(async () => {
+      // 서버액션 호출 전에 세션 토큰을 미리 갱신해, 서버가 유효한 세션을 읽도록 한다.
+      // (아이폰/카카오톡 인앱 브라우저의 토큰 갱신 레이스로 서버 INSERT가 RLS 거부되던 문제 방어.)
+      try {
+        await getBrowserClient().auth.getSession();
+      } catch {
+        // 갱신 실패해도 서버측 방어(멱등+친절한 에러)가 있으므로 계속 진행.
+      }
+
       let profileImgUrl: string | null = null;
       if (data.profile_img) {
         setUploading(true);
@@ -128,7 +143,7 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
         );
         setUploading(false);
         if (!upload.ok) {
-          setError(upload.error);
+          failWith(upload.error);
           return;
         }
         profileImgUrl = upload.url;
@@ -169,7 +184,7 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
 
       const result = await createDancerProfileAction(fd);
       if (!result.ok) {
-        setError(result.error);
+        failWith(result.error);
         return;
       }
 
@@ -250,6 +265,18 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
         </div>
       </div>
 
+      {/* 에러는 어느 단계에서든 상단에 항상 보이게 (모바일 하단 접힘으로 놓치던 문제 방지). */}
+      {error ? (
+        <div className="mx-auto max-w-md px-6 pt-4">
+          <p
+            role="alert"
+            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            {error}
+          </p>
+        </div>
+      ) : null}
+
       <div
         key={step}
         className="mx-auto max-w-md animate-in slide-in-from-right-4 fade-in px-6 py-8 duration-300"
@@ -293,7 +320,6 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
           <StepReview
             data={data}
             previewUrl={previewUrl}
-            error={error}
             role={role}
             onChangeBio={(bio) => setData({ ...data, bio })}
           />
@@ -522,13 +548,11 @@ function StepSocial({
 function StepReview({
   data,
   previewUrl,
-  error,
   role,
   onChangeBio,
 }: {
   data: FormState;
   previewUrl: string | null;
-  error: string | null;
   role: "self" | "manager";
   onChangeBio: (bio: string) => void;
 }) {
@@ -631,12 +655,6 @@ function StepReview({
           </div>
         ) : null}
       </div>
-
-      {error ? (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
 
       <p className="text-xs text-ink-3">
         프로필 생성 후 관리자 승인을 거쳐 디렉토리에 노출됩니다.

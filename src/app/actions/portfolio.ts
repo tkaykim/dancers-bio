@@ -354,6 +354,11 @@ export async function upsertDancerProfileAction(
 }
 
 function humanizeDancerError(message: string): string {
+  // 세션(JWT)이 만료/갱신 중이면 RLS(auth.uid() null)로 INSERT가 거부된다.
+  // 온보딩 6단계에서 세션 레이스로 자주 발생 → 원문(영문 Postgres) 대신 안내 문구로.
+  if (message.includes("row-level security") || message.includes("42501")) {
+    return "로그인이 만료되었어요. 페이지를 새로고침한 뒤 다시 시도해 주세요.";
+  }
   if (message.includes("dancers_slug_key") || message.toLowerCase().includes("duplicate") && message.includes("slug")) {
     return "이미 사용 중인 slug입니다. 다른 값을 입력해 주세요.";
   }
@@ -366,7 +371,20 @@ function humanizeDancerError(message: string): string {
 export async function createDancerProfileAction(
   formData: FormData,
 ): Promise<ActionResult<{ id: string }>> {
-  const user = await requireUser();
+  // 인증과 INSERT를 같은 supabase 클라이언트로 처리해 요청 내 토큰을 일관되게 유지한다.
+  // (기존엔 requireUser가 별도 클라이언트로 세션을 확인해, 인앱 브라우저 토큰 갱신 레이스 시
+  //  INSERT용 클라이언트가 만료 토큰을 읽어 RLS(auth.uid() null)로 조용히 거부되던 버그가 있었다.)
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return {
+      ok: false,
+      error: "로그인이 만료되었어요. 페이지를 새로고침한 뒤 다시 시도해 주세요.",
+    };
+  }
 
   const roleRaw = (formData.get("role") ?? "self").toString();
   const role: "self" | "manager" = roleRaw === "manager" ? "manager" : "self";
@@ -401,7 +419,19 @@ export async function createDancerProfileAction(
   }
   const profileImgUrl = profileImgUrlRaw ?? null;
 
-  const supabase = await createClient();
+  // 멱등: self 유저가 이미 댄서 프로필을 가지고 있으면 재생성하지 않고 그대로 성공 처리.
+  // (6단계 재제출/더블클릭/세션 레이스 재시도로 여러 번 눌러도 중복 프로필이 안 생기고
+  //  기존 프로필로 다음 단계로 넘어간다. DB에도 부분 unique 인덱스로 방어.)
+  if (role === "self") {
+    const { data: existingSelf } = await supabase
+      .from("dancers")
+      .select("id")
+      .eq("profile_id", user.id)
+      .maybeSingle();
+    if (existingSelf?.id) {
+      return { ok: true, data: { id: existingSelf.id as string } };
+    }
+  }
 
   const social_links = buildSocialLinksFromHandles({
     instagram: parsed.data.social_instagram_handle ?? null,
@@ -433,6 +463,19 @@ export async function createDancerProfileAction(
     .select("id")
     .single();
   if (insertError) {
+    // 동시 재제출로 unique 인덱스(dancers_profile_id_unique) 충돌 시 → 기존 프로필을 성공으로 반환(멱등).
+    if (
+      role === "self" &&
+      (insertError.code === "23505" ||
+        insertError.message.includes("dancers_profile_id_unique"))
+    ) {
+      const { data: dup } = await supabase
+        .from("dancers")
+        .select("id")
+        .eq("profile_id", user.id)
+        .maybeSingle();
+      if (dup?.id) return { ok: true, data: { id: dup.id as string } };
+    }
     return { ok: false, error: humanizeDancerError(insertError.message) };
   }
   const dancerId = inserted.id as string;
