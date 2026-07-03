@@ -31,6 +31,7 @@ export function buildCastingBoardEmail(params: {
     "",
     "deetz · 댄서 매거진 & 캐스팅 플랫폼",
     "deetz.kr · dancers.bio.kr@gmail.com",
+    "Instagram instagram.com/deetz.kr · YouTube youtube.com/@deetzmagazine",
   ].join("\n");
 
   const msgHtml = esc(msg).replace(/\n/g, "<br>");
@@ -48,11 +49,16 @@ export function buildCastingBoardEmail(params: {
   <a href="${esc(params.boardUrl)}" style="display:block;background:#111111;color:#ffffff;text-decoration:none;text-align:center;font-size:15px;font-weight:700;padding:15px 0;border-radius:12px;">캐스팅 보드 보기 →</a></td></tr>
 <tr><td style="padding:0 32px 18px;">
   <div style="background:#f6f6f7;border:1px solid #ececef;border-radius:12px;padding:12px 16px;font-size:12px;color:#6b7280;line-height:1.6;">본 자료는 캐스팅 검토용입니다.<br>무단 외부 공유 및 소속 댄서에 대한 직접 섭외를 금합니다.</div></td></tr>
-<tr><td style="padding:18px 32px 26px;border-top:1px solid #ececef;background:#fafafa;">
+<tr><td style="padding:22px 32px 28px;border-top:1px solid #ececef;background:#fafafa;">
   <img src="https://www.deetz.kr/brand/deetz-logo-black.png" alt="deetz" width="41" height="20" style="display:block;height:20px;width:auto;border:0;">
-  <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:8px;">
+  <div style="font-size:12px;color:#6b7280;margin:10px 0 14px;">댄서 매거진 &amp; 캐스팅 플랫폼</div>
+  <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+    <td style="padding-right:10px;"><a href="https://www.youtube.com/@deetzmagazine"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/youtube.png" width="30" height="30" alt="YouTube" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
+    <td><a href="https://www.instagram.com/deetz.kr/"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/instagram.png" width="30" height="30" alt="Instagram" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
+  </tr></table>
+  <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:14px;">
     <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:dancers.bio.kr@gmail.com" style="color:#44474d;text-decoration:none;">dancers.bio.kr@gmail.com</a></div>
-  <div style="font-size:11px;color:#a1a1aa;margin-top:10px;">© 2026 deetz. All rights reserved.</div></td></tr>
+  <div style="font-size:11px;color:#a1a1aa;margin-top:12px;line-height:1.6;">© 2026 deetz. All rights reserved.</div></td></tr>
 </table></td></tr></table></body></html>`;
 
   return { subject, text, html };
