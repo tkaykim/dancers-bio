@@ -15,10 +15,12 @@ export function FitSizePanel({
   title = "의상 사이즈 현황",
   rows,
   shareUrl,
+  sizesHref,
 }: {
   title?: string;
   rows: FitRow[];
   shareUrl?: string;
+  sizesHref?: string;
 }) {
   const [onlyMissing, setOnlyMissing] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -71,6 +73,15 @@ export function FitSizePanel({
           제출 <span className="font-bold text-foreground">{done}</span> / {total}
         </span>
       </div>
+
+      {sizesHref ? (
+        <a
+          href={sizesHref}
+          className="mt-2 block text-xs font-semibold text-primary underline"
+        >
+          사이즈 취합표·대시보드 열기 →
+        </a>
+      ) : null}
 
       <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
         <div

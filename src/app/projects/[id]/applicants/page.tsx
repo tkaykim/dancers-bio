@@ -683,6 +683,7 @@ export default async function ApplicantsPage({
             <FitSizePanel
               rows={fitRows}
               shareUrl={`https://deetz.kr/fr/${p.short_code}`}
+              sizesHref={`/projects/${p.short_code}/sizes`}
             />
           ) : null}
 

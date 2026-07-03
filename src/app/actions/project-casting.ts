@@ -26,21 +26,23 @@ const DEFAULT_SETTINGS: Settings = {
   fields: { height: true, instagram: true, career: true },
 };
 
-// 합격자(탈락/철회 제외) 댄서 id 목록.
+// 보드에 넣을 댄서 id 목록.
+// 확정(confirmed_at)이 하나라도 있으면 = 확정자만(최종 캐스팅). 없으면 accepted 전원(확정 흐름 미사용 프로젝트 호환).
 async function acceptedDancerIds(
   admin: ReturnType<typeof createAdminClient>,
   projectId: string,
 ): Promise<string[]> {
   const { data } = await admin
     .from("applications")
-    .select("dancer_id")
+    .select("dancer_id, confirmed_at")
     .eq("project_id", projectId)
     .is("archived_at", null)
     .eq("status", "accepted")
     .not("dancer_id", "is", null);
-  const ids = new Set<string>();
-  for (const r of (data ?? []) as Array<{ dancer_id: string }>) ids.add(r.dancer_id);
-  return [...ids];
+  const rows = (data ?? []) as Array<{ dancer_id: string; confirmed_at: string | null }>;
+  const confirmed = rows.filter((r) => r.confirmed_at);
+  const use = confirmed.length > 0 ? confirmed : rows;
+  return [...new Set(use.map((r) => r.dancer_id))];
 }
 
 // 보드 생성 + 합격자 전원을 멤버로 시드. 반환=share_code.
