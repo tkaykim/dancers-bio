@@ -73,6 +73,7 @@ type Project = {
   recruitment_count: number;
   schedule_survey_code: string;
   settlement_share_code: string;
+  size_share_code: string | null;
 };
 
 type RecommendedDancer = {
@@ -157,7 +158,7 @@ export default async function ApplicantsPage({
   const projectQuery = supabase
     .from("projects")
     .select(
-      "id, short_code, owner_id, title, recruitment_count, schedule_survey_code, settlement_share_code",
+      "id, short_code, owner_id, title, recruitment_count, schedule_survey_code, settlement_share_code, size_share_code",
     )
     .is("deleted_at", null);
 
@@ -684,6 +685,11 @@ export default async function ApplicantsPage({
               rows={fitRows}
               shareUrl={`https://deetz.kr/fr/${p.short_code}`}
               sizesHref={`/projects/${p.short_code}/sizes`}
+              publicSummaryUrl={
+                p.size_share_code
+                  ? `https://deetz.kr/sz/${p.size_share_code}`
+                  : undefined
+              }
             />
           ) : null}
 

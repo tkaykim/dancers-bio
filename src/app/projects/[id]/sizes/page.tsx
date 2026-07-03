@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { classifyProjectIdentifier } from "@/lib/projectId";
-import { SizeSummary, type SizeRow } from "@/components/project/SizeSummary";
+import { getProjectSizeRows } from "@/lib/fit/size-rows";
+import { SizeSummary } from "@/components/project/SizeSummary";
+
+// 매 요청마다 최신 제출 반영 (캐시 없음).
+export const dynamic = "force-dynamic";
 
 // 의상 사이즈 취합 대시보드 + 리스트뷰. 확정자(confirmed_at) 대상. 관리자 전용.
 export default async function ProjectSizesPage({
@@ -30,72 +34,7 @@ export default async function ProjectSizesPage({
   const projectId = project.id as string;
   if (!(await canManageProject(projectId))) notFound();
 
-  // 확정자
-  const { data: apps } = await admin
-    .from("applications")
-    .select("dancer_id, dancers!inner(id, stage_name, gender)")
-    .eq("project_id", projectId)
-    .eq("status", "accepted")
-    .not("confirmed_at", "is", null)
-    .is("archived_at", null);
-  type A = { dancers: { id: string; stage_name: string; gender: string | null } };
-  const list = (apps ?? []) as unknown as A[];
-  const seen = new Set<string>();
-  const dancers = list
-    .map((a) => a.dancers)
-    .filter((d) => d && !seen.has(d.id) && seen.add(d.id));
-
-  const ids = dancers.map((d) => d.id);
-  const privByD = new Map<
-    string,
-    { height: number | null; top: string | null; waist: string | null; length: string | null }
-  >();
-  if (ids.length > 0) {
-    const { data: priv } = await admin
-      .from("dancer_private_info")
-      .select("dancer_id, height_cm, top_size, pants_waist_inch, pants_length_cm")
-      .in("dancer_id", ids);
-    for (const r of (priv ?? []) as Array<{
-      dancer_id: string;
-      height_cm: number | null;
-      top_size: string | null;
-      pants_waist_inch: string | null;
-      pants_length_cm: string | null;
-    }>) {
-      privByD.set(r.dancer_id, {
-        height: r.height_cm,
-        top: r.top_size,
-        waist: r.pants_waist_inch,
-        length: r.pants_length_cm,
-      });
-    }
-  }
-
-  const rows: SizeRow[] = dancers
-    .map((d) => {
-      const p = privByD.get(d.id) ?? {
-        height: null,
-        top: null,
-        waist: null,
-        length: null,
-      };
-      const g = (d.gender ?? "").toLowerCase();
-      return {
-        name: d.stage_name ?? "댄서",
-        gender: (g === "male" || g === "female" ? g : "other") as SizeRow["gender"],
-        height: p.height,
-        top: p.top,
-        waist: p.waist,
-        length: p.length,
-        submitted: !!(p.top && p.waist && p.length),
-      };
-    })
-    .sort(
-      (a, b) =>
-        a.gender.localeCompare(b.gender) ||
-        Number(b.submitted) - Number(a.submitted) ||
-        (b.height ?? 0) - (a.height ?? 0),
-    );
+  const rows = await getProjectSizeRows(projectId);
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-8">

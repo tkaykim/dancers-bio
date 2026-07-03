@@ -16,15 +16,18 @@ export function FitSizePanel({
   rows,
   shareUrl,
   sizesHref,
+  publicSummaryUrl,
 }: {
   title?: string;
   rows: FitRow[];
   shareUrl?: string;
   sizesHref?: string;
+  publicSummaryUrl?: string;
 }) {
   const [onlyMissing, setOnlyMissing] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
+  const [summaryCopied, setSummaryCopied] = useState(false);
 
   const total = rows.length;
   const done = useMemo(() => rows.filter((r) => r.submitted).length, [rows]);
@@ -81,6 +84,26 @@ export function FitSizePanel({
         >
           사이즈 취합표·대시보드 열기 →
         </a>
+      ) : null}
+
+      {publicSummaryUrl ? (
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(publicSummaryUrl);
+              setSummaryCopied(true);
+              setTimeout(() => setSummaryCopied(false), 1500);
+            } catch {
+              /* noop */
+            }
+          }}
+          className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-xs font-medium text-ink-2"
+        >
+          {summaryCopied
+            ? "복사됨 — 클라이언트에게 전달"
+            : "취합표 공유 링크 복사 (로그인 불필요)"}
+        </button>
       ) : null}
 
       <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">

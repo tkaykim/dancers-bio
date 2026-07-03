@@ -1,6 +1,9 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { TOP_SIZES } from "@/lib/fit/sizes";
+
+type SortKey = "name" | "gender" | "height" | "top" | "waist";
 
 export type SizeRow = {
   name: string;
@@ -84,6 +87,43 @@ export function SizeSummary({
   const males = done.filter((r) => r.gender === "male");
   const females = done.filter((r) => r.gender === "female");
 
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({
+    key: "gender",
+    dir: 1,
+  });
+  function onSort(key: SortKey) {
+    setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: 1 }));
+  }
+  const sortedRows = useMemo(() => {
+    const gOrder: Record<string, number> = { male: 0, female: 1, other: 2 };
+    const val = (r: SizeRow): number | string => {
+      switch (sort.key) {
+        case "name":
+          return r.name.toLowerCase();
+        case "gender":
+          return gOrder[r.gender] ?? 9;
+        case "height":
+          return r.height ?? -1;
+        case "top":
+          return r.top ? TOP_SIZES.indexOf(r.top) : -1;
+        case "waist":
+          return r.waist ? Number(r.waist) : -1;
+      }
+    };
+    return [...rows].sort((a, b) => {
+      const va = val(a);
+      const vb = val(b);
+      const c =
+        typeof va === "number" && typeof vb === "number"
+          ? va - vb
+          : String(va).localeCompare(String(vb));
+      return c !== 0 ? c * sort.dir : a.name.localeCompare(b.name);
+    });
+  }, [rows, sort]);
+
+  const arrow = (key: SortKey) =>
+    sort.key === key ? (sort.dir === 1 ? " ▲" : " ▼") : "";
+
   function exportCsv() {
     const head = ["이름", "성별", "키(cm)", "상의", "허리(in)", "기장(cm)", "제출"];
     const body = rows.map((r) => [
@@ -163,15 +203,30 @@ export function SizeSummary({
           <table className="w-full min-w-[520px] text-sm">
             <thead>
               <tr className="bg-secondary/50 text-left text-xs text-ink-2">
-                <th className="px-3 py-2 font-medium">이름</th>
-                <th className="px-3 py-2 font-medium">성별</th>
-                <th className="px-3 py-2 font-medium">키</th>
-                <th className="px-3 py-2 font-medium">상의</th>
-                <th className="px-3 py-2 font-medium">하의 (허리/기장)</th>
+                {(
+                  [
+                    ["name", "이름"],
+                    ["gender", "성별"],
+                    ["height", "키"],
+                    ["top", "상의"],
+                    ["waist", "하의 (허리/기장)"],
+                  ] as [SortKey, string][]
+                ).map(([key, label]) => (
+                  <th key={key} className="px-3 py-2 font-medium">
+                    <button
+                      type="button"
+                      onClick={() => onSort(key)}
+                      className="flex items-center gap-0.5 hover:text-foreground"
+                    >
+                      {label}
+                      <span className="text-primary">{arrow(key)}</span>
+                    </button>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => (
+              {sortedRows.map((r, i) => (
                 <tr
                   key={r.name + i}
                   className={`border-t border-hairline-2 ${r.submitted ? "" : "text-ink-3"}`}
