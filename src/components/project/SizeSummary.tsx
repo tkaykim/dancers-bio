@@ -172,24 +172,19 @@ export function SizeSummary({
         </button>
       </div>
 
-      {/* 대시보드: 사이즈별 수량 */}
+      {/* 대시보드: 사이즈별 수량 — PC에서 4개 한 줄 */}
       <div>
-        <h2 className="mb-2 text-sm font-bold">남자 · 사이즈별 수량 ({males.length})</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <CountTable title="상의" entries={sortTop(countBy(males, (r) => r.top))} />
+        <h2 className="mb-2 text-sm font-bold">사이즈별 수량</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <CountTable title={`남자 상의 (${males.length})`} entries={sortTop(countBy(males, (r) => r.top))} />
           <CountTable
-            title="하의 (허리)"
+            title="남자 하의 (허리)"
             unit="in"
             entries={sortNum(countBy(males, (r) => r.waist))}
           />
-        </div>
-      </div>
-      <div>
-        <h2 className="mb-2 text-sm font-bold">여자 · 사이즈별 수량 ({females.length})</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <CountTable title="상의" entries={sortTop(countBy(females, (r) => r.top))} />
+          <CountTable title={`여자 상의 (${females.length})`} entries={sortTop(countBy(females, (r) => r.top))} />
           <CountTable
-            title="하의 (허리)"
+            title="여자 하의 (허리)"
             unit="in"
             entries={sortNum(countBy(females, (r) => r.waist))}
           />
@@ -199,10 +194,10 @@ export function SizeSummary({
       {/* 리스트뷰: 이름 | 성별 | 키 | 상의 | 하의 */}
       <div>
         <h2 className="mb-2 text-sm font-bold">전체 명단 ({rows.length})</h2>
-        <div className="overflow-x-auto rounded-2xl border border-border">
+        <div className="max-h-[72vh] overflow-auto rounded-2xl border border-border">
           <table className="w-full min-w-[520px] text-sm">
-            <thead>
-              <tr className="bg-secondary/50 text-left text-xs text-ink-2">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-secondary text-left text-xs text-ink-2">
                 {(
                   [
                     ["name", "이름"],

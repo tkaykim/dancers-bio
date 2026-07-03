@@ -37,7 +37,7 @@ export default async function ProjectSizesPage({
   const rows = await getProjectSizeRows(projectId);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-8">
+    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-8 lg:max-w-6xl lg:px-8">
       <Link
         href={`/projects/${project.short_code}/applicants`}
         className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"

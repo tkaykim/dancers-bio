@@ -31,7 +31,7 @@ export default async function PublicSizesPage({
   const rows = await getProjectSizeRows(project.id as string);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-8">
+    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-8 lg:max-w-6xl lg:px-8">
       <DeetzLogo className="h-7 w-auto" priority />
       <h1 className="text-xl font-bold leading-tight tracking-tight">
         의상 사이즈 취합
