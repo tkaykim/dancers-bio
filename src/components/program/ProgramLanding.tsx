@@ -59,10 +59,17 @@ type Copy = {
 
 // GRIGO 소속 댄서 로스터 — deetz DB 실데이터 (프로필 사진=deetz 공개 스토리지)
 // href: deetz 프로필(/d/slug) 또는 인스타그램(아직 deetz 프로필 없는 경우)
-const ROSTER: { name: string; handle: string; href: string; img: string; credits: string[] }[] = [
+// nat: 국적 (인스타 바이오·공개 프로필로 검증 — Emily US=Born in New York / Renan=秋田レナン 일본 / 나머지=🇯🇵 표기)
+type Nat = "us" | "jp";
+const NAT_LABEL: Record<Nat, Record<Lang, string>> = {
+  us: { en: "🇺🇸 USA", ja: "🇺🇸 アメリカ", ko: "🇺🇸 미국" },
+  jp: { en: "🇯🇵 Japan", ja: "🇯🇵 日本", ko: "🇯🇵 일본" },
+};
+const ROSTER: { name: string; handle: string; nat: Nat; href: string; img: string; credits: string[] }[] = [
   {
     name: "Emily",
     handle: "@m12_emilylis",
+    nat: "us",
     href: "/d/emily",
     img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/2f9467ee-497e-4010-9f15-08d82b8c81ae/profile_1773655437634.jpg",
     credits: ["NCT TEN World Tour Direction", "Red Velvet IRENE 'Like A Flower'"],
@@ -70,6 +77,7 @@ const ROSTER: { name: string; handle: string; href: string; img: string; credits
   {
     name: "Emily",
     handle: "@emilee.jp",
+    nat: "jp",
     href: "https://www.instagram.com/emilee.jp/",
     img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/program/emilee-jp.jpg",
     credits: ["aespa 'Drift' · SMTM12", "'KPOPPED' (Apple TV+) · 2PM JUN. K"],
@@ -77,6 +85,7 @@ const ROSTER: { name: string; handle: string; href: string; img: string; credits
   {
     name: "Renan",
     handle: "@renan0115",
+    nat: "jp",
     href: "/d/renan",
     img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/e684ae74-57dd-4785-8a7d-4e4f8a79757f/profile_1773134365759.webp",
     credits: ["G-DRAGON 'TOO BAD'", "aespa 'Armageddon' · 'Whiplash'"],
@@ -84,6 +93,7 @@ const ROSTER: { name: string; handle: string; href: string; img: string; credits
   {
     name: "YUMEKI",
     handle: "@yumekitakenaka_",
+    nat: "jp",
     href: "/d/yumeki",
     img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/4cc8a178-1654-42a5-a217-ccb0f982cde3/profile_1773192321867.webp",
     credits: ["TXT 'Love Language'", "ILLIT 'Jellyous' · Street Man Fighter"],
@@ -91,6 +101,7 @@ const ROSTER: { name: string; handle: string; href: string; img: string; credits
   {
     name: "MARIA",
     handle: "@maria._.bh01",
+    nat: "jp",
     href: "/d/maria",
     img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/7ba298b7-afbb-4fdf-8a28-7a3a7bd975f4/profile_1773815493545.png",
     credits: ["MAMA AWARDS stages", "NewJeans Bunnies Camp, Tokyo Dome"],
@@ -98,6 +109,7 @@ const ROSTER: { name: string; handle: string; href: string; img: string; credits
   {
     name: "HIYORI",
     handle: "@hiyori_club",
+    nat: "jp",
     href: "/d/hiyori",
     img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/6c4e146c-5dd7-408f-8165-4c8fcd6cc907/profile_1773813569999.png",
     credits: ["NCT WISH 'WISH'", "WayV 'FREQUENCY' Music Bank"],
@@ -134,7 +146,7 @@ const T: Record<Lang, Copy> = {
       { title: "Work", body: "Get cast through deetz — MVs, stages, and shows, with contracts done right." },
     ],
     rosterTitle: "Dancers already working with GRIGO",
-    rosterNote: "GRIGO Entertainment is a dancer-first management & agency. These are real stages our dancers are on right now — tap a card to see their full profile on deetz.",
+    rosterNote: "GRIGO Entertainment is a dancer-first management & agency. Several of the dancers below actually moved to Korea from the US and Japan and are working on E-6 visas right now. Tap a card to see their full history.",
     protectTitle: "We protect dancers",
     protectBody: "This industry has a fair-pay problem. We built deetz to fix it — and the program runs on the same rules:",
     protectPoints: [
@@ -186,7 +198,7 @@ const T: Record<Lang, Copy> = {
       { title: "お仕事へ", body: "deetz経由でキャスティング。契約はきちんと書面で交わします。" },
     ],
     rosterTitle: "GRIGOで活動中のダンサーたち",
-    rosterNote: "GRIGO Entertainmentはダンサー専門のマネジメント＆エージェンシー。所属ダンサーが今立っている実際のステージです。カードをタップするとdeetzのプロフィールが見られます。",
+    rosterNote: "GRIGO Entertainmentはダンサー専門のマネジメント＆エージェンシー。下のダンサーの多くは、実際にアメリカや日本から韓国に渡り、E-6ビザで活動しています。カードをタップすると活動履歴が見られます。",
     protectTitle: "ダンサーを守ります",
     protectBody: "この業界には未払いの問題があります。deetzはそれを変えるために作られ、プログラムも同じルールで動きます：",
     protectPoints: [
@@ -195,7 +207,7 @@ const T: Record<Lang, Copy> = {
       "未払いには本気で対応。クライアントがダンサーに支払わない場合、私たちが闘います。",
     ],
     whoTitle: "運営について",
-    whoBody: "GRIGO Entertainmentはダンサー専門のマネジメント＆エージェンシー。K-POPアーティストのMV・放送・ステージを手がけています。deetzはそのキャスティングプラットフォームで、韓国のダンサーとクライアントが日々使っています。教室ではなく、現役エージェンシーの中でトレーニングします。",
+    whoBody: "GRIGO Entertainmentはダンサー専門のマネジメント＆エージェンシー。K-POPアーティストのMV・放送・ステージを手がけてきました。deetzは韓国のダンサーとクライアントが日々使っている、GRIGOのキャスティングプラットフォームです。このプログラムに入るということは、ただレッスンを受けることではなく、実際にキャスティングが動くエージェンシーの中でキャリアを始めるということです。",
     faqTitle: "よくある質問",
     faqs: [
       { q: "費用はいくらですか？", a: "応募とカウンセリングは無料です。プログラム費用はトラック（期間・住居・ビザルート）により異なり、決定前のカウンセリングですべて明確にご説明します。" },
@@ -232,13 +244,13 @@ const T: Record<Lang, Copy> = {
     ],
     howTitle: "진행 방식",
     steps: [
-      { title: "무료 지원", body: "경력, 레벨, 비자 상태, 가능한 시기를 담은 짧은 지원서를 냅니다." },
+      { title: "무료 지원", body: "경력, 레벨, 비자 상태, 가능한 시기를 담은 짧은 지원서를 제출합니다." },
       { title: "상담", body: "케이스를 검토해 트레이닝, 언어, 비자, 주거, 일정까지 트랙을 설계합니다." },
       { title: "트레이닝·준비", body: "댄스, 한국어, 업계 교육을 받으면서 동시에 비자 서류를 준비합니다." },
       { title: "실무 투입", body: "deetz를 통해 캐스팅됩니다. 계약은 반드시 서면으로 진행해요." },
     ],
     rosterTitle: "GRIGO에서 활동 중인 댄서들",
-    rosterNote: "그리고엔터테인먼트는 댄서 전문 매니지먼트이자 에이전시입니다. 소속 댄서들이 지금 서고 있는 실제 무대들이에요. 카드를 누르면 deetz 프로필에서 전체 활동 내역을 볼 수 있습니다.",
+    rosterNote: "그리고엔터테인먼트는 댄서 전문 매니지먼트이자 에이전시입니다. 아래 댄서들 중 여러 명이 실제로 미국과 일본에서 건너와, E-6 비자로 한국 무대에 서고 있습니다. 카드를 누르면 전체 활동 내역을 볼 수 있어요.",
     protectTitle: "댄서를 지킵니다",
     protectBody: "이 업계엔 정산 문제가 있습니다. deetz는 그걸 바꾸려고 만들어졌고, 프로그램도 같은 원칙으로 돌아갑니다:",
     protectPoints: [
@@ -247,14 +259,14 @@ const T: Record<Lang, Copy> = {
       "미수 정산은 진지하게 다룹니다. 클라이언트가 댄서에게 지급하지 않으면 함께 싸웁니다.",
     ],
     whoTitle: "누가 운영하나요",
-    whoBody: "그리고엔터테인먼트(GRIGO)는 댄서 전문 매니지먼트이자 에이전시로, K-pop 아티스트의 MV, 방송, 무대를 만들어 왔습니다. deetz는 그 캐스팅 플랫폼으로, 한국 댄서와 클라이언트가 매일 쓰고 있어요. 교실이 아니라 현역 에이전시 안에서 트레이닝합니다.",
+    whoBody: "그리고엔터테인먼트(GRIGO)는 댄서 전문 매니지먼트이자 에이전시입니다. K-pop 아티스트의 뮤직비디오, 방송, 무대를 만들어 왔고, deetz는 한국 댄서와 클라이언트가 매일 쓰는 GRIGO의 캐스팅 플랫폼입니다. 이 프로그램에 들어오면 단순히 수업을 듣는 게 아니라, 실제 캐스팅이 오가는 에이전시 안에서 커리어를 시작하게 됩니다.",
     faqTitle: "자주 묻는 질문",
     faqs: [
       { q: "비용이 얼마인가요?", a: "지원과 상담은 무료예요. 프로그램 비용은 트랙(기간·주거·비자 경로)에 따라 다르고, 결정 전 상담에서 전부 명확히 안내합니다." },
-      { q: "실력이 어느 정도여야 하나요?", a: "레벨, 가능성, 목표를 보고 모든 지원서를 검토합니다. 완성된 프로일 필요는 없어요. 진지하면 됩니다." },
+      { q: "실력이 어느 정도여야 하나요?", a: "레벨, 가능성, 목표를 보고 모든 지원서를 검토합니다. 완성된 프로가 아니어도 괜찮습니다. 진지하게 임할 마음이면 충분해요." },
       { q: "비자만 필요해요.", a: "괜찮아요. 비자 지원 단독 트랙이 있습니다. 지원서에 적어 주시거나 비자 페이지를 봐주세요." },
       { q: "아직 한국 밖인데 지원되나요?", a: "네. 입국 가능 시점을 알려주시면 그에 맞춰 설계합니다." },
-      { q: "일이 보장되나요?", a: "정직한 에이전시는 캐스팅을 보장하지 않습니다. 약속하는 건: deetz와 GRIGO 네트워크를 통한 실제 일감 추천, 그리고 투명한 피드백입니다." },
+      { q: "일이 보장되나요?", a: "캐스팅을 100% 보장한다고 말하는 곳은 믿기 어렵죠. 저희가 약속하는 것은 deetz와 GRIGO 네트워크를 통해 실제 일감에 계속 추천해 드리는 것, 그리고 결과를 투명하게 알려드리는 것입니다." },
     ],
     cta: "무료로 지원하기",
     ctaSub: "약 3분이면 끝나요. 검토 후 상담 일정을 회신드립니다.",
@@ -420,7 +432,10 @@ export function ProgramLanding({
               className="aspect-[3/4] w-full object-cover"
             />
             <div className="p-3">
-              <p className="text-sm font-bold text-foreground">{d.name}</p>
+              <div className="flex items-baseline justify-between gap-1.5">
+                <p className="text-sm font-bold text-foreground">{d.name}</p>
+                <p className="shrink-0 text-[11px] text-ink-3">{NAT_LABEL[d.nat][lang]}</p>
+              </div>
               <p className="text-[11px] text-ink-4">{d.handle}</p>
               {d.credits.map((cr, i) => (
                 <p key={i} className="mt-1 text-[11px] leading-snug text-ink-3">
