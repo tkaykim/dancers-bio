@@ -52,7 +52,7 @@ const T: Record<Lang, Copy> = {
   en: {
     eyebrow: "deetz × GRIGO Entertainment",
     title1: "Build your dance career",
-    title2: "in Korea — the whole way.",
+    title2: "in Korea — all the way.",
     sub: "One program from training to your first paid job in Korea: dance training, Korean language, industry know-how, E-6-1 visa support, and real work through our agency pool.",
     pillarsTitle: "What's in the program",
     pillars: [
@@ -93,18 +93,18 @@ const T: Record<Lang, Copy> = {
   },
   ja: {
     eyebrow: "deetz × GRIGO Entertainment",
-    title1: "韓国でダンスキャリアを、",
-    title2: "最初から最後まで。",
-    sub: "トレーニングから初めての有償のお仕事まで、ひとつのプログラムで。ダンストレーニング、韓国語、業界教育、E-6-1ビザサポート、そしてエージェンシープールからの実務投入まで。",
+    title1: "韓国でダンスを、",
+    title2: "仕事にする。",
+    sub: "ダンストレーニング、韓国語、業界教育、E-6-1ビザサポート、そしてdeetzのキャスティングプールを通じた初めてのお仕事まで — ひとつのプログラムで。",
     pillarsTitle: "プログラム内容",
     pillars: [
       { title: "ダンストレーニング", body: "現役の韓国人コレオグラファー・スタジオとソウルでトレーニング。K-POPもストリートも、レベルに合わせて。" },
       { title: "韓国語教育", body: "生活・リハーサル・現場で使える実践韓国語。旅行会話ではなく、仕事のための言葉。" },
       { title: "業界教育", body: "韓国エンタメ業界のリアル：キャスティングの流れ、契約、ギャラ、現場マナー。" },
       { title: "E-6-1ビザサポート", body: "合法的に公演し報酬を得られるE-6-1（芸術興行）ビザの準備・申請をサポート。" },
-      { title: "deetz経由の実務投入", body: "MV・ステージ・公演 — deetzのキャスティングプールとGRIGOのネットワークで、レッスンで終わらせず初めてのクレジットへ。" },
+      { title: "deetz経由で実際のお仕事へ", body: "MV・ステージ・公演 — deetzのキャスティングプールとGRIGOのネットワークで、レッスンで終わらせず初めてのクレジットへ。" },
     ],
-    howTitle: "進み方",
+    howTitle: "進め方",
     steps: [
       { title: "応募 — 無料", body: "経歴・レベル・ビザ状況・時期を伝える簡単な応募フォーム。" },
       { title: "カウンセリング", body: "状況を確認し、トレーニング・語学・書類・スケジュールのトラックを設計。" },
@@ -137,7 +137,7 @@ const T: Record<Lang, Copy> = {
     eyebrow: "deetz × 그리고엔터테인먼트",
     title1: "한국에서 댄스 커리어를,",
     title2: "처음부터 끝까지.",
-    sub: "트레이닝부터 첫 유급 일까지 하나의 프로그램으로 — 댄스 트레이닝, 한국어, 업계 교육, E-6-1 비자 지원, 그리고 에이전시 풀을 통한 실무 투입까지.",
+    sub: "댄스 트레이닝, 한국어, 업계 교육, E-6-1 비자 지원부터 deetz 캐스팅 풀을 통한 첫 일감까지 — 하나의 프로그램으로 준비합니다.",
     pillarsTitle: "프로그램 구성",
     pillars: [
       { title: "댄스 트레이닝", body: "현역 한국 안무가·스튜디오와 서울에서 트레이닝 — K-pop·스트릿, 레벨에 맞춰서." },
@@ -181,24 +181,32 @@ const PILLAR_ICONS = [Music4, Languages, BookOpenText, Stamp, Briefcase];
 
 export function ProgramLanding({
   initialLang = "en",
+  lockLang = false,
   embed = false,
 }: {
   initialLang?: Lang;
+  lockLang?: boolean;
   embed?: boolean;
 }) {
   const [lang, setLang] = useState<Lang>(initialLang);
 
   useEffect(() => {
+    if (lockLang) return; // URL로 언어를 지정해 들어온 경우 브라우저 자동감지로 덮지 않음
     const nav = navigator.language?.toLowerCase() ?? "";
     if (nav.startsWith("ja")) setLang("ja");
     else if (nav.startsWith("ko")) setLang("ko");
-  }, []);
+  }, [lockLang]);
 
   const c = T[lang];
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-6 pb-16 pt-6">
-      <div className="mb-9 flex items-center justify-between">
+    <div
+      className={cn(
+        "mx-auto flex min-h-screen w-full max-w-md flex-col px-6 pb-16 pt-6 md:max-w-3xl md:px-10 md:pb-24 md:pt-10",
+        lang === "ko" && "break-keep",
+      )}
+    >
+      <div className="mb-9 flex items-center justify-between md:mb-12">
         {embed ? <span /> : <DeetzLogo className="h-7 w-auto" priority />}
         <div className="flex gap-1.5">
           {LANGS.map((l) => (
@@ -221,23 +229,29 @@ export function ProgramLanding({
 
       {/* Hero */}
       <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-3">{c.eyebrow}</p>
-      <h1 className="text-3xl font-bold leading-tight tracking-tight">
+      <h1 className="text-[28px] font-bold leading-tight tracking-tight md:text-5xl">
         {c.title1}
         <br />
         {c.title2}
       </h1>
-      <p className="mt-4 text-[15px] leading-relaxed text-ink-2">{c.sub}</p>
+      <p className="mt-4 text-[15px] leading-relaxed text-ink-2 md:mt-5 md:max-w-2xl md:text-base">{c.sub}</p>
 
-      <CtaButton lang={lang} label={c.cta} className="mt-7" />
-      <p className="mt-2 text-center text-xs text-ink-4">{c.ctaSub}</p>
+      <CtaButton lang={lang} label={c.cta} className="mt-7 md:mt-8 md:self-start md:px-12" />
+      <p className="mt-2 text-center text-xs text-ink-4 md:text-left">{c.ctaSub}</p>
 
       {/* Pillars */}
       <SectionTitle>{c.pillarsTitle}</SectionTitle>
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-2.5 md:grid md:grid-cols-2 md:gap-3">
         {c.pillars.map((p, i) => {
           const Icon = PILLAR_ICONS[i];
           return (
-            <div key={i} className="flex items-start gap-3 rounded-xl border border-hairline-2 bg-card p-4">
+            <div
+              key={i}
+              className={cn(
+                "flex items-start gap-3 rounded-xl border border-hairline-2 bg-card p-4 md:p-5",
+                i === c.pillars.length - 1 && "md:col-span-2",
+              )}
+            >
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary">
                 <Icon className="size-5 text-foreground" />
               </div>
@@ -252,9 +266,9 @@ export function ProgramLanding({
 
       {/* How it works */}
       <SectionTitle>{c.howTitle}</SectionTitle>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 md:grid md:grid-cols-2 md:gap-3">
         {c.steps.map((s, i) => (
-          <div key={i} className="flex items-start gap-3 rounded-xl border border-hairline-2 bg-card p-4">
+          <div key={i} className="flex items-start gap-3 rounded-xl border border-hairline-2 bg-card p-4 md:p-5">
             <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
               {i + 1}
             </div>
@@ -268,9 +282,9 @@ export function ProgramLanding({
 
       {/* Dancer protection */}
       <SectionTitle>{c.protectTitle}</SectionTitle>
-      <div className="rounded-xl border-2 border-foreground/10 bg-secondary/40 p-5">
+      <div className="rounded-xl border-2 border-foreground/10 bg-secondary/40 p-5 md:p-6">
         <p className="text-sm leading-relaxed text-foreground">{c.protectBody}</p>
-        <div className="mt-3.5 flex flex-col gap-2.5">
+        <div className="mt-3.5 flex flex-col gap-2.5 md:grid md:grid-cols-3 md:gap-4">
           {c.protectPoints.map((p, i) => (
             <div key={i} className="flex items-start gap-2.5">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-foreground" />
@@ -282,7 +296,7 @@ export function ProgramLanding({
 
       {/* Who */}
       <SectionTitle>{c.whoTitle}</SectionTitle>
-      <p className="text-sm leading-relaxed text-ink-2">{c.whoBody}</p>
+      <p className="text-sm leading-relaxed text-ink-2 md:max-w-2xl md:text-[15px]">{c.whoBody}</p>
 
       {/* FAQ */}
       <SectionTitle>{c.faqTitle}</SectionTitle>
@@ -298,22 +312,22 @@ export function ProgramLanding({
         ))}
       </div>
 
-      <CtaButton lang={lang} label={c.cta} className="mt-9" />
+      <CtaButton lang={lang} label={c.cta} className="mt-9 md:mt-10 md:self-start md:px-12" />
 
       <Link
         href={`/visa?lang=${lang}`}
-        className="mt-4 text-center text-xs text-ink-3 underline underline-offset-2 hover:text-foreground"
+        className="mt-4 text-center text-xs text-ink-3 underline underline-offset-2 hover:text-foreground md:text-left"
       >
         {c.visaOnly}
       </Link>
 
-      <p className="mt-5 text-center text-xs leading-relaxed text-ink-4">{c.disclaimer}</p>
+      <p className="mt-5 text-center text-xs leading-relaxed text-ink-4 md:max-w-2xl md:text-left">{c.disclaimer}</p>
     </div>
   );
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="mb-3.5 mt-11 text-lg font-bold tracking-tight">{children}</h2>;
+  return <h2 className="mb-3.5 mt-11 text-lg font-bold tracking-tight md:mb-4 md:mt-14 md:text-2xl">{children}</h2>;
 }
 
 function CtaButton({ lang, label, className }: { lang: Lang; label: string; className?: string }) {

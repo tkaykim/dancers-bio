@@ -16,6 +16,7 @@ export default async function ProgramPage({
   searchParams: Promise<{ lang?: string; embed?: string }>;
 }) {
   const { lang, embed } = await searchParams;
+  const explicit = lang === "ja" || lang === "ko" || lang === "en";
   const initialLang: Lang = lang === "ja" || lang === "ko" ? lang : "en";
-  return <ProgramLanding initialLang={initialLang} embed={embed === "1"} />;
+  return <ProgramLanding initialLang={initialLang} lockLang={explicit} embed={embed === "1"} />;
 }
