@@ -55,7 +55,6 @@ type Copy = {
   faqs: QA[];
   cta: string;
   ctaSub: string;
-  visaOnly: string;
   disclaimer: string;
   sheetCredits: string;
   sheetProfile: string;
@@ -261,13 +260,12 @@ const T: Record<Lang, Copy> = {
     faqs: [
       { q: "How much does it cost?", a: "The application and consultation are free. Program pricing depends on your track (length, housing, visa route) — we explain everything clearly in the consultation before you commit." },
       { q: "How good do I need to be?", a: "We review every application — level, potential, and goals. You don't need to be a finished pro; you need to be serious." },
-      { q: "I only need the visa, not the training.", a: "That's fine — we have a visa-only support track. Apply and tell us, or see the visa page." },
+      { q: "I only need the visa, not the training.", a: "That's fine — it's the same application. Your answers about skill, residence, and timing shape your track, so in the consultation we can build it around visa support only." },
       { q: "I'm not in Korea yet — can I apply?", a: "Yes. Tell us when you can enter Korea and we'll plan your track around it." },
       { q: "Is work guaranteed?", a: "No honest agency can guarantee castings. What we do promise: real submissions to real jobs through deetz and GRIGO's network, and transparent feedback." },
     ],
     cta: "Apply now — free",
     ctaSub: "Takes about 3 minutes. We reply with a consultation slot.",
-    visaOnly: "Only need visa support? → E-6-1 visa page",
     disclaimer: "Visa approval is decided by Korea Immigration; this is preparation and application support, not legal advice. Program details are confirmed individually in the consultation.",
     sheetCredits: "Selected work",
     sheetProfile: "View deetz profile",
@@ -315,13 +313,12 @@ const T: Record<Lang, Copy> = {
     faqs: [
       { q: "費用はいくらですか？", a: "応募とカウンセリングは無料です。プログラム費用はトラック（期間・住居・ビザルート）により異なり、決定前のカウンセリングですべて明確にご説明します。" },
       { q: "どのくらいのレベルが必要ですか？", a: "レベル・伸びしろ・目標を見て、すべての応募を審査します。完成したプロである必要はありません。本気であることが条件です。" },
-      { q: "ビザだけ必要です。トレーニングは不要です。", a: "問題ありません。ビザサポートのみのトラックもあります。応募時にお知らせいただくか、ビザページをご覧ください。" },
+      { q: "ビザだけ必要です。トレーニングは不要です。", a: "問題ありません。応募フォームは同じです。実力・居住状況・時期の回答をもとにトラックを設計するので、カウンセリングでビザサポート中心の構成にできます。" },
       { q: "まだ韓国にいませんが応募できますか？", a: "はい。入国できる時期を教えていただければ、それに合わせて設計します。" },
       { q: "お仕事は保証されますか？", a: "誠実なエージェンシーはキャスティングを保証できません。約束できるのは：deetzとGRIGOのネットワークを通じた本物の案件への推薦と、透明なフィードバックです。" },
     ],
     cta: "無料で応募する",
     ctaSub: "約3分。カウンセリング日程をご連絡します。",
-    visaOnly: "ビザサポートだけ必要な方は → E-6-1ビザページ",
     disclaimer: "ビザの可否は韓国出入国当局が判断します。これは準備・申請のサポートであり、法的助言ではありません。プログラムの詳細はカウンセリングで個別に確定します。",
     sheetCredits: "主な活動",
     sheetProfile: "deetzプロフィールを見る",
@@ -369,13 +366,12 @@ const T: Record<Lang, Copy> = {
     faqs: [
       { q: "비용이 얼마인가요?", a: "지원과 상담은 무료예요. 프로그램 비용은 트랙(기간·주거·비자 경로)에 따라 다르고, 결정 전 상담에서 전부 명확히 안내합니다." },
       { q: "실력이 어느 정도여야 하나요?", a: "레벨, 가능성, 목표를 보고 모든 지원서를 검토합니다. 완성된 프로가 아니어도 괜찮습니다. 진지하게 임할 마음이면 충분해요." },
-      { q: "비자만 필요해요.", a: "괜찮아요. 비자 지원 단독 트랙이 있습니다. 지원서에 적어 주시거나 비자 페이지를 봐주세요." },
+      { q: "비자만 필요해요.", a: "괜찮아요. 지원서는 하나입니다. 실력, 거주 상태, 시기 답변을 바탕으로 트랙을 설계하니까, 상담에서 비자 지원 중심으로 구성하면 됩니다." },
       { q: "아직 한국 밖인데 지원되나요?", a: "네. 입국 가능 시점을 알려주시면 그에 맞춰 설계합니다." },
       { q: "일이 보장되나요?", a: "캐스팅을 100% 보장한다고 말하는 곳은 믿기 어렵죠. 저희가 약속하는 것은 deetz와 GRIGO 네트워크를 통해 실제 일감에 계속 추천해 드리는 것, 그리고 결과를 투명하게 알려드리는 것입니다." },
     ],
     cta: "무료로 지원하기",
     ctaSub: "약 3분이면 끝나요. 검토 후 상담 일정을 회신드립니다.",
-    visaOnly: "비자 지원만 필요하신가요? → E-6-1 비자 페이지",
     disclaimer: "비자 발급 여부는 한국 출입국 당국이 결정하며, 이는 준비·신청 지원이지 법률 자문이 아닙니다. 프로그램 세부 내용은 상담에서 개별 확정됩니다.",
     sheetCredits: "주요 활동",
     sheetProfile: "deetz 프로필 보기",
@@ -664,13 +660,6 @@ export function ProgramLanding({
       </div>
 
       <CtaButton lang={lang} label={c.cta} className="mt-9 md:mt-10 md:self-start md:px-12" />
-
-      <Link
-        href={`/visa?lang=${lang}`}
-        className="mt-4 text-center text-xs text-ink-3 underline underline-offset-2 hover:text-foreground md:text-left"
-      >
-        {c.visaOnly}
-      </Link>
 
       <p className="mt-5 text-center text-xs leading-relaxed text-ink-4 md:max-w-2xl md:text-left">{c.disclaimer}</p>
     </div>
