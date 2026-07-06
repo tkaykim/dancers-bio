@@ -57,37 +57,50 @@ type Copy = {
   disclaimer: string;
 };
 
-// GRIGO 소속 댄서 로스터 — deetz DB 실데이터 (프로필 사진=deetz 공개 스토리지, 링크=deetz 프로필)
-const ROSTER: { slug: string; name: string; img: string; credits: string[] }[] = [
+// GRIGO 소속 댄서 로스터 — deetz DB 실데이터 (프로필 사진=deetz 공개 스토리지)
+// href: deetz 프로필(/d/slug) 또는 인스타그램(아직 deetz 프로필 없는 경우)
+const ROSTER: { name: string; handle: string; href: string; img: string; credits: string[] }[] = [
   {
-    slug: "renan",
-    name: "Renan",
-    img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/e684ae74-57dd-4785-8a7d-4e4f8a79757f/profile_1773134365759.webp",
-    credits: ["G-DRAGON 'TOO BAD'", "aespa 'Armageddon' · 'Whiplash'"],
-  },
-  {
-    slug: "yumeki",
-    name: "YUMEKI",
-    img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/4cc8a178-1654-42a5-a217-ccb0f982cde3/profile_1773192321867.webp",
-    credits: ["TXT 'Love Language'", "ILLIT 'Jellyous' · Street Man Fighter"],
-  },
-  {
-    slug: "emily",
     name: "Emily",
+    handle: "@m12_emilylis",
+    href: "/d/emily",
     img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/2f9467ee-497e-4010-9f15-08d82b8c81ae/profile_1773655437634.jpg",
     credits: ["NCT TEN World Tour Direction", "Red Velvet IRENE 'Like A Flower'"],
   },
   {
-    slug: "hiyori",
-    name: "HIYORI",
-    img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/6c4e146c-5dd7-408f-8165-4c8fcd6cc907/profile_1773813569999.png",
-    credits: ["NCT WISH 'WISH'", "WayV 'FREQUENCY' Music Bank"],
+    name: "Emily",
+    handle: "@emilee.jp",
+    href: "https://www.instagram.com/emilee.jp/",
+    img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/program/emilee-jp.jpg",
+    credits: ["aespa 'Drift' · SMTM12", "'KPOPPED' (Apple TV+) · 2PM JUN. K"],
   },
   {
-    slug: "maria",
+    name: "Renan",
+    handle: "@renan0115",
+    href: "/d/renan",
+    img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/e684ae74-57dd-4785-8a7d-4e4f8a79757f/profile_1773134365759.webp",
+    credits: ["G-DRAGON 'TOO BAD'", "aespa 'Armageddon' · 'Whiplash'"],
+  },
+  {
+    name: "YUMEKI",
+    handle: "@yumekitakenaka_",
+    href: "/d/yumeki",
+    img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/4cc8a178-1654-42a5-a217-ccb0f982cde3/profile_1773192321867.webp",
+    credits: ["TXT 'Love Language'", "ILLIT 'Jellyous' · Street Man Fighter"],
+  },
+  {
     name: "MARIA",
+    handle: "@maria._.bh01",
+    href: "/d/maria",
     img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/7ba298b7-afbb-4fdf-8a28-7a3a7bd975f4/profile_1773815493545.png",
     credits: ["MAMA AWARDS stages", "NewJeans Bunnies Camp, Tokyo Dome"],
+  },
+  {
+    name: "HIYORI",
+    handle: "@hiyori_club",
+    href: "/d/hiyori",
+    img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/6c4e146c-5dd7-408f-8165-4c8fcd6cc907/profile_1773813569999.png",
+    credits: ["NCT WISH 'WISH'", "WayV 'FREQUENCY' Music Bank"],
   },
 ];
 
@@ -393,11 +406,11 @@ export function ProgramLanding({
       <div className="-mx-6 flex snap-x gap-3 overflow-x-auto px-6 pb-2 md:mx-0 md:px-0">
         {ROSTER.map((d) => (
           <a
-            key={d.slug}
-            href={`/d/${d.slug}`}
+            key={d.handle}
+            href={d.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-40 shrink-0 snap-start overflow-hidden rounded-xl border border-hairline-2 bg-card transition-transform hover:-translate-y-0.5 md:w-[calc(20%-10px)]"
+            className="w-40 shrink-0 snap-start overflow-hidden rounded-xl border border-hairline-2 bg-card transition-transform hover:-translate-y-0.5"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -408,6 +421,7 @@ export function ProgramLanding({
             />
             <div className="p-3">
               <p className="text-sm font-bold text-foreground">{d.name}</p>
+              <p className="text-[11px] text-ink-4">{d.handle}</p>
               {d.credits.map((cr, i) => (
                 <p key={i} className="mt-1 text-[11px] leading-snug text-ink-3">
                   {cr}
