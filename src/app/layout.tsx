@@ -6,6 +6,7 @@ import { SessionRefresher } from "@/components/auth/SessionRefresher";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
 import { InstallPrompt } from "@/components/layout/InstallPrompt";
+import { SitePopup } from "@/components/layout/SitePopup";
 import { ErrorReporter } from "@/components/feedback/ErrorReporter";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -112,6 +113,7 @@ export default function RootLayout({
         <SessionRefresher />
         <ServiceWorkerRegister />
         <InstallPrompt />
+        <SitePopup />
         <ErrorReporter />
         {children}
         <GoogleAnalytics />

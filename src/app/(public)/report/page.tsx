@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { getBrowserClient } from "@/lib/supabase/browser";
@@ -16,6 +16,12 @@ const WORK_OPTIONS = [
 ] as const;
 
 type ClientType = "company" | "individual" | "unknown";
+
+const CLIENT_OPTIONS: [ClientType, string][] = [
+  ["company", "회사·사업자"],
+  ["individual", "개인"],
+  ["unknown", "잘 모르겠음"],
+];
 
 const MAX_FILES = 50;
 const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100MB
@@ -38,9 +44,20 @@ function formatBytes(n: number) {
 }
 
 const inputCls =
-  "mt-2 w-full rounded-md border border-[#ddd6c7] bg-white px-3 py-2 text-sm text-[#171611] placeholder:text-[#a59e8d] focus:outline-none focus:ring-2 focus:ring-[#171611]/15";
+  "mt-2 w-full rounded-lg border border-[#ddd6c7] bg-white px-3.5 py-2.5 text-sm text-[#171611] placeholder:text-[#a59e8d] focus:outline-none focus:ring-2 focus:ring-[#171611]/15";
+
+// 스텝 구성: 짧게 끊어 피로 감소 (모바일 기준 한 화면 내외)
+const STEPS = [
+  { title: "어떤 일이었나요?", desc: "해당되는 항목만 골라 주세요." },
+  { title: "상대방과 금액", desc: "알고 계신 범위에서 적어 주시면 됩니다." },
+  { title: "정황과 증빙", desc: "시간 순서대로 적어 주시면 이해에 도움이 됩니다." },
+  { title: "제보자 확인", desc: "허위 제보 방지용이며, 외부에 공개되지 않습니다." },
+] as const;
 
 export default function ReportPage() {
+  const [step, setStep] = useState(0);
+  const formTopRef = useRef<HTMLDivElement | null>(null);
+
   const [workCategories, setWorkCategories] = useState<string[]>([]);
   const [otherNote, setOtherNote] = useState("");
   const [clientType, setClientType] = useState<ClientType | "">("");
@@ -107,20 +124,67 @@ export default function ReportPage() {
     return text;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (workCategories.length === 0) return toast.error("해당되는 업무 유형을 하나 이상 선택해 주세요.");
-    if (workCategories.includes("other") && !otherNote.trim())
-      return toast.error("「기타」를 선택하셨다면 구체적으로 적어 주세요.");
-    if (!clientType) return toast.error("의뢰인 구분을 선택해 주세요.");
-    if (!counterpartyNote.trim() || !amountNote.trim() || !payTypeNote.trim() || !facts.trim())
-      return toast.error("필수 항목을 모두 입력해 주세요.");
-    if (!consent) return toast.error("아래 안내에 동의해 주세요.");
-    if (!reporterName.trim()) return toast.error("제보자 이름을 입력해 주세요.");
+  // 스텝별 검증 — 통과 시 true
+  const validateStep = (s: number): boolean => {
+    if (s === 0) {
+      if (workCategories.length === 0) {
+        toast.error("해당되는 업무 유형을 하나 이상 선택해 주세요.");
+        return false;
+      }
+      if (workCategories.includes("other") && !otherNote.trim()) {
+        toast.error("「기타」를 선택하셨다면 구체적으로 적어 주세요.");
+        return false;
+      }
+      if (!clientType) {
+        toast.error("의뢰인 구분을 선택해 주세요.");
+        return false;
+      }
+      return true;
+    }
+    if (s === 1) {
+      if (!counterpartyNote.trim()) {
+        toast.error("상대방·채권 관련 정보를 적어 주세요.");
+        return false;
+      }
+      if (!amountNote.trim()) {
+        toast.error("받지 못한 금액을 적어 주세요. (대략도 괜찮습니다)");
+        return false;
+      }
+      if (!payTypeNote.trim()) {
+        toast.error("대금의 성격을 적어 주세요.");
+        return false;
+      }
+      return true;
+    }
+    if (s === 2) {
+      if (!facts.trim()) {
+        toast.error("구체적인 정황·사실을 적어 주세요.");
+        return false;
+      }
+      return true;
+    }
+    return true;
+  };
+
+  const goNext = () => {
+    if (!validateStep(step)) return;
+    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+    formTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const goPrev = () => {
+    setStep((s) => Math.max(s - 1, 0));
+    formTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleSubmit = async () => {
+    // 최종 안전 검증 (스텝 검증과 별개로 전체 재확인)
+    for (let s = 0; s <= 2; s++) if (!validateStep(s)) return setStep(s);
+    if (!reporterName.trim()) return void toast.error("제보자 이름을 입력해 주세요.");
     if (!validateContact(reporterContact))
-      return toast.error("연락처는 이메일 또는 전화번호 형식으로 입력해 주세요.");
+      return void toast.error("연락처는 이메일 또는 전화번호 형식으로 입력해 주세요.");
     if (!validateInstagram(reporterInstagram))
-      return toast.error("인스타그램 아이디를 확인해 주세요. (@ 없이 영문·숫자·밑줄·마침표만 사용)");
+      return void toast.error("인스타그램 아이디를 확인해 주세요. (@ 없이 영문·숫자·밑줄·마침표만 사용)");
+    if (!consent) return void toast.error("아래 안내에 동의해 주세요.");
 
     setLoading(true);
     try {
@@ -190,336 +254,399 @@ export default function ReportPage() {
     }
   };
 
+  // 선택 칩(큰 터치 타깃) 공통 스타일
+  const chipCls = (active: boolean) =>
+    `rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
+      active
+        ? "border-[#171611] bg-[#171611] text-[#f7f5ef]"
+        : "border-[#ddd6c7] bg-white text-[#4f4a40] hover:border-[#b8b09c]"
+    }`;
+
   return (
     <div className="min-h-svh bg-[#f7f5ef] text-[#171611] [word-break:keep-all]">
-      <div className="mx-auto max-w-2xl px-5 py-10 lg:px-8 lg:py-14">
-        <p className="text-xs font-semibold tracking-[0.18em] text-[#81796a]">REPORT</p>
-        <h1 className="mt-2 text-3xl font-extrabold leading-tight tracking-tight lg:text-4xl">
-          미수·정산 제보
-        </h1>
-        <p className="mt-2 text-sm text-[#81796a]">
-          <Link href="/" className="underline hover:text-[#171611]">홈</Link>
-          {" / "}제보
-        </p>
-
-        <section className="mt-8 space-y-5 rounded-lg border border-[#ddd6c7] bg-white p-6 text-sm leading-relaxed text-[#4f4a40]">
-          <p>
-            최근 댄서 시장에서 프로젝트를 진행한 뒤 비용 정산이 늦어지거나 받지 못하는 사례를 여럿 접해 왔습니다.<br />
-            그와 관련해 법적 절차를 진행 중인 상황도 있습니다.<br />
-            개별 사건만으로는 사실관계를 넓게 파악하기 어려워, <strong className="text-[#171611]">비슷한 경험이 있는 분들의 제보</strong>를 모으고자 이 창구를 마련했습니다.
-          </p>
-          <p>
-            <strong className="text-[#171611]">안무 제작, 공연, 댄서 출연, 광고</strong> 등으로 활동하셨으나 약정한 대금을 받지 못하셨다면, 아래 양식에 사실관계를 적고 관련 증빙을 함께 첨부해 주세요.
-          </p>
-          <div className="rounded-md border border-[#ddd6c7] bg-[#f7f5ef] p-4 text-xs leading-relaxed">
-            접수된 내용은 사례 정리와 내부 검토의 <strong className="text-[#171611]">참고 자료</strong>로 활용합니다.<br />
-            다만 본 제보가 <strong className="text-[#171611]">법률 자문이나 법적 절차의 대리를 보증하는 것은 아닙니다.</strong><br />
-            수집된 자료는 추후 <strong className="text-[#171611]">단체 소송이나 청구 소송 등에 활용</strong>될 수 있습니다.<br />
-            실제 활용 시에는 <strong className="text-[#171611]">반드시 제보자 본인에게 의사를 확인하고 조율한 뒤 진행</strong>합니다.
-          </div>
-          <div className="rounded-md border border-[#ddd6c7] bg-[#f7f5ef] p-4 text-xs leading-relaxed">
-            아래에 요청하는 <strong className="text-[#171611]">이름·연락처·인스타그램 아이디</strong>는 허위 제보를 줄이고 사실관계를 내부에서만 확인하기 위해 받습니다.<br />
-            해당 정보는 <strong className="text-[#171611]">웹사이트나 대외 자료에 공개되지 않으며</strong>, 제보자 개인을 드러내는 형태로 사용하지 않습니다.
-          </div>
-          <p className="text-xs text-[#81796a]">
-            확인되지 않은 추측이나 타인의 명예를 훼손할 수 있는 표현은 삼가 주세요.<br />
-            사실에 기반하여 객관적으로 적어 주시기 바랍니다.
-          </p>
-        </section>
-
-        {submitted ? (
-          <div className="mt-8 rounded-lg border border-[#ddd6c7] bg-white p-8 text-center">
-            <p className="text-lg font-semibold text-[#171611]">제보가 접수되었습니다.</p>
-            <p className="mt-3 text-sm text-[#4f4a40]">
-              추가 자료나 정정, 하고 싶은 말씀은 아래 채널로 편하게 남겨 주세요.
+      <div className="mx-auto max-w-2xl px-5 py-10 lg:max-w-5xl lg:px-8 lg:py-14">
+        {/* PC = 좌(소개) 우(폼) 2컬럼 / 모바일 = 세로 스택 */}
+        <div className="lg:grid lg:grid-cols-[1fr_1.35fr] lg:items-start lg:gap-10">
+          {/* 소개 컬럼 */}
+          <div className="lg:sticky lg:top-10">
+            <p className="text-xs font-semibold tracking-[0.18em] text-[#81796a]">REPORT</p>
+            <h1 className="mt-2 text-3xl font-extrabold leading-tight tracking-tight lg:text-4xl">
+              미수·정산 제보
+            </h1>
+            <p className="mt-2 text-sm text-[#81796a]">
+              <Link href="/" className="underline hover:text-[#171611]">홈</Link>
+              {" / "}제보
             </p>
 
-            <div className="mt-6 flex items-center justify-center gap-6">
-              {/* 인스타그램 DM */}
-              <a
-                href="https://www.instagram.com/deetz.kr/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="인스타그램 DM"
-                className="group flex flex-col items-center gap-2"
-              >
-                <span
-                  className="flex h-14 w-14 items-center justify-center rounded-full transition-transform group-hover:scale-105"
-                  style={{ background: "linear-gradient(45deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5)" }}
-                >
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" stroke="#fff" strokeWidth="1.9" />
-                    <circle cx="12" cy="12" r="4.3" stroke="#fff" strokeWidth="1.9" />
-                    <circle cx="17.4" cy="6.6" r="1.3" fill="#fff" />
-                  </svg>
-                </span>
-                <span className="text-xs font-medium text-[#4f4a40]">인스타 DM</span>
-              </a>
+            <section className="mt-6 space-y-4 rounded-xl border border-[#ddd6c7] bg-white p-6 text-sm leading-relaxed text-[#4f4a40]">
+              <p>
+                프로젝트를 진행한 뒤 <strong className="text-[#171611]">정산이 늦어지거나 대금을 받지 못한 사례</strong>가
+                댄서 시장에서 반복되고 있습니다. 비슷한 경험이 있는 분들의 제보를 모아, 사례를 정리하고 함께
+                대응하기 위한 창구입니다.
+              </p>
+              <p className="text-xs text-[#81796a]">
+                안무 제작·공연·댄서 출연·광고 등에서 약정한 대금을 받지 못하셨다면 사실관계를 적고 증빙을 첨부해
+                주세요. 확인되지 않은 추측이나 명예를 훼손할 수 있는 표현은 삼가 주시기 바랍니다.
+              </p>
 
-              {/* 카카오톡 채널 */}
-              <a
-                href="https://pf.kakao.com/_mbpXX/chat"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="카카오톡 채널로 문의"
-                className="group flex flex-col items-center gap-2"
-              >
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FEE500] transition-transform group-hover:scale-105">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="#3C1E1E" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <path d="M12 4C6.9 4 2.8 7.3 2.8 11.3c0 2.6 1.7 4.9 4.3 6.2-.2.7-.7 2.4-.8 2.8-.1.5.2.5.4.3.2-.1 2.5-1.7 3.5-2.4.6.1 1.2.1 1.8.1 5.1 0 9.2-3.3 9.2-7.3S17.1 4 12 4z" />
-                  </svg>
-                </span>
-                <span className="text-xs font-medium text-[#4f4a40]">카카오톡</span>
-              </a>
+              <details className="group rounded-lg border border-[#e7e1d4] bg-[#f7f5ef] px-4 py-3 text-xs leading-relaxed open:pb-4">
+                <summary className="cursor-pointer select-none font-semibold text-[#171611]">
+                  접수 내용은 이렇게 활용됩니다
+                </summary>
+                <div className="mt-2 space-y-1 text-[#4f4a40]">
+                  <p>접수된 내용은 사례 정리와 내부 검토의 참고 자료로 활용합니다.</p>
+                  <p>본 제보가 법률 자문이나 법적 절차의 대리를 보증하는 것은 아닙니다.</p>
+                  <p>수집된 자료는 추후 단체 소송이나 청구 소송 등에 활용될 수 있습니다.</p>
+                  <p>실제 활용 시에는 반드시 제보자 본인에게 의사를 확인하고 조율한 뒤 진행합니다.</p>
+                </div>
+              </details>
 
-              {/* 이메일 */}
-              <a
-                href="mailto:deetzmagazine@gmail.com"
-                aria-label="이메일 보내기"
-                className="group flex flex-col items-center gap-2"
-              >
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#171611] transition-transform group-hover:scale-105">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="3" y="5" width="18" height="14" rx="2.5" />
-                    <path d="m3.5 7 8.5 6 8.5-6" />
-                  </svg>
-                </span>
-                <span className="text-xs font-medium text-[#4f4a40]">이메일</span>
-              </a>
-            </div>
-
-            <p className="mt-5 text-xs text-[#8a8375]">
-              이메일: deetzmagazine@gmail.com
-            </p>
-
-            <Link
-              href="/"
-              className="mt-6 inline-block rounded-md bg-[#171611] px-5 py-2.5 text-sm font-semibold text-[#f7f5ef] hover:bg-[#171611]/90"
-            >
-              홈으로
-            </Link>
+              <details className="group rounded-lg border border-[#e7e1d4] bg-[#f7f5ef] px-4 py-3 text-xs leading-relaxed open:pb-4">
+                <summary className="cursor-pointer select-none font-semibold text-[#171611]">
+                  개인정보는 이렇게 보호됩니다
+                </summary>
+                <div className="mt-2 space-y-1 text-[#4f4a40]">
+                  <p>이름·연락처·인스타그램 아이디는 허위 제보를 줄이고 내부 확인용으로만 받습니다.</p>
+                  <p>웹사이트나 대외 자료에 공개되지 않으며, 제보자 개인을 드러내는 형태로 사용하지 않습니다.</p>
+                </div>
+              </details>
+            </section>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="mt-8 space-y-7 rounded-lg border border-[#ddd6c7] bg-white p-6">
-            <div>
-              <label className="mb-3 block text-sm font-semibold">업무 유형 (복수 선택)</label>
-              <div className="flex flex-wrap gap-3">
-                {WORK_OPTIONS.map((opt) => (
-                  <label key={opt.id} className="flex cursor-pointer items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={workCategories.includes(opt.id)}
-                      onChange={() => toggleWork(opt.id)}
-                      className="h-4 w-4 rounded border-[#ddd6c7]"
-                    />
-                    {opt.label}
-                  </label>
-                ))}
-              </div>
-              {workCategories.includes("other") && (
-                <input
-                  className={inputCls}
-                  placeholder="기타 유형을 구체적으로 적어 주세요"
-                  value={otherNote}
-                  onChange={(e) => setOtherNote(e.target.value)}
-                  maxLength={500}
-                />
-              )}
-            </div>
 
-            <div>
-              <label className="mb-3 block text-sm font-semibold">의뢰인(클라이언트) 구분</label>
-              <div className="flex flex-wrap gap-4 text-sm">
-                {(
-                  [
-                    ["company", "회사·사업자"],
-                    ["individual", "개인"],
-                    ["unknown", "잘 모르겠음"],
-                  ] as const
-                ).map(([value, label]) => (
-                  <label key={value} className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="radio"
-                      name="client_type"
-                      checked={clientType === value}
-                      onChange={() => setClientType(value)}
-                      className="h-4 w-4 border-[#ddd6c7]"
-                    />
-                    {label}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">상대방·채권 관련 정보</label>
-              <p className="mt-1 text-xs text-[#81796a]">
-                업체명, 담당자 표시, 연락 경로 등 알고 계신 범위에서 적어 주세요.<br />
-                정확히 모르시면 그렇게 적어 주셔도 됩니다.
-              </p>
-              <textarea
-                required
-                className={`${inputCls} min-h-[100px]`}
-                value={counterpartyNote}
-                onChange={(e) => setCounterpartyNote(e.target.value)}
-                maxLength={4000}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">받지 못한 금액 (대략 가능)</label>
-              <input
-                required
-                className={inputCls}
-                placeholder="예: 약 300만 원, USD 2,000 등"
-                value={amountNote}
-                onChange={(e) => setAmountNote(e.target.value)}
-                maxLength={2000}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">대금의 성격</label>
-              <input
-                required
-                className={inputCls}
-                placeholder="예: 출연 잔금, 안무 제작 계약 잔여, 일당 등"
-                value={payTypeNote}
-                onChange={(e) => setPayTypeNote(e.target.value)}
-                maxLength={2000}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">구체적인 정황·사실</label>
-              <p className="mt-1 text-xs text-[#81796a]">
-                계약·일정, 이행 내용, 정산 약속, 연락 시도 등 시간 순서대로 적어 주시면 이해에 도움이 됩니다.
-              </p>
-              <textarea
-                required
-                className={`${inputCls} min-h-[200px]`}
-                value={facts}
-                onChange={(e) => setFacts(e.target.value)}
-                maxLength={12000}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">증빙 자료 첨부 (선택)</label>
-              <p className="mt-1 text-xs text-[#81796a]">
-                카카오톡 대화 캡처, 이메일, 계약서, 계산서·세금계산서, 입금내역 등 관련 자료를 갯수 제한 없이 올려 주세요.<br />
-                파일당 최대 100MB까지 첨부할 수 있습니다.<br />
-                이미지·PDF·문서·한글·엑셀·영상·음성·zip 등을 지원합니다.
-              </p>
-              <input
-                type="file"
-                multiple
-                accept={ACCEPT_ATTR}
-                onChange={(e) => {
-                  handleAddFiles(e.target.files);
-                  e.target.value = "";
-                }}
-                className="mt-2 block w-full text-sm text-[#4f4a40] file:mr-4 file:rounded-md file:border-0 file:bg-[#171611] file:px-4 file:py-2 file:font-medium file:text-[#f7f5ef] hover:file:bg-[#171611]/90"
-              />
-              {evidenceFiles.length > 0 && (
-                <ul className="mt-3 space-y-2">
-                  {evidenceFiles.map((f, idx) => (
-                    <li
-                      key={`${f.name}-${idx}`}
-                      className="flex items-center justify-between gap-3 rounded-md border border-[#ddd6c7] bg-[#f7f5ef] px-3 py-2 text-sm"
-                    >
-                      <span className="truncate">{f.name}</span>
-                      <span className="flex shrink-0 items-center gap-3">
-                        <span className="text-xs text-[#81796a]">{formatBytes(f.size)}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeFile(idx)}
-                          className="text-[#81796a] hover:text-[#171611]"
-                          aria-label="첨부 삭제"
-                        >
-                          ✕
-                        </button>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="mt-2 text-xs text-[#a59e8d]">
-                첨부 자료는 비공개로 저장되며, 내부 확인·법적 절차 준비 용도로만 관리자가 열람합니다.
-              </p>
-            </div>
-
-            <div className="space-y-4 border-t border-[#e7e1d4] pt-6">
-              <div>
-                <p className="text-sm font-semibold">제보자 확인 (필수)</p>
-                <p className="mt-1 text-xs text-[#81796a]">허위 제보 방지를 위해 받으며, 공개되지 않습니다.</p>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold">이름</label>
-                <input
-                  required
-                  className={inputCls}
-                  value={reporterName}
-                  onChange={(e) => setReporterName(e.target.value)}
-                  maxLength={200}
-                  autoComplete="name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold">연락처 (이메일 또는 전화)</label>
-                <input
-                  required
-                  className={inputCls}
-                  value={reporterContact}
-                  onChange={(e) => setReporterContact(e.target.value)}
-                  maxLength={500}
-                  autoComplete="email"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold">인스타그램 아이디</label>
-                <p className="mt-1 text-xs text-[#81796a]">
-                  @ 없이 입력해도 됩니다.<br />
-                  공개·게시용이 아니라 내부 확인용입니다.
+          {/* 폼 컬럼 */}
+          <div ref={formTopRef} className="mt-8 scroll-mt-6 lg:mt-0">
+            {submitted ? (
+              <div className="rounded-xl border border-[#ddd6c7] bg-white p-8 text-center">
+                <p className="text-lg font-semibold text-[#171611]">제보가 접수되었습니다.</p>
+                <p className="mt-3 text-sm text-[#4f4a40]">
+                  추가 자료나 정정, 하고 싶은 말씀은 아래 채널로 편하게 남겨 주세요.
                 </p>
-                <input
-                  required
-                  className={inputCls}
-                  placeholder="예: deetz_magazine"
-                  value={reporterInstagram}
-                  onChange={(e) => setReporterInstagram(e.target.value)}
-                  maxLength={100}
-                  autoComplete="off"
-                />
+
+                <div className="mt-6 flex items-center justify-center gap-6">
+                  {/* 인스타그램 DM */}
+                  <a
+                    href="https://www.instagram.com/deetz.kr/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="인스타그램 DM"
+                    className="group flex flex-col items-center gap-2"
+                  >
+                    <span
+                      className="flex h-14 w-14 items-center justify-center rounded-full transition-transform group-hover:scale-105"
+                      style={{ background: "linear-gradient(45deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5)" }}
+                    >
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" stroke="#fff" strokeWidth="1.9" />
+                        <circle cx="12" cy="12" r="4.3" stroke="#fff" strokeWidth="1.9" />
+                        <circle cx="17.4" cy="6.6" r="1.3" fill="#fff" />
+                      </svg>
+                    </span>
+                    <span className="text-xs font-medium text-[#4f4a40]">인스타 DM</span>
+                  </a>
+
+                  {/* 카카오톡 채널 */}
+                  <a
+                    href="https://pf.kakao.com/_mbpXX/chat"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="카카오톡 채널로 문의"
+                    className="group flex flex-col items-center gap-2"
+                  >
+                    <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FEE500] transition-transform group-hover:scale-105">
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="#3C1E1E" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M12 4C6.9 4 2.8 7.3 2.8 11.3c0 2.6 1.7 4.9 4.3 6.2-.2.7-.7 2.4-.8 2.8-.1.5.2.5.4.3.2-.1 2.5-1.7 3.5-2.4.6.1 1.2.1 1.8.1 5.1 0 9.2-3.3 9.2-7.3S17.1 4 12 4z" />
+                      </svg>
+                    </span>
+                    <span className="text-xs font-medium text-[#4f4a40]">카카오톡</span>
+                  </a>
+
+                  {/* 이메일 */}
+                  <a
+                    href="mailto:deetzmagazine@gmail.com"
+                    aria-label="이메일 보내기"
+                    className="group flex flex-col items-center gap-2"
+                  >
+                    <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#171611] transition-transform group-hover:scale-105">
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                        <path d="m3.5 7 8.5 6 8.5-6" />
+                      </svg>
+                    </span>
+                    <span className="text-xs font-medium text-[#4f4a40]">이메일</span>
+                  </a>
+                </div>
+
+                <p className="mt-5 text-xs text-[#8a8375]">이메일: deetzmagazine@gmail.com</p>
+
+                <Link
+                  href="/"
+                  className="mt-6 inline-block rounded-md bg-[#171611] px-5 py-2.5 text-sm font-semibold text-[#f7f5ef] hover:bg-[#171611]/90"
+                >
+                  홈으로
+                </Link>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-xl border border-[#ddd6c7] bg-white p-6 lg:p-7">
+                {/* 진행 표시 */}
+                <div className="mb-6">
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-base font-bold text-[#171611]">{STEPS[step].title}</p>
+                    <p className="text-xs font-medium text-[#81796a]">
+                      {step + 1} / {STEPS.length}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-xs text-[#81796a]">{STEPS[step].desc}</p>
+                  <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#efeadd]">
+                    <div
+                      className="h-full rounded-full bg-[#171611] transition-all duration-300"
+                      style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+                    />
+                  </div>
+                </div>
 
-            <label className="flex cursor-pointer items-start gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-[#ddd6c7]"
-              />
-              <span className="text-[#4f4a40]">
-                제보 내용은 사례 수집·내부 참고 목적으로만 이용되며, 기재한 이름·연락처·인스타그램은{" "}
-                <strong className="text-[#171611]">외부에 공개되지 않고</strong> 허위 제보 방지·내부 확인을 위해서만 이용되는 것에 동의합니다. (필수)
-              </span>
-            </label>
+                {/* STEP 1: 업무 유형 + 의뢰인 구분 */}
+                {step === 0 && (
+                  <div className="space-y-7">
+                    <div>
+                      <p className="mb-3 text-sm font-semibold">업무 유형 (복수 선택)</p>
+                      <div className="flex flex-wrap gap-2">
+                        {WORK_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            aria-pressed={workCategories.includes(opt.id)}
+                            onClick={() => toggleWork(opt.id)}
+                            className={chipCls(workCategories.includes(opt.id))}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                      {workCategories.includes("other") && (
+                        <input
+                          className={inputCls}
+                          placeholder="기타 유형을 구체적으로 적어 주세요"
+                          value={otherNote}
+                          onChange={(e) => setOtherNote(e.target.value)}
+                          maxLength={500}
+                        />
+                      )}
+                    </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-md bg-[#171611] px-5 py-2.5 text-sm font-semibold text-[#f7f5ef] hover:bg-[#171611]/90 disabled:opacity-60 sm:w-auto"
-            >
-              {uploadProgress
-                ? `증빙 업로드 중… (${uploadProgress.done}/${uploadProgress.total})`
-                : loading
-                  ? "접수 중…"
-                  : "제보 보내기"}
-            </button>
-          </form>
-        )}
+                    <div>
+                      <p className="mb-3 text-sm font-semibold">의뢰인(클라이언트) 구분</p>
+                      <div className="flex flex-wrap gap-2">
+                        {CLIENT_OPTIONS.map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            aria-pressed={clientType === value}
+                            onClick={() => setClientType(value)}
+                            className={chipCls(clientType === value)}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 2: 상대방·금액 */}
+                {step === 1 && (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-semibold">상대방·채권 관련 정보</label>
+                      <p className="mt-1 text-xs text-[#81796a]">
+                        업체명, 담당자 표시, 연락 경로 등 알고 계신 범위에서 적어 주세요. 정확히 모르시면 그렇게
+                        적어 주셔도 됩니다.
+                      </p>
+                      <textarea
+                        className={`${inputCls} min-h-[110px]`}
+                        value={counterpartyNote}
+                        onChange={(e) => setCounterpartyNote(e.target.value)}
+                        maxLength={4000}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold">받지 못한 금액 (대략 가능)</label>
+                      <input
+                        className={inputCls}
+                        placeholder="예: 약 300만 원, USD 2,000 등"
+                        value={amountNote}
+                        onChange={(e) => setAmountNote(e.target.value)}
+                        maxLength={2000}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold">대금의 성격</label>
+                      <input
+                        className={inputCls}
+                        placeholder="예: 출연 잔금, 안무 제작 계약 잔여, 일당 등"
+                        value={payTypeNote}
+                        onChange={(e) => setPayTypeNote(e.target.value)}
+                        maxLength={2000}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 3: 정황·증빙 */}
+                {step === 2 && (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-semibold">구체적인 정황·사실</label>
+                      <p className="mt-1 text-xs text-[#81796a]">
+                        계약·일정, 이행 내용, 정산 약속, 연락 시도 등 시간 순서대로 적어 주시면 이해에 도움이
+                        됩니다.
+                      </p>
+                      <textarea
+                        className={`${inputCls} min-h-[180px]`}
+                        value={facts}
+                        onChange={(e) => setFacts(e.target.value)}
+                        maxLength={12000}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold">증빙 자료 첨부 (선택)</label>
+                      <p className="mt-1 text-xs text-[#81796a]">
+                        카카오톡 캡처, 이메일, 계약서, 계산서, 입금내역 등을 올려 주세요. 파일당 최대 100MB,
+                        이미지·PDF·문서·한글·엑셀·영상·음성·zip을 지원합니다.
+                      </p>
+                      <input
+                        type="file"
+                        multiple
+                        accept={ACCEPT_ATTR}
+                        onChange={(e) => {
+                          handleAddFiles(e.target.files);
+                          e.target.value = "";
+                        }}
+                        className="mt-2 block w-full text-sm text-[#4f4a40] file:mr-4 file:rounded-md file:border-0 file:bg-[#171611] file:px-4 file:py-2 file:font-medium file:text-[#f7f5ef] hover:file:bg-[#171611]/90"
+                      />
+                      {evidenceFiles.length > 0 && (
+                        <ul className="mt-3 space-y-2">
+                          {evidenceFiles.map((f, idx) => (
+                            <li
+                              key={`${f.name}-${idx}`}
+                              className="flex items-center justify-between gap-3 rounded-md border border-[#ddd6c7] bg-[#f7f5ef] px-3 py-2 text-sm"
+                            >
+                              <span className="truncate">{f.name}</span>
+                              <span className="flex shrink-0 items-center gap-3">
+                                <span className="text-xs text-[#81796a]">{formatBytes(f.size)}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => removeFile(idx)}
+                                  className="text-[#81796a] hover:text-[#171611]"
+                                  aria-label="첨부 삭제"
+                                >
+                                  ✕
+                                </button>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <p className="mt-2 text-xs text-[#a59e8d]">
+                        첨부 자료는 비공개로 저장되며, 내부 확인·법적 절차 준비 용도로만 관리자가 열람합니다.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 4: 제보자 확인 + 동의 */}
+                {step === 3 && (
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-semibold">이름</label>
+                      <input
+                        className={inputCls}
+                        value={reporterName}
+                        onChange={(e) => setReporterName(e.target.value)}
+                        maxLength={200}
+                        autoComplete="name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold">연락처 (이메일 또는 전화)</label>
+                      <input
+                        className={inputCls}
+                        value={reporterContact}
+                        onChange={(e) => setReporterContact(e.target.value)}
+                        maxLength={500}
+                        autoComplete="email"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold">인스타그램 아이디</label>
+                      <p className="mt-1 text-xs text-[#81796a]">
+                        @ 없이 입력해도 됩니다. 공개·게시용이 아니라 내부 확인용입니다.
+                      </p>
+                      <input
+                        className={inputCls}
+                        placeholder="예: deetz_magazine"
+                        value={reporterInstagram}
+                        onChange={(e) => setReporterInstagram(e.target.value)}
+                        maxLength={100}
+                        autoComplete="off"
+                      />
+                    </div>
+
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#e7e1d4] bg-[#f7f5ef] p-4 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={consent}
+                        onChange={(e) => setConsent(e.target.checked)}
+                        className="mt-1 h-4 w-4 shrink-0 rounded border-[#ddd6c7]"
+                      />
+                      <span className="text-[#4f4a40]">
+                        제보 내용은 사례 수집·내부 참고 목적으로만 이용되며, 기재한 이름·연락처·인스타그램은{" "}
+                        <strong className="text-[#171611]">외부에 공개되지 않고</strong> 허위 제보 방지·내부 확인을
+                        위해서만 이용되는 것에 동의합니다. (필수)
+                      </span>
+                    </label>
+                  </div>
+                )}
+
+                {/* 이전 / 다음 / 제출 */}
+                <div className="mt-8 flex items-center gap-3">
+                  {step > 0 && (
+                    <button
+                      type="button"
+                      onClick={goPrev}
+                      disabled={loading}
+                      className="rounded-lg border border-[#ddd6c7] px-5 py-3 text-sm font-medium text-[#4f4a40] hover:border-[#b8b09c] disabled:opacity-60"
+                    >
+                      이전
+                    </button>
+                  )}
+                  {step < STEPS.length - 1 ? (
+                    <button
+                      type="button"
+                      onClick={goNext}
+                      className="flex-1 rounded-lg bg-[#171611] px-5 py-3 text-sm font-semibold text-[#f7f5ef] hover:bg-[#171611]/90"
+                    >
+                      다음
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={loading}
+                      className="flex-1 rounded-lg bg-[#171611] px-5 py-3 text-sm font-semibold text-[#f7f5ef] hover:bg-[#171611]/90 disabled:opacity-60"
+                    >
+                      {uploadProgress
+                        ? `증빙 업로드 중… (${uploadProgress.done}/${uploadProgress.total})`
+                        : loading
+                          ? "접수 중…"
+                          : "제보 보내기"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
