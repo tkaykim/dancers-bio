@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { ProgramLanding } from "@/components/program/ProgramLanding";
 
 export const metadata: Metadata = {
-  title: "Dance Career in Korea — training, visa & real work | deetz × GRIGO",
+  title: "K-DEBUT — dance, visa & your debut in Korea | deetz × GRIGO",
   description:
-    "One program from training to your first paid job in Korea: dance training, Korean language, industry education, E-6-1 visa support, and real work through the deetz agency pool. By deetz × GRIGO Entertainment.",
+    "K-DEBUT: one program from training to your first paid job in Korea. Dance training with pro academies and choreographers, Korean language, industry education, E-6-1 visa support, housing guidance, and real castings through the deetz agency pool. By deetz × GRIGO Entertainment.",
   alternates: { canonical: "/program" },
 };
 
