@@ -315,7 +315,13 @@ const initialAnswers: Answers = {
 const inputClass =
   "w-full rounded-lg border border-hairline-2 bg-surface-2 px-4 py-3 text-sm text-foreground placeholder:text-ink-4 focus:border-primary focus:outline-none";
 
-export function VisaApplyWizard({ initialLang = "en" }: { initialLang?: Lang }) {
+export function VisaApplyWizard({
+  initialLang = "en",
+  source = "visa",
+}: {
+  initialLang?: Lang;
+  source?: "visa" | "program";
+}) {
   const [lang, setLang] = useState<Lang>(initialLang);
   const [idx, setIdx] = useState(0);
   const [a, setA] = useState<Answers>(initialAnswers);
@@ -362,6 +368,7 @@ export function VisaApplyWizard({ initialLang = "en" }: { initialLang?: Lang }) 
     startTransition(async () => {
       const res = await submitVisaApplicationAction({
         lang,
+        source,
         name: a.name.trim(),
         stageName: a.stage.trim() || null,
         nationalityCode: a.nationality,

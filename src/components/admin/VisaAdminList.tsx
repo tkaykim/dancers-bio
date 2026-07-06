@@ -21,6 +21,7 @@ export type VisaAdminRow = {
   email: string;
   contacts: { type: string; handle: string }[];
   preferred_lang: string | null;
+  source: string | null;
   dancer_id: string | null;
   stage_name: string | null;
   korean_name: string | null;
@@ -105,6 +106,11 @@ function VisaCard({ row }: { row: VisaAdminRow }) {
               {row.stage_name || row.korean_name || "(이름 없음)"}
             </p>
             <span className="text-xs text-ink-3">{row.nationality ?? "국적 미상"}</span>
+            {row.source === "program" ? (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                프로그램
+              </span>
+            ) : null}
             {profileHref ? (
               <Link
                 href={profileHref}

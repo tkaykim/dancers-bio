@@ -12,9 +12,10 @@ type Lang = "en" | "ja" | "ko";
 export default async function VisaApplyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lang?: string }>;
+  searchParams: Promise<{ lang?: string; src?: string }>;
 }) {
-  const { lang } = await searchParams;
+  const { lang, src } = await searchParams;
   const initialLang: Lang = lang === "ja" || lang === "ko" ? lang : "en";
-  return <VisaApplyWizard initialLang={initialLang} />;
+  const source = src === "program" ? "program" : "visa";
+  return <VisaApplyWizard initialLang={initialLang} source={source} />;
 }

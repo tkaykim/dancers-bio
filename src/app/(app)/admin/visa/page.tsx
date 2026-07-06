@@ -21,6 +21,7 @@ type AppRow = {
   email: string;
   contacts: { type: string; handle: string }[] | null;
   preferred_lang: string | null;
+  source: string | null;
   dancer_id: string | null;
 };
 
@@ -33,7 +34,7 @@ export default async function AdminVisaPage() {
   const { data: appsRaw } = await admin
     .from("dancer_visa_applications")
     .select(
-      "id, created_at, status, memo, skill_level, korean_level, dance_video_url, currently_in_korea, has_residence_in_korea, residence_region, available_entry_date, email, contacts, preferred_lang, dancer_id",
+      "id, created_at, status, memo, skill_level, korean_level, dance_video_url, currently_in_korea, has_residence_in_korea, residence_region, available_entry_date, email, contacts, preferred_lang, source, dancer_id",
     )
     .order("created_at", { ascending: false })
     .limit(300);
@@ -92,6 +93,7 @@ export default async function AdminVisaPage() {
       email: a.email,
       contacts: Array.isArray(a.contacts) ? a.contacts : [],
       preferred_lang: a.preferred_lang,
+      source: a.source,
       dancer_id: a.dancer_id,
       stage_name: d?.stage_name ?? null,
       korean_name: d?.korean_name ?? null,

@@ -30,6 +30,7 @@ const contactSchema = z.object({
 
 const submitSchema = z.object({
   lang: z.enum(["en", "ja", "ko"]).default("en"),
+  source: z.enum(["visa", "program"]).default("visa"),
   name: z.string().trim().min(1, "이름을 입력해 주세요.").max(120),
   stageName: z.string().trim().max(120).optional().nullable(),
   nationalityCode: z.string().trim().min(1).max(10),
@@ -156,6 +157,7 @@ export async function submitVisaApplicationAction(
       contacts: d.contacts,
       preferred_lang: d.lang,
       status: "new",
+      source: d.source,
     })
     .select("id, created_at")
     .single();
