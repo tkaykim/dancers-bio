@@ -606,7 +606,11 @@ export function ProgramLanding({
             <img
               src={selected.img}
               alt={selected.name}
+<<<<<<< Updated upstream
               className="max-h-72 w-full rounded-xl object-cover object-top"
+=======
+              className="aspect-[4/5] w-full rounded-xl object-cover object-center"
+>>>>>>> Stashed changes
             />
 
             <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wider text-ink-3">
