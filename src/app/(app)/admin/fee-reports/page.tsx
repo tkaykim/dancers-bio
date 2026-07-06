@@ -28,7 +28,8 @@ type FeeReportRow = {
 const WORK_LABEL: Record<string, string> = {
   choreography: "안무 제작",
   performance: "공연",
-  dancer_casting: "댄서 출연·섭외",
+  event: "행사",
+  dancer_casting: "댄서 출연·섭외", // 레거시(과거 제출분 표시용)
   advertisement: "광고",
   other: "기타",
 };

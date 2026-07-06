@@ -24,7 +24,8 @@ const MAX_LEN = {
 const ALLOWED_CATEGORIES = new Set([
   "choreography",
   "performance",
-  "dancer_casting",
+  "event",
+  "dancer_casting", // 레거시 값(과거 제출분) — UI에서는 제거됨, 서버는 계속 허용
   "advertisement",
   "other",
 ]);
@@ -118,7 +119,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "invalid_reporter_contact" }, { status: 400 });
     }
 
-    if (!isValidInstagramHandle(reporter_instagram)) {
+    // 인스타그램 아이디는 선택 항목 — 입력된 경우에만 형식 검증.
+    if (reporter_instagram && !isValidInstagramHandle(reporter_instagram)) {
       return NextResponse.json({ error: "invalid_reporter_instagram" }, { status: 400 });
     }
 

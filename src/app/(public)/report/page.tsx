@@ -10,7 +10,7 @@ const EVIDENCE_BUCKET = "fee-report-evidence";
 const WORK_OPTIONS = [
   { id: "choreography", label: "안무 제작" },
   { id: "performance", label: "공연" },
-  { id: "dancer_casting", label: "댄서 출연·섭외" },
+  { id: "event", label: "행사" },
   { id: "advertisement", label: "광고" },
   { id: "other", label: "기타" },
 ] as const;
@@ -49,8 +49,8 @@ const inputCls =
 // 스텝 구성: 짧게 끊어 피로 감소 (모바일 기준 한 화면 내외)
 const STEPS = [
   { title: "어떤 일이었나요?", desc: "해당되는 항목만 골라 주세요." },
-  { title: "상대방과 금액", desc: "알고 계신 범위에서 적어 주시면 됩니다." },
-  { title: "정황과 증빙", desc: "시간 순서대로 적어 주시면 이해에 도움이 됩니다." },
+  { title: "금액과 상황", desc: "알고 계신 범위에서 적어 주시면 됩니다." },
+  { title: "증빙 자료", desc: "선택 사항입니다." },
   { title: "제보자 확인", desc: "허위 제보 방지용이며, 외부에 공개되지 않습니다." },
 ] as const;
 
@@ -61,7 +61,10 @@ export default function ReportPage() {
   const [workCategories, setWorkCategories] = useState<string[]>([]);
   const [otherNote, setOtherNote] = useState("");
   const [clientType, setClientType] = useState<ClientType | "">("");
-  const [counterpartyNote, setCounterpartyNote] = useState("");
+  const [counterpartyName, setCounterpartyName] = useState("");
+  const [contactPersonName, setContactPersonName] = useState("");
+  const [contactPersonUnknown, setContactPersonUnknown] = useState(false);
+  const [contactPersonPhone, setContactPersonPhone] = useState("");
   const [amountNote, setAmountNote] = useState("");
   const [payTypeNote, setPayTypeNote] = useState("");
   const [facts, setFacts] = useState("");
@@ -88,7 +91,7 @@ export default function ReportPage() {
           break;
         }
         if (f.size > MAX_FILE_BYTES) {
-          toast.error(`「${f.name}」는 100MB를 초과합니다.`);
+          toast.error(`「${f.name}」는 100MB를 초과합니다. deetzmagazine@gmail.com으로 보내주세요.`);
           continue;
         }
         if (!ALLOWED_EXT.includes(getExt(f.name))) {
@@ -110,11 +113,13 @@ export default function ReportPage() {
     const phoneRegex = /^[0-9+\-\s()]+$/;
     return emailRegex.test(contact) || phoneRegex.test(contact);
   };
+  // 인스타그램은 선택 항목 — 비어 있으면 통과, 입력됐을 때만 형식 검증.
   const validateInstagram = (raw: string) => {
-    let s = raw.trim();
-    if (s.startsWith("@")) s = s.slice(1).trim();
-    if (!s) return false;
-    return /^[a-zA-Z0-9._]{1,100}$/.test(s);
+    const s = raw.trim();
+    if (!s) return true;
+    const clean = s.startsWith("@") ? s.slice(1).trim() : s;
+    if (!clean) return true;
+    return /^[a-zA-Z0-9._]{1,100}$/.test(clean);
   };
   const buildFacts = () => {
     let text = facts.trim();
@@ -122,6 +127,17 @@ export default function ReportPage() {
       text = `[기타 유형]\n${otherNote.trim()}\n\n${text}`;
     }
     return text;
+  };
+  // 상대방 구조화 정보(회사·담당자·연락처)를 counterparty_note 텍스트로 조립.
+  const buildCounterpartyNote = () => {
+    const lines: string[] = [];
+    const nameLabel = clientType === "individual" ? "상대방 성함" : "상대방(회사) 이름";
+    lines.push(`${nameLabel}: ${counterpartyName.trim()}`);
+    if (clientType === "company") {
+      lines.push(`담당자: ${contactPersonUnknown ? "모름" : contactPersonName.trim() || "-"}`);
+      if (contactPersonPhone.trim()) lines.push(`담당자 연락처: ${contactPersonPhone.trim()}`);
+    }
+    return lines.join("\n");
   };
 
   // 스텝별 검증 — 통과 시 true
@@ -139,13 +155,19 @@ export default function ReportPage() {
         toast.error("의뢰인 구분을 선택해 주세요.");
         return false;
       }
+      if (!counterpartyName.trim()) {
+        toast.error(
+          clientType === "individual" ? "상대방 성함을 입력해 주세요." : "상대방(회사) 이름을 입력해 주세요.",
+        );
+        return false;
+      }
+      if (clientType === "company" && !contactPersonUnknown && !contactPersonName.trim()) {
+        toast.error("담당자 이름을 입력하거나 「모름」에 체크해 주세요.");
+        return false;
+      }
       return true;
     }
     if (s === 1) {
-      if (!counterpartyNote.trim()) {
-        toast.error("상대방·채권 관련 정보를 적어 주세요.");
-        return false;
-      }
       if (!amountNote.trim()) {
         toast.error("받지 못한 금액을 적어 주세요. (대략도 괜찮습니다)");
         return false;
@@ -154,9 +176,6 @@ export default function ReportPage() {
         toast.error("대금의 성격을 적어 주세요.");
         return false;
       }
-      return true;
-    }
-    if (s === 2) {
       if (!facts.trim()) {
         toast.error("구체적인 정황·사실을 적어 주세요.");
         return false;
@@ -178,7 +197,7 @@ export default function ReportPage() {
 
   const handleSubmit = async () => {
     // 최종 안전 검증 (스텝 검증과 별개로 전체 재확인)
-    for (let s = 0; s <= 2; s++) if (!validateStep(s)) return setStep(s);
+    for (let s = 0; s <= 1; s++) if (!validateStep(s)) return setStep(s);
     if (!reporterName.trim()) return void toast.error("제보자 이름을 입력해 주세요.");
     if (!validateContact(reporterContact))
       return void toast.error("연락처는 이메일 또는 전화번호 형식으로 입력해 주세요.");
@@ -188,13 +207,12 @@ export default function ReportPage() {
 
     setLoading(true);
     try {
-      const igNorm = reporterInstagram.trim().startsWith("@")
-        ? reporterInstagram.trim().slice(1)
-        : reporterInstagram.trim();
+      const igRaw = reporterInstagram.trim();
+      const igNorm = igRaw.startsWith("@") ? igRaw.slice(1).trim() : igRaw;
       const payload = {
         work_categories: workCategories,
         client_type: clientType,
-        counterparty_note: counterpartyNote.trim(),
+        counterparty_note: buildCounterpartyNote(),
         amount_note: amountNote.trim(),
         pay_type_note: payTypeNote.trim(),
         facts: buildFacts(),
@@ -285,7 +303,7 @@ export default function ReportPage() {
                 대응하기 위한 창구입니다.
               </p>
               <p className="text-xs text-[#81796a]">
-                안무 제작·공연·댄서 출연·광고 등에서 약정한 대금을 받지 못하셨다면 사실관계를 적고 증빙을 첨부해
+                안무 제작·공연·행사·광고 등에서 약정한 대금을 받지 못하셨다면 사실관계를 적고 증빙을 첨부해
                 주세요. 확인되지 않은 추측이나 명예를 훼손할 수 있는 표현은 삼가 주시기 바랍니다.
               </p>
 
@@ -319,6 +337,9 @@ export default function ReportPage() {
               <div className="rounded-xl border border-[#ddd6c7] bg-white p-8 text-center">
                 <p className="text-lg font-semibold text-[#171611]">제보가 접수되었습니다.</p>
                 <p className="mt-3 text-sm text-[#4f4a40]">
+                  최대한 많은 자료를 모아 대응 준비를 할 예정이라, 검토와 처리까지 시일이 다소 걸릴 수 있습니다.
+                </p>
+                <p className="mt-2 text-sm text-[#4f4a40]">
                   추가 자료나 정정, 하고 싶은 말씀은 아래 채널로 편하게 남겨 주세요.
                 </p>
 
@@ -404,7 +425,7 @@ export default function ReportPage() {
                   </div>
                 </div>
 
-                {/* STEP 1: 업무 유형 + 의뢰인 구분 */}
+                {/* STEP 1: 업무 유형 + 의뢰인 구분 + 상대방 정보 */}
                 {step === 0 && (
                   <div className="space-y-7">
                     <div>
@@ -449,25 +470,74 @@ export default function ReportPage() {
                         ))}
                       </div>
                     </div>
+
+                    {clientType && (
+                      <div className="space-y-4 rounded-lg border border-[#e7e1d4] bg-[#f7f5ef] p-4">
+                        <div>
+                          <label className="block text-sm font-semibold">
+                            {clientType === "individual" ? "상대방 성함" : "상대방(회사) 이름"}
+                          </label>
+                          <input
+                            className={inputCls}
+                            placeholder={clientType === "individual" ? "예: 홍길동" : "예: ○○엔터테인먼트"}
+                            value={counterpartyName}
+                            onChange={(e) => setCounterpartyName(e.target.value)}
+                            maxLength={200}
+                          />
+                        </div>
+
+                        {clientType === "company" && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-semibold">담당자 이름</label>
+                              <input
+                                className={inputCls}
+                                placeholder="예: 김실장"
+                                value={contactPersonName}
+                                disabled={contactPersonUnknown}
+                                onChange={(e) => setContactPersonName(e.target.value)}
+                                maxLength={100}
+                              />
+                              <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-[#4f4a40]">
+                                <input
+                                  type="checkbox"
+                                  checked={contactPersonUnknown}
+                                  onChange={(e) => {
+                                    setContactPersonUnknown(e.target.checked);
+                                    if (e.target.checked) setContactPersonName("");
+                                  }}
+                                  className="h-3.5 w-3.5 rounded border-[#ddd6c7]"
+                                />
+                                담당자 이름을 모릅니다
+                              </label>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-semibold">
+                                담당자 연락처 <span className="font-normal text-[#81796a]">(선택)</span>
+                              </label>
+                              <input
+                                className={inputCls}
+                                placeholder="예: 010-1234-5678 또는 이메일"
+                                value={contactPersonPhone}
+                                onChange={(e) => setContactPersonPhone(e.target.value)}
+                                maxLength={200}
+                              />
+                              <p className="mt-1.5 text-xs text-[#81796a]">
+                                바로 연락드리지 않으며, 사실관계를 파악한 뒤 실제 대응 시 제보자님께 먼저
+                                알려드립니다.
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* STEP 2: 상대방·금액 */}
+                {/* STEP 2: 금액 + 상황(통합 서술) */}
                 {step === 1 && (
                   <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-semibold">상대방·채권 관련 정보</label>
-                      <p className="mt-1 text-xs text-[#81796a]">
-                        업체명, 담당자 표시, 연락 경로 등 알고 계신 범위에서 적어 주세요. 정확히 모르시면 그렇게
-                        적어 주셔도 됩니다.
-                      </p>
-                      <textarea
-                        className={`${inputCls} min-h-[110px]`}
-                        value={counterpartyNote}
-                        onChange={(e) => setCounterpartyNote(e.target.value)}
-                        maxLength={4000}
-                      />
-                    </div>
                     <div>
                       <label className="block text-sm font-semibold">받지 못한 금액 (대략 가능)</label>
                       <input
@@ -488,12 +558,6 @@ export default function ReportPage() {
                         maxLength={2000}
                       />
                     </div>
-                  </div>
-                )}
-
-                {/* STEP 3: 정황·증빙 */}
-                {step === 2 && (
-                  <div className="space-y-6">
                     <div>
                       <label className="block text-sm font-semibold">구체적인 정황·사실</label>
                       <p className="mt-1 text-xs text-[#81796a]">
@@ -502,55 +566,66 @@ export default function ReportPage() {
                       </p>
                       <textarea
                         className={`${inputCls} min-h-[180px]`}
+                        placeholder="언제 준다고 했는데 계속 밀린다, 잠적했다, 등 알고 계시는 정보를 최대한 자세히 알려주시면 큰 도움이 됩니다."
                         value={facts}
                         onChange={(e) => setFacts(e.target.value)}
                         maxLength={12000}
                       />
                     </div>
+                  </div>
+                )}
 
-                    <div>
-                      <label className="block text-sm font-semibold">증빙 자료 첨부 (선택)</label>
-                      <p className="mt-1 text-xs text-[#81796a]">
-                        카카오톡 캡처, 이메일, 계약서, 계산서, 입금내역 등을 올려 주세요. 파일당 최대 100MB,
-                        이미지·PDF·문서·한글·엑셀·영상·음성·zip을 지원합니다.
-                      </p>
-                      <input
-                        type="file"
-                        multiple
-                        accept={ACCEPT_ATTR}
-                        onChange={(e) => {
-                          handleAddFiles(e.target.files);
-                          e.target.value = "";
-                        }}
-                        className="mt-2 block w-full text-sm text-[#4f4a40] file:mr-4 file:rounded-md file:border-0 file:bg-[#171611] file:px-4 file:py-2 file:font-medium file:text-[#f7f5ef] hover:file:bg-[#171611]/90"
-                      />
-                      {evidenceFiles.length > 0 && (
-                        <ul className="mt-3 space-y-2">
-                          {evidenceFiles.map((f, idx) => (
-                            <li
-                              key={`${f.name}-${idx}`}
-                              className="flex items-center justify-between gap-3 rounded-md border border-[#ddd6c7] bg-[#f7f5ef] px-3 py-2 text-sm"
-                            >
-                              <span className="truncate">{f.name}</span>
-                              <span className="flex shrink-0 items-center gap-3">
-                                <span className="text-xs text-[#81796a]">{formatBytes(f.size)}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => removeFile(idx)}
-                                  className="text-[#81796a] hover:text-[#171611]"
-                                  aria-label="첨부 삭제"
-                                >
-                                  ✕
-                                </button>
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      <p className="mt-2 text-xs text-[#a59e8d]">
-                        첨부 자료는 비공개로 저장되며, 내부 확인·법적 절차 준비 용도로만 관리자가 열람합니다.
-                      </p>
-                    </div>
+                {/* STEP 3: 증빙 첨부 */}
+                {step === 2 && (
+                  <div>
+                    <label className="block text-sm font-semibold">증빙 자료 첨부 (선택)</label>
+                    <p className="mt-1 text-xs text-[#81796a]">
+                      카카오톡 캡처, 이메일, 계약서, 계산서, 입금내역 등을 올려 주세요. 파일당 최대 100MB,
+                      이미지·PDF·문서·한글·엑셀·영상·음성·zip을 지원합니다.
+                    </p>
+                    <p className="mt-1 text-xs text-[#81796a]">
+                      파일 용량이 커서 첨부가 어려우시면{" "}
+                      <a href="mailto:deetzmagazine@gmail.com" className="underline">
+                        deetzmagazine@gmail.com
+                      </a>
+                      으로 보내 주셔도 됩니다.
+                    </p>
+                    <input
+                      type="file"
+                      multiple
+                      accept={ACCEPT_ATTR}
+                      onChange={(e) => {
+                        handleAddFiles(e.target.files);
+                        e.target.value = "";
+                      }}
+                      className="mt-3 block w-full text-sm text-[#4f4a40] file:mr-4 file:rounded-md file:border-0 file:bg-[#171611] file:px-4 file:py-2 file:font-medium file:text-[#f7f5ef] hover:file:bg-[#171611]/90"
+                    />
+                    {evidenceFiles.length > 0 && (
+                      <ul className="mt-3 space-y-2">
+                        {evidenceFiles.map((f, idx) => (
+                          <li
+                            key={`${f.name}-${idx}`}
+                            className="flex items-center justify-between gap-3 rounded-md border border-[#ddd6c7] bg-[#f7f5ef] px-3 py-2 text-sm"
+                          >
+                            <span className="truncate">{f.name}</span>
+                            <span className="flex shrink-0 items-center gap-3">
+                              <span className="text-xs text-[#81796a]">{formatBytes(f.size)}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeFile(idx)}
+                                className="text-[#81796a] hover:text-[#171611]"
+                                aria-label="첨부 삭제"
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <p className="mt-2 text-xs text-[#a59e8d]">
+                      첨부 자료는 비공개로 저장되며, 내부 확인·법적 절차 준비 용도로만 관리자가 열람합니다.
+                    </p>
                   </div>
                 )}
 
@@ -578,7 +653,9 @@ export default function ReportPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold">인스타그램 아이디</label>
+                      <label className="block text-sm font-semibold">
+                        인스타그램 아이디 <span className="font-normal text-[#81796a]">(선택)</span>
+                      </label>
                       <p className="mt-1 text-xs text-[#81796a]">
                         @ 없이 입력해도 됩니다. 공개·게시용이 아니라 내부 확인용입니다.
                       </p>
