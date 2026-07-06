@@ -231,15 +231,70 @@ export default function ReportPage() {
           <div className="mt-8 rounded-lg border border-[#ddd6c7] bg-white p-8 text-center">
             <p className="text-lg font-semibold text-[#171611]">제보가 접수되었습니다.</p>
             <p className="mt-3 text-sm text-[#4f4a40]">
-              추가 자료나 정정이 필요하시면{" "}
-              <a href="mailto:dancers.bio.kr@gmail.com" className="font-medium text-[#171611] underline">
-                dancers.bio.kr@gmail.com
-              </a>
-              로 메일을 보내 주세요.
+              추가 자료나 정정, 하고 싶은 말씀은 아래 채널로 편하게 남겨 주세요.
             </p>
+
+            <div className="mt-6 flex items-center justify-center gap-6">
+              {/* 인스타그램 DM */}
+              <a
+                href="https://www.instagram.com/deetz.kr/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="인스타그램 DM"
+                className="group flex flex-col items-center gap-2"
+              >
+                <span
+                  className="flex h-14 w-14 items-center justify-center rounded-full transition-transform group-hover:scale-105"
+                  style={{ background: "linear-gradient(45deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5)" }}
+                >
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" stroke="#fff" strokeWidth="1.9" />
+                    <circle cx="12" cy="12" r="4.3" stroke="#fff" strokeWidth="1.9" />
+                    <circle cx="17.4" cy="6.6" r="1.3" fill="#fff" />
+                  </svg>
+                </span>
+                <span className="text-xs font-medium text-[#4f4a40]">인스타 DM</span>
+              </a>
+
+              {/* 카카오톡 채널 */}
+              <a
+                href="https://pf.kakao.com/_mbpXX/chat"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="카카오톡 채널로 문의"
+                className="group flex flex-col items-center gap-2"
+              >
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FEE500] transition-transform group-hover:scale-105">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="#3C1E1E" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M12 4C6.9 4 2.8 7.3 2.8 11.3c0 2.6 1.7 4.9 4.3 6.2-.2.7-.7 2.4-.8 2.8-.1.5.2.5.4.3.2-.1 2.5-1.7 3.5-2.4.6.1 1.2.1 1.8.1 5.1 0 9.2-3.3 9.2-7.3S17.1 4 12 4z" />
+                  </svg>
+                </span>
+                <span className="text-xs font-medium text-[#4f4a40]">카카오톡</span>
+              </a>
+
+              {/* 이메일 */}
+              <a
+                href="mailto:deetzmagazine@gmail.com"
+                aria-label="이메일 보내기"
+                className="group flex flex-col items-center gap-2"
+              >
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#171611] transition-transform group-hover:scale-105">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                    <path d="m3.5 7 8.5 6 8.5-6" />
+                  </svg>
+                </span>
+                <span className="text-xs font-medium text-[#4f4a40]">이메일</span>
+              </a>
+            </div>
+
+            <p className="mt-5 text-xs text-[#8a8375]">
+              이메일: deetzmagazine@gmail.com
+            </p>
+
             <Link
               href="/"
-              className="mt-5 inline-block rounded-md bg-[#171611] px-5 py-2.5 text-sm font-semibold text-[#f7f5ef] hover:bg-[#171611]/90"
+              className="mt-6 inline-block rounded-md bg-[#171611] px-5 py-2.5 text-sm font-semibold text-[#f7f5ef] hover:bg-[#171611]/90"
             >
               홈으로
             </Link>
