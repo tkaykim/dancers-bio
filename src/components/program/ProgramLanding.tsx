@@ -8,6 +8,7 @@ import {
   BookOpenText,
   Briefcase,
   ChevronDown,
+  ExternalLink,
   HelpCircle,
   Home,
   Languages,
@@ -15,6 +16,7 @@ import {
   ShieldCheck,
   Stamp,
   Users,
+  X,
 } from "lucide-react";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { cn } from "@/lib/utils";
@@ -55,64 +57,163 @@ type Copy = {
   ctaSub: string;
   visaOnly: string;
   disclaimer: string;
+  sheetCredits: string;
+  sheetProfile: string;
 };
 
 // GRIGO 소속 댄서 로스터 — deetz DB 실데이터 (프로필 사진=deetz 공개 스토리지)
-// href: deetz 프로필(/d/slug) 또는 인스타그램(아직 deetz 프로필 없는 경우)
-// nat: 국적 (인스타 바이오·공개 프로필로 검증 — Emily US=Born in New York / Renan=秋田レナン 일본 / 나머지=🇯🇵 표기)
+// nat: 국적 (대표 확인 + 인스타 바이오·공개 프로필 검증 — Emily US=Born in New York / 나머지 4인=일본)
 type Nat = "us" | "jp";
-const NAT_LABEL: Record<Nat, Record<Lang, string>> = {
-  us: { en: "🇺🇸 USA", ja: "🇺🇸 アメリカ", ko: "🇺🇸 미국" },
-  jp: { en: "🇯🇵 Japan", ja: "🇯🇵 日本", ko: "🇯🇵 일본" },
+const NAT_NAME: Record<Nat, Record<Lang, string>> = {
+  us: { en: "USA", ja: "アメリカ", ko: "미국" },
+  jp: { en: "Japan", ja: "日本", ko: "일본" },
 };
-const ROSTER: { name: string; handle: string; nat: Nat; href: string; img: string; credits: string[] }[] = [
+
+function InstaIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <rect x="2" y="2" width="20" height="20" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+// 국기 SVG (이모지는 Windows에서 글자로 렌더되므로 아이콘으로 직접 그림)
+function FlagIcon({ nat, className }: { nat: Nat; className?: string }) {
+  if (nat === "jp") {
+    return (
+      <svg viewBox="0 0 30 20" className={cn("h-3 w-[18px] rounded-[2px] border border-hairline-2", className)} aria-hidden>
+        <rect width="30" height="20" fill="#fff" />
+        <circle cx="15" cy="10" r="6" fill="#bc002d" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 30 20" className={cn("h-3 w-[18px] rounded-[2px] border border-hairline-2", className)} aria-hidden>
+      <rect width="30" height="20" fill="#fff" />
+      {[0, 2, 4, 6, 8].map((i) => (
+        <rect key={i} y={i * (20 / 9)} width="30" height={20 / 9} fill="#b22234" />
+      ))}
+      <rect width="13" height={20 * (4 / 9)} fill="#3c3b6e" />
+    </svg>
+  );
+}
+
+type RosterItem = {
+  name: string;
+  handle: string;
+  nat: Nat;
+  ig: string;
+  deetz?: string;
+  img: string;
+  credits: string[];
+  more: string[];
+};
+
+const ROSTER: RosterItem[] = [
   {
     name: "Emily",
     handle: "@m12_emilylis",
     nat: "us",
-    href: "/d/emily",
+    ig: "https://www.instagram.com/m12_emilylis/",
+    deetz: "/d/emily",
     img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/2f9467ee-497e-4010-9f15-08d82b8c81ae/profile_1773655437634.jpg",
     credits: ["NCT TEN World Tour Direction", "Red Velvet IRENE 'Like A Flower'"],
+    more: [
+      "NCT TEN 'Stunner' World Tour — Performance Direction",
+      "Red Velvet IRENE 'Like A Flower'",
+      "BIBI 'Burn it' MV — Choreo & Direction",
+      "SHINee MINHO 'Tempo'",
+      "Jay Park 'Like I Do' MV",
+      "P1Harmony 'Unique'",
+      "World of Dance Korea 2024 — Grand Prize",
+    ],
   },
   {
     name: "Emily",
     handle: "@emilee.jp",
     nat: "jp",
-    href: "https://www.instagram.com/emilee.jp/",
+    ig: "https://www.instagram.com/emilee.jp/",
     img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/program/emilee-jp.jpg",
     credits: ["aespa 'Drift' · SMTM12", "'KPOPPED' (Apple TV+) · 2PM JUN. K"],
+    more: [
+      "aespa 'Drift'",
+      "Show Me The Money 12",
+      "'KPOPPED' (Apple TV+)",
+      "2PM JUN. K 'Midnight Ticket'",
+      "NCT TEN · Whee In stages",
+      "RAP:PUBLIC",
+    ],
   },
   {
     name: "Renan",
     handle: "@renan0115",
     nat: "jp",
-    href: "/d/renan",
+    ig: "https://www.instagram.com/renan0115/",
+    deetz: "/d/renan",
     img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/e684ae74-57dd-4785-8a7d-4e4f8a79757f/profile_1773134365759.webp",
     credits: ["G-DRAGON 'TOO BAD'", "aespa 'Armageddon' · 'Whiplash'"],
+    more: [
+      "G-DRAGON 'TOO BAD'",
+      "aespa 'Armageddon' · 'Whiplash' · 'Mine' 외 다수",
+      "(여자)아이들 'Mono'",
+      "NMIXX 'TIC TIC'",
+      "Red Velvet 'Chill Kill' · 'Birthday'",
+      "XG 'LEFT RIGHT' · 'SHOOTING STAR' 외 다수",
+      "2025 CHOREO AWARDS",
+    ],
   },
   {
     name: "YUMEKI",
     handle: "@yumekitakenaka_",
     nat: "jp",
-    href: "/d/yumeki",
+    ig: "https://www.instagram.com/yumekitakenaka_/",
+    deetz: "/d/yumeki",
     img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/4cc8a178-1654-42a5-a217-ccb0f982cde3/profile_1773192321867.webp",
     credits: ["TXT 'Love Language'", "ILLIT 'Jellyous' · Street Man Fighter"],
+    more: [
+      "TOMORROW X TOGETHER 'Love Language'",
+      "ILLIT 'Jellyous' · 'oops!'",
+      "Street Man Fighter (Mnet)",
+      "Boys II Planet (Mnet)",
+      "PRODUCE 101 JAPAN THE GIRLS",
+      "KANSAI COLLECTION SS2026",
+    ],
   },
   {
     name: "MARIA",
     handle: "@maria._.bh01",
     nat: "jp",
-    href: "/d/maria",
+    ig: "https://www.instagram.com/maria._.bh01/",
+    deetz: "/d/maria",
     img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/7ba298b7-afbb-4fdf-8a28-7a3a7bd975f4/profile_1773815493545.png",
     credits: ["MAMA AWARDS stages", "NewJeans Bunnies Camp, Tokyo Dome"],
+    more: [
+      "MAMA AWARDS — aespa · SEVENTEEN · ZEROBASEONE",
+      "NewJeans 'Bunnies Camp' @ Tokyo Dome",
+      "KCON JAPAN Dream Stage",
+      "KBS 가요대축제 · KGMA — P1Harmony",
+      "WayV TEN Solo Concert",
+      "JO1 'Hands In My Pocket'",
+    ],
   },
   {
     name: "HIYORI",
     handle: "@hiyori_club",
     nat: "jp",
-    href: "/d/hiyori",
+    ig: "https://www.instagram.com/hiyori_club/",
+    deetz: "/d/hiyori",
     img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/6c4e146c-5dd7-408f-8165-4c8fcd6cc907/profile_1773813569999.png",
     credits: ["NCT WISH 'WISH'", "WayV 'FREQUENCY' Music Bank"],
+    more: [
+      "NCT WISH 'WISH'",
+      "WayV 'FREQUENCY' — 2024 Music Bank Global Festival",
+      "WayV Dance Break — 2024 AAA",
+      "Da-iCE 'TAKE IT BACK'",
+      "WATERBOMB — HOOK Stage",
+      "2023 APAN STAR AWARDS",
+    ],
   },
 ];
 
@@ -168,6 +269,8 @@ const T: Record<Lang, Copy> = {
     ctaSub: "Takes about 3 minutes. We reply with a consultation slot.",
     visaOnly: "Only need visa support? → E-6-1 visa page",
     disclaimer: "Visa approval is decided by Korea Immigration; this is preparation and application support, not legal advice. Program details are confirmed individually in the consultation.",
+    sheetCredits: "Selected work",
+    sheetProfile: "View deetz profile",
   },
   ja: {
     eyebrow: "K-DEBUT · deetz × GRIGO Entertainment",
@@ -220,6 +323,8 @@ const T: Record<Lang, Copy> = {
     ctaSub: "約3分。カウンセリング日程をご連絡します。",
     visaOnly: "ビザサポートだけ必要な方は → E-6-1ビザページ",
     disclaimer: "ビザの可否は韓国出入国当局が判断します。これは準備・申請のサポートであり、法的助言ではありません。プログラムの詳細はカウンセリングで個別に確定します。",
+    sheetCredits: "主な活動",
+    sheetProfile: "deetzプロフィールを見る",
   },
   ko: {
     eyebrow: "K-DEBUT · deetz × 그리고엔터테인먼트",
@@ -272,6 +377,8 @@ const T: Record<Lang, Copy> = {
     ctaSub: "약 3분이면 끝나요. 검토 후 상담 일정을 회신드립니다.",
     visaOnly: "비자 지원만 필요하신가요? → E-6-1 비자 페이지",
     disclaimer: "비자 발급 여부는 한국 출입국 당국이 결정하며, 이는 준비·신청 지원이지 법률 자문이 아닙니다. 프로그램 세부 내용은 상담에서 개별 확정됩니다.",
+    sheetCredits: "주요 활동",
+    sheetProfile: "deetz 프로필 보기",
   },
 };
 
@@ -288,6 +395,7 @@ export function ProgramLanding({
   embed?: boolean;
 }) {
   const [lang, setLang] = useState<Lang>(initialLang);
+  const [selected, setSelected] = useState<RosterItem | null>(null);
 
   useEffect(() => {
     if (lockLang) return; // URL로 언어를 지정해 들어온 경우 브라우저 자동감지로 덮지 않음
@@ -295,6 +403,21 @@ export function ProgramLanding({
     if (nav.startsWith("ja")) setLang("ja");
     else if (nav.startsWith("ko")) setLang("ko");
   }, [lockLang]);
+
+  // 시트 열림 중 배경 스크롤 잠금 + ESC 닫기
+  useEffect(() => {
+    if (!selected) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelected(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [selected]);
 
   const c = T[lang];
 
@@ -417,12 +540,11 @@ export function ProgramLanding({
       <p className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl">{c.rosterNote}</p>
       <div className="-mx-6 flex snap-x gap-3 overflow-x-auto px-6 pb-2 md:mx-0 md:px-0">
         {ROSTER.map((d) => (
-          <a
+          <button
             key={d.handle}
-            href={d.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-40 shrink-0 snap-start overflow-hidden rounded-xl border border-hairline-2 bg-card transition-transform hover:-translate-y-0.5"
+            type="button"
+            onClick={() => setSelected(d)}
+            className="w-40 shrink-0 snap-start overflow-hidden rounded-xl border border-hairline-2 bg-card text-left transition-transform hover:-translate-y-0.5"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -432,9 +554,9 @@ export function ProgramLanding({
               className="aspect-[3/4] w-full object-cover"
             />
             <div className="p-3">
-              <div className="flex items-baseline justify-between gap-1.5">
+              <div className="flex items-center gap-1.5">
                 <p className="text-sm font-bold text-foreground">{d.name}</p>
-                <p className="shrink-0 text-[11px] text-ink-3">{NAT_LABEL[d.nat][lang]}</p>
+                <FlagIcon nat={d.nat} />
               </div>
               <p className="text-[11px] text-ink-4">{d.handle}</p>
               {d.credits.map((cr, i) => (
@@ -443,9 +565,89 @@ export function ProgramLanding({
                 </p>
               ))}
             </div>
-          </a>
+          </button>
         ))}
       </div>
+
+      {/* 로스터 상세 — 바텀시트(모바일) / 센터 모달(PC), 페이지 이탈 없음 */}
+      {selected ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 md:items-center"
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-background p-5 pb-8 md:rounded-2xl md:pb-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={selected.img} alt={selected.name} className="size-12 rounded-full object-cover" />
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-base font-bold text-foreground">{selected.name}</p>
+                    <FlagIcon nat={selected.nat} />
+                    <span className="text-xs text-ink-3">{NAT_NAME[selected.nat][lang]}</span>
+                  </div>
+                  <p className="text-xs text-ink-4">{selected.handle}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="rounded-full border border-hairline-2 p-1.5 text-ink-3 hover:text-foreground"
+                aria-label="close"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={selected.img}
+              alt={selected.name}
+              className="max-h-72 w-full rounded-xl object-cover object-top"
+            />
+
+            <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wider text-ink-3">
+              {c.sheetCredits}
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {selected.more.map((m, i) => (
+                <p key={i} className="text-[13px] leading-relaxed text-ink-2">
+                  · {m}
+                </p>
+              ))}
+            </div>
+
+            <div className="mt-5 flex gap-2">
+              {selected.deetz ? (
+                <a
+                  href={selected.deetz}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  {c.sheetProfile}
+                  <ExternalLink className="size-3.5" />
+                </a>
+              ) : null}
+              <a
+                href={selected.ig}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-lg border border-hairline-2 px-4 py-3 text-sm font-semibold text-foreground hover:bg-secondary",
+                  selected.deetz ? "flex-none" : "flex-1",
+                )}
+              >
+                <InstaIcon className="size-4" />
+                Instagram
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* FAQ */}
       <SectionTitle>{c.faqTitle}</SectionTitle>
