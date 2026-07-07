@@ -13,10 +13,10 @@ import { cn } from "@/lib/utils";
 
 type Lang = "en" | "ja" | "ko";
 
-// 한국어는 현재 숨김(비활성화) — 노출 언어는 EN·JA만. (?lang=ko 직접 진입 렌더는 유지)
 const LANGS: { code: Lang; label: string }[] = [
   { code: "en", label: "EN" },
   { code: "ja", label: "日本語" },
+  { code: "ko", label: "한국어" },
 ];
 
 const MESSENGER_TYPES = [
