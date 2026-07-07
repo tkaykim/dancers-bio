@@ -226,6 +226,23 @@ const ROSTER: RosterItem[] = [
       "JO1 'Hands In My Pocket'",
     ],
   },
+  {
+    name: "MIZUKI",
+    handle: "@mizukkiz",
+    nat: "jp",
+    ig: "https://www.instagram.com/mizukkiz/",
+    deetz: "/d/mizuki",
+    img: "https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/677d2dfd-3781-49fb-8614-05b3aac579bc/avatar_1782996183416.jpeg",
+    credits: ["SEVENTEEN World Tour [NEW_] · BE THE SUN", "Stray Kids 5-STAR Dome Tour"],
+    more: [
+      "SEVENTEEN 'BE THE SUN' · 'FOLLOW' · World Tour [NEW_]",
+      "Stray Kids 5-STAR Dome Tour",
+      "SHINee KEY 'Pleasure Shop' · 'Overthink'",
+      "PLAVE Asia Tour [DASH] · THE BOYZ concert",
+      "ITZY Fan Meeting · WATERBOMB 2025",
+      "BAEKHO 'OFF-ROAD' — Choreography",
+    ],
+  },
 ];
 
 const T: Record<Lang, Copy> = {
