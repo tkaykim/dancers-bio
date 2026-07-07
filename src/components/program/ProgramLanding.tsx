@@ -29,6 +29,16 @@ const LANGS: { code: Lang; label: string }[] = [
   { code: "ko", label: "한국어" },
 ];
 
+// 최초 진입 언어 선택 팝업용 (모국어 표기 + 영어 병기)
+const LANG_CHOICES: { code: Lang; native: string; en: string }[] = [
+  { code: "en", native: "English", en: "English" },
+  { code: "ja", native: "日本語", en: "Japanese" },
+  { code: "ko", native: "한국어", en: "Korean" },
+];
+
+// 사용자가 고른 언어를 기억해 다음 방문에 다시 묻지 않는다.
+const LANG_STORAGE_KEY = "deetz_program_lang";
+
 type QA = { q: string; a: string };
 type Step = { title: string; body: string };
 type Pillar = { title: string; body: string };
@@ -392,13 +402,48 @@ export function ProgramLanding({
 }) {
   const [lang, setLang] = useState<Lang>(initialLang);
   const [selected, setSelected] = useState<RosterItem | null>(null);
+  const [askLang, setAskLang] = useState(false);
+  const [suggested, setSuggested] = useState<Lang>(initialLang);
+
+  const selectLang = (l: Lang) => {
+    setLang(l);
+    try {
+      localStorage.setItem(LANG_STORAGE_KEY, l);
+    } catch {
+      /* localStorage 불가 환경 무시 */
+    }
+  };
 
   useEffect(() => {
-    if (lockLang) return; // URL로 언어를 지정해 들어온 경우 브라우저 자동감지로 덮지 않음
+    // URL에 ?lang= 로 명시했거나(embed/iframe) 진입한 경우 → 팝업 없이 그 언어 그대로.
+    if (lockLang || embed) return;
+    // 이전에 고른 언어가 있으면 그대로 적용, 다시 묻지 않는다.
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(LANG_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+    if (saved === "en" || saved === "ja" || saved === "ko") {
+      setLang(saved);
+      return;
+    }
+    // 최초 진입(깨끗한 URL) → 브라우저 언어로 추천만 하고, 자동 전환 대신 선택 팝업.
     const nav = navigator.language?.toLowerCase() ?? "";
-    if (nav.startsWith("ja")) setLang("ja");
-    else if (nav.startsWith("ko")) setLang("ko");
-  }, [lockLang]);
+    const detected: Lang = nav.startsWith("ja") ? "ja" : nav.startsWith("ko") ? "ko" : "en";
+    setSuggested(detected);
+    setAskLang(true);
+  }, [lockLang, embed]);
+
+  // 언어 선택 팝업 열림 중 배경 스크롤 잠금
+  useEffect(() => {
+    if (!askLang) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [askLang]);
 
   // 시트 열림 중 배경 스크롤 잠금 + ESC 닫기
   useEffect(() => {
@@ -431,7 +476,7 @@ export function ProgramLanding({
             <button
               key={l.code}
               type="button"
-              onClick={() => setLang(l.code)}
+              onClick={() => selectLang(l.code)}
               className={cn(
                 "rounded-md border px-2 py-1 text-xs transition-colors",
                 lang === l.code
@@ -444,6 +489,47 @@ export function ProgramLanding({
           ))}
         </div>
       </div>
+
+      {/* 최초 진입 언어 선택 팝업 (깨끗한 URL 진입 시 1회) */}
+      {askLang ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Select your language"
+        >
+          <div className="w-full max-w-xs rounded-2xl bg-background p-6 shadow-2xl">
+            <div className="mb-4 flex flex-col items-center text-center">
+              <div className="mb-3 flex size-11 items-center justify-center rounded-full bg-secondary">
+                <Languages className="size-5 text-foreground" />
+              </div>
+              <p className="text-base font-bold text-foreground">Select your language</p>
+              <p className="mt-1 text-xs text-ink-3">言語を選択 · 언어 선택</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              {LANG_CHOICES.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => {
+                    selectLang(l.code);
+                    setAskLang(false);
+                  }}
+                  className={cn(
+                    "flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors",
+                    suggested === l.code
+                      ? "border-foreground bg-secondary/50"
+                      : "border-hairline-2 hover:border-foreground/40",
+                  )}
+                >
+                  <span className="text-sm font-semibold text-foreground">{l.native}</span>
+                  <span className="text-xs text-ink-3">{l.en}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Hero */}
       <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-3">{c.eyebrow}</p>
