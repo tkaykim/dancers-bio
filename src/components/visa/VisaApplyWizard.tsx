@@ -148,6 +148,20 @@ type StepDef = {
 
 const STEPS: StepDef[] = [
   {
+    k: "where",
+    type: "choice",
+    q: { en: "Where are you right now?", ja: "今どちらにいますか？", ko: "지금 어디에 계세요?" },
+    h: {
+      en: "Both are welcome — dancers already in Korea, and those planning to come from abroad.",
+      ja: "すでに韓国にいる方も、これから海外から来て活動したい方も歓迎します。",
+      ko: "한국에 이미 계신 분도, 해외에서 한국에 들어와 활동하고 싶은 분도 모두 환영해요.",
+    },
+    opts: [
+      { v: "korea", l: { en: "I'm in Korea", ja: "韓国にいます", ko: "한국에 있어요" } },
+      { v: "home", l: { en: "I'm abroad", ja: "海外にいます", ko: "해외에 있어요" } },
+    ],
+  },
+  {
     k: "nationality",
     type: "country",
     q: { en: "Where are you from?", ja: "ご出身は？", ko: "국적이 어디인가요?" },
@@ -233,15 +247,6 @@ const STEPS: StepDef[] = [
     },
   },
   {
-    k: "where",
-    type: "choice",
-    q: { en: "Where are you right now?", ja: "今どちらに？", ko: "지금 어디에 있나요?" },
-    opts: [
-      { v: "korea", l: { en: "In Korea", ja: "韓国", ko: "한국" } },
-      { v: "home", l: { en: "In my home country", ja: "母国", ko: "자국" } },
-    ],
-  },
-  {
     k: "stay",
     type: "choice",
     q: {
@@ -264,10 +269,16 @@ const STEPS: StepDef[] = [
   {
     k: "entry",
     type: "date",
+    cond: ["where", "home"],
     q: {
-      en: "When can you enter Korea?",
-      ja: "いつ入国できますか？",
-      ko: "언제 한국에 입국할 수 있나요?",
+      en: "When can you come to Korea?",
+      ja: "いつ韓国に来られますか？",
+      ko: "언제 한국에 들어올 수 있나요?",
+    },
+    h: {
+      en: "Roughly is fine — we plan your track around it.",
+      ja: "だいたいで大丈夫です。日程に合わせて設計します。",
+      ko: "대략이어도 괜찮아요. 일정에 맞춰 준비를 설계해요.",
     },
   },
   {

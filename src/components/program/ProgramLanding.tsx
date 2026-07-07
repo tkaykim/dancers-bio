@@ -9,6 +9,7 @@ import {
   Briefcase,
   ChevronDown,
   ExternalLink,
+  Globe,
   HelpCircle,
   Home,
   Languages,
@@ -47,6 +48,7 @@ type Copy = {
   title1: string;
   title2: string;
   sub: string;
+  eligibility: string;
   painTitle: string;
   pains: string[];
   painClose: string;
@@ -232,6 +234,8 @@ const T: Record<Lang, Copy> = {
     title1: "Build your dance career",
     title2: "in Korea — all the way.",
     sub: "One program from training to your first paid job in Korea: dance training, Korean language, industry know-how, E-6-1 visa support, and real work through our agency pool.",
+    eligibility:
+      "Already in Korea, or still abroad and planning to come — either way, you can apply. We support your move and visa from wherever you are.",
     painTitle: "Does this sound like you?",
     pains: [
       "You want to work in the K-pop scene as a dancer, choreographer, or director — but don't know where to start.",
@@ -285,6 +289,8 @@ const T: Record<Lang, Copy> = {
     title1: "韓国でダンスを、",
     title2: "仕事にする。",
     sub: "ダンストレーニング、韓国語、業界教育、E-6-1ビザサポート、そしてdeetzのキャスティングプールを通じた初めてのお仕事まで。すべてをひとつのプログラムで。",
+    eligibility:
+      "すでに韓国にいる方も、これから韓国に来て活動したい海外の方も、どなたでも応募できます。今いる場所から、渡航とビザをサポートします。",
     painTitle: "こんな状況ではありませんか？",
     pains: [
       "K-POPシーンでダンサー・コレオグラファー・ディレクターとして活動したいのに、何から始めればいいか分からない。",
@@ -338,6 +344,8 @@ const T: Record<Lang, Copy> = {
     title1: "한국에서 댄스 커리어를,",
     title2: "처음부터 끝까지.",
     sub: "댄스 트레이닝, 한국어, 업계 교육, E-6-1 비자 지원부터 deetz 캐스팅 풀을 통한 첫 일감까지, 하나의 프로그램으로 준비합니다.",
+    eligibility:
+      "한국에 이미 계신 분도, 지금 해외에 있고 한국에 들어와 활동하고 싶은 분도 모두 지원할 수 있어요. 어디에 계시든 입국과 비자까지 함께 준비합니다.",
     painTitle: "혹시 지금 이런 상황인가요?",
     pains: [
       "한국 K-pop 씬에서 댄서, 안무가, 디렉터로 활동하고 싶은데 어디서부터 시작해야 할지 막막하다.",
@@ -539,6 +547,11 @@ export function ProgramLanding({
         {c.title2}
       </h1>
       <p className="mt-4 text-[15px] leading-relaxed text-ink-2 md:mt-5 md:max-w-2xl md:text-base">{c.sub}</p>
+
+      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 md:max-w-2xl">
+        <Globe className="mt-0.5 size-4 shrink-0 text-primary" />
+        <p className="text-[13px] font-medium leading-relaxed text-foreground">{c.eligibility}</p>
+      </div>
 
       <CtaButton lang={lang} label={c.cta} className="mt-7 md:mt-8 md:self-start md:px-12" />
       <p className="mt-2 text-center text-xs text-ink-4 md:text-left">{c.ctaSub}</p>
