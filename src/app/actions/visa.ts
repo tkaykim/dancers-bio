@@ -255,3 +255,72 @@ export async function updateVisaApplicationAction(
   revalidatePath("/admin/visa");
   return { ok: true };
 }
+
+// ── 어드민: 신청 삭제 (테스트/비실제 지원자 정리) ──────────────────────────────
+//
+// 온보딩 제출은 dancers(비공개) + dancer_private_info + dancer_visa_applications
+// 세 행을 함께 만든다. 신청을 삭제할 때, 아직 claim 안 된 온보딩 전용 프로필
+// (profile_id NULL)이고 다른 신청이 남아있지 않으면 고아 프로필·민감정보도
+// 함께 정리한다. 실사용자가 claim 한 프로필(profile_id 존재)은 절대 건드리지 않는다.
+// 프로필 정리는 FK 등으로 실패해도 신청 삭제 자체는 성공 처리(best-effort).
+
+const deleteSchema = z.object({ id: z.string().uuid() });
+
+export async function deleteVisaApplicationAction(
+  input: z.input<typeof deleteSchema>,
+): Promise<ActionResult<{ purgedProfile: boolean }>> {
+  await requireAdmin();
+  const parsed = deleteSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요." };
+  }
+  const { id } = parsed.data;
+  const client = createAdminClient();
+
+  // 대상 신청의 dancer_id 확보
+  const { data: app, error: loadErr } = await client
+    .from("dancer_visa_applications")
+    .select("id, dancer_id")
+    .eq("id", id)
+    .single();
+  if (loadErr || !app) return { ok: false, error: "신청을 찾을 수 없습니다." };
+  const dancerId = (app.dancer_id as string | null) ?? null;
+
+  // 신청 본문 삭제
+  const { error: delErr } = await client.from("dancer_visa_applications").delete().eq("id", id);
+  if (delErr) return { ok: false, error: delErr.message };
+
+  // 고아 온보딩 프로필 정리(best-effort)
+  let purgedProfile = false;
+  if (dancerId) {
+    try {
+      const { data: dancer } = await client
+        .from("dancers")
+        .select("id, profile_id")
+        .eq("id", dancerId)
+        .single();
+      const unclaimed = dancer && (dancer.profile_id as string | null) == null;
+
+      // 이 프로필을 참조하는 다른 신청이 남아있는지 확인
+      const { count: remaining } = await client
+        .from("dancer_visa_applications")
+        .select("id", { count: "exact", head: true })
+        .eq("dancer_id", dancerId);
+
+      if (unclaimed && (remaining ?? 0) === 0) {
+        await client.from("dancer_private_info").delete().eq("dancer_id", dancerId);
+        const { error: dancerDelErr } = await client
+          .from("dancers")
+          .delete()
+          .eq("id", dancerId)
+          .is("profile_id", null);
+        if (!dancerDelErr) purgedProfile = true;
+      }
+    } catch (e) {
+      console.error("[deleteVisaApplication] profile cleanup failed (non-fatal):", e);
+    }
+  }
+
+  revalidatePath("/admin/visa");
+  return { ok: true, data: { purgedProfile } };
+}
