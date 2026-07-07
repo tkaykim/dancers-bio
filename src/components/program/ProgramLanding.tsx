@@ -24,17 +24,17 @@ import { cn } from "@/lib/utils";
 
 type Lang = "en" | "ja" | "ko";
 
+// 한국어는 현재 숨김(비활성화) — /program 타깃이 해외 댄서(EN/JA)라 노출 언어는 EN·JA만.
+// (?lang=ko 직접 진입 시 렌더는 T.ko로 가능하되, 선택 버튼·팝업에는 노출하지 않음.)
 const LANGS: { code: Lang; label: string }[] = [
   { code: "en", label: "EN" },
   { code: "ja", label: "日本語" },
-  { code: "ko", label: "한국어" },
 ];
 
 // 최초 진입 언어 선택 팝업용 (모국어 표기 + 영어 병기)
 const LANG_CHOICES: { code: Lang; native: string; en: string }[] = [
   { code: "en", native: "English", en: "English" },
   { code: "ja", native: "日本語", en: "Japanese" },
-  { code: "ko", native: "한국어", en: "Korean" },
 ];
 
 // 사용자가 고른 언어를 기억해 다음 방문에 다시 묻지 않는다.
@@ -413,6 +413,18 @@ export function ProgramLanding({
   const [askLang, setAskLang] = useState(false);
   const [suggested, setSuggested] = useState<Lang>(initialLang);
 
+  // 선택한 언어를 URL(?lang=)에 반영 → 그 상태로 복붙하면 언어가 유지된 채 공유된다.
+  const syncUrlLang = (l: Lang) => {
+    if (embed) return; // iframe 내부에서는 URL 조작하지 않음
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("lang", l);
+      window.history.replaceState(null, "", url.toString());
+    } catch {
+      /* URL 조작 불가 환경 무시 */
+    }
+  };
+
   const selectLang = (l: Lang) => {
     setLang(l);
     try {
@@ -420,25 +432,36 @@ export function ProgramLanding({
     } catch {
       /* localStorage 불가 환경 무시 */
     }
+    syncUrlLang(l);
   };
 
   useEffect(() => {
     // URL에 ?lang= 로 명시했거나(embed/iframe) 진입한 경우 → 팝업 없이 그 언어 그대로.
     if (lockLang || embed) return;
-    // 이전에 고른 언어가 있으면 그대로 적용, 다시 묻지 않는다.
+    // 이전에 고른 언어가 있으면 그대로 적용 + URL에도 반영(복붙 시 언어 유지), 다시 묻지 않는다.
+    // 한국어는 현재 숨김이므로 legacy 저장값 "ko"는 무시하고 선택 팝업으로 유도.
     let saved: string | null = null;
     try {
       saved = localStorage.getItem(LANG_STORAGE_KEY);
     } catch {
       /* ignore */
     }
-    if (saved === "en" || saved === "ja" || saved === "ko") {
+    if (saved === "en" || saved === "ja") {
+      // 클라이언트 전용(localStorage) 값이라 SSR에서 알 수 없어 마운트 후 동기화가 불가피.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLang(saved);
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("lang", saved);
+        window.history.replaceState(null, "", url.toString());
+      } catch {
+        /* ignore */
+      }
       return;
     }
     // 최초 진입(깨끗한 URL) → 브라우저 언어로 추천만 하고, 자동 전환 대신 선택 팝업.
     const nav = navigator.language?.toLowerCase() ?? "";
-    const detected: Lang = nav.startsWith("ja") ? "ja" : nav.startsWith("ko") ? "ko" : "en";
+    const detected: Lang = nav.startsWith("ja") ? "ja" : "en";
     setSuggested(detected);
     setAskLang(true);
   }, [lockLang, embed]);

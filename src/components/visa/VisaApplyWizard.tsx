@@ -13,10 +13,10 @@ import { cn } from "@/lib/utils";
 
 type Lang = "en" | "ja" | "ko";
 
+// 한국어는 현재 숨김(비활성화) — 노출 언어는 EN·JA만. (?lang=ko 직접 진입 렌더는 유지)
 const LANGS: { code: Lang; label: string }[] = [
   { code: "en", label: "EN" },
   { code: "ja", label: "日本語" },
-  { code: "ko", label: "한국어" },
 ];
 
 const MESSENGER_TYPES = [
@@ -334,6 +334,17 @@ export function VisaApplyWizard({
   source?: "visa" | "program";
 }) {
   const [lang, setLang] = useState<Lang>(initialLang);
+  // 언어 전환 시 URL(?lang=)도 갱신 → 그 상태로 복붙하면 언어가 유지된다.
+  const pickLang = (l: Lang) => {
+    setLang(l);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("lang", l);
+      window.history.replaceState(null, "", url.toString());
+    } catch {
+      /* URL 조작 불가 환경 무시 */
+    }
+  };
   const [idx, setIdx] = useState(0);
   const [a, setA] = useState<Answers>(initialAnswers);
   const [error, setError] = useState<string | null>(null);
@@ -407,7 +418,7 @@ export function VisaApplyWizard({
 
   if (done) {
     return (
-      <Shell lang={lang} setLang={setLang} progress={100} stepLabel="">
+      <Shell lang={lang} setLang={pickLang} progress={100} stepLabel="">
         <div className="flex flex-1 flex-col items-center justify-center px-2 py-10 text-center">
           <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-primary">
             <Check className="size-6 text-primary-foreground" />
@@ -434,7 +445,7 @@ export function VisaApplyWizard({
   const progress = visible > 0 ? Math.round((seen / visible) * 100) : 0;
 
   return (
-    <Shell lang={lang} setLang={setLang} progress={progress} stepLabel={`${seen} / ${visible}`}>
+    <Shell lang={lang} setLang={pickLang} progress={progress} stepLabel={`${seen} / ${visible}`}>
       <div className="flex flex-1 flex-col">
         <div key={idx} className="flex-1 animate-in fade-in slide-in-from-bottom-2 pt-6 duration-200">
           <h2 className="text-xl font-bold leading-snug tracking-tight">{s.q[lang]}</h2>
