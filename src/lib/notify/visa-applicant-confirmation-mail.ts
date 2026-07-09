@@ -36,7 +36,7 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "What happens next",
     nextHtml:
-      "We will review your information and prepare the program plan.<br>Our team will contact you individually by email once the plan is ready.<br>No action is needed from you for now.",
+      "Our team will review your application carefully.<br>After the review, we will contact you with the right program plan or a meeting option, either online or in person.<br>No action is needed from you for now.",
     copyrightNote: "This email was sent to the address used for your deetz application.",
   },
   ja: {
@@ -52,7 +52,7 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "次のご案内",
     nextHtml:
-      "ご入力内容を確認し、プログラム構成を準備いたします。<br>構成が整い次第、担当者よりご記入のメールへ個別にご連絡いたします。<br>今、特にお手続きは必要ありません。",
+      "担当者がご入力内容を確認いたします。<br>確認後、適切なプログラムまたはオンライン・対面ミーティングのご案内を個別にお送りします。<br>今、特にお手続きは必要ありません。",
     copyrightNote: "このメールはdeetz申込時の登録アドレスへ送信されました。",
   },
   ko: {
@@ -68,7 +68,7 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "다음 안내",
     nextHtml:
-      "보내주신 내용을 바탕으로 프로그램 구성을 확인하겠습니다.<br>프로그램 구성이 준비되는 대로 담당자가 입력하신 이메일로 개별 연락드리겠습니다.<br>지금 따로 하실 일은 없습니다.",
+      "담당자들이 보내주신 내용을 검수하겠습니다.<br>검수 후 적절한 프로그램이나 온라인 또는 대면 미팅을 안내드릴 예정입니다.<br>안내를 드릴 때까지 조금만 기다려 주세요.",
     copyrightNote: "이 메일은 deetz 신청 주소로 발송되었습니다.",
   },
 };
