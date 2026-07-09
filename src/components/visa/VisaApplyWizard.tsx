@@ -326,6 +326,11 @@ const initialAnswers: Answers = {
 const inputClass =
   "w-full rounded-lg border border-hairline-2 bg-surface-2 px-4 py-3 text-sm text-foreground placeholder:text-ink-4 focus:border-primary focus:outline-none";
 
+function isStepActive(step: StepDef, answers: Answers) {
+  if (!step.cond) return true;
+  return answers[step.cond[0] as keyof Answers] === step.cond[1];
+}
+
 export function VisaApplyWizard({
   initialLang = "en",
   source = "visa",
@@ -355,11 +360,7 @@ export function VisaApplyWizard({
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const t = T[lang];
-  const active = (i: number) => {
-    const s = STEPS[i];
-    if (s.cond) return a[s.cond[0] as keyof Answers] === s.cond[1];
-    return true;
-  };
+  const active = (i: number, answers = a) => isStepActive(STEPS[i], answers);
 
   const { visible, seen } = useMemo(() => {
     let vis = 0;
@@ -374,16 +375,21 @@ export function VisaApplyWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx, a]);
 
-  const go = (dir: 1 | -1) => {
+  const go = (dir: 1 | -1, answers = a) => {
     setError(null);
     let i = idx + dir;
-    while (i > 0 && i < STEPS.length && !active(i)) i += dir;
+    while (i > 0 && i < STEPS.length && !active(i, answers)) i += dir;
     if (i < 0) i = 0;
     if (i >= STEPS.length) return;
     setIdx(i);
   };
 
   const setField = (k: keyof Answers, v: string) => setA((p) => ({ ...p, [k]: v }));
+  const setFieldAndGetNext = (k: keyof Answers, v: string) => {
+    const next = { ...a, [k]: v };
+    setA(next);
+    return next;
+  };
 
   const handleSubmit = () => {
     setError(null);
@@ -457,8 +463,8 @@ export function VisaApplyWizard({
                 options={COUNTRY_OPTIONS}
                 value={a.nationality || null}
                 onChange={(v) => {
-                  setField("nationality", v);
-                  setTimeout(() => go(1), 80);
+                  const next = setFieldAndGetNext("nationality", v);
+                  setTimeout(() => go(1, next), 80);
                 }}
                 placeholder={t.search}
                 searchPlaceholder={t.search}
@@ -471,8 +477,8 @@ export function VisaApplyWizard({
                 options={VISA_OPTIONS}
                 value={a.visatype || null}
                 onChange={(v) => {
-                  setField("visatype", v);
-                  setTimeout(() => go(1), 80);
+                  const next = setFieldAndGetNext("visatype", v);
+                  setTimeout(() => go(1, next), 80);
                 }}
                 placeholder={t.vsearch}
                 searchPlaceholder={t.vsearch}
@@ -602,8 +608,8 @@ export function VisaApplyWizard({
                       key={o.v}
                       type="button"
                       onClick={() => {
-                        setField(s.k as keyof Answers, o.v);
-                        setTimeout(() => go(1), 120);
+                        const next = setFieldAndGetNext(s.k as keyof Answers, o.v);
+                        setTimeout(() => go(1, next), 120);
                       }}
                       className={cn(
                         "w-full rounded-xl border px-4 py-4 text-left text-sm transition-colors",
