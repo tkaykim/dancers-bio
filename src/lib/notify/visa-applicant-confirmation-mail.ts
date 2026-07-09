@@ -24,7 +24,7 @@ const COPY: Record<Lang, {
   copyrightNote: string;
 }> = {
   en: {
-    subject: "[deetz] We received your visa application",
+    subject: "[deetz] Your application has been received",
     tagline: "Dancer magazine &amp; casting platform",
     badge: "Application received",
     greeting: (name) => `Hi ${esc(name)},`,
@@ -36,11 +36,11 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "What happens next",
     nextHtml:
-      "We're gathering applicants and arranging schedules right now.<br>Our team will contact you individually by email once everything is ready.<br>No action is needed from you for now.",
-    copyrightNote: "This email was sent to the address used for your deetz visa application.",
+      "We will review your information and prepare the program plan.<br>Our team will contact you individually by email once the plan is ready.<br>No action is needed from you for now.",
+    copyrightNote: "This email was sent to the address used for your deetz application.",
   },
   ja: {
-    subject: "[deetz] ビザ申請を受け付けました",
+    subject: "[deetz] お申し込みを受け付けました",
     tagline: "ダンサーマガジン &amp; キャスティングプラットフォーム",
     badge: "受付完了",
     greeting: (name) => `${esc(name)}様`,
@@ -52,11 +52,11 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "次のご案内",
     nextHtml:
-      "現在、申請者を取りまとめ、日程を調整しています。<br>準備が整い次第、担当者よりご記入のメールへ個別にご連絡いたします。<br>今、特にお手続きは必要ありません。",
-    copyrightNote: "このメールはdeetzビザ支援申請の登録アドレスへ送信されました。",
+      "ご入力内容を確認し、プログラム構成を準備いたします。<br>構成が整い次第、担当者よりご記入のメールへ個別にご連絡いたします。<br>今、特にお手続きは必要ありません。",
+    copyrightNote: "このメールはdeetz申込時の登録アドレスへ送信されました。",
   },
   ko: {
-    subject: "[deetz] 비자 신청이 접수되었습니다",
+    subject: "[deetz] 신청이 접수되었습니다",
     tagline: "댄서 매거진 &amp; 캐스팅 플랫폼",
     badge: "접수 완료",
     greeting: (name) => `${esc(name)}님, 안녕하세요.`,
@@ -68,13 +68,13 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "다음 안내",
     nextHtml:
-      "현재 신청자들을 취합하고 일정을 정리하고 있어요.<br>준비되는 대로 담당자가 입력하신 이메일로 개별 연락드리겠습니다.<br>지금 따로 하실 일은 없습니다.",
-    copyrightNote: "이 메일은 deetz 비자 지원 신청 주소로 발송되었습니다.",
+      "보내주신 내용을 바탕으로 프로그램 구성을 확인하겠습니다.<br>프로그램 구성이 준비되는 대로 담당자가 입력하신 이메일로 개별 연락드리겠습니다.<br>지금 따로 하실 일은 없습니다.",
+    copyrightNote: "이 메일은 deetz 신청 주소로 발송되었습니다.",
   },
 };
 
 /**
- * 비자 온보딩 신청자에게 "접수 완료 + 취합·일정 정리 후 연락" 자동 확인 메일.
+ * 비자/프로그램 온보딩 신청자에게 "접수 완료 + 프로그램 구성 후 연락" 자동 확인 메일.
  * 제출 시 사용한 언어(en/ja/ko)로 발송. deetz 공식 메일 양식(560px 카드 + SNS 푸터) 사용. 비치명적.
  */
 export async function sendVisaApplicantConfirmationEmail(params: {
