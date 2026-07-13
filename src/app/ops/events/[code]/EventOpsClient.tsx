@@ -743,6 +743,7 @@ function QrPanel({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const frameRef = useRef<number | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null); // iOS 폴백 디코딩용 오프스크린 캔버스
   const lastScanRef = useRef<{ value: string; ts: number }>({ value: "", ts: 0 });
 
   const stopCamera = useCallback(() => {
@@ -809,11 +810,6 @@ function QrPanel({
     const BarcodeDetectorCtor = (window as unknown as {
       BarcodeDetector?: NativeBarcodeDetectorCtor;
     }).BarcodeDetector;
-    if (!BarcodeDetectorCtor) {
-      setCameraStatus("error");
-      setScanError("이 브라우저는 기본 QR 스캔을 지원하지 않습니다. 수동 입력을 사용해 주세요.");
-      return;
-    }
 
     try {
       setCameraStatus("starting");
@@ -826,22 +822,56 @@ function QrPanel({
       if (!videoRef.current) return;
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
-      const detector = new BarcodeDetectorCtor({ formats: ["qr_code"] });
       setCameraStatus("scanning");
 
-      const tick = async () => {
-        const video = videoRef.current;
-        if (!video || !streamRef.current) return;
-        try {
-          const codes = await detector.detect(video);
-          const value = codes[0]?.rawValue;
-          if (value) handleValueRef.current(value);
-        } catch {
-          setScanError("QR을 읽는 중 문제가 발생했습니다.");
-        }
+      if (BarcodeDetectorCtor) {
+        // 네이티브 경로 (안드로이드 Chrome/Edge 등) — 빠르고 정확
+        const detector = new BarcodeDetectorCtor({ formats: ["qr_code"] });
+        const tick = async () => {
+          const video = videoRef.current;
+          if (!video || !streamRef.current) return;
+          try {
+            const codes = await detector.detect(video);
+            const value = codes[0]?.rawValue;
+            if (value) handleValueRef.current(value);
+          } catch {
+            setScanError("QR을 읽는 중 문제가 발생했습니다.");
+          }
+          frameRef.current = requestAnimationFrame(tick);
+        };
         frameRef.current = requestAnimationFrame(tick);
-      };
-      frameRef.current = requestAnimationFrame(tick);
+      } else {
+        // 폴백 경로 (iOS/Safari — BarcodeDetector 미지원): jsQR로 프레임 디코드
+        const jsQR = (await import("jsqr")).default;
+        const canvas = canvasRef.current ?? document.createElement("canvas");
+        canvasRef.current = canvas;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        let lastDecode = 0;
+        const tick = () => {
+          const video = videoRef.current;
+          if (!video || !streamRef.current || !ctx) return;
+          const now = performance.now();
+          // 과부하 방지: ~120ms 간격으로만 디코드, 긴 변 최대 640px로 다운스케일
+          if (now - lastDecode > 120 && video.videoWidth > 0) {
+            lastDecode = now;
+            const scale = Math.min(1, 640 / Math.max(video.videoWidth, video.videoHeight));
+            const w = Math.round(video.videoWidth * scale);
+            const h = Math.round(video.videoHeight * scale);
+            if (canvas.width !== w) canvas.width = w;
+            if (canvas.height !== h) canvas.height = h;
+            ctx.drawImage(video, 0, 0, w, h);
+            try {
+              const img = ctx.getImageData(0, 0, w, h);
+              const code = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
+              if (code?.data) handleValueRef.current(code.data);
+            } catch {
+              /* 프레임 디코드 실패는 무시하고 다음 프레임 진행 */
+            }
+          }
+          frameRef.current = requestAnimationFrame(tick);
+        };
+        frameRef.current = requestAnimationFrame(tick);
+      }
     } catch {
       setCameraStatus("error");
       setScanError("카메라를 열지 못했습니다. 권한을 허용하거나 수동 입력을 사용해 주세요.");
