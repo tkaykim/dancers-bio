@@ -80,7 +80,8 @@ export function SearchSection({
         .is("profile_id", null)
         .eq("approval_status", "approved")
         .eq("is_active", true)
-        .or("is_verified.eq.false,is_verified.is.null")
+        // verified 큐레이션 프로필도 검색에 노출한다 — 본인이 가입 후 검색으로 찾아
+        // 클레임할 수 있어야 하고, 실제 연결은 IG 인증 + 관리자 승인으로 게이트된다.
         .order("stage_name", { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1);
       if (q) {

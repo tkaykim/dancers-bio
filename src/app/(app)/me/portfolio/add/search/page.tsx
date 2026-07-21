@@ -34,7 +34,7 @@ export default async function AddDancerSearchPage({
       .is("profile_id", null)
       .eq("approval_status", "approved")
       .eq("is_active", true)
-      .or("is_verified.eq.false,is_verified.is.null")
+      // verified 큐레이션 프로필도 검색에 노출 (클레임은 IG 인증 + 관리자 승인 게이트).
       .order("stage_name", { ascending: true })
       .range(0, PAGE_SIZE - 1),
     supabase
@@ -42,8 +42,7 @@ export default async function AddDancerSearchPage({
       .select("id", { count: "exact", head: true })
       .is("profile_id", null)
       .eq("approval_status", "approved")
-      .eq("is_active", true)
-      .or("is_verified.eq.false,is_verified.is.null"),
+      .eq("is_active", true),
   ]);
 
   return (
