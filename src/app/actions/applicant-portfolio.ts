@@ -81,15 +81,22 @@ export async function getApplicantPortfolioAction(
   if (!canManageWholeProject && !canViewChannelApplicant)
     return { ok: false, error: "권한이 없습니다." };
 
+  // 게이트(canManageProject 또는 채널 가시성)를 이미 통과했으므로, 지원자 댄서의
+  // 승인 여부(approval_status)와 무관하게 매니저(공동관리자 포함)가 전체 포트폴리오를
+  // 볼 수 있어야 한다. RLS 클라이언트는 미승인(pending) 댄서를 공동관리자에게 숨기므로
+  // (dancers_select_public: approved만 일반 노출) service-role로 읽는다.
+  // careers는 is_public=true라 RLS로도 보이지만, 헤더·SNS 정보가 담긴 dancers 행이
+  // 안 보이면 시트에 이름만 뜨는 문제가 생겨 함께 service-role로 통일한다.
+  const admin = createAdminClient();
   const [{ data: d }, { data: c }] = await Promise.all([
-    supabase
+    admin
       .from("dancers")
       .select(
         "id, stage_name, korean_name, slug, profile_img, bio, location, gender, genres, specialties, portfolio_file_url, portfolio_file_name, social_links",
       )
       .eq("id", dancerId)
       .maybeSingle(),
-    supabase
+    admin
       .from("careers")
       .select("id, type, title, date, details, is_representative, sort_order")
       .eq("dancer_id", dancerId)
@@ -126,7 +133,6 @@ export async function getApplicantPortfolioAction(
   let contactPhone: string | null = null;
   let settlement: { gross_amount: number; status: string } | null = null;
   try {
-    const admin = createAdminClient();
     const { data: st } = await admin
       .from("settlements")
       .select("gross_amount, status")
