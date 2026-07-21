@@ -44,6 +44,7 @@ type Application = {
   created_at: string;
   rejection_reason: string | null;
   recruitment_channel_id: string | null;
+  dancer_id: string | null;
   proposed_fee: number | null;
   proposed_fee_currency: string | null;
   proposed_fee_unit: string | null;
@@ -316,7 +317,7 @@ export default async function ApplicantsPage({
   const { data: rows } = await supabase
     .from("applications")
     .select(
-      `id, status, source, cover_message, created_at, rejection_reason, recruitment_channel_id,
+      `id, status, source, cover_message, created_at, rejection_reason, recruitment_channel_id, dancer_id,
        proposed_fee, proposed_fee_currency, proposed_fee_unit, fee_status, confirmed_at,
        applicant:profiles!applications_applicant_id_fkey ( id, display_name, avatar_url ),
        dancer:dancers!applications_dancer_id_fkey ( id, stage_name, korean_name, slug, profile_img, genres, location, gender ),
@@ -328,24 +329,48 @@ export default async function ApplicantsPage({
 
   const list = (rows ?? []) as unknown as Application[];
 
-  // 키(height_cm) + 의상 사이즈 — dancer_private_info는 본인+admin/owner만 RLS 허용이라,
-  // 공동관리자도 쓸 수 있게 service-role로 조회(이 페이지는 canManageProject 통과済).
-  const dancerIdsForHeight = Array.from(
-    new Set(list.map((a) => a.dancer?.id).filter((id): id is string => !!id)),
+  // 지원자 댄서 상세 + 키(height_cm) + 의상 사이즈 — service-role로 조회.
+  // 이유: 지원자 댄서는 approval_status=pending이 많고, dancers RLS(dancers_select_public)는
+  // 공동관리자(비-admin)에게 미승인 댄서를 숨긴다. RLS 임베드(a.dancer)로는 공동관리자 화면에서
+  // 이름·사진·장르·키가 전부 비고, dancerId도 null이 돼 상세 시트조차 안 뜬다.
+  // 이 페이지는 canManageProject를 이미 통과했으므로 지원자 댄서 공개필드를 service-role로 직접 읽어
+  // 승인 여부와 무관하게 매니저에게 노출한다. (dancer_private_info도 원래 admin/owner만 RLS 허용)
+  const dancerIds = Array.from(
+    new Set(list.map((a) => a.dancer_id).filter((id): id is string => !!id)),
   );
+  type DancerLite = {
+    id: string;
+    stage_name: string;
+    korean_name: string | null;
+    slug: string | null;
+    profile_img: string | null;
+    genres: string[] | null;
+    location: string | null;
+    gender: string | null;
+  };
+  const dancerById = new Map<string, DancerLite>();
   const heightByDancer = new Map<string, number>();
   const sizeByDancer = new Map<
     string,
     { top: string | null; waist: string | null; length: string | null }
   >();
-  if (dancerIdsForHeight.length > 0) {
+  if (dancerIds.length > 0) {
     const admin = createAdminClient();
-    const { data: privRows } = await admin
-      .from("dancer_private_info")
-      .select(
-        "dancer_id, height_cm, top_size, pants_waist_inch, pants_length_cm",
-      )
-      .in("dancer_id", dancerIdsForHeight);
+    const [{ data: dRows }, { data: privRows }] = await Promise.all([
+      admin
+        .from("dancers")
+        .select(
+          "id, stage_name, korean_name, slug, profile_img, genres, location, gender",
+        )
+        .in("id", dancerIds),
+      admin
+        .from("dancer_private_info")
+        .select(
+          "dancer_id, height_cm, top_size, pants_waist_inch, pants_length_cm",
+        )
+        .in("dancer_id", dancerIds),
+    ]);
+    for (const d of (dRows ?? []) as DancerLite[]) dancerById.set(d.id, d);
     for (const h of (privRows ?? []) as Array<{
       dancer_id: string;
       height_cm: number | null;
@@ -413,18 +438,22 @@ export default async function ApplicantsPage({
 
   const applicants: ConsoleApplicant[] = list.map((a) => {
     const isTeam = !!a.team;
+    // RLS 임베드(a.dancer)는 미승인 댄서를 공동관리자에게 숨기므로, service-role로 읽은
+    // dancerById를 우선 사용한다(승인 댄서는 임베드와 동일한 값이라 결과 불변).
+    const dancer =
+      a.dancer ?? (a.dancer_id ? dancerById.get(a.dancer_id) ?? null : null);
     const name = isTeam
       ? a.team?.team_name ?? "(팀)"
-      : a.dancer
-        ? a.dancer.stage_name
+      : dancer
+        ? dancer.stage_name
         : a.applicant?.display_name ?? "(알 수 없음)";
     const avatar = isTeam
       ? a.team?.profile_img ?? null
-      : a.dancer?.profile_img ?? a.applicant?.avatar_url ?? null;
+      : dancer?.profile_img ?? a.applicant?.avatar_url ?? null;
     const publicHref = isTeam
       ? `/t/${a.team?.slug ?? a.team?.id}`
-      : a.dancer
-        ? `/d/${a.dancer.slug ?? a.dancer.id}`
+      : dancer
+        ? `/d/${dancer.slug ?? dancer.id}`
         : a.applicant?.id
           ? `/u/${a.applicant.id}`
           : null;
@@ -436,14 +465,14 @@ export default async function ApplicantsPage({
       created_at: a.created_at,
       isTeam,
       name,
-      korean_name: isTeam ? null : a.dancer?.korean_name ?? null,
+      korean_name: isTeam ? null : dancer?.korean_name ?? null,
       avatar,
       publicHref,
-      dancerId: a.dancer?.id ?? null,
-      gender: isTeam ? null : a.dancer?.gender ?? null,
-      heightCm: a.dancer?.id ? heightByDancer.get(a.dancer.id) ?? null : null,
-      genres: (a.dancer?.genres ?? []) as string[],
-      location: a.dancer?.location ?? null,
+      dancerId: dancer?.id ?? a.dancer_id ?? null,
+      gender: isTeam ? null : dancer?.gender ?? null,
+      heightCm: dancer?.id ? heightByDancer.get(dancer.id) ?? null : null,
+      genres: (dancer?.genres ?? []) as string[],
+      location: dancer?.location ?? null,
       rejection_reason: a.rejection_reason ?? null,
       recruitmentChannelId: a.recruitment_channel_id ?? null,
       recruitmentChannelName: a.recruitment_channel_id
