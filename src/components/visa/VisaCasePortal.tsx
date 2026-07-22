@@ -333,7 +333,7 @@ const OPERATIONS_COPY: Record<Lang, {
   evaluationResults: Record<string, string>;
 }> = {
   en: {
-    title: "Confirmed schedule and results",
+    title: "Audition schedule and results",
     auditionAt: "Audition lesson",
     auditionLocation: "Location",
     auditionResult: "Audition result",
@@ -345,7 +345,7 @@ const OPERATIONS_COPY: Record<Lang, {
     evaluationResults: { pass: "Passed — visa preparation", continue: "Continue training", hold: "On hold" },
   },
   ja: {
-    title: "確定した日程と結果",
+    title: "オーディション日程と結果",
     auditionAt: "オーディションレッスン",
     auditionLocation: "場所",
     auditionResult: "オーディション結果",
@@ -357,7 +357,7 @@ const OPERATIONS_COPY: Record<Lang, {
     evaluationResults: { pass: "合格 — ビザ準備へ", continue: "トレーニング継続", hold: "保留" },
   },
   ko: {
-    title: "확정 일정과 결과",
+    title: "오디션 일정·결과",
     auditionAt: "오디션 레슨",
     auditionLocation: "장소",
     auditionResult: "오디션 결과",
