@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Stamp,
   Users,
+  Video,
   X,
 } from "lucide-react";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
@@ -252,7 +253,7 @@ const T: Record<Lang, Copy> = {
     eyebrow: "K-DEBUT · by deetz × GRIGO Entertainment",
     title1: "Build your dance career",
     title2: "in Korea — all the way.",
-    sub: "Start with one choreographer-led audition lesson and a filmed level test. Pass and move directly to visa preparation; if you need more preparation, continue through professional training and a month-end evaluation.",
+    sub: "Start with a Zoom consultation, then join a choreographer-led audition lesson and filmed level test. Auditions are planned once in August and once in September near Hapjeong or Sinchon.",
     eligibility:
       "Already in Korea, or still abroad and planning to come — either way, you can apply. We support your move and visa from wherever you are.",
     painTitle: "Does this sound like you?",
@@ -265,7 +266,8 @@ const T: Record<Lang, Copy> = {
     painClose: "One consultation covers all of it — career path, visa, housing, and your first casting.",
     pillarsTitle: "What's in the program",
     pillars: [
-      { title: "Audition lesson & filming", body: "A working choreographer leads one lesson, and the filmed result becomes your practical level test." },
+      { title: "Zoom consultation first", body: "Share three Zoom meeting time options so we can confirm your route before the audition." },
+      { title: "Audition lesson & filming", body: "A working choreographer leads one lesson near Hapjeong or Sinchon, and the filmed result becomes your practical level test." },
       { title: "Direct visa track", body: "If you pass the level test, we begin the visa document and application process right away." },
       { title: "Conditional professional training", body: "If you need more preparation, you enter a training track with an affiliated dance academy and working professionals." },
       { title: "Month-end evaluation", body: "Your evaluation determines whether you move into visa preparation or continue training with a clear next target." },
@@ -273,8 +275,8 @@ const T: Record<Lang, Copy> = {
     ],
     howTitle: "How it works",
     steps: [
-      { title: "Apply & consult — free", body: "We confirm your current visa, location, career evidence, goals, and available dates." },
-      { title: "One audition lesson", body: "A choreographer runs the lesson and we film the result for a practical level test." },
+      { title: "Apply & Zoom consult — free", body: "We confirm your current visa, location, career evidence, goals, and three possible Zoom times." },
+      { title: "One audition lesson", body: "A choreographer runs the lesson at a dance studio near Hapjeong or Sinchon, with one session planned in August and one in September." },
       { title: "Follow your result", body: "Pass and start visa preparation immediately, or join professional training and take a month-end evaluation." },
       { title: "Visa & project opportunities", body: "We support the visa process and let you apply to matching deetz projects without guaranteeing approval or work." },
     ],
@@ -300,7 +302,7 @@ const T: Record<Lang, Copy> = {
       { q: "Is work guaranteed?", a: "No honest agency can guarantee castings. What we do promise: real submissions to real jobs through deetz and GRIGO's network, and transparent feedback." },
     ],
     cta: "Apply now — free",
-    ctaSub: "Takes about 3 minutes. We reply with a consultation slot.",
+    ctaSub: "Takes about 3 minutes. We reply to arrange a Zoom consultation first.",
     disclaimer: "Visa approval is decided by Korea Immigration, and casting is decided by each project. deetz provides preparation, application support, and project opportunities, but does not guarantee a visa or work.",
     sheetCredits: "Selected work",
     sheetProfile: "View deetz profile",
@@ -309,7 +311,7 @@ const T: Record<Lang, Copy> = {
     eyebrow: "K-DEBUT · deetz × GRIGO Entertainment",
     title1: "韓国でダンスを、",
     title2: "仕事にする。",
-    sub: "振付師による1回のオーディションレッスンと撮影レベルテストから始まります。合格すればすぐにビザ準備へ進み、補完が必要な場合は専門トレーニングと月末評価を行います。",
+    sub: "まずZoom相談を行い、その後、振付師によるオーディションレッスンと撮影レベルテストに進みます。オーディションは8月に1回、9月に1回、合井または新村近くで実施予定です。",
     eligibility:
       "すでに韓国にいる方も、これから韓国に来て活動したい海外の方も、どなたでも応募できます。今いる場所から、渡航とビザをサポートします。",
     painTitle: "こんな状況ではありませんか？",
@@ -322,7 +324,8 @@ const T: Record<Lang, Copy> = {
     painClose: "キャリア・ビザ・住まい・最初のキャスティングまで、一度のカウンセリングでまとめて答えます。",
     pillarsTitle: "プログラム内容",
     pillars: [
-      { title: "オーディションレッスン・撮影", body: "現役の振付師が1回のレッスンを行い、撮影した結果を実技レベルテストとして確認します。" },
+      { title: "まずZoom相談", body: "Zoom相談が可能な日時を3つ共有いただき、オーディション前に経路を確認します。" },
+      { title: "オーディションレッスン・撮影", body: "現役の振付師が合井または新村近くで1回のレッスンを行い、撮影した結果を実技レベルテストとして確認します。" },
       { title: "ビザへ直接進むルート", body: "レベルテストに合格した場合は、すぐにビザ書類の準備と申請手続きを開始します。" },
       { title: "必要な方のみ専門トレーニング", body: "補完が必要な場合は、提携ダンスアカデミーと現役専門家によるトレーニングを受講します。" },
       { title: "月末評価", body: "月末評価の結果により、ビザ準備へ進むか、次の目標を設定してトレーニングを継続します。" },
@@ -330,8 +333,8 @@ const T: Record<Lang, Copy> = {
     ],
     howTitle: "進め方",
     steps: [
-      { title: "無料応募・相談", body: "現在のビザ、居住地、活動経歴、目標、可能な日程を確認します。" },
-      { title: "1回のオーディションレッスン", body: "振付師がレッスンを行い、撮影結果を含めて実技レベルを確認します。" },
+      { title: "無料応募・Zoom相談", body: "現在のビザ、居住地、活動経歴、目標、Zoom相談が可能な3つの日程を確認します。" },
+      { title: "1回のオーディションレッスン", body: "8月に1回、9月に1回、合井または新村近くのダンススタジオで実施予定です。" },
       { title: "結果に応じて分岐", body: "合格すればすぐにビザ準備へ進み、補完が必要な場合は専門トレーニングと月末評価を行います。" },
       { title: "ビザ・案件機会", body: "ビザ手続きをサポートし、deetz案件へ応募できる機会を提供しますが、発給や仕事は保証されません。" },
     ],
@@ -357,7 +360,7 @@ const T: Record<Lang, Copy> = {
       { q: "お仕事は保証されますか？", a: "誠実なエージェンシーはキャスティングを保証できません。約束できるのは：deetzとGRIGOのネットワークを通じた本物の案件への推薦と、透明なフィードバックです。" },
     ],
     cta: "無料で応募する",
-    ctaSub: "約3分。カウンセリング日程をご連絡します。",
+    ctaSub: "約3分。まずZoom相談の日程をご連絡します。",
     disclaimer: "ビザ発給は韓国の出入国当局が、キャスティングは各プロジェクトが判断します。deetzは準備・申請支援と案件機会を提供しますが、ビザや仕事を保証しません。",
     sheetCredits: "主な活動",
     sheetProfile: "deetzプロフィールを見る",
@@ -366,7 +369,7 @@ const T: Record<Lang, Copy> = {
     eyebrow: "K-DEBUT · deetz × 그리고엔터테인먼트",
     title1: "한국에서 댄스 커리어를,",
     title2: "처음부터 끝까지.",
-    sub: "안무가가 진행하는 오디션 레슨 1회와 촬영 영상 레벨테스트로 시작합니다. 통과하면 바로 비자 준비로 이동하고, 보완이 필요하면 전문 트레이닝과 월말평가를 진행합니다.",
+    sub: "먼저 Zoom 상담으로 경로를 확인한 뒤, 안무가 오디션 레슨 1회와 촬영 영상 레벨테스트를 진행합니다. 오디션은 8월 1회, 9월 1회 합정 또는 신촌 근방에서 진행할 예정입니다.",
     eligibility:
       "한국에 이미 계신 분도, 지금 해외에 있고 한국에 들어와 활동하고 싶은 분도 모두 지원할 수 있어요. 어디에 계시든 입국과 비자까지 함께 준비합니다.",
     painTitle: "혹시 지금 이런 상황인가요?",
@@ -379,7 +382,8 @@ const T: Record<Lang, Copy> = {
     painClose: "커리어, 비자, 주거, 첫 캐스팅까지. 한 번의 상담에서 종합적으로 답해드립니다.",
     pillarsTitle: "프로그램 구성",
     pillars: [
-      { title: "오디션 레슨·촬영", body: "현역 안무가가 레슨 1회를 진행하고, 촬영 결과를 실기 레벨테스트로 평가합니다." },
+      { title: "Zoom 상담 먼저", body: "Zoom 미팅 가능한 일정 3개를 받아 오디션 전 비자 경로와 진행 가능성을 확인합니다." },
+      { title: "오디션 레슨·촬영", body: "현역 안무가가 합정 또는 신촌 근방에서 레슨 1회를 진행하고, 촬영 결과를 실기 레벨테스트로 평가합니다." },
       { title: "비자 직행 트랙", body: "레벨테스트를 통과하면 바로 비자 서류 준비와 신청 절차를 시작합니다." },
       { title: "조건부 전문 트레이닝", body: "보완이 필요할 때만 제휴 댄스학원과 현업 전문가의 트레이닝을 수강합니다." },
       { title: "월말평가", body: "평가 결과에 따라 비자 준비로 이동하거나 다음 목표를 정해 트레이닝을 이어갑니다." },
@@ -387,8 +391,8 @@ const T: Record<Lang, Copy> = {
     ],
     howTitle: "진행 방식",
     steps: [
-      { title: "무료 지원·상담", body: "현재 비자, 거주지, 활동 경력, 목표, 가능한 일정을 확인합니다." },
-      { title: "오디션 레슨 1회", body: "안무가가 레슨을 진행하고, 촬영 결과를 포함해 실기 레벨을 확인합니다." },
+      { title: "무료 지원·Zoom 상담", body: "현재 비자, 거주지, 활동 경력, 목표, Zoom 미팅 가능한 일정 3개를 확인합니다." },
+      { title: "오디션 레슨 1회", body: "8월 1회, 9월 1회 합정 또는 신촌 근방 댄스 스튜디오에서 진행할 예정입니다." },
       { title: "결과에 따라 분기", body: "통과하면 즉시 비자 준비로 이동하고, 보완이 필요하면 전문 트레이닝과 월말평가를 진행합니다." },
       { title: "비자·프로젝트 기회", body: "비자 절차를 지원하고 deetz 프로젝트 지원 기회를 제공하되, 발급이나 일거리를 보장하지 않습니다." },
     ],
@@ -414,14 +418,14 @@ const T: Record<Lang, Copy> = {
       { q: "일이 보장되나요?", a: "캐스팅을 100% 보장한다고 말하는 곳은 믿기 어렵죠. 저희는 deetz와 GRIGO 네트워크로 실제 일감에 계속 추천하고, 결과를 투명하게 알려드립니다." },
     ],
     cta: "무료로 지원하기",
-    ctaSub: "약 3분이면 끝나요. 검토 후 상담 일정을 회신드립니다.",
+    ctaSub: "약 3분이면 끝나요. 검토 후 먼저 Zoom 상담 일정을 조율합니다.",
     disclaimer: "비자 발급은 한국 출입국 당국이, 캐스팅은 각 프로젝트가 결정합니다. deetz는 준비·신청 지원과 프로젝트 기회를 제공하지만 비자나 일거리를 보장하지 않습니다.",
     sheetCredits: "주요 활동",
     sheetProfile: "deetz 프로필 보기",
   },
 };
 
-const PILLAR_ICONS = [Music4, Languages, BookOpenText, Stamp, Briefcase];
+const PILLAR_ICONS = [Video, Music4, Languages, BookOpenText, Stamp, Briefcase];
 const PAIN_ICONS = [HelpCircle, AlertTriangle, Home, Users];
 
 export function ProgramLanding({

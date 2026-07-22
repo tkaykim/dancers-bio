@@ -18,7 +18,7 @@ const followUpSchema = z.object({
   visaExpiry: optionalDate,
   residenceCountry: z.string().trim().max(120),
   immigrationHistory: z.enum(["none", "needs_review", "private_consultation"]),
-  auditionAvailability: z.string().trim().min(2).max(1500),
+  auditionAvailability: z.string().trim().max(1500),
   careerHighlights: z.string().trim().max(3000),
   contractReadiness: z.enum(["ready", "needs_translation", "needs_explanation"]),
   settlementNeeds: z
@@ -58,7 +58,7 @@ export async function submitVisaCaseFollowUpAction(
       project_opportunity_opt_in: projectOpportunityOptIn,
       case_stage: "triage_submitted",
       status: "reviewing",
-      next_action: "오디션 일정 협의",
+      next_action: "Zoom 상담 일정 협의",
     })
     .eq("id", applicationId)
     .select("id")

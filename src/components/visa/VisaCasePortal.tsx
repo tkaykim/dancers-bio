@@ -107,10 +107,10 @@ const COPY: Record<Lang, Copy> = {
     next: "Next action",
     programTitle: "How the program works",
     program: [
-      { title: "Audition lesson", body: "A choreographer leads one lesson and we film the result for a level test." },
+      { title: "Zoom consultation", body: "First, we confirm your visa route and schedule through a Zoom meeting." },
+      { title: "Audition lesson", body: "The audition lesson is planned once in August and once in September at a dance studio near Hapjeong or Sinchon." },
       { title: "Pass", body: "If you pass, we begin the visa preparation process right away." },
       { title: "Training track", body: "If more preparation is needed, you join our affiliated academy training and take a month-end evaluation." },
-      { title: "Next decision", body: "After the evaluation, we decide whether to move into visa preparation or continue training." },
     ],
     price: "Base guide price: about ₩4,000,000",
     priceDetail: "The final quote may be lower or higher after consultation, depending on your visa route, training needs, and optional support.",
@@ -119,14 +119,14 @@ const COPY: Record<Lang, Copy> = {
     existing: "Already received",
     edit: "Update my information",
     submitted: "Additional information received",
-    submittedBody: "We will use these answers to arrange your audition and consultation.",
+    submittedBody: "We will use these answers to arrange your Zoom consultation first.",
     continue: "Continue",
     back: "Back",
     submit: "Submit information",
     submitting: "Submitting…",
     updated: "Your information has been saved.",
     step1: "Goal and visa readiness",
-    step2: "Audition and career",
+    step2: "Audition plan and career",
     step3: "Support and confirmation",
     goal: "What is your main goal?",
     goalOptions: [
@@ -144,8 +144,8 @@ const COPY: Record<Lang, Copy> = {
       { value: "needs_review", label: "Yes, I need a review" },
       { value: "private_consultation", label: "I prefer to discuss this privately" },
     ],
-    auditionAvailability: "When can you attend an audition lesson?",
-    auditionHelp: "Give us several dates, times, and whether you can attend in Seoul or need an online first review.",
+    auditionAvailability: "Audition attendance notes (optional)",
+    auditionHelp: "The audition lesson is not fixed yet. It is planned once in August and once in September at a dance studio near Hapjeong or Sinchon in Seoul.",
     career: "Recent credits or career evidence not already submitted",
     careerHelp: "List up to three recent projects, artists, stages, awards, or links.",
     contract: "Are you ready to review and sign a Korean work contract?",
@@ -165,7 +165,7 @@ const COPY: Record<Lang, Copy> = {
     projectOptIn: "I want to receive deetz project opportunities that match my profile.",
     projectHelp: "This is permission to share opportunities, not a promise of casting or paid work.",
     timezone: "Your time zone",
-    consultation: "Give us at least three consultation time options",
+    consultation: "Give us three Zoom meeting time options",
     processAck: "I understand that the audition result determines whether I move directly to visa preparation or first enter the training track.",
     priceAck: "I understand that ₩4,000,000 is a guide price and the final amount may decrease or increase after consultation.",
     required: "Please complete the required fields and confirmations.",
@@ -178,10 +178,10 @@ const COPY: Record<Lang, Copy> = {
     next: "次のアクション",
     programTitle: "プログラムの流れ",
     program: [
-      { title: "オーディションレッスン", body: "振付師によるレッスンを1回行い、撮影した映像も含めてレベルを確認します。" },
+      { title: "Zoom相談", body: "まずZoomでビザ経路とスケジュールを確認します。" },
+      { title: "オーディションレッスン", body: "オーディションレッスンは8月に1回、9月に1回、ソウルの合井または新村近くのダンススタジオで実施予定です。" },
       { title: "合格", body: "合格した場合は、すぐにビザ準備へ進みます。" },
       { title: "トレーニング", body: "補完が必要な場合は提携ダンスアカデミーの専門トレーニングを受講し、月末評価を行います。" },
-      { title: "次の判断", body: "月末評価後、ビザ準備へ進むか、トレーニングを継続するかを決定します。" },
     ],
     price: "基本目安料金：約400万ウォン",
     priceDetail: "ビザ経路、トレーニング、追加サポートにより、最終費用は相談後に安くなる場合も高くなる場合もあります。",
@@ -190,14 +190,14 @@ const COPY: Record<Lang, Copy> = {
     existing: "確認済み情報",
     edit: "情報を更新する",
     submitted: "追加情報を受け付けました",
-    submittedBody: "回答をもとにオーディションとカウンセリングの日程をご案内します。",
+    submittedBody: "回答をもとに、まずZoom相談の日程をご案内します。",
     continue: "次へ",
     back: "戻る",
     submit: "情報を送信",
     submitting: "送信中…",
     updated: "情報を保存しました。",
     step1: "目標とビザ準備",
-    step2: "オーディションと経歴",
+    step2: "オーディション予定と経歴",
     step3: "サポートと確認",
     goal: "主な目標を選んでください。",
     goalOptions: [
@@ -215,8 +215,8 @@ const COPY: Record<Lang, Copy> = {
       { value: "needs_review", label: "あります。確認が必要です" },
       { value: "private_consultation", label: "個別相談で話したいです" },
     ],
-    auditionAvailability: "オーディションレッスンに参加できる日時",
-    auditionHelp: "複数の候補日時と、ソウルで参加可能か、最初にオンライン確認が必要かを記入してください。",
+    auditionAvailability: "オーディション参加に関する補足（任意）",
+    auditionHelp: "オーディション日程は未定です。8月に1回、9月に1回、ソウルの合井または新村近くのダンススタジオで実施予定です。",
     career: "未提出の最近の主な経歴",
     careerHelp: "最近の案件、アーティスト、舞台、受賞歴、リンクを最大3件まで記入してください。",
     contract: "韓国の業務契約書を確認し、署名できますか？",
@@ -236,7 +236,7 @@ const COPY: Record<Lang, Copy> = {
     projectOptIn: "プロフィールに合うdeetzプロジェクトの案内を受け取ります。",
     projectHelp: "案件案内への同意であり、キャスティングや有償の仕事を約束するものではありません。",
     timezone: "タイムゾーン",
-    consultation: "相談可能な日時を3つ以上記入してください。",
+    consultation: "Zoom相談が可能な日時を3つ記入してください。",
     processAck: "オーディション結果により、すぐにビザ準備へ進むか、先にトレーニングを受けるかが決まることを理解しました。",
     priceAck: "400万ウォンは目安であり、相談後に最終費用が増減する可能性があることを理解しました。",
     required: "必須項目と確認事項を入力してください。",
@@ -249,10 +249,10 @@ const COPY: Record<Lang, Copy> = {
     next: "다음 할 일",
     programTitle: "프로그램 진행 방식",
     program: [
-      { title: "오디션 레슨", body: "안무가가 레슨 1회를 진행하고, 촬영 영상을 포함해 레벨을 평가합니다." },
+      { title: "Zoom 상담", body: "먼저 Zoom 미팅으로 비자 경로와 진행 일정을 확인합니다." },
+      { title: "오디션 레슨", body: "오디션 레슨은 8월 1회, 9월 1회 합정 또는 신촌 근방 댄스 스튜디오에서 진행할 예정입니다." },
       { title: "통과", body: "레벨테스트를 통과하면 즉시 비자 준비 절차를 시작합니다." },
       { title: "트레이닝", body: "보완이 필요하면 제휴 댄스학원의 전문 트레이닝을 수강하고 월말평가를 진행합니다." },
-      { title: "다음 판단", body: "월말평가 결과에 따라 비자 준비로 이동하거나 트레이닝을 이어갑니다." },
     ],
     price: "기본 안내 단가 약 400만원",
     priceDetail: "비자 경로, 트레이닝 필요 여부, 추가 지원 범위에 따라 상담 후 최종 비용이 내려가거나 추가될 수 있습니다.",
@@ -261,14 +261,14 @@ const COPY: Record<Lang, Copy> = {
     existing: "이미 확인한 정보",
     edit: "정보 수정하기",
     submitted: "추가 정보가 접수됐어요",
-    submittedBody: "답변을 바탕으로 오디션과 상담 일정을 안내하겠습니다.",
+    submittedBody: "답변을 바탕으로 먼저 Zoom 상담 일정을 안내하겠습니다.",
     continue: "다음",
     back: "이전",
     submit: "정보 제출하기",
     submitting: "제출 중…",
     updated: "정보가 저장됐어요.",
     step1: "목표와 비자 준비 상태",
-    step2: "오디션과 활동 경력",
+    step2: "오디션 예정과 활동 경력",
     step3: "지원 항목과 확인",
     goal: "가장 중요한 목표는 무엇인가요?",
     goalOptions: [
@@ -286,8 +286,8 @@ const COPY: Record<Lang, Copy> = {
       { value: "needs_review", label: "있음, 사전 검토 필요" },
       { value: "private_consultation", label: "개별 상담에서 설명 희망" },
     ],
-    auditionAvailability: "오디션 레슨이 가능한 날짜와 시간",
-    auditionHelp: "가능한 후보를 여러 개 적고, 서울 대면 참석 가능 여부 또는 온라인 사전 확인 필요 여부도 알려주세요.",
+    auditionAvailability: "오디션 참석 관련 참고사항 (선택)",
+    auditionHelp: "오디션 일정은 아직 미정입니다. 8월 1회, 9월 1회 합정 또는 신촌 근방 댄스 스튜디오에서 진행할 예정입니다.",
     career: "아직 제출하지 않은 최근 주요 경력",
     careerHelp: "최근 프로젝트, 참여 아티스트, 무대, 수상 이력이나 링크를 최대 3개까지 적어주세요.",
     contract: "한국어 업무 계약서를 검토하고 서명할 준비가 됐나요?",
@@ -307,7 +307,7 @@ const COPY: Record<Lang, Copy> = {
     projectOptIn: "내 프로필에 맞는 deetz 프로젝트 기회를 안내받겠습니다.",
     projectHelp: "프로젝트 안내 수신 동의이며, 캐스팅이나 유급 일감을 약속하는 것은 아닙니다.",
     timezone: "현재 시간대",
-    consultation: "상담 가능한 날짜와 시간을 3개 이상 적어주세요.",
+    consultation: "Zoom 미팅 가능한 날짜와 시간을 3개 적어주세요.",
     processAck: "오디션 결과에 따라 바로 비자 준비로 가거나, 먼저 트레이닝을 받게 된다는 점을 이해했습니다.",
     priceAck: "400만원은 기본 안내 단가이며, 상담 후 최종 비용이 내려가거나 추가될 수 있다는 점을 이해했습니다.",
     required: "필수 항목과 확인 사항을 모두 입력해 주세요.",
@@ -444,7 +444,7 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
   const canContinue = step === 0
     ? Boolean(goal && immigrationHistory && (initial.hasVisa ? visaExpiry : passportExpiry) && (initial.currentlyInKorea !== false || residenceCountry))
     : step === 1
-      ? Boolean(auditionAvailability.trim() && contractReadiness)
+      ? Boolean(contractReadiness)
       : Boolean(timezone.trim() && consultation.trim() && processAck && priceAck);
 
   const operationalDetails = [
@@ -544,7 +544,7 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
         </div>
         <div>
           <p className="text-xs text-ink-3">{t.next}</p>
-          <p className="mt-1 font-semibold text-foreground">{initial.nextAction || (lang === "ko" ? "오디션 일정 협의" : lang === "ja" ? "オーディション日程の調整" : "Arrange audition date")}</p>
+          <p className="mt-1 font-semibold text-foreground">{initial.nextAction || (lang === "ko" ? "Zoom 상담 일정 협의" : lang === "ja" ? "Zoom相談日程の調整" : "Arrange Zoom consultation")}</p>
         </div>
       </section>
 

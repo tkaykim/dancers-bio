@@ -76,7 +76,7 @@ const T: Record<Lang, Dict> = {
     consent: "I agree to deetz handling my info for visa support.",
     done_title: "Got it — application received",
     done_body:
-      "Next, complete your case information so we can arrange the audition lesson and filmed level test.",
+      "Next, complete your case information and share three Zoom meeting time options.",
     done_extra: "Base guide price is about ₩4,000,000. The final quote may be lower or higher after consultation.",
     case_portal: "Continue to my case",
     name_l: "Full name (passport)",
@@ -99,7 +99,7 @@ const T: Record<Lang, Dict> = {
     consent: "ビザ支援のための個人情報の取り扱いに同意します。",
     done_title: "申請を受け付けました",
     done_body:
-      "次に、オーディションレッスンと撮影レベルテストの日程調整に必要な追加情報をご入力ください。",
+      "次に、追加情報とZoom相談が可能な日時を3つご入力ください。",
     done_extra: "基本目安料金は約400万ウォンで、最終費用は相談後に増減する場合があります。",
     case_portal: "専用ページへ進む",
     name_l: "氏名（パスポート）",
@@ -122,7 +122,7 @@ const T: Record<Lang, Dict> = {
     consent: "비자 지원을 위한 개인정보 처리에 동의합니다.",
     done_title: "신청이 접수됐어요",
     done_body:
-      "이어서 오디션 레슨과 영상 레벨테스트 일정을 잡기 위한 추가 정보를 입력해 주세요.",
+      "이어서 추가 정보와 Zoom 미팅 가능한 일정 3개를 입력해 주세요.",
     done_extra: "기본 안내 단가는 약 400만원이며, 상담 후 최종 비용이 내려가거나 추가될 수 있습니다.",
     case_portal: "내 케이스 계속 작성하기",
     name_l: "이름 (여권)",
