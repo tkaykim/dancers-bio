@@ -12,12 +12,12 @@ const ANSWER_LABELS: Record<string, string> = {
   visaExpiry: "현재 비자 만료일",
   residenceCountry: "현재 거주 국가",
   immigrationHistory: "출입국 이력 검토",
-  auditionAvailability: "오디션 가능 일정",
+  auditionAvailability: "오디션 참석 참고사항",
   careerHighlights: "추가 주요 경력",
   contractReadiness: "계약 검토 준비",
   settlementNeeds: "정착 지원 필요",
   consultationTimezone: "시간대",
-  consultationAvailability: "상담 가능 일정",
+  consultationAvailability: "Zoom 상담 가능 일정",
 };
 
 const ANSWER_VALUES: Record<string, string> = {
@@ -175,7 +175,7 @@ export function VisaCaseOpsEditor({ row }: { row: VisaAdminRow }) {
       <OpsGroup title="1. 오디션 레슨 · 영상 레벨테스트">
         <div className="grid gap-3 md:grid-cols-2">
           <Input label="오디션 일시"><input type="datetime-local" value={auditionAt} onChange={(e) => setAuditionAt(e.target.value)} className="admin-input" /></Input>
-          <Input label="장소·방식"><input value={auditionLocation} onChange={(e) => setAuditionLocation(e.target.value)} placeholder="예: 서울 ○○스튜디오" className="admin-input" /></Input>
+          <Input label="장소·방식"><input value={auditionLocation} onChange={(e) => setAuditionLocation(e.target.value)} placeholder="예: 합정 또는 신촌 근방 댄스 스튜디오" className="admin-input" /></Input>
           <Input label="진행 상태"><select value={auditionStatus} onChange={(e) => setAuditionStatus(e.target.value)} className="admin-input"><option value="not_scheduled">미정</option><option value="scheduled">일정 확정</option><option value="completed">진행 완료</option><option value="cancelled">취소</option><option value="no_show">노쇼</option></select></Input>
           <Input label="레벨테스트 결과"><select value={auditionResult} onChange={(e) => setAuditionResult(e.target.value)} className="admin-input"><option value="pending">평가 대기</option><option value="pass">통과 → 비자 준비</option><option value="training_required">트레이닝 필요</option><option value="no_show">노쇼</option></select></Input>
           <Input label="결과 영상 URL" full><input value={levelTestVideoUrl} onChange={(e) => setLevelTestVideoUrl(e.target.value)} placeholder="https://" className="admin-input" /></Input>
