@@ -10,6 +10,7 @@ import { buildSocialUrl, type SocialPlatform } from "@/lib/utils/social";
 import { slugify } from "@/lib/utils/slug";
 import { sendVisaApplicationEmail } from "@/lib/notify/visa-application-mail";
 import { sendVisaApplicantConfirmationEmail } from "@/lib/notify/visa-applicant-confirmation-mail";
+import { makeVisaCaseToken } from "@/lib/quick-token";
 import type { ActionResult } from "./auth";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -88,7 +89,7 @@ function socialLinksFromContacts(
  */
 export async function submitVisaApplicationAction(
   input: VisaSubmitInput,
-): Promise<ActionResult<{ applicationId: string; dancerId: string; profileUrl: string | null }>> {
+): Promise<ActionResult<{ applicationId: string; dancerId: string; profileUrl: string | null; caseUrl: string }>> {
   const parsed = submitSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요." };
@@ -170,6 +171,7 @@ export async function submitVisaApplicationAction(
   const profileUrl = finalSlug
     ? `${SITE_URL}/d/${finalSlug}`
     : `${SITE_URL}/d/${dancerId}`;
+  const caseUrl = `${SITE_URL}/visa/case/${makeVisaCaseToken(appRow.id as string)}`;
 
   // 운영자 메일 (비치명적)
   try {
@@ -203,13 +205,14 @@ export async function submitVisaApplicationAction(
       to: d.email,
       name: stageName,
       lang: d.lang,
+      caseUrl,
     });
   } catch (e) {
     console.error("[submitVisaApplication] applicant mail failed (non-fatal):", e);
   }
 
   revalidatePath("/admin/visa");
-  return { ok: true, data: { applicationId: appRow.id as string, dancerId, profileUrl } };
+  return { ok: true, data: { applicationId: appRow.id as string, dancerId, profileUrl, caseUrl } };
 }
 
 // ── 어드민: 신청 상태/메모/담당자 갱신 ──────────────────────────────────────
@@ -250,6 +253,105 @@ export async function updateVisaApplicationAction(
 
   const client = createAdminClient();
   const { error } = await client.from("dancer_visa_applications").update(patch).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admin/visa");
+  return { ok: true };
+}
+
+// ── 어드민: 오디션 → 조건부 트레이닝 → 월말평가 → 비자 운영 ───────────────
+
+const caseOperationsSchema = z.object({
+  id: z.string().uuid(),
+  auditionAt: z.string().datetime().nullable(),
+  auditionLocation: z.string().trim().max(500).nullable(),
+  auditionStatus: z.enum(["not_scheduled", "scheduled", "completed", "cancelled", "no_show"]),
+  auditionResult: z.enum(["pending", "pass", "training_required", "no_show"]),
+  auditionFeedback: z.string().trim().max(4000).nullable(),
+  levelTestVideoUrl: z.string().url().max(1000).nullable(),
+  trainingRequired: z.boolean().nullable(),
+  trainingPartner: z.string().trim().max(300).nullable(),
+  trainingStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  trainingEndDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  trainingStatus: z.enum(["not_required", "planned", "in_progress", "completed", "paused"]),
+  monthlyEvaluationAt: z.string().datetime().nullable(),
+  monthlyEvaluationResult: z.enum(["pending", "pass", "continue", "hold"]),
+  quotedPriceKrw: z.number().int().min(0).max(100_000_000).nullable(),
+  quoteNote: z.string().trim().max(2000).nullable(),
+  nextAction: z.string().trim().max(1000).nullable(),
+});
+
+export type VisaCaseOperationsInput = z.input<typeof caseOperationsSchema>;
+
+export async function updateVisaCaseOperationsAction(
+  input: VisaCaseOperationsInput,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = caseOperationsSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요." };
+  }
+  const d = parsed.data;
+  const patch: Record<string, unknown> = {
+    audition_at: d.auditionAt,
+    audition_location: d.auditionLocation,
+    audition_status: d.auditionStatus,
+    audition_result: d.auditionResult,
+    audition_feedback: d.auditionFeedback,
+    level_test_video_url: d.levelTestVideoUrl,
+    training_required: d.trainingRequired,
+    training_partner: d.trainingPartner,
+    training_start_date: d.trainingStartDate,
+    training_end_date: d.trainingEndDate,
+    training_status: d.trainingStatus,
+    monthly_evaluation_at: d.monthlyEvaluationAt,
+    monthly_evaluation_result: d.monthlyEvaluationResult,
+    quoted_price_krw: d.quotedPriceKrw,
+    quote_note: d.quoteNote,
+    next_action: d.nextAction,
+  };
+
+  // 결과를 저장하는 순간 운영 단계도 함께 이동시켜 분기 누락을 막는다.
+  if (d.monthlyEvaluationResult === "pass") {
+    patch.case_stage = "visa_documents";
+    patch.status = "documents";
+    patch.training_status = "completed";
+  } else if (d.monthlyEvaluationResult === "continue") {
+    patch.case_stage = "training";
+    patch.status = "education";
+    patch.training_required = true;
+  } else if (d.monthlyEvaluationResult === "hold") {
+    patch.case_stage = "on_hold";
+    patch.status = "on_hold";
+  } else if (d.monthlyEvaluationAt && d.monthlyEvaluationResult === "pending") {
+    patch.case_stage = "monthly_evaluation";
+    patch.status = "education";
+  } else if (d.auditionResult === "pass") {
+    patch.case_stage = "visa_documents";
+    patch.status = "documents";
+    patch.training_required = false;
+    patch.training_status = "not_required";
+  } else if (d.auditionResult === "training_required") {
+    patch.case_stage = "training";
+    patch.status = "education";
+    patch.training_required = true;
+    if (d.trainingStatus === "not_required") patch.training_status = "planned";
+  } else if (d.auditionResult === "no_show" || d.auditionStatus === "no_show") {
+    patch.case_stage = "on_hold";
+    patch.status = "on_hold";
+  } else if (d.trainingRequired && ["planned", "in_progress", "completed", "paused"].includes(d.trainingStatus)) {
+    patch.case_stage = "training";
+    patch.status = d.trainingStatus === "paused" ? "on_hold" : "education";
+  } else if (d.auditionStatus === "completed") {
+    patch.case_stage = "audition_complete";
+    patch.status = "reviewing";
+  } else if (d.auditionStatus === "scheduled") {
+    patch.case_stage = "audition_scheduled";
+    patch.status = "reviewing";
+  }
+
+  const client = createAdminClient();
+  const { error } = await client.from("dancer_visa_applications").update(patch).eq("id", d.id);
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/admin/visa");

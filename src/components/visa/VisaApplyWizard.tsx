@@ -53,6 +53,7 @@ type Dict = {
   done_title: string;
   done_body: string;
   done_extra: string;
+  case_portal: string;
   name_l: string;
   stage_l: string;
   same: string;
@@ -75,8 +76,9 @@ const T: Record<Lang, Dict> = {
     consent: "I agree to deetz handling my info for visa support.",
     done_title: "Got it — application received",
     done_body:
-      "A deetz coordinator will reach out at the email you gave us once we've gathered applicants and sorted out the schedule.",
-    done_extra: "In the meantime, follow @deetz.kr.",
+      "Next, complete your case information so we can arrange the audition lesson and filmed level test.",
+    done_extra: "Base guide price is about ₩4,000,000. The final quote may be lower or higher after consultation.",
+    case_portal: "Continue to my case",
     name_l: "Full name (passport)",
     stage_l: "Stage name (optional)",
     same: "Same as my name",
@@ -97,8 +99,9 @@ const T: Record<Lang, Dict> = {
     consent: "ビザ支援のための個人情報の取り扱いに同意します。",
     done_title: "申請を受け付けました",
     done_body:
-      "申請者と日程を取りまとめ次第、ご記入のメールへdeetz担当者よりご連絡します。",
-    done_extra: "それまで@deetz.krをフォローしてください。",
+      "次に、オーディションレッスンと撮影レベルテストの日程調整に必要な追加情報をご入力ください。",
+    done_extra: "基本目安料金は約400万ウォンで、最終費用は相談後に増減する場合があります。",
+    case_portal: "専用ページへ進む",
     name_l: "氏名（パスポート）",
     stage_l: "活動名（任意）",
     same: "氏名と同じ",
@@ -119,8 +122,9 @@ const T: Record<Lang, Dict> = {
     consent: "비자 지원을 위한 개인정보 처리에 동의합니다.",
     done_title: "신청이 접수됐어요",
     done_body:
-      "신청자와 일정을 취합하는 대로 deetz 담당자가 입력하신 이메일로 연락드립니다.",
-    done_extra: "그동안 @deetz.kr 팔로우해 주세요.",
+      "이어서 오디션 레슨과 영상 레벨테스트 일정을 잡기 위한 추가 정보를 입력해 주세요.",
+    done_extra: "기본 안내 단가는 약 400만원이며, 상담 후 최종 비용이 내려가거나 추가될 수 있습니다.",
+    case_portal: "내 케이스 계속 작성하기",
     name_l: "이름 (여권)",
     stage_l: "활동명 (선택)",
     same: "이름과 동일",
@@ -354,7 +358,7 @@ export function VisaApplyWizard({
   const [a, setA] = useState<Answers>(initialAnswers);
   const [error, setError] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
-  const [done, setDone] = useState<{ profileUrl: string | null } | null>(null);
+  const [done, setDone] = useState<{ profileUrl: string | null; caseUrl: string } | null>(null);
   const [pending, startTransition] = useTransition();
   // 입국 가능일은 과거 선택 불가 (오늘 이후만).
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -418,7 +422,7 @@ export function VisaApplyWizard({
         setError(res.error || t.err);
         return;
       }
-      setDone({ profileUrl: res.data?.profileUrl ?? null });
+      setDone({ profileUrl: res.data?.profileUrl ?? null, caseUrl: res.data?.caseUrl ?? "/program" });
     });
   };
 
@@ -432,12 +436,18 @@ export function VisaApplyWizard({
           <h2 className="mb-2 text-lg font-bold tracking-tight">{t.done_title}</h2>
           <p className="mb-1.5 max-w-xs text-sm leading-relaxed text-ink-2">{t.done_body}</p>
           <p className="text-xs text-ink-3">{t.done_extra}</p>
+          <a
+            href={done.caseUrl}
+            className="mt-5 inline-flex items-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            {t.case_portal}
+          </a>
           {done.profileUrl ? (
             <a
               href={done.profileUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-5 rounded-lg border border-hairline-2 px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
+              className="mt-2 rounded-lg border border-hairline-2 px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
             >
               {t.view_profile}
             </a>
