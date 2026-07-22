@@ -320,6 +320,77 @@ const STAGE_LABEL: Record<Lang, Record<string, string>> = {
   ko: { application_received: "지원서 접수", triage_submitted: "추가 정보 검토", audition_scheduled: "오디션 예정", audition_complete: "오디션 완료", training: "전문 트레이닝", monthly_evaluation: "월말평가", visa_documents: "비자 서류 준비", visa_submitted: "비자 신청 접수", complete: "완료", on_hold: "보류" },
 };
 
+const OPERATIONS_COPY: Record<Lang, {
+  title: string;
+  auditionAt: string;
+  auditionLocation: string;
+  auditionResult: string;
+  trainingPartner: string;
+  trainingPeriod: string;
+  evaluationAt: string;
+  evaluationResult: string;
+  auditionResults: Record<string, string>;
+  evaluationResults: Record<string, string>;
+}> = {
+  en: {
+    title: "Confirmed schedule and results",
+    auditionAt: "Audition lesson",
+    auditionLocation: "Location",
+    auditionResult: "Audition result",
+    trainingPartner: "Training partner",
+    trainingPeriod: "Training period",
+    evaluationAt: "Month-end evaluation",
+    evaluationResult: "Evaluation result",
+    auditionResults: { pass: "Passed — visa preparation", training_required: "Training required", no_show: "No-show" },
+    evaluationResults: { pass: "Passed — visa preparation", continue: "Continue training", hold: "On hold" },
+  },
+  ja: {
+    title: "確定した日程と結果",
+    auditionAt: "オーディションレッスン",
+    auditionLocation: "場所",
+    auditionResult: "オーディション結果",
+    trainingPartner: "提携トレーニング先",
+    trainingPeriod: "トレーニング期間",
+    evaluationAt: "月末評価",
+    evaluationResult: "評価結果",
+    auditionResults: { pass: "合格 — ビザ準備へ", training_required: "トレーニングが必要", no_show: "不参加" },
+    evaluationResults: { pass: "合格 — ビザ準備へ", continue: "トレーニング継続", hold: "保留" },
+  },
+  ko: {
+    title: "확정 일정과 결과",
+    auditionAt: "오디션 레슨",
+    auditionLocation: "장소",
+    auditionResult: "오디션 결과",
+    trainingPartner: "연계 트레이닝 기관",
+    trainingPeriod: "트레이닝 기간",
+    evaluationAt: "월말평가",
+    evaluationResult: "평가 결과",
+    auditionResults: { pass: "통과 — 비자 준비 진행", training_required: "전문 트레이닝 필요", no_show: "불참" },
+    evaluationResults: { pass: "통과 — 비자 준비 진행", continue: "트레이닝 계속", hold: "보류" },
+  },
+};
+
+const PORTAL_LOCALE: Record<Lang, string> = { en: "en-US", ja: "ja-JP", ko: "ko-KR" };
+
+function formatPortalDateTime(value: string, lang: Lang): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(PORTAL_LOCALE[lang], {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Seoul",
+  }).format(date);
+}
+
+function formatPortalDate(value: string, lang: Lang): string {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return new Intl.DateTimeFormat(PORTAL_LOCALE[lang], {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, month - 1, day)));
+}
+
 function textValue(answers: Answers, key: string): string {
   return typeof answers[key] === "string" ? (answers[key] as string) : "";
 }
@@ -353,6 +424,7 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
   const [processAck, setProcessAck] = useState(a.processAcknowledged === true);
   const [priceAck, setPriceAck] = useState(a.priceAcknowledged === true);
   const t = COPY[lang];
+  const operationsCopy = OPERATIONS_COPY[lang];
 
   const existing = useMemo(() => {
     const visaHeld = lang === "ko" ? "한국 비자 보유" : lang === "ja" ? "韓国ビザあり" : "Korean visa held";
@@ -374,6 +446,36 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
     : step === 1
       ? Boolean(auditionAvailability.trim() && contractReadiness)
       : Boolean(timezone.trim() && consultation.trim() && processAck && priceAck);
+
+  const operationalDetails = [
+    initial.auditionAt
+      ? { label: operationsCopy.auditionAt, value: formatPortalDateTime(initial.auditionAt, lang) }
+      : null,
+    initial.auditionLocation
+      ? { label: operationsCopy.auditionLocation, value: initial.auditionLocation }
+      : null,
+    initial.auditionResult !== "pending"
+      ? { label: operationsCopy.auditionResult, value: operationsCopy.auditionResults[initial.auditionResult] ?? initial.auditionResult }
+      : null,
+    initial.trainingPartner
+      ? { label: operationsCopy.trainingPartner, value: initial.trainingPartner }
+      : null,
+    initial.trainingStartDate || initial.trainingEndDate
+      ? {
+          label: operationsCopy.trainingPeriod,
+          value: [initial.trainingStartDate, initial.trainingEndDate]
+            .map((value) => value ? formatPortalDate(value, lang) : "")
+            .filter(Boolean)
+            .join(" — "),
+        }
+      : null,
+    initial.monthlyEvaluationAt
+      ? { label: operationsCopy.evaluationAt, value: formatPortalDateTime(initial.monthlyEvaluationAt, lang) }
+      : null,
+    initial.monthlyEvaluationResult !== "pending"
+      ? { label: operationsCopy.evaluationResult, value: operationsCopy.evaluationResults[initial.monthlyEvaluationResult] ?? initial.monthlyEvaluationResult }
+      : null,
+  ].filter((detail): detail is { label: string; value: string } => Boolean(detail?.value));
 
   const toggleNeed = (value: string) => {
     setSettlementNeeds((prev) => {
@@ -445,6 +547,23 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
           <p className="mt-1 font-semibold text-foreground">{initial.nextAction || (lang === "ko" ? "오디션 일정 협의" : lang === "ja" ? "オーディション日程の調整" : "Arrange audition date")}</p>
         </div>
       </section>
+
+      {operationalDetails.length > 0 ? (
+        <section className="mt-4 rounded-2xl border border-primary/25 bg-primary/5 p-5">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="size-5 text-primary" />
+            <h2 className="font-bold">{operationsCopy.title}</h2>
+          </div>
+          <dl className="mt-4 grid gap-3 md:grid-cols-2">
+            {operationalDetails.map((detail) => (
+              <div key={detail.label} className="rounded-xl border border-hairline-2 bg-background/90 p-3.5">
+                <dt className="text-xs text-ink-3">{detail.label}</dt>
+                <dd className="mt-1 text-sm font-semibold leading-relaxed text-foreground">{detail.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
 
       <section className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-5">
         <div className="flex items-center gap-2">
