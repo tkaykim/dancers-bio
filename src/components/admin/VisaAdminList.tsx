@@ -8,6 +8,7 @@ import {
   updateVisaApplicationAction,
 } from "@/app/actions/visa";
 import { Drawer } from "@/components/ui/drawer";
+import { VisaCaseOpsEditor } from "@/components/admin/VisaCaseOpsEditor";
 import { cn } from "@/lib/utils";
 
 export type VisaAdminRow = {
@@ -33,6 +34,41 @@ export type VisaAdminRow = {
   nationality: string | null;
   has_visa: boolean | null;
   visa_label: string | null;
+  case_url: string;
+  case_stage: string;
+  audition_at: string | null;
+  audition_location: string | null;
+  audition_status: string;
+  audition_result: string;
+  audition_feedback: string | null;
+  level_test_video_url: string | null;
+  training_required: boolean | null;
+  training_partner: string | null;
+  training_start_date: string | null;
+  training_end_date: string | null;
+  training_status: string;
+  monthly_evaluation_at: string | null;
+  monthly_evaluation_result: string;
+  base_price_krw: number;
+  quoted_price_krw: number | null;
+  quote_note: string | null;
+  follow_up_answers: Record<string, unknown>;
+  follow_up_submitted_at: string | null;
+  project_opportunity_opt_in: boolean | null;
+  next_action: string | null;
+};
+
+const CASE_STAGE: Record<string, string> = {
+  application_received: "지원서 접수",
+  triage_submitted: "추가정보 검토",
+  audition_scheduled: "오디션 예정",
+  audition_complete: "오디션 완료",
+  training: "전문 트레이닝",
+  monthly_evaluation: "월말평가",
+  visa_documents: "비자 서류 준비",
+  visa_submitted: "비자 신청 접수",
+  complete: "완료",
+  on_hold: "보류",
 };
 
 const STATUS: { v: string; l: string }[] = [
@@ -119,6 +155,10 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
                     month: "2-digit",
                     day: "2-digit",
                   })}
+                </p>
+                <p className="mt-1 text-[11px] font-medium text-ink-2">
+                  {CASE_STAGE[r.case_stage] ?? r.case_stage}
+                  {r.follow_up_submitted_at ? " · 질문지 완료" : ""}
                 </p>
               </div>
               <span
@@ -278,6 +318,8 @@ function VisaDetail({
           댄스 영상 <ExternalLink className="size-3.5" />
         </a>
       ) : null}
+
+      <VisaCaseOpsEditor row={row} />
 
       {/* 상태·메모 편집 */}
       <div className="flex flex-col gap-2 border-t border-hairline-2 pt-4">

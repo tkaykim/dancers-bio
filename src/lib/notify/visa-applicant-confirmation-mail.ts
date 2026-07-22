@@ -21,6 +21,7 @@ const COPY: Record<Lang, {
   bodyText: string[];
   nextTitle: string;
   nextHtml: string;
+  linkLabel: string;
   copyrightNote: string;
 }> = {
   en: {
@@ -36,7 +37,8 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "What happens next",
     nextHtml:
-      "Our team will review your application carefully.<br>After the review, we will contact you with the right program plan or a meeting option, either online or in person.<br>No action is needed from you for now.",
+      "Please complete the short case form below so we can arrange your audition date.<br>A choreographer will lead one lesson and we will use the filmed result as a level test.<br>If you pass, we begin visa preparation immediately.<br>If more preparation is needed, you enter our affiliated academy training and take a month-end evaluation.<br>The base guide price is about ₩4,000,000, and the final quote may be lower or higher after consultation.<br>deetz project opportunities may be offered, but work and visa approval are not guaranteed.",
+    linkLabel: "Complete my case information",
     copyrightNote: "This email was sent to the address used for your deetz application.",
   },
   ja: {
@@ -52,7 +54,8 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "次のご案内",
     nextHtml:
-      "担当者がご入力内容を確認いたします。<br>確認後、適切なプログラムまたはオンライン・対面ミーティングのご案内を個別にお送りします。<br>今、特にお手続きは必要ありません。",
+      "下の専用フォームに追加情報をご入力ください。<br>振付師によるレッスンを1回行い、撮影映像を含めてレベルを確認します。<br>合格した場合はすぐにビザ準備へ進み、補完が必要な場合は提携アカデミーのトレーニングと月末評価を行います。<br>基本目安料金は約400万ウォンで、最終費用は相談後に安くなる場合も高くなる場合もあります。<br>deetzの案件をご案内する場合がありますが、仕事とビザ発給を保証するものではありません。",
+    linkLabel: "追加情報を入力する",
     copyrightNote: "このメールはdeetz申込時の登録アドレスへ送信されました。",
   },
   ko: {
@@ -68,7 +71,8 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "다음 안내",
     nextHtml:
-      "담당자들이 보내주신 내용을 검수하겠습니다.<br>검수 후 적절한 프로그램이나 온라인 또는 대면 미팅을 안내드릴 예정입니다.<br>안내를 드릴 때까지 조금만 기다려 주세요.",
+      "아래 전용 질문지에 추가 정보를 입력해 주세요.<br>안무가가 레슨 1회를 진행하고 촬영 영상을 포함해 레벨을 평가합니다.<br>통과하면 즉시 비자 준비로 이동하고, 보완이 필요하면 제휴 학원 전문 트레이닝과 월말평가를 진행합니다.<br>기본 안내 단가는 약 400만원이며, 상담 후 최종 비용이 내려가거나 추가될 수 있습니다.<br>deetz 프로젝트 기회를 안내할 수 있지만 일거리와 비자 발급을 보장하지는 않습니다.",
+    linkLabel: "추가 정보 입력하기",
     copyrightNote: "이 메일은 deetz 신청 주소로 발송되었습니다.",
   },
 };
@@ -81,6 +85,7 @@ export async function sendVisaApplicantConfirmationEmail(params: {
   to: string;
   name: string;
   lang: string | null;
+  caseUrl: string;
 }): Promise<{ ok: boolean; error?: string }> {
   if (!params.to) return { ok: false, error: "no_recipient" };
   const lang: Lang = params.lang === "ja" || params.lang === "ko" ? params.lang : "en";
@@ -94,6 +99,8 @@ export async function sendVisaApplicantConfirmationEmail(params: {
     "",
     `[${c.nextTitle}]`,
     ...c.nextHtml.replace(/<br>/g, "\n").split("\n"),
+    "",
+    `${c.linkLabel}: ${params.caseUrl}`,
     "",
     "deetz · deetz.kr · dancers.bio.kr@gmail.com",
   ].join("\n");
@@ -111,7 +118,8 @@ export async function sendVisaApplicantConfirmationEmail(params: {
 <tr><td style="padding:18px 32px 6px;">
   <div style="background:#f6f6f7;border:1px solid #ececef;border-radius:14px;padding:16px 18px;">
     <div style="font-size:13px;font-weight:700;color:#111111;margin-bottom:8px;">${esc(c.nextTitle)}</div>
-    <div style="font-size:14px;line-height:1.75;color:#33363b;">${c.nextHtml}</div></div></td></tr>
+    <div style="font-size:14px;line-height:1.75;color:#33363b;">${c.nextHtml}</div>
+    <a href="${esc(params.caseUrl)}" style="display:inline-block;margin-top:14px;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:11px 16px;border-radius:10px;">${esc(c.linkLabel)}</a></div></td></tr>
 <tr><td style="padding:22px 32px 28px;border-top:1px solid #ececef;background:#fafafa;">
   <img src="https://www.deetz.kr/brand/deetz-logo-black.png" alt="deetz" width="41" height="20" style="display:block;height:20px;width:auto;border:0;">
   <div style="font-size:12px;color:#6b7280;margin:10px 0 14px;">${c.tagline}</div>

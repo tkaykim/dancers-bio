@@ -3,6 +3,7 @@ import { requireProfile } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { visaLabel } from "@/lib/data/korea-visas";
 import { VisaAdminList, type VisaAdminRow } from "@/components/admin/VisaAdminList";
+import { makeVisaCaseToken } from "@/lib/quick-token";
 
 export const metadata = { title: "비자 신청 관리 | deetz admin" };
 
@@ -23,7 +24,30 @@ type AppRow = {
   preferred_lang: string | null;
   source: string | null;
   dancer_id: string | null;
+  case_stage?: string | null;
+  audition_at?: string | null;
+  audition_location?: string | null;
+  audition_status?: string | null;
+  audition_result?: string | null;
+  audition_feedback?: string | null;
+  level_test_video_url?: string | null;
+  training_required?: boolean | null;
+  training_partner?: string | null;
+  training_start_date?: string | null;
+  training_end_date?: string | null;
+  training_status?: string | null;
+  monthly_evaluation_at?: string | null;
+  monthly_evaluation_result?: string | null;
+  base_price_krw?: number | null;
+  quoted_price_krw?: number | null;
+  quote_note?: string | null;
+  follow_up_answers?: Record<string, unknown> | null;
+  follow_up_submitted_at?: string | null;
+  project_opportunity_opt_in?: boolean | null;
+  next_action?: string | null;
 };
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://deetz.kr";
 
 export default async function AdminVisaPage() {
   const profile = await requireProfile();
@@ -33,9 +57,7 @@ export default async function AdminVisaPage() {
   const admin = createAdminClient();
   const { data: appsRaw } = await admin
     .from("dancer_visa_applications")
-    .select(
-      "id, created_at, status, memo, skill_level, korean_level, dance_video_url, currently_in_korea, has_residence_in_korea, residence_region, available_entry_date, email, contacts, preferred_lang, source, dancer_id",
-    )
+    .select("*")
     .order("created_at", { ascending: false })
     .limit(300);
 
@@ -101,6 +123,28 @@ export default async function AdminVisaPage() {
       nationality: p?.nationality ?? null,
       has_visa: p?.has_visa ?? null,
       visa_label: p?.visa_type ? visaLabel(p.visa_type) : null,
+      case_url: `${SITE_URL}/visa/case/${makeVisaCaseToken(a.id)}`,
+      case_stage: a.case_stage ?? "application_received",
+      audition_at: a.audition_at ?? null,
+      audition_location: a.audition_location ?? null,
+      audition_status: a.audition_status ?? "not_scheduled",
+      audition_result: a.audition_result ?? "pending",
+      audition_feedback: a.audition_feedback ?? null,
+      level_test_video_url: a.level_test_video_url ?? null,
+      training_required: a.training_required ?? null,
+      training_partner: a.training_partner ?? null,
+      training_start_date: a.training_start_date ?? null,
+      training_end_date: a.training_end_date ?? null,
+      training_status: a.training_status ?? "not_required",
+      monthly_evaluation_at: a.monthly_evaluation_at ?? null,
+      monthly_evaluation_result: a.monthly_evaluation_result ?? "pending",
+      base_price_krw: a.base_price_krw ?? 4_000_000,
+      quoted_price_krw: a.quoted_price_krw ?? null,
+      quote_note: a.quote_note ?? null,
+      follow_up_answers: a.follow_up_answers ?? {},
+      follow_up_submitted_at: a.follow_up_submitted_at ?? null,
+      project_opportunity_opt_in: a.project_opportunity_opt_in ?? null,
+      next_action: a.next_action ?? null,
     };
   });
 

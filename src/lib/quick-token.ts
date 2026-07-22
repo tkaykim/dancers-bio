@@ -69,3 +69,34 @@ export function verifyProjectSurveyToken(
     return null;
   }
 }
+
+// 비자 프로그램 신청자 전용 케이스 포털 토큰.
+// payload에 vc: prefix를 붙여 다른 매직링크 토큰과 용도를 분리한다.
+export function makeVisaCaseToken(applicationId: string): string {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY 미설정");
+  const payload = `vc:${applicationId}`;
+  return `${Buffer.from(payload, "utf8").toString("base64url")}.${sign(payload, key)}`;
+}
+
+export function verifyVisaCaseToken(token: string): string | null {
+  try {
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!key || !token) return null;
+    const dot = token.lastIndexOf(".");
+    if (dot < 1) return null;
+    const payload = Buffer.from(token.slice(0, dot), "base64url").toString("utf8");
+    const sig = token.slice(dot + 1);
+    const expected = sign(payload, key);
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+    const applicationId = payload.startsWith("vc:") ? payload.slice(3) : "";
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(applicationId)) {
+      return null;
+    }
+    return applicationId;
+  } catch {
+    return null;
+  }
+}

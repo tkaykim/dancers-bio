@@ -56,6 +56,8 @@ type Copy = {
   pillars: Pillar[];
   howTitle: string;
   steps: Step[];
+  priceTitle: string;
+  priceBody: string;
   rosterTitle: string;
   rosterNote: string;
   protectTitle: string;
@@ -250,7 +252,7 @@ const T: Record<Lang, Copy> = {
     eyebrow: "K-DEBUT · by deetz × GRIGO Entertainment",
     title1: "Build your dance career",
     title2: "in Korea — all the way.",
-    sub: "One program from training to your first paid job in Korea: dance training, Korean language, industry know-how, E-6-1 visa support, and real work through our agency pool.",
+    sub: "Start with one choreographer-led audition lesson and a filmed level test. Pass and move directly to visa preparation; if you need more preparation, continue through professional training and a month-end evaluation.",
     eligibility:
       "Already in Korea, or still abroad and planning to come — either way, you can apply. We support your move and visa from wherever you are.",
     painTitle: "Does this sound like you?",
@@ -263,19 +265,21 @@ const T: Record<Lang, Copy> = {
     painClose: "One consultation covers all of it — career path, visa, housing, and your first casting.",
     pillarsTitle: "What's in the program",
     pillars: [
-      { title: "Dance training", body: "A training system connected to professional dance academies and working K-pop choreographers in Seoul — matched to your level." },
-      { title: "Korean language", body: "Practical Korean for daily life, rehearsals, and sets — enough to work, not just to travel." },
-      { title: "Industry education", body: "How the Korean entertainment industry actually works: castings, contracts, fees, and set etiquette." },
-      { title: "E-6-1 visa support", body: "We help you prepare and submit the E-6-1 (Arts & Entertainment) visa application — the visa that lets you perform and get paid legally." },
-      { title: "Real work via deetz", body: "Music videos, shows, and performances through the deetz casting pool and GRIGO's network — the goal is your first paid credit, not just classes." },
+      { title: "Audition lesson & filming", body: "A working choreographer leads one lesson, and the filmed result becomes your practical level test." },
+      { title: "Direct visa track", body: "If you pass the level test, we begin the visa document and application process right away." },
+      { title: "Conditional professional training", body: "If you need more preparation, you enter a training track with an affiliated dance academy and working professionals." },
+      { title: "Month-end evaluation", body: "Your evaluation determines whether you move into visa preparation or continue training with a clear next target." },
+      { title: "deetz project opportunities", body: "You may apply to matching deetz projects while building your profile. Casting and paid work are opportunities, not guarantees." },
     ],
     howTitle: "How it works",
     steps: [
-      { title: "Apply — free", body: "A short application: your background, level, visa status, and timing." },
-      { title: "Consultation", body: "We review your case and design your track — training, language, visa, housing, schedule." },
-      { title: "Train & prepare", body: "Dance + Korean + industry classes while your visa documents are prepared." },
-      { title: "Work", body: "Get cast through deetz — MVs, stages, and shows, with contracts done right." },
+      { title: "Apply & consult — free", body: "We confirm your current visa, location, career evidence, goals, and available dates." },
+      { title: "One audition lesson", body: "A choreographer runs the lesson and we film the result for a practical level test." },
+      { title: "Follow your result", body: "Pass and start visa preparation immediately, or join professional training and take a month-end evaluation." },
+      { title: "Visa & project opportunities", body: "We support the visa process and let you apply to matching deetz projects without guaranteeing approval or work." },
     ],
+    priceTitle: "Base guide price · about ₩4,000,000",
+    priceBody: "Your final quote is confirmed after consultation and may be lower or higher depending on the visa route, training needs, and optional support.",
     rosterTitle: "Dancers already working with GRIGO",
     rosterNote: "GRIGO Entertainment is a dancer-first management & agency. Several of the dancers below actually moved to Korea from the US and Japan and are working on E-6 visas right now. Tap a card to see their full history.",
     protectTitle: "We protect dancers",
@@ -289,15 +293,15 @@ const T: Record<Lang, Copy> = {
     whoBody: "GRIGO Entertainment is a dancer-first management & agency founded in 2019, with deep experience across choreography production, dancer dispatch, broadcast, and advertising. deetz is its casting platform where Korean dancers and clients already work every day. You train inside a working agency, not a classroom.",
     faqTitle: "Questions",
     faqs: [
-      { q: "How much does it cost?", a: "The application and consultation are free. Program pricing depends on your track (length, housing, visa route) — we explain everything clearly in the consultation before you commit." },
-      { q: "How good do I need to be?", a: "We review every application — level, potential, and goals. You don't need to be a finished pro; you need to be serious." },
-      { q: "I only need the visa, not the training.", a: "Select 'Ready to work on site now' and submit as much of your work as you can — portfolio, SNS links, credits. Our coordinator will review it and guide you from there." },
+      { q: "How much does it cost?", a: "The application and consultation are free. The base guide price is about ₩4,000,000. Your final quote may be lower or higher after consultation depending on your route and support needs." },
+      { q: "How good do I need to be?", a: "The audition lesson and filmed level test decide your route. A pass moves directly to visa preparation; otherwise, we recommend professional training and a month-end evaluation." },
+      { q: "I only need the visa, not the training.", a: "You still take the audition level test. If you pass, training is not mandatory and we can begin visa preparation right away." },
       { q: "I'm not in Korea yet — can I apply?", a: "Yes. Tell us when you can enter Korea and we'll plan your track around it." },
       { q: "Is work guaranteed?", a: "No honest agency can guarantee castings. What we do promise: real submissions to real jobs through deetz and GRIGO's network, and transparent feedback." },
     ],
     cta: "Apply now — free",
     ctaSub: "Takes about 3 minutes. We reply with a consultation slot.",
-    disclaimer: "Visa approval is decided by Korea Immigration; this is preparation and application support, not legal advice. Program details are confirmed individually in the consultation.",
+    disclaimer: "Visa approval is decided by Korea Immigration, and casting is decided by each project. deetz provides preparation, application support, and project opportunities, but does not guarantee a visa or work.",
     sheetCredits: "Selected work",
     sheetProfile: "View deetz profile",
   },
@@ -305,7 +309,7 @@ const T: Record<Lang, Copy> = {
     eyebrow: "K-DEBUT · deetz × GRIGO Entertainment",
     title1: "韓国でダンスを、",
     title2: "仕事にする。",
-    sub: "ダンストレーニング、韓国語、業界教育、E-6-1ビザサポート、そしてdeetzのキャスティングプールを通じた初めてのお仕事まで。すべてをひとつのプログラムで。",
+    sub: "振付師による1回のオーディションレッスンと撮影レベルテストから始まります。合格すればすぐにビザ準備へ進み、補完が必要な場合は専門トレーニングと月末評価を行います。",
     eligibility:
       "すでに韓国にいる方も、これから韓国に来て活動したい海外の方も、どなたでも応募できます。今いる場所から、渡航とビザをサポートします。",
     painTitle: "こんな状況ではありませんか？",
@@ -318,19 +322,21 @@ const T: Record<Lang, Copy> = {
     painClose: "キャリア・ビザ・住まい・最初のキャスティングまで、一度のカウンセリングでまとめて答えます。",
     pillarsTitle: "プログラム内容",
     pillars: [
-      { title: "ダンストレーニング", body: "ソウルの専門ダンスアカデミーと現役K-POPコレオグラファーが連携したトレーニングシステム。レベルに合わせて進めます。" },
-      { title: "韓国語教育", body: "生活・リハーサル・現場で使える実践韓国語。旅行会話ではなく、仕事のための言葉。" },
-      { title: "業界教育", body: "韓国エンタメ業界のリアル：キャスティングの流れ、契約、ギャラ、現場マナー。" },
-      { title: "E-6-1ビザサポート", body: "合法的に公演し報酬を得られるE-6-1（芸術興行）ビザの準備・申請をサポート。" },
-      { title: "deetz経由で実際のお仕事へ", body: "deetzのキャスティングプールとGRIGOのネットワークで、MV・ステージ・公演へ。レッスンで終わらせず、初めてのクレジットまで。" },
+      { title: "オーディションレッスン・撮影", body: "現役の振付師が1回のレッスンを行い、撮影した結果を実技レベルテストとして確認します。" },
+      { title: "ビザへ直接進むルート", body: "レベルテストに合格した場合は、すぐにビザ書類の準備と申請手続きを開始します。" },
+      { title: "必要な方のみ専門トレーニング", body: "補完が必要な場合は、提携ダンスアカデミーと現役専門家によるトレーニングを受講します。" },
+      { title: "月末評価", body: "月末評価の結果により、ビザ準備へ進むか、次の目標を設定してトレーニングを継続します。" },
+      { title: "deetzプロジェクトの機会", body: "プロフィールに合うdeetz案件へ応募できます。キャスティングや有償の仕事を保証するものではありません。" },
     ],
     howTitle: "進め方",
     steps: [
-      { title: "無料で応募", body: "経歴・レベル・ビザ状況・時期を伝える簡単な応募フォーム。" },
-      { title: "カウンセリング", body: "状況を確認し、トレーニング・語学・ビザ・住まい・スケジュールのトラックを設計。" },
-      { title: "トレーニング＆準備", body: "ダンス＋韓国語＋業界教育。並行してビザ書類を準備。" },
-      { title: "お仕事へ", body: "deetz経由でキャスティング。契約はきちんと書面で交わします。" },
+      { title: "無料応募・相談", body: "現在のビザ、居住地、活動経歴、目標、可能な日程を確認します。" },
+      { title: "1回のオーディションレッスン", body: "振付師がレッスンを行い、撮影結果を含めて実技レベルを確認します。" },
+      { title: "結果に応じて分岐", body: "合格すればすぐにビザ準備へ進み、補完が必要な場合は専門トレーニングと月末評価を行います。" },
+      { title: "ビザ・案件機会", body: "ビザ手続きをサポートし、deetz案件へ応募できる機会を提供しますが、発給や仕事は保証されません。" },
     ],
+    priceTitle: "基本目安料金 · 約400万ウォン",
+    priceBody: "ビザ経路、トレーニングの必要性、追加サポートにより、相談後の最終費用は安くなる場合も高くなる場合もあります。",
     rosterTitle: "GRIGOで活動中のダンサーたち",
     rosterNote: "GRIGO Entertainmentはダンサー専門のマネジメント＆エージェンシー。下のダンサーの多くは、実際にアメリカや日本から韓国に渡り、E-6ビザで活動しています。カードをタップすると活動履歴が見られます。",
     protectTitle: "ダンサーを守ります",
@@ -344,15 +350,15 @@ const T: Record<Lang, Copy> = {
     whoBody: "GRIGO Entertainmentは2019年設立のダンサー専門マネジメント＆エージェンシー。振付制作、ダンサー派遣、放送、広告まで、数多くのプロジェクトを手がけてきました。deetzは韓国のダンサーとクライアントが日々使っている、GRIGOのキャスティングプラットフォームです。このプログラムに入るということは、ただレッスンを受けることではなく、実際にキャスティングが動くエージェンシーの中でキャリアを始めるということです。",
     faqTitle: "よくある質問",
     faqs: [
-      { q: "費用はいくらですか？", a: "応募とカウンセリングは無料です。プログラム費用はトラック（期間・住居・ビザルート）により異なり、決定前のカウンセリングですべて明確にご説明します。" },
-      { q: "どのくらいのレベルが必要ですか？", a: "レベル・伸びしろ・目標を見て、すべての応募を審査します。完成したプロである必要はありません。本気であることが条件です。" },
-      { q: "ビザだけ必要です。トレーニングは不要です。", a: "まず「現場投入の準備OK」を選び、ポートフォリオやSNSリンクなど、できるだけ多くの活動実績を提出してください。担当者が確認のうえ、最適なご案内をします。" },
+      { q: "費用はいくらですか？", a: "応募と相談は無料です。基本目安料金は約400万ウォンで、経路やサポート内容により相談後の最終費用は安くなる場合も高くなる場合もあります。" },
+      { q: "どのくらいのレベルが必要ですか？", a: "オーディションレッスンと撮影レベルテストでルートを決めます。合格すればビザ準備へ進み、補完が必要な場合は専門トレーニングと月末評価を行います。" },
+      { q: "ビザだけ必要です。トレーニングは不要です。", a: "オーディションレベルテストは受けていただきます。合格した場合、トレーニングは必須ではなく、すぐにビザ準備を開始できます。" },
       { q: "まだ韓国にいませんが応募できますか？", a: "はい。入国できる時期を教えていただければ、それに合わせて設計します。" },
       { q: "お仕事は保証されますか？", a: "誠実なエージェンシーはキャスティングを保証できません。約束できるのは：deetzとGRIGOのネットワークを通じた本物の案件への推薦と、透明なフィードバックです。" },
     ],
     cta: "無料で応募する",
     ctaSub: "約3分。カウンセリング日程をご連絡します。",
-    disclaimer: "ビザの可否は韓国出入国当局が判断します。これは準備・申請のサポートであり、法的助言ではありません。プログラムの詳細はカウンセリングで個別に確定します。",
+    disclaimer: "ビザ発給は韓国の出入国当局が、キャスティングは各プロジェクトが判断します。deetzは準備・申請支援と案件機会を提供しますが、ビザや仕事を保証しません。",
     sheetCredits: "主な活動",
     sheetProfile: "deetzプロフィールを見る",
   },
@@ -360,7 +366,7 @@ const T: Record<Lang, Copy> = {
     eyebrow: "K-DEBUT · deetz × 그리고엔터테인먼트",
     title1: "한국에서 댄스 커리어를,",
     title2: "처음부터 끝까지.",
-    sub: "댄스 트레이닝, 한국어, 업계 교육, E-6-1 비자 지원부터 deetz 캐스팅 풀을 통한 첫 일감까지, 하나의 프로그램으로 준비합니다.",
+    sub: "안무가가 진행하는 오디션 레슨 1회와 촬영 영상 레벨테스트로 시작합니다. 통과하면 바로 비자 준비로 이동하고, 보완이 필요하면 전문 트레이닝과 월말평가를 진행합니다.",
     eligibility:
       "한국에 이미 계신 분도, 지금 해외에 있고 한국에 들어와 활동하고 싶은 분도 모두 지원할 수 있어요. 어디에 계시든 입국과 비자까지 함께 준비합니다.",
     painTitle: "혹시 지금 이런 상황인가요?",
@@ -373,19 +379,21 @@ const T: Record<Lang, Copy> = {
     painClose: "커리어, 비자, 주거, 첫 캐스팅까지. 한 번의 상담에서 종합적으로 답해드립니다.",
     pillarsTitle: "프로그램 구성",
     pillars: [
-      { title: "댄스 트레이닝", body: "서울의 전문 댄스 학원, 현역 K-pop 안무가와 연계된 트레이닝 시스템입니다. 레벨에 맞춰 진행해요." },
-      { title: "한국어 교육", body: "생활, 연습실, 현장에서 바로 쓰는 실전 한국어를 배웁니다. 여행 회화가 아니라 일하기 위한 언어예요." },
-      { title: "업계 교육", body: "캐스팅 절차, 계약, 페이, 현장 매너까지. 한국 엔터 업계가 실제로 돌아가는 방식을 배웁니다." },
-      { title: "E-6-1 비자 지원", body: "E-6-1(예술흥행) 비자 준비와 신청을 지원합니다. 합법적으로 공연하고 보수를 받을 수 있는 비자예요." },
-      { title: "deetz 실무 투입", body: "deetz 캐스팅 풀과 GRIGO 네트워크로 뮤직비디오, 무대, 공연에 연결합니다. 수업으로 끝나지 않고 첫 크레딧까지 함께 가요." },
+      { title: "오디션 레슨·촬영", body: "현역 안무가가 레슨 1회를 진행하고, 촬영 결과를 실기 레벨테스트로 평가합니다." },
+      { title: "비자 직행 트랙", body: "레벨테스트를 통과하면 바로 비자 서류 준비와 신청 절차를 시작합니다." },
+      { title: "조건부 전문 트레이닝", body: "보완이 필요할 때만 제휴 댄스학원과 현업 전문가의 트레이닝을 수강합니다." },
+      { title: "월말평가", body: "평가 결과에 따라 비자 준비로 이동하거나 다음 목표를 정해 트레이닝을 이어갑니다." },
+      { title: "deetz 프로젝트 기회", body: "프로필에 맞는 deetz 프로젝트에 지원할 수 있습니다. 캐스팅이나 유급 일감이 보장되는 것은 아닙니다." },
     ],
     howTitle: "진행 방식",
     steps: [
-      { title: "무료 지원", body: "경력, 레벨, 비자 상태, 가능한 시기를 담은 짧은 지원서를 제출합니다." },
-      { title: "상담", body: "케이스를 검토해 트레이닝, 언어, 비자, 주거, 일정까지 트랙을 설계합니다." },
-      { title: "트레이닝·준비", body: "댄스, 한국어, 업계 교육을 받으면서 동시에 비자 서류를 준비합니다." },
-      { title: "실무 투입", body: "deetz를 통해 캐스팅됩니다. 계약은 반드시 서면으로 진행해요." },
+      { title: "무료 지원·상담", body: "현재 비자, 거주지, 활동 경력, 목표, 가능한 일정을 확인합니다." },
+      { title: "오디션 레슨 1회", body: "안무가가 레슨을 진행하고, 촬영 결과를 포함해 실기 레벨을 확인합니다." },
+      { title: "결과에 따라 분기", body: "통과하면 즉시 비자 준비로 이동하고, 보완이 필요하면 전문 트레이닝과 월말평가를 진행합니다." },
+      { title: "비자·프로젝트 기회", body: "비자 절차를 지원하고 deetz 프로젝트 지원 기회를 제공하되, 발급이나 일거리를 보장하지 않습니다." },
     ],
+    priceTitle: "기본 안내 단가 · 약 400만원",
+    priceBody: "비자 경로, 트레이닝 필요 여부, 추가 지원 범위에 따라 상담 후 최종 비용이 내려가거나 추가될 수 있습니다.",
     rosterTitle: "GRIGO에서 활동 중인 댄서들",
     rosterNote: "그리고엔터테인먼트는 댄서 전문 매니지먼트이자 에이전시입니다. 아래 댄서들 중 여러 명이 실제로 미국과 일본에서 건너와, E-6 비자로 한국 무대에 서고 있습니다. 카드를 누르면 전체 활동 내역이 보입니다.",
     protectTitle: "댄서를 지킵니다",
@@ -399,15 +407,15 @@ const T: Record<Lang, Copy> = {
     whoBody: "그리고엔터테인먼트(GRIGO)는 2019년에 설립된 댄서 전문 매니지먼트이자 에이전시입니다. 안무 제작, 댄서 파견, 방송, 광고까지 다양한 프로젝트를 진행하며 풍부한 경험을 쌓아 왔고, deetz는 한국 댄서와 클라이언트가 매일 쓰는 GRIGO의 캐스팅 플랫폼입니다. 이 프로그램에 들어오면 단순히 수업을 듣는 게 아니라, 실제 캐스팅이 오가는 에이전시 안에서 커리어를 시작하게 됩니다.",
     faqTitle: "자주 묻는 질문",
     faqs: [
-      { q: "비용이 얼마인가요?", a: "지원과 상담은 무료예요. 프로그램 비용은 트랙(기간·주거·비자 경로)에 따라 다르고, 결정 전 상담에서 전부 명확히 안내합니다." },
-      { q: "실력이 어느 정도여야 하나요?", a: "레벨, 가능성, 목표를 보고 모든 지원서를 검토합니다. 완성된 프로가 아니어도 괜찮습니다. 진지하게 임할 마음이면 충분해요." },
-      { q: "비자만 필요해요.", a: "일단 '현장 투입 준비됐어요'를 선택하고, 본인의 포트폴리오와 SNS 링크 등 최대한 많은 활동을 제출해주세요. 담당자가 확인 후 적절한 안내를 드립니다." },
+      { q: "비용이 얼마인가요?", a: "지원과 상담은 무료입니다. 기본 안내 단가는 약 400만원이며, 경로와 지원 범위에 따라 상담 후 최종 비용이 내려가거나 추가될 수 있습니다." },
+      { q: "실력이 어느 정도여야 하나요?", a: "오디션 레슨과 촬영 영상 레벨테스트로 트랙을 결정합니다. 통과하면 비자 준비로 이동하고, 보완이 필요하면 전문 트레이닝과 월말평가를 진행합니다." },
+      { q: "비자만 필요해요.", a: "오디션 레벨테스트는 진행합니다. 통과하면 트레이닝은 필수가 아니며 바로 비자 준비를 시작할 수 있습니다." },
       { q: "아직 한국 밖인데 지원되나요?", a: "네. 입국 가능 시점을 알려주시면 그에 맞춰 설계합니다." },
       { q: "일이 보장되나요?", a: "캐스팅을 100% 보장한다고 말하는 곳은 믿기 어렵죠. 저희는 deetz와 GRIGO 네트워크로 실제 일감에 계속 추천하고, 결과를 투명하게 알려드립니다." },
     ],
     cta: "무료로 지원하기",
     ctaSub: "약 3분이면 끝나요. 검토 후 상담 일정을 회신드립니다.",
-    disclaimer: "비자 발급 여부는 한국 출입국 당국이 결정하며, 이는 준비·신청 지원이지 법률 자문이 아닙니다. 프로그램 세부 내용은 상담에서 개별 확정됩니다.",
+    disclaimer: "비자 발급은 한국 출입국 당국이, 캐스팅은 각 프로젝트가 결정합니다. deetz는 준비·신청 지원과 프로젝트 기회를 제공하지만 비자나 일거리를 보장하지 않습니다.",
     sheetCredits: "주요 활동",
     sheetProfile: "deetz 프로필 보기",
   },
@@ -649,6 +657,16 @@ export function ProgramLanding({
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-4 flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4 md:p-5">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <Stamp className="size-5" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-foreground">{c.priceTitle}</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{c.priceBody}</p>
+        </div>
       </div>
 
       {/* Dancer protection */}
