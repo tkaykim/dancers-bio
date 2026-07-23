@@ -37,7 +37,7 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "What happens next",
     nextHtml:
-      "Please complete the short case form below with three Zoom meeting time options.<br>The audition lesson date is not fixed yet.<br>We plan to run one audition in August and one in September at a dance studio near Hapjeong or Sinchon in Seoul.<br>A choreographer will lead one lesson and we will use the filmed result as a level test.<br>If you pass, we begin visa preparation immediately.<br>If more preparation is needed, you enter our affiliated academy training and take a month-end evaluation.<br>The base guide price is about ₩4,000,000, and the final quote may be lower or higher after consultation.<br>deetz project opportunities may be offered, but work and visa approval are not guaranteed.",
+      "Please complete the short case form below with three online meeting time options.<br>We will review your situation in an online meeting first.<br>After the meeting, we will let you know whether we can move forward and what schedule is realistic.<br>If your visa route is ready, we will begin preparing the visa documents with you.<br>If more preparation is needed, we may recommend training before moving into the visa process.<br>The estimated base fee is about ₩4,000,000, and the final amount may change after consultation.<br>deetz project opportunities may be offered, but work and visa approval are not guaranteed.",
     linkLabel: "Complete my case information",
     copyrightNote: "This email was sent to the address used for your deetz application.",
   },
@@ -54,7 +54,7 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "次のご案内",
     nextHtml:
-      "下の専用フォームに、Zoom相談が可能な日時を3つご入力ください。<br>オーディションレッスンの日程はまだ確定していません。<br>8月に1回、9月に1回、ソウルの合井または新村近くのダンススタジオで実施予定です。<br>振付師によるレッスンを1回行い、撮影映像を含めてレベルを確認します。<br>合格した場合はすぐにビザ準備へ進み、補完が必要な場合は提携アカデミーのトレーニングと月末評価を行います。<br>基本目安料金は約400万ウォンで、最終費用は相談後に安くなる場合も高くなる場合もあります。<br>deetzの案件をご案内する場合がありますが、仕事とビザ発給を保証するものではありません。",
+      "下の専用フォームに、オンライン相談が可能な日時を3つご入力ください。<br>まずオンラインミーティングで現在の状況を詳しく確認します。<br>相談後、進行可能かどうかと現実的なスケジュールをご案内します。<br>すぐに進行できる場合は、ビザ書類の準備を一緒に始めます。<br>準備が必要な場合は、ビザ準備の前にトレーニングをご案内することがあります。<br>基本目安料金は約400万ウォンで、最終費用は相談後に変わる場合があります。<br>deetzの案件をご案内する場合がありますが、仕事とビザ発給を保証するものではありません。",
     linkLabel: "追加情報を入力する",
     copyrightNote: "このメールはdeetz申込時の登録アドレスへ送信されました。",
   },
@@ -71,7 +71,7 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "다음 안내",
     nextHtml:
-      "아래 전용 질문지에 Zoom 미팅 가능한 날짜와 시간을 3개 입력해 주세요.<br>오디션 레슨 일정은 아직 확정되지 않았습니다.<br>8월 1회, 9월 1회 합정 또는 신촌 근방 댄스 스튜디오에서 진행할 예정입니다.<br>안무가가 레슨 1회를 진행하고 촬영 영상을 포함해 레벨을 평가합니다.<br>통과하면 즉시 비자 준비로 이동하고, 보완이 필요하면 제휴 학원 전문 트레이닝과 월말평가를 진행합니다.<br>기본 안내 단가는 약 400만원이며, 상담 후 최종 비용이 내려가거나 추가될 수 있습니다.<br>deetz 프로젝트 기회를 안내할 수 있지만 일거리와 비자 발급을 보장하지는 않습니다.",
+      "아래 전용 질문지에 온라인 미팅 가능한 날짜와 시간을 3개 입력해 주세요.<br>먼저 온라인 미팅으로 현재 상황을 자세히 확인합니다.<br>상담 후 진행 가능 여부와 현실적인 일정을 안내드립니다.<br>바로 진행 가능한 경우 비자 서류 준비를 함께 시작합니다.<br>준비가 더 필요한 경우 비자 준비 전에 트레이닝을 안내할 수 있습니다.<br>기본 안내 단가는 약 400만원이며, 상담 후 최종 비용이 달라질 수 있습니다.<br>deetz 프로젝트 기회를 안내할 수 있지만 일거리와 비자 발급을 보장하지는 않습니다.",
     linkLabel: "추가 정보 입력하기",
     copyrightNote: "이 메일은 deetz 신청 주소로 발송되었습니다.",
   },
