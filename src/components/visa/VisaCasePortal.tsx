@@ -134,7 +134,7 @@ const COPY: Record<Lang, Copy> = {
     submitting: "Submitting…",
     updated: "Your information has been saved.",
     step1: "Goal and visa readiness",
-    step2: "Audition plan and career",
+    step2: "Evaluation plan and career",
     step3: "Support and confirmation",
     goal: "What is your main goal?",
     goalOptions: [
@@ -207,7 +207,7 @@ const COPY: Record<Lang, Copy> = {
     submitting: "送信中…",
     updated: "情報を保存しました。",
     step1: "目標とビザ準備",
-    step2: "オーディション予定と経歴",
+    step2: "対面評価の予定と経歴",
     step3: "サポートと確認",
     goal: "主な目標を選んでください。",
     goalOptions: [
@@ -280,7 +280,7 @@ const COPY: Record<Lang, Copy> = {
     submitting: "제출 중…",
     updated: "정보가 저장됐어요.",
     step1: "목표와 비자 준비 상태",
-    step2: "오디션 예정과 활동 경력",
+    step2: "대면 확인 일정과 활동 경력",
     step3: "지원 항목과 확인",
     goal: "가장 중요한 목표는 무엇인가요?",
     goalOptions: [
@@ -329,9 +329,9 @@ const COPY: Record<Lang, Copy> = {
 };
 
 const STAGE_LABEL: Record<Lang, Record<string, string>> = {
-  en: { application_received: "Application received", triage_submitted: "Information review", audition_scheduled: "Audition scheduled", audition_complete: "Audition complete", training: "Training", monthly_evaluation: "Month-end evaluation", visa_documents: "Visa documents", visa_submitted: "Visa submitted", complete: "Complete", on_hold: "On hold" },
-  ja: { application_received: "申込受付", triage_submitted: "情報確認", audition_scheduled: "オーディション予定", audition_complete: "オーディション完了", training: "トレーニング", monthly_evaluation: "月末評価", visa_documents: "ビザ書類準備", visa_submitted: "ビザ申請済み", complete: "完了", on_hold: "保留" },
-  ko: { application_received: "지원서 접수", triage_submitted: "추가 정보 검토", audition_scheduled: "오디션 예정", audition_complete: "오디션 완료", training: "전문 트레이닝", monthly_evaluation: "월말평가", visa_documents: "비자 서류 준비", visa_submitted: "비자 신청 접수", complete: "완료", on_hold: "보류" },
+  en: { application_received: "Application received", triage_submitted: "Information review", audition_scheduled: "In-person evaluation scheduled", audition_complete: "In-person evaluation complete", training: "Training", monthly_evaluation: "Training review", visa_documents: "Visa documents", visa_submitted: "Visa submitted", complete: "Complete", on_hold: "On hold" },
+  ja: { application_received: "申込受付", triage_submitted: "情報確認", audition_scheduled: "対面評価予定", audition_complete: "対面評価完了", training: "トレーニング", monthly_evaluation: "トレーニング確認", visa_documents: "ビザ書類準備", visa_submitted: "ビザ申請済み", complete: "完了", on_hold: "保留" },
+  ko: { application_received: "지원서 접수", triage_submitted: "추가 정보 검토", audition_scheduled: "대면 확인 예정", audition_complete: "대면 확인 완료", training: "전문 트레이닝", monthly_evaluation: "트레이닝 확인", visa_documents: "비자 서류 준비", visa_submitted: "비자 신청 접수", complete: "완료", on_hold: "보류" },
 };
 
 const OPERATIONS_COPY: Record<Lang, {
