@@ -620,13 +620,7 @@ export function ProgramLanding({
         {c.pillars.map((p, i) => {
           const Icon = PILLAR_ICONS[i];
           return (
-            <div
-              key={i}
-              className={cn(
-                "flex items-start gap-3 rounded-xl border border-hairline-2 bg-card p-4 md:p-5",
-                i === c.pillars.length - 1 && "md:col-span-2",
-              )}
-            >
+            <div key={i} className="flex items-start gap-3 rounded-xl border border-hairline-2 bg-card p-4 md:p-5">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary">
                 <Icon className="size-5 text-foreground" />
               </div>
