@@ -126,16 +126,24 @@ node scripts\prepare-visa-case-followup-mails.mjs --send --confirm-send=VISA_CAS
 
 정말 다시 보내야 할 때만 `--force`를 쓴다.
 
-## 2026-07-23 dry-run 결과
+## 2026-07-23 실제 발송 결과
 
 대상자는 9명이다.
 
 언어 분포는 영어 4명, 일본어 4명, 한국어 1명이다.
 
-생성된 최신 tracked no-price batch 폴더는 `C:\Users\tkay\Documents\Codex\2026-07-23\deetz\outputs\visa-followup-mails-tracked\2026-07-23T10-05-24-827Z`다.
+최종 dry-run batch 폴더는 `C:\Users\tkay\Documents\Codex\2026-07-23\deetz\outputs\visa-followup-mails-tracked-final\2026-07-23T10-22-33-651Z`다.
+
+실제 발송 batch 폴더는 `C:\Users\tkay\Documents\Codex\2026-07-23\deetz\outputs\visa-followup-mails-tracked-final\2026-07-23T10-22-53-851Z`다.
 
 금액 관련 forbidden grep 결과는 0건이다.
 
 메일 CTA와 오픈 픽셀의 `/api/track/visa-case/*` 링크 포함을 확인했다.
 
-실제 발송은 하지 않았다.
+실제 발송은 9명 전원 성공했고 실패는 0건이다.
+
+`visa_case_tracking_events`의 최근 `email_sent` 확인 결과는 영어 4건, 일본어 4건, 한국어 1건이다.
+
+라이브 QA output은 `C:\Users\tkay\Documents\Codex\2026-07-23\deetz\outputs\visa-tracking-live-qa\2026-07-23T10-13-00Z`다.
+
+영어·일본어·한국어 케이스 링크 모두 production에서 열렸고, 영어·일본어 링크에서는 한국어 `온라인 상담 일정 협의` 문구 누수가 없었다.
