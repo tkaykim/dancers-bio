@@ -56,6 +56,21 @@ export type VisaAdminRow = {
   follow_up_submitted_at: string | null;
   project_opportunity_opt_in: boolean | null;
   next_action: string | null;
+  tracking: {
+    eventCount: number;
+    sentAt: string | null;
+    openedAt: string | null;
+    clickedAt: string | null;
+    visitedAt: string | null;
+    submittedAt: string | null;
+    lastEventAt: string | null;
+    lastEventType: string | null;
+    maxStep: number;
+    maxScrollDepth: number;
+    openCount: number;
+    clickCount: number;
+    visitCount: number;
+  } | null;
 };
 
 const CASE_STAGE: Record<string, string> = {
@@ -114,6 +129,27 @@ function displayName(r: VisaAdminRow) {
   return r.stage_name || r.korean_name || "(이름 없음)";
 }
 
+function formatKstShort(value: string | null) {
+  if (!value) return null;
+  return new Date(value).toLocaleString("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function trackingState(row: VisaAdminRow) {
+  const t = row.tracking;
+  if (!t?.sentAt) return null;
+  if (row.follow_up_submitted_at || t.submittedAt) return "제출 완료";
+  if (t.visitedAt) return `들어옴 · ${t.maxScrollDepth}% · ${t.maxStep > 0 ? `${t.maxStep}단계` : "진행 전"}`;
+  if (t.clickedAt) return "클릭 후 미진입";
+  if (t.openedAt) return "읽고 미클릭";
+  return "발송 후 미열람";
+}
+
 export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = rows.find((r) => r.id === selectedId) ?? null;
@@ -160,6 +196,12 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
                   {CASE_STAGE[r.case_stage] ?? r.case_stage}
                   {r.follow_up_submitted_at ? " · 질문지 완료" : ""}
                 </p>
+                {trackingState(r) ? (
+                  <p className="mt-1 text-[11px] font-medium text-primary">
+                    {trackingState(r)}
+                    {r.tracking?.lastEventAt ? ` · 마지막 ${formatKstShort(r.tracking.lastEventAt)}` : ""}
+                  </p>
+                ) : null}
               </div>
               <span
                 className={cn(
@@ -320,6 +362,22 @@ function VisaDetail({
       ) : null}
 
       <VisaCaseOpsEditor row={row} />
+
+      {row.tracking ? (
+        <div className="rounded-xl border border-hairline-2 bg-card p-4">
+          <p className="text-xs font-semibold text-ink-3">메일·케이스 추적</p>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
+            <Field label="현재 판단">{trackingState(row) ?? "-"}</Field>
+            <Field label="발송">{formatKstShort(row.tracking.sentAt) ?? "-"}</Field>
+            <Field label="열람">{row.tracking.openedAt ? `${formatKstShort(row.tracking.openedAt)} · ${row.tracking.openCount}회` : "-"}</Field>
+            <Field label="CTA 클릭">{row.tracking.clickedAt ? `${formatKstShort(row.tracking.clickedAt)} · ${row.tracking.clickCount}회` : "-"}</Field>
+            <Field label="페이지 진입">{row.tracking.visitedAt ? `${formatKstShort(row.tracking.visitedAt)} · ${row.tracking.visitCount}회` : "-"}</Field>
+            <Field label="최대 진행">{row.tracking.maxStep > 0 ? `${row.tracking.maxStep}단계` : "-"}</Field>
+            <Field label="최대 스크롤">{row.tracking.maxScrollDepth ? `${row.tracking.maxScrollDepth}%` : "-"}</Field>
+            <Field label="마지막 이벤트">{row.tracking.lastEventType ? `${row.tracking.lastEventType} · ${formatKstShort(row.tracking.lastEventAt)}` : "-"}</Field>
+          </div>
+        </div>
+      ) : null}
 
       {/* 상태·메모 편집 */}
       <div className="flex flex-col gap-2 border-t border-hairline-2 pt-4">
