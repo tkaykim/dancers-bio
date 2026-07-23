@@ -8,6 +8,7 @@ const DEFAULT_OUTPUT_DIR = "C:\\Users\\tkay\\Documents\\Codex\\2026-07-23\\deetz
 const FALLBACK_ENV = "C:\\Users\\tkay\\Desktop\\dev\\dancers-bio\\.env.local";
 const DEETZ_FROM_NAME = "deetz 에이전시 & 매거진";
 const REPLY_TO = "dancers.bio.kr@gmail.com";
+const TRACKING_CAMPAIGN = "visa_case_followup_20260723";
 
 function loadEnv(file) {
   const resolved = path.resolve(file);
@@ -56,6 +57,11 @@ function sign(payload, key) {
 
 function makeVisaCaseToken(applicationId) {
   const payload = `vc:${applicationId}`;
+  return `${Buffer.from(payload, "utf8").toString("base64url")}.${sign(payload, requiredEnv("SUPABASE_SERVICE_ROLE_KEY"))}`;
+}
+
+function makeVisaFollowupTrackingToken(applicationId) {
+  const payload = `vf:${applicationId}:${TRACKING_CAMPAIGN}`;
   return `${Buffer.from(payload, "utf8").toString("base64url")}.${sign(payload, requiredEnv("SUPABASE_SERVICE_ROLE_KEY"))}`;
 }
 
@@ -151,7 +157,7 @@ const COPY = {
   },
 };
 
-function renderMail({ lang, name, caseUrl }) {
+function renderMail({ lang, name, trackingUrl, openPixelUrl }) {
   const c = COPY[lang];
   const lines = c.lines(name);
   const bodyHtml = lines
@@ -160,7 +166,7 @@ function renderMail({ lang, name, caseUrl }) {
   const text = [
     ...lines,
     "",
-    `${c.cta}: ${caseUrl}`,
+    `${c.cta}: ${trackingUrl}`,
     "",
     `deetz · deetz.kr · ${REPLY_TO}`,
   ].join("\n");
@@ -175,7 +181,7 @@ function renderMail({ lang, name, caseUrl }) {
   <p style="font-size:20px;font-weight:800;margin:18px 0 14px;line-height:1.45;color:#111;">${escapeHtml(c.title)}</p>
   ${bodyHtml}</td></tr>
 <tr><td style="padding:18px 32px 28px;">
-  <a href="${escapeHtml(caseUrl)}" style="display:block;background:#111111;color:#ffffff;text-decoration:none;text-align:center;font-size:15px;font-weight:700;padding:15px 0;border-radius:12px;">${escapeHtml(c.cta)}</a></td></tr>
+  <a href="${escapeHtml(trackingUrl)}" style="display:block;background:#111111;color:#ffffff;text-decoration:none;text-align:center;font-size:15px;font-weight:700;padding:15px 0;border-radius:12px;">${escapeHtml(c.cta)}</a></td></tr>
 <tr><td style="padding:22px 32px 28px;border-top:1px solid #ececef;background:#fafafa;">
   <img src="https://www.deetz.kr/brand/deetz-logo-black.png" alt="deetz" width="41" height="20" style="display:block;height:20px;width:auto;border:0;">
   <div style="font-size:12px;color:#6b7280;margin:10px 0 14px;">${c.tagline}</div>
@@ -185,7 +191,8 @@ function renderMail({ lang, name, caseUrl }) {
   </tr></table>
   <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:14px;">
     <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:${REPLY_TO}" style="color:#44474d;text-decoration:none;">${REPLY_TO}</a></div>
-  <div style="font-size:11px;color:#a1a1aa;margin-top:12px;line-height:1.6;">© 2026 deetz. All rights reserved.<br>${escapeHtml(c.copyright)}</div></td></tr>
+  <div style="font-size:11px;color:#a1a1aa;margin-top:12px;line-height:1.6;">© 2026 deetz. All rights reserved.<br>${escapeHtml(c.copyright)}</div>
+  <img src="${escapeHtml(openPixelUrl)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;opacity:0;"></td></tr>
 </table></td></tr></table></body></html>`;
   return { subject: c.subject, text, html };
 }
@@ -270,8 +277,11 @@ const rows = candidates
   .map((row) => {
     const lang = normalizeLang(row.preferred_lang);
     const name = row.dancers?.stage_name || row.dancers?.korean_name || "dancer";
-    const caseUrl = `${siteUrl}/visa/case/${makeVisaCaseToken(row.id)}`;
-    const mail = renderMail({ lang, name, caseUrl });
+    const directCaseUrl = `${siteUrl}/visa/case/${makeVisaCaseToken(row.id)}`;
+    const trackingToken = makeVisaFollowupTrackingToken(row.id);
+    const trackingUrl = `${siteUrl}/api/track/visa-case/click?t=${encodeURIComponent(trackingToken)}&lang=${encodeURIComponent(lang)}`;
+    const openPixelUrl = `${siteUrl}/api/track/visa-case/open?t=${encodeURIComponent(trackingToken)}&lang=${encodeURIComponent(lang)}`;
+    const mail = renderMail({ lang, name, trackingUrl, openPixelUrl });
     assertMailSafe(mail);
     const base = `${lang}-${safeFilePart(name)}-${row.id.slice(0, 8)}`;
     const htmlPath = path.join(outputDir, `${base}.html`);
@@ -286,7 +296,11 @@ const rows = candidates
       name,
       lang,
       subject: mail.subject,
-      caseUrl,
+      caseUrl: trackingUrl,
+      directCaseUrl,
+      trackingToken,
+      trackingUrl,
+      openPixelUrl,
       htmlPath,
       textPath,
       mail,
@@ -299,7 +313,7 @@ const byLang = rows.reduce((acc, row) => {
 }, {});
 
 const csv = [
-  ["application_id", "created_at_kst", "email", "name", "lang", "subject", "case_url", "html_path", "text_path"].join(","),
+  ["application_id", "created_at_kst", "email", "name", "lang", "subject", "case_url", "direct_case_url", "html_path", "text_path"].join(","),
   ...rows.map((row) => [
     row.applicationId,
     row.createdAtKst,
@@ -308,6 +322,7 @@ const csv = [
     row.lang,
     row.subject,
     row.caseUrl,
+    row.directCaseUrl,
     row.htmlPath,
     row.textPath,
   ].map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(",")),
@@ -334,6 +349,7 @@ fs.writeFileSync(manifestPath, JSON.stringify({
     lang: row.lang,
     subject: row.subject,
     caseUrl: row.caseUrl,
+    directCaseUrl: row.directCaseUrl,
     htmlPath: row.htmlPath,
     textPath: row.textPath,
   })),
@@ -365,6 +381,14 @@ if (send) {
         lang: row.lang,
         messageId: result.messageId ?? null,
       };
+      await sb.from("visa_case_tracking_events").insert({
+        application_id: row.applicationId,
+        campaign: TRACKING_CAMPAIGN,
+        event_type: "email_sent",
+        event_key: "gmail_smtp",
+        lang: row.lang,
+        metadata: { messageId: result.messageId ?? null },
+      });
       sendResults.push({ ...log, ok: true });
       fs.appendFileSync(sentLogPath, `${JSON.stringify(log)}\n`, "utf8");
     } catch (error) {

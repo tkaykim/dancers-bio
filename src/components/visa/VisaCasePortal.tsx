@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -450,6 +450,10 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
   const router = useRouter();
   const initialLang: Lang = initial.preferredLang === "ja" || initial.preferredLang === "ko" ? initial.preferredLang : "en";
   const [lang, setLang] = useState<Lang>(initialLang);
+  const trackingToken = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("vt");
+  }, []);
   const [step, setStep] = useState(0);
   const [editing, setEditing] = useState(!initial.followUpSubmittedAt);
   const [saved, setSaved] = useState(false);
@@ -474,6 +478,142 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
   const [priceAck, setPriceAck] = useState(a.priceAcknowledged === true);
   const t = COPY[lang];
   const operationsCopy = OPERATIONS_COPY[lang];
+  const trackingStartedAt = useRef<number | null>(null);
+  const trackingVisitSent = useRef(false);
+  const trackingKeysSent = useRef<Set<string>>(new Set());
+  const maxScrollDepth = useRef(0);
+
+  const sendTrackingEvent = useCallback((
+    eventType: string,
+    data: {
+      eventKey?: string;
+      step?: number | null;
+      scrollDepth?: number | null;
+      metadata?: Record<string, unknown>;
+      beacon?: boolean;
+    } = {},
+  ) => {
+    if (!trackingToken || typeof window === "undefined") return;
+    const body = JSON.stringify({
+      t: trackingToken,
+      eventType,
+      eventKey: data.eventKey,
+      lang,
+      step: data.step ?? null,
+      scrollDepth: data.scrollDepth ?? null,
+      pagePath: window.location.pathname,
+      metadata: data.metadata ?? {},
+    });
+    if (data.beacon && "sendBeacon" in navigator) {
+      navigator.sendBeacon("/api/track/visa-case/event", new Blob([body], { type: "application/json" }));
+      return;
+    }
+    void fetch("/api/track/visa-case/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      keepalive: true,
+    }).catch(() => {
+      // Tracking must never interrupt the case form.
+    });
+  }, [lang, trackingToken]);
+
+  const trackingDurationMs = useCallback(() => {
+    if (trackingStartedAt.current == null) trackingStartedAt.current = Date.now();
+    return Date.now() - trackingStartedAt.current;
+  }, []);
+
+  useEffect(() => {
+    if (!trackingToken || trackingVisitSent.current) return;
+    trackingStartedAt.current = Date.now();
+    trackingVisitSent.current = true;
+    sendTrackingEvent("case_visit", {
+      eventKey: "initial",
+      metadata: {
+        preferredLang: initial.preferredLang,
+        submitted: Boolean(initial.followUpSubmittedAt),
+      },
+    });
+  }, [initial.followUpSubmittedAt, initial.preferredLang, sendTrackingEvent, trackingToken]);
+
+  useEffect(() => {
+    if (!trackingToken) return;
+    const key = `language_view:${lang}`;
+    if (trackingKeysSent.current.has(key)) return;
+    trackingKeysSent.current.add(key);
+    sendTrackingEvent("language_view", { eventKey: `lang_${lang}` });
+  }, [lang, sendTrackingEvent, trackingToken]);
+
+  useEffect(() => {
+    if (!trackingToken) return;
+    const currentStep = editing ? step + 1 : 0;
+    const eventKey = editing ? `step_${currentStep}` : "submitted_view";
+    const key = `step_view:${eventKey}`;
+    if (trackingKeysSent.current.has(key)) return;
+    trackingKeysSent.current.add(key);
+    sendTrackingEvent("step_view", {
+      eventKey,
+      step: currentStep,
+      metadata: { editing, submittedView: !editing },
+    });
+  }, [editing, sendTrackingEvent, step, trackingToken]);
+
+  useEffect(() => {
+    if (!trackingToken || typeof window === "undefined") return;
+    const reportDepth = () => {
+      const doc = document.documentElement;
+      const total = Math.max(doc.scrollHeight, document.body.scrollHeight);
+      const seen = window.scrollY + window.innerHeight;
+      const depth = total <= 0 ? 100 : Math.max(0, Math.min(100, Math.round((seen / total) * 100)));
+      maxScrollDepth.current = Math.max(maxScrollDepth.current, depth);
+      for (const threshold of [25, 50, 75, 100]) {
+        if (depth < threshold) continue;
+        const key = `scroll_depth:${threshold}`;
+        if (trackingKeysSent.current.has(key)) continue;
+        trackingKeysSent.current.add(key);
+        sendTrackingEvent("scroll_depth", {
+          eventKey: `scroll_${threshold}`,
+          scrollDepth: threshold,
+          metadata: { actualDepth: depth },
+        });
+      }
+    };
+    reportDepth();
+    window.addEventListener("scroll", reportDepth, { passive: true });
+    window.addEventListener("resize", reportDepth);
+    return () => {
+      window.removeEventListener("scroll", reportDepth);
+      window.removeEventListener("resize", reportDepth);
+    };
+  }, [sendTrackingEvent, trackingToken]);
+
+  useEffect(() => {
+    if (!trackingToken || typeof window === "undefined") return;
+    const sendExit = (eventKey: string) => {
+      sendTrackingEvent("case_exit", {
+        eventKey,
+        step: editing ? step + 1 : 0,
+        scrollDepth: maxScrollDepth.current,
+        beacon: true,
+        metadata: {
+          durationMs: trackingDurationMs(),
+          editing,
+          saved,
+          submittedView: !editing,
+        },
+      });
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") sendExit("visibility_hidden");
+    };
+    const onPageHide = () => sendExit("pagehide");
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [editing, saved, sendTrackingEvent, step, trackingDurationMs, trackingToken]);
 
   const existing = useMemo(() => {
     const visaHeld = lang === "ko" ? "한국 비자 보유" : lang === "ja" ? "韓国ビザあり" : "Korean visa held";
@@ -574,6 +714,15 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
         setError(result.error);
         return;
       }
+      sendTrackingEvent("follow_up_submit_success", {
+        eventKey: "submit_success",
+        step: 3,
+        scrollDepth: maxScrollDepth.current,
+        beacon: true,
+        metadata: {
+          durationMs: trackingDurationMs(),
+        },
+      });
       setSaved(true);
       setEditing(false);
       setStep(0);

@@ -32,6 +32,10 @@ deetz 앱의 표준 메일 발송은 `src/lib/gmail.ts`의 `sendGmailEmail`을 �
 
 개인 링크는 `makeVisaCaseToken`과 같은 HMAC 방식으로 생성한 `/visa/case/{token}` 링크를 사용한다.
 
+메일 CTA는 기본적으로 추적용 `/api/track/visa-case/click` 링크를 사용한다.
+
+`recipients.csv`에는 추적 링크인 `case_url`과 원본 개인 링크인 `direct_case_url`을 함께 남긴다.
+
 ## 메일에 들어가는 핵심 문구
 
 온라인 미팅은 `Zoom 또는 Google Meet`으로 표현한다.
@@ -49,6 +53,26 @@ deetz 앱의 표준 메일 발송은 `src/lib/gmail.ts`의 `sendGmailEmail`을 �
 캐스팅, 유급 일거리, 비자 발급은 보장하지 않는다고 명시한다.
 
 문의사항은 이 메일에 바로 답장하라고 안내한다.
+
+## 추적 방식
+
+추적 캠페인 값은 `visa_case_followup_20260723`이다.
+
+발송 성공 시 `visa_case_tracking_events`에 `email_sent` 이벤트를 남긴다.
+
+HTML 메일에는 1x1 오픈 픽셀 `/api/track/visa-case/open`을 넣어 `email_open`을 기록한다.
+
+CTA 클릭은 `/api/track/visa-case/click`에서 `cta_click`을 기록한 뒤 개인 케이스 페이지로 리다이렉트한다.
+
+개인 케이스 페이지는 `vt` 쿼리가 있을 때 `case_visit`, `language_view`, `step_view`, `scroll_depth`, `case_exit`, `follow_up_submit_success`를 기록한다.
+
+메일 앱이 이미지를 차단하거나 프록시로 이미지를 가져오면 열람 수는 실제보다 낮거나 중복될 수 있다.
+
+CTA 클릭, 페이지 진입, 질문지 제출은 열람보다 신뢰도가 높다.
+
+관리자는 `/admin/visa`에서 지원자별 “메일·케이스 추적” 패널을 확인한다.
+
+목록에서는 `발송 후 미열람`, `읽고 미클릭`, `클릭 후 미진입`, `들어옴 · N% · N단계`, `제출 완료` 형태로 요약된다.
 
 ## 금지 문구
 
@@ -78,6 +102,8 @@ node scripts\prepare-visa-case-followup-mails.mjs
 
 `recipients.csv`는 사람이 최종 확인하기 위한 발송 대상 목록이다.
 
+`case_url`은 추적 리다이렉트 링크이고, `direct_case_url`은 추적을 거치지 않는 원본 개인 링크다.
+
 각 신청자별 `.html`과 `.txt` 파일은 실제 메일 본문 미리보기다.
 
 ## 실제 발송
@@ -94,6 +120,8 @@ node scripts\prepare-visa-case-followup-mails.mjs --send --confirm-send=VISA_CAS
 
 성공한 발송은 `outputs\visa-followup-mails\sent-log.jsonl`에 기록한다.
 
+성공한 발송은 `visa_case_tracking_events`에도 `email_sent`로 기록한다.
+
 기록된 신청자는 중복 발송 방지를 위해 다음 실행에서 기본 제외된다.
 
 정말 다시 보내야 할 때만 `--force`를 쓴다.
@@ -104,10 +132,10 @@ node scripts\prepare-visa-case-followup-mails.mjs --send --confirm-send=VISA_CAS
 
 언어 분포는 영어 4명, 일본어 4명, 한국어 1명이다.
 
-생성된 최신 no-price batch 폴더는 `C:\Users\tkay\Documents\Codex\2026-07-23\deetz\outputs\visa-followup-mails-no-price\2026-07-23T09-39-34-355Z`다.
+생성된 최신 tracked no-price batch 폴더는 `C:\Users\tkay\Documents\Codex\2026-07-23\deetz\outputs\visa-followup-mails-tracked\2026-07-23T10-05-24-827Z`다.
 
 금액 관련 forbidden grep 결과는 0건이다.
 
-메일 미리보기 스냅샷은 같은 폴더의 `preview-en.png`, `preview-ja.png`, `preview-ko.png`다.
+메일 CTA와 오픈 픽셀의 `/api/track/visa-case/*` 링크 포함을 확인했다.
 
 실제 발송은 하지 않았다.

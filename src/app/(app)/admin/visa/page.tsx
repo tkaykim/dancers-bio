@@ -47,7 +47,37 @@ type AppRow = {
   next_action?: string | null;
 };
 
+type TrackingEventRow = {
+  application_id: string;
+  created_at: string;
+  event_type: string;
+  lang: string | null;
+  step: number | null;
+  scroll_depth: number | null;
+};
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://deetz.kr";
+
+function summarizeTracking(events: TrackingEventRow[]): VisaAdminRow["tracking"] {
+  const latest = events[0] ?? null;
+  const firstOf = (type: string) => [...events].reverse().find((event) => event.event_type === type);
+  const countOf = (type: string) => events.filter((event) => event.event_type === type).length;
+  return {
+    eventCount: events.length,
+    sentAt: firstOf("email_sent")?.created_at ?? null,
+    openedAt: firstOf("email_open")?.created_at ?? null,
+    clickedAt: firstOf("cta_click")?.created_at ?? null,
+    visitedAt: firstOf("case_visit")?.created_at ?? null,
+    submittedAt: firstOf("follow_up_submit_success")?.created_at ?? null,
+    lastEventAt: latest?.created_at ?? null,
+    lastEventType: latest?.event_type ?? null,
+    maxStep: Math.max(0, ...events.map((event) => event.step ?? 0)),
+    maxScrollDepth: Math.max(0, ...events.map((event) => event.scroll_depth ?? 0)),
+    openCount: countOf("email_open"),
+    clickCount: countOf("cta_click"),
+    visitCount: countOf("case_visit"),
+  };
+}
 
 export default async function AdminVisaPage() {
   const profile = await requireProfile();
@@ -63,9 +93,11 @@ export default async function AdminVisaPage() {
 
   const apps = (appsRaw ?? []) as unknown as AppRow[];
   const dancerIds = Array.from(new Set(apps.map((a) => a.dancer_id).filter(Boolean))) as string[];
+  const appIds = apps.map((a) => a.id);
 
   const dancerMap = new Map<string, { stage_name: string | null; korean_name: string | null; slug: string | null }>();
   const privMap = new Map<string, { nationality: string | null; has_visa: boolean | null; visa_type: string | null }>();
+  const trackingMap = new Map<string, ReturnType<typeof summarizeTracking>>();
 
   if (dancerIds.length > 0) {
     const [{ data: dancers }, { data: privs }] = await Promise.all([
@@ -94,6 +126,22 @@ export default async function AdminVisaPage() {
         has_visa: p.has_visa,
         visa_type: p.visa_type,
       });
+    }
+  }
+
+  if (appIds.length > 0) {
+    const { data: trackingEvents } = await admin
+      .from("visa_case_tracking_events")
+      .select("application_id, created_at, event_type, lang, step, scroll_depth")
+      .in("application_id", appIds)
+      .order("created_at", { ascending: false })
+      .limit(5000);
+    const grouped = new Map<string, TrackingEventRow[]>();
+    for (const event of (trackingEvents ?? []) as unknown as TrackingEventRow[]) {
+      grouped.set(event.application_id, [...(grouped.get(event.application_id) ?? []), event]);
+    }
+    for (const [applicationId, events] of grouped.entries()) {
+      trackingMap.set(applicationId, summarizeTracking(events));
     }
   }
 
@@ -145,6 +193,7 @@ export default async function AdminVisaPage() {
       follow_up_submitted_at: a.follow_up_submitted_at ?? null,
       project_opportunity_opt_in: a.project_opportunity_opt_in ?? null,
       next_action: a.next_action ?? null,
+      tracking: trackingMap.get(a.id) ?? null,
     };
   });
 
