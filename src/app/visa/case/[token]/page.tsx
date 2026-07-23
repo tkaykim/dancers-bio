@@ -37,8 +37,20 @@ type CaseRow = {
   follow_up_submitted_at?: string | null;
 };
 
-export default async function VisaCasePage({ params }: { params: Promise<{ token: string }> }) {
+function requestedLang(value: string | string[] | undefined): string | null {
+  const lang = Array.isArray(value) ? value[0] : value;
+  return lang === "en" || lang === "ja" || lang === "ko" ? lang : null;
+}
+
+export default async function VisaCasePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ lang?: string | string[] }>;
+}) {
   const { token } = await params;
+  const query = await searchParams;
   const applicationId = verifyVisaCaseToken(token);
   if (!applicationId) notFound();
 
@@ -76,7 +88,7 @@ export default async function VisaCasePage({ params }: { params: Promise<{ token
     currentlyInKorea: row.currently_in_korea,
     skillLevel: row.skill_level,
     danceVideoUrl: row.dance_video_url,
-    preferredLang: row.preferred_lang,
+    preferredLang: requestedLang(query.lang) ?? row.preferred_lang,
     followUpAnswers: row.follow_up_answers ?? {},
     followUpSubmittedAt: row.follow_up_submitted_at ?? null,
     caseStage: row.case_stage ?? "application_received",
