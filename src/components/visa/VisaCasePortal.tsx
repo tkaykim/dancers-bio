@@ -254,7 +254,7 @@ const COPY: Record<Lang, Copy> = {
     required: "必須項目と確認事項を入力してください。",
   },
   ko: {
-    title: "비자 프로그램 케이스",
+    title: "비자 프로그램 진행 페이지",
     hello: (name) => `${name}님의 deetz 프로그램 진행 페이지입니다.`,
     intro: "최초 지원서에서 확인하지 못한 내용만 추가로 질문합니다.",
     stage: "현재 단계",
@@ -267,7 +267,7 @@ const COPY: Record<Lang, Copy> = {
       { title: "필요 시 트레이닝", body: "준비가 더 필요한 경우 비자 준비 전에 트레이닝을 안내할 수 있습니다." },
     ],
     price: "기본 안내 단가 약 400만원",
-    priceDetail: "비자 경로, 트레이닝 필요 여부, 추가 지원 범위에 따라 상담 후 최종 비용이 내려가거나 추가될 수 있습니다.",
+    priceDetail: "비자 경로, 트레이닝 필요 여부, 추가 지원 범위에 따라 상담 후 최종 비용이 달라질 수 있습니다.",
     workNotice: "deetz 프로젝트에 지원해 일거리 기회를 받을 수 있지만, 캐스팅이나 일거리 제공을 보장하지는 않습니다.",
     visaNotice: "비자 발급 여부는 한국 출입국 당국이 최종 결정하며, deetz가 발급을 보장할 수는 없습니다.",
     existing: "이미 확인한 정보",
@@ -403,6 +403,15 @@ function formatPortalDate(value: string, lang: Lang): string {
     dateStyle: "medium",
     timeZone: "UTC",
   }).format(new Date(Date.UTC(year, month - 1, day)));
+}
+
+function fallbackNextAction(lang: Lang): string {
+  return lang === "ko" ? "온라인 상담 일정 협의" : lang === "ja" ? "オンライン相談日程の調整" : "Arrange online meeting";
+}
+
+function nextActionLabel(nextAction: string | null, lang: Lang): string {
+  if (!nextAction) return fallbackNextAction(lang);
+  return /zoom/i.test(nextAction) ? fallbackNextAction(lang) : nextAction;
 }
 
 function textValue(answers: Answers, key: string): string {
@@ -572,7 +581,7 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
         </div>
         <div>
           <p className="text-xs text-ink-3">{t.next}</p>
-          <p className="mt-1 font-semibold text-foreground">{initial.nextAction || (lang === "ko" ? "온라인 상담 일정 협의" : lang === "ja" ? "オンライン相談日程の調整" : "Arrange online meeting")}</p>
+          <p className="mt-1 font-semibold text-foreground">{nextActionLabel(initial.nextAction, lang)}</p>
         </div>
       </section>
 
