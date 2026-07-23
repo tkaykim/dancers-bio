@@ -319,7 +319,7 @@ const COPY: Record<Lang, Copy> = {
     projectOptIn: "내 프로필에 맞는 deetz 프로젝트 기회를 안내받겠습니다.",
     projectHelp: "프로젝트 안내 수신 동의이며, 캐스팅이나 유급 일감을 약속하는 것은 아닙니다.",
     timezone: "후보 일정의 시간대 (한국 현지 시각 기준으로 다시 확인됩니다)",
-    consultation: "온라인 미팅(Zoom 또는 Google Meet)이 가능한 날짜와 시간을 3개 선택해 주세요.",
+    consultation: "온라인 미팅 (Zoom 또는 Google Meet)이 가능한 날짜와 시간을 3개 선택해 주세요.",
     consultationHelp: "본인의 시간대를 입력해도 됩니다. deetz가 한국 현지 시각 기준으로 다시 확인한 뒤 최종 미팅 일정을 안내드립니다.",
     consultationOption: (index) => `후보 ${index}`,
     processAck: "deetz가 정보를 먼저 검토한 뒤 비자 준비 또는 사전 트레이닝을 안내할 수 있다는 점을 이해했습니다.",
