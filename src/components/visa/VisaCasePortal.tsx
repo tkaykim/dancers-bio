@@ -409,9 +409,33 @@ function fallbackNextAction(lang: Lang): string {
   return lang === "ko" ? "온라인 상담 일정 협의" : lang === "ja" ? "オンライン相談日程の調整" : "Arrange online meeting";
 }
 
+function isOnlineMeetingNextAction(nextAction: string): boolean {
+  const normalized = nextAction.replace(/\s+/g, " ").trim().toLowerCase();
+  if ([
+    "온라인 상담 일정 협의",
+    "온라인 미팅 일정 협의",
+    "zoom 상담 일정 협의",
+    "arrange online meeting",
+    "arrange online meeting time",
+    "schedule online consultation",
+    "オンライン相談日程の調整",
+    "オンラインミーティング日程の調整",
+  ].some((label) => label.toLowerCase() === normalized)) {
+    return true;
+  }
+  return [
+    /zoom/i,
+    /google\s*meet/i,
+    /online\s*(meeting|consultation)/i,
+    /온라인\s*(상담|미팅)\s*일정\s*협의/,
+    /オンライン\s*(相談|ミーティング)\s*日程の調整/,
+  ].some((pattern) => pattern.test(nextAction));
+}
+
 function nextActionLabel(nextAction: string | null, lang: Lang): string {
   if (!nextAction) return fallbackNextAction(lang);
-  return /zoom/i.test(nextAction) ? fallbackNextAction(lang) : nextAction;
+  const normalized = nextAction.trim();
+  return isOnlineMeetingNextAction(normalized) ? fallbackNextAction(lang) : normalized;
 }
 
 function textValue(answers: Answers, key: string): string {
