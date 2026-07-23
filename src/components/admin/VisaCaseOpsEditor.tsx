@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Clipboard, ExternalLink, Loader2, Route } from "lucide-react";
 import { updateVisaCaseOperationsAction } from "@/app/actions/visa";
 import type { VisaAdminRow } from "@/components/admin/VisaAdminList";
+import { hasThreeUniqueConsultationSlots } from "@/lib/visa/consultation-slots";
 
 const ANSWER_LABELS: Record<string, string> = {
   goal: "주요 목표",
@@ -18,6 +19,7 @@ const ANSWER_LABELS: Record<string, string> = {
   settlementNeeds: "정착 지원 필요",
   consultationTimezone: "시간대",
   consultationAvailability: "Zoom 상담 가능 일정",
+  consultationSlots: "Zoom 상담 가능 일정 (지원자 현지 시각)",
 };
 
 const ANSWER_VALUES: Record<string, string> = {
@@ -41,6 +43,21 @@ function text(value: unknown): string {
   if (Array.isArray(value)) return value.map((item) => ANSWER_VALUES[String(item)] ?? String(item)).join(", ");
   if (typeof value === "boolean") return value ? "동의" : "동의 안 함";
   return ANSWER_VALUES[String(value)] ?? String(value ?? "-");
+}
+
+function answerText(key: string, value: unknown): string {
+  if (key === "consultationSlots" && Array.isArray(value)) {
+    return value
+      .map((slot, index) => {
+        const match = String(slot).match(
+          /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/,
+        );
+        if (!match) return `${index + 1}. ${String(slot)}`;
+        return `${index + 1}. ${match[1]}.${match[2]}.${match[3]} ${match[4]}:${match[5]}`;
+      })
+      .join("\n");
+  }
+  return text(value);
 }
 
 function toLocalDateTime(value: string | null): string {
@@ -131,7 +148,22 @@ export function VisaCaseOpsEditor({ row }: { row: VisaAdminRow }) {
     });
   };
 
-  const answers = Object.entries(row.follow_up_answers ?? {}).filter(([key]) => !["processAcknowledged", "priceAcknowledged", "projectOpportunityOptIn"].includes(key));
+  const hasStructuredConsultation =
+    Array.isArray(row.follow_up_answers?.consultationSlots) &&
+    hasThreeUniqueConsultationSlots(
+      row.follow_up_answers.consultationSlots.filter(
+        (slot): slot is string => typeof slot === "string",
+      ),
+    );
+  const answers = Object.entries(row.follow_up_answers ?? {}).filter(
+    ([key]) =>
+      ![
+        "processAcknowledged",
+        "priceAcknowledged",
+        "projectOpportunityOptIn",
+      ].includes(key) &&
+      !(key === "consultationAvailability" && hasStructuredConsultation),
+  );
 
   return (
     <div className="flex flex-col gap-5 border-t border-hairline-2 pt-4">
@@ -160,9 +192,9 @@ export function VisaCaseOpsEditor({ row }: { row: VisaAdminRow }) {
           </div>
           <dl className="mt-3 grid gap-3 md:grid-cols-2">
             {answers.map(([key, value]) => (
-              <div key={key} className={key === "auditionAvailability" || key === "careerHighlights" || key === "consultationAvailability" ? "md:col-span-2" : ""}>
+              <div key={key} className={key === "auditionAvailability" || key === "careerHighlights" || key === "consultationAvailability" || key === "consultationSlots" ? "md:col-span-2" : ""}>
                 <dt className="text-[11px] text-ink-3">{ANSWER_LABELS[key] ?? key}</dt>
-                <dd className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-foreground">{text(value)}</dd>
+                <dd className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-foreground">{answerText(key, value)}</dd>
               </div>
             ))}
           </dl>

@@ -17,6 +17,12 @@ import {
 import { submitVisaCaseFollowUpAction } from "@/app/actions/visa-case";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { cn } from "@/lib/utils";
+import {
+  consultationSlotsFromAnswers,
+  formatConsultationAvailability,
+  hasThreeUniqueConsultationSlots,
+  type ConsultationSlots,
+} from "@/lib/visa/consultation-slots";
 
 type Lang = "en" | "ja" | "ko";
 type Answers = Record<string, unknown>;
@@ -93,6 +99,8 @@ type Copy = {
   projectHelp: string;
   timezone: string;
   consultation: string;
+  consultationHelp: string;
+  consultationOption: (index: number) => string;
   processAck: string;
   priceAck: string;
   required: string;
@@ -164,8 +172,10 @@ const COPY: Record<Lang, Copy> = {
     ],
     projectOptIn: "I want to receive deetz project opportunities that match my profile.",
     projectHelp: "This is permission to share opportunities, not a promise of casting or paid work.",
-    timezone: "Your time zone",
-    consultation: "Give us three Zoom meeting time options",
+    timezone: "Time zone for these options",
+    consultation: "Choose three Zoom meeting time options",
+    consultationHelp: "Choose three different dates and times in your current time zone. We will confirm one option with you.",
+    consultationOption: (index) => `Option ${index}`,
     processAck: "I understand that the audition result determines whether I move directly to visa preparation or first enter the training track.",
     priceAck: "I understand that ₩4,000,000 is a guide price and the final amount may decrease or increase after consultation.",
     required: "Please complete the required fields and confirmations.",
@@ -235,8 +245,10 @@ const COPY: Record<Lang, Copy> = {
     ],
     projectOptIn: "プロフィールに合うdeetzプロジェクトの案内を受け取ります。",
     projectHelp: "案件案内への同意であり、キャスティングや有償の仕事を約束するものではありません。",
-    timezone: "タイムゾーン",
-    consultation: "Zoom相談が可能な日時を3つ記入してください。",
+    timezone: "以下の候補日時のタイムゾーン",
+    consultation: "Zoom相談が可能な日時を3つ選んでください。",
+    consultationHelp: "現在のタイムゾーンで異なる候補日時を3つ選んでください。相談日時はdeetzから改めて確定します。",
+    consultationOption: (index) => `候補 ${index}`,
     processAck: "オーディション結果により、すぐにビザ準備へ進むか、先にトレーニングを受けるかが決まることを理解しました。",
     priceAck: "400万ウォンは目安であり、相談後に最終費用が増減する可能性があることを理解しました。",
     required: "必須項目と確認事項を入力してください。",
@@ -306,8 +318,10 @@ const COPY: Record<Lang, Copy> = {
     ],
     projectOptIn: "내 프로필에 맞는 deetz 프로젝트 기회를 안내받겠습니다.",
     projectHelp: "프로젝트 안내 수신 동의이며, 캐스팅이나 유급 일감을 약속하는 것은 아닙니다.",
-    timezone: "현재 시간대",
-    consultation: "Zoom 미팅 가능한 날짜와 시간을 3개 적어주세요.",
+    timezone: "아래 후보 일정의 시간대",
+    consultation: "Zoom 미팅 가능한 날짜와 시간을 3개 선택해 주세요.",
+    consultationHelp: "현재 시간대를 기준으로 서로 다른 후보 3개를 선택해 주세요. 최종 미팅 일정은 deetz가 다시 확인해 드립니다.",
+    consultationOption: (index) => `후보 ${index}`,
     processAck: "오디션 결과에 따라 바로 비자 준비로 가거나, 먼저 트레이닝을 받게 된다는 점을 이해했습니다.",
     priceAck: "400만원은 기본 안내 단가이며, 상담 후 최종 비용이 내려가거나 추가될 수 있다는 점을 이해했습니다.",
     required: "필수 항목과 확인 사항을 모두 입력해 주세요.",
@@ -420,7 +434,9 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
   const [settlementNeeds, setSettlementNeeds] = useState<string[]>(arrayValue(a, "settlementNeeds"));
   const [projectOptIn, setProjectOptIn] = useState(a.projectOpportunityOptIn === true);
   const [timezone, setTimezone] = useState(textValue(a, "consultationTimezone") || Intl.DateTimeFormat().resolvedOptions().timeZone);
-  const [consultation, setConsultation] = useState(textValue(a, "consultationAvailability"));
+  const [consultationSlots, setConsultationSlots] = useState<ConsultationSlots>(
+    () => consultationSlotsFromAnswers(a),
+  );
   const [processAck, setProcessAck] = useState(a.processAcknowledged === true);
   const [priceAck, setPriceAck] = useState(a.priceAcknowledged === true);
   const t = COPY[lang];
@@ -445,7 +461,7 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
     ? Boolean(goal && immigrationHistory && (initial.hasVisa ? visaExpiry : passportExpiry) && (initial.currentlyInKorea !== false || residenceCountry))
     : step === 1
       ? Boolean(contractReadiness)
-      : Boolean(timezone.trim() && consultation.trim() && processAck && priceAck);
+      : Boolean(timezone.trim() && hasThreeUniqueConsultationSlots(consultationSlots) && processAck && priceAck);
 
   const operationalDetails = [
     initial.auditionAt
@@ -485,6 +501,14 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
     });
   };
 
+  const updateConsultationSlot = (index: number, value: string) => {
+    setConsultationSlots((current) =>
+      current.map((slot, slotIndex) =>
+        slotIndex === index ? value : slot,
+      ) as ConsultationSlots,
+    );
+  };
+
   const submit = () => {
     if (!canContinue) {
       setError(t.required);
@@ -505,7 +529,11 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
         settlementNeeds: settlementNeeds as ("housing" | "korean" | "banking" | "transport" | "none")[],
         projectOpportunityOptIn: projectOptIn,
         consultationTimezone: timezone,
-        consultationAvailability: consultation,
+        consultationSlots,
+        consultationAvailability: formatConsultationAvailability(
+          consultationSlots,
+          timezone,
+        ),
         processAcknowledged: processAck as true,
         priceAcknowledged: priceAck as true,
       });
@@ -646,7 +674,28 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
                 <span><span className="block text-sm font-semibold">{t.projectOptIn}</span><span className="mt-1 block text-xs leading-relaxed text-ink-3">{t.projectHelp}</span></span>
               </label>
               <Field label={t.timezone}><input value={timezone} onChange={(e) => setTimezone(e.target.value)} className="w-full rounded-xl border border-hairline-2 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none" /></Field>
-              <Field label={t.consultation}><textarea rows={3} value={consultation} onChange={(e) => setConsultation(e.target.value)} className="w-full resize-none rounded-xl border border-hairline-2 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none" /></Field>
+              <fieldset>
+                <legend className="mb-2 text-sm font-semibold">{t.consultation}</legend>
+                <div className="grid gap-2.5">
+                  {consultationSlots.map((slot, index) => (
+                    <label key={index} className="flex items-center gap-3 rounded-xl border border-hairline-2 bg-background p-3 focus-within:border-primary">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold text-ink-2">
+                        {index + 1}
+                      </span>
+                      <span className="sr-only">{t.consultationOption(index + 1)}</span>
+                      <input
+                        type="datetime-local"
+                        step={900}
+                        value={slot}
+                        onChange={(event) => updateConsultationSlot(index, event.target.value)}
+                        aria-label={t.consultationOption(index + 1)}
+                        className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none"
+                      />
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-xs leading-relaxed text-ink-3">{t.consultationHelp}</p>
+              </fieldset>
               <CheckLabel checked={processAck} onChange={setProcessAck} label={t.processAck} />
               <CheckLabel checked={priceAck} onChange={setPriceAck} label={t.priceAck} />
             </div>
