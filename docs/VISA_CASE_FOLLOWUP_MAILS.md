@@ -104,6 +104,10 @@ node scripts\prepare-visa-case-followup-mails.mjs --send --confirm-send=VISA_CAS
 
 언어 분포는 영어 4명, 일본어 4명, 한국어 1명이다.
 
-생성된 batch 폴더는 `C:\Users\tkay\Documents\Codex\2026-07-23\deetz\outputs\visa-followup-mails\2026-07-23T09-22-13-363Z`다.
+생성된 최신 no-price batch 폴더는 `C:\Users\tkay\Documents\Codex\2026-07-23\deetz\outputs\visa-followup-mails-no-price\2026-07-23T09-39-34-355Z`다.
+
+금액 관련 forbidden grep 결과는 0건이다.
+
+메일 미리보기 스냅샷은 같은 폴더의 `preview-en.png`, `preview-ja.png`, `preview-ko.png`다.
 
 실제 발송은 하지 않았다.
