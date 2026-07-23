@@ -13,13 +13,13 @@ const ANSWER_LABELS: Record<string, string> = {
   visaExpiry: "현재 비자 만료일",
   residenceCountry: "현재 거주 국가",
   immigrationHistory: "출입국 이력 검토",
-  auditionAvailability: "오디션 참석 참고사항",
+  auditionAvailability: "대면 확인 참고사항",
   careerHighlights: "추가 주요 경력",
   contractReadiness: "계약 검토 준비",
   settlementNeeds: "정착 지원 필요",
-  consultationTimezone: "시간대",
-  consultationAvailability: "Zoom 상담 가능 일정",
-  consultationSlots: "Zoom 상담 가능 일정 (지원자 현지 시각)",
+  consultationTimezone: "지원자 시간대",
+  consultationAvailability: "온라인 미팅 가능 일정",
+  consultationSlots: "온라인 미팅 가능 일정",
 };
 
 const ANSWER_VALUES: Record<string, string> = {
@@ -33,11 +33,14 @@ const ANSWER_VALUES: Record<string, string> = {
   ready: "준비됨",
   needs_translation: "번역본 필요",
   needs_explanation: "상세 설명 필요",
-  housing: "주거",
-  korean: "한국어",
+  training: "댄스 트레이닝",
+  housing: "주거 (집, 살 곳)",
+  korean: "한국어 언어",
   banking: "은행·휴대폰",
   transport: "입국·교통",
 };
+
+const KOREA_TIME_ZONE = "Asia/Seoul";
 
 function text(value: unknown): string {
   if (Array.isArray(value)) return value.map((item) => ANSWER_VALUES[String(item)] ?? String(item)).join(", ");
@@ -45,15 +48,79 @@ function text(value: unknown): string {
   return ANSWER_VALUES[String(value)] ?? String(value ?? "-");
 }
 
-function answerText(key: string, value: unknown): string {
+function partsForTimeZone(date: Date, timeZone: string): Record<string, string> | null {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(date);
+    return Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  } catch {
+    return null;
+  }
+}
+
+function offsetForTimeZone(date: Date, timeZone: string): number | null {
+  const parts = partsForTimeZone(date, timeZone);
+  if (!parts?.year || !parts.month || !parts.day || !parts.hour || !parts.minute) return null;
+  const asUtc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+  );
+  return asUtc - date.getTime();
+}
+
+function wallTimeToUtc(
+  year: string,
+  month: string,
+  day: string,
+  hour: string,
+  minute: string,
+  timeZone: string,
+): Date | null {
+  const guess = new Date(Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+  ));
+  const offset = offsetForTimeZone(guess, timeZone);
+  if (offset == null) return null;
+  const firstPass = new Date(guess.getTime() - offset);
+  const adjustedOffset = offsetForTimeZone(firstPass, timeZone);
+  return new Date(guess.getTime() - (adjustedOffset ?? offset));
+}
+
+function formatKoreaTime(date: Date): string {
+  const parts = partsForTimeZone(date, KOREA_TIME_ZONE);
+  if (!parts?.year || !parts.month || !parts.day || !parts.hour || !parts.minute) return "";
+  return `${parts.year}.${parts.month}.${parts.day} ${parts.hour}:${parts.minute}`;
+}
+
+function answerText(key: string, value: unknown, answers?: Record<string, unknown>): string {
   if (key === "consultationSlots" && Array.isArray(value)) {
+    const timeZone = typeof answers?.consultationTimezone === "string" ? answers.consultationTimezone : "";
     return value
       .map((slot, index) => {
         const match = String(slot).match(
           /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/,
         );
         if (!match) return `${index + 1}. ${String(slot)}`;
-        return `${index + 1}. ${match[1]}.${match[2]}.${match[3]} ${match[4]}:${match[5]}`;
+        const applicantTime = `${match[1]}.${match[2]}.${match[3]} ${match[4]}:${match[5]}`;
+        const utcDate = timeZone ? wallTimeToUtc(match[1], match[2], match[3], match[4], match[5], timeZone) : null;
+        const koreaTime = utcDate ? formatKoreaTime(utcDate) : "";
+        return koreaTime
+          ? `${index + 1}. ${applicantTime} (지원자 시간대: ${timeZone})\n   한국시간: ${koreaTime}`
+          : `${index + 1}. ${applicantTime}`;
       })
       .join("\n");
   }
@@ -194,7 +261,7 @@ export function VisaCaseOpsEditor({ row }: { row: VisaAdminRow }) {
             {answers.map(([key, value]) => (
               <div key={key} className={key === "auditionAvailability" || key === "careerHighlights" || key === "consultationAvailability" || key === "consultationSlots" ? "md:col-span-2" : ""}>
                 <dt className="text-[11px] text-ink-3">{ANSWER_LABELS[key] ?? key}</dt>
-                <dd className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-foreground">{answerText(key, value)}</dd>
+                <dd className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-foreground">{answerText(key, value, row.follow_up_answers)}</dd>
               </div>
             ))}
           </dl>

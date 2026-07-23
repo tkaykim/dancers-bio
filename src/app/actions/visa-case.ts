@@ -21,7 +21,7 @@ const consultationSlot = z
   .trim()
   .refine(
     (value) => normalizeConsultationSlot(value) === value,
-    "Zoom 상담 후보 날짜와 시간을 확인해 주세요.",
+    "온라인 미팅 후보 날짜와 시간을 확인해 주세요.",
   );
 
 const followUpSchema = z
@@ -36,7 +36,7 @@ const followUpSchema = z
     careerHighlights: z.string().trim().max(3000),
     contractReadiness: z.enum(["ready", "needs_translation", "needs_explanation"]),
     settlementNeeds: z
-      .array(z.enum(["housing", "korean", "banking", "transport", "none"]))
+      .array(z.enum(["training", "housing", "korean", "banking", "transport", "none"]))
       .max(5),
     projectOpportunityOptIn: z.boolean(),
     consultationTimezone: z.string().trim().min(1).max(120),
@@ -45,7 +45,7 @@ const followUpSchema = z
       .length(3)
       .refine(
         hasThreeUniqueConsultationSlots,
-        "서로 다른 Zoom 상담 후보 일정을 3개 선택해 주세요.",
+        "서로 다른 온라인 미팅 후보 일정을 3개 선택해 주세요.",
       )
       .optional(),
     consultationAvailability: z.string().trim().min(2).max(1500),
@@ -62,7 +62,7 @@ const followUpSchema = z
       context.addIssue({
         code: "custom",
         path: ["consultationSlots"],
-        message: "서로 다른 Zoom 상담 후보 일정을 3개 선택해 주세요.",
+        message: "서로 다른 온라인 미팅 후보 일정을 3개 선택해 주세요.",
       });
     }
   });
@@ -94,7 +94,7 @@ export async function submitVisaCaseFollowUpAction(
       project_opportunity_opt_in: projectOpportunityOptIn,
       case_stage: "triage_submitted",
       status: "reviewing",
-      next_action: "Zoom 상담 일정 협의",
+      next_action: "온라인 상담 일정 협의",
     })
     .eq("id", applicationId)
     .select("id")
