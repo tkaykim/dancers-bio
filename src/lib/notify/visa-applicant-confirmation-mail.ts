@@ -37,7 +37,7 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "What happens next",
     nextHtml:
-      "Please complete the short case form below with three online meeting time options.<br>We will review your situation in an online meeting first.<br>After the meeting, we will let you know whether we can move forward and what schedule is realistic.<br>If your visa route is ready, we will begin preparing the visa documents with you.<br>If more preparation is needed, we may recommend training before moving into the visa process.<br>The estimated base fee is about ₩4,000,000, and the final amount may change after consultation.<br>deetz project opportunities may be offered, but work and visa approval are not guaranteed.",
+      "Please complete the short case form below with three times when you can join an online meeting by Zoom or Google Meet.<br>We will review your situation in an online meeting first.<br>After the meeting, we will let you know whether we can move forward and what schedule is realistic.<br>If your visa route is ready, we will begin preparing the visa documents with you.<br>If more preparation is needed, we may recommend training before moving into the visa process.<br>The estimated ₩4,000,000 fee includes dance training, audition-related costs, contract preparation, and administrative handling for the visa process.<br>The final amount may be lower or higher after the online consultation.<br>deetz project opportunities may be offered, but work and visa approval are not guaranteed.",
     linkLabel: "Complete my case information",
     copyrightNote: "This email was sent to the address used for your deetz application.",
   },
@@ -54,7 +54,7 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "次のご案内",
     nextHtml:
-      "下の専用フォームに、オンライン相談が可能な日時を3つご入力ください。<br>まずオンラインミーティングで現在の状況を詳しく確認します。<br>相談後、進行可能かどうかと現実的なスケジュールをご案内します。<br>すぐに進行できる場合は、ビザ書類の準備を一緒に始めます。<br>準備が必要な場合は、ビザ準備の前にトレーニングをご案内することがあります。<br>基本目安料金は約400万ウォンで、最終費用は相談後に変わる場合があります。<br>deetzの案件をご案内する場合がありますが、仕事とビザ発給を保証するものではありません。",
+      "下の専用フォームに、ZoomまたはGoogle Meetでのオンラインミーティングが可能な日時を3つご入力ください。<br>まずオンラインミーティングで現在の状況を詳しく確認します。<br>相談後、進行可能かどうかと現実的なスケジュールをご案内します。<br>すぐに進行できる場合は、ビザ書類の準備を一緒に始めます。<br>準備が必要な場合は、ビザ準備の前にトレーニングをご案内することがあります。<br>想定料金400万ウォンには、ダンストレーニング、オーディション関連費用、契約書作成、ビザ発給のための行政手続き費用が含まれます。<br>オンライン相談後、費用が下がる場合も上がる場合もあります。<br>deetzの案件をご案内する場合がありますが、仕事とビザ発給を保証するものではありません。",
     linkLabel: "追加情報を入力する",
     copyrightNote: "このメールはdeetz申込時の登録アドレスへ送信されました。",
   },
@@ -71,7 +71,7 @@ const COPY: Record<Lang, {
     ],
     nextTitle: "다음 안내",
     nextHtml:
-      "아래 전용 질문지에 온라인 미팅 가능한 날짜와 시간을 3개 입력해 주세요.<br>먼저 온라인 미팅으로 현재 상황을 자세히 확인합니다.<br>상담 후 진행 가능 여부와 현실적인 일정을 안내드립니다.<br>바로 진행 가능한 경우 비자 서류 준비를 함께 시작합니다.<br>준비가 더 필요한 경우 비자 준비 전에 트레이닝을 안내할 수 있습니다.<br>기본 안내 단가는 약 400만원이며, 상담 후 최종 비용이 달라질 수 있습니다.<br>deetz 프로젝트 기회를 안내할 수 있지만 일거리와 비자 발급을 보장하지는 않습니다.",
+      "아래 전용 질문지에 온라인 미팅(Zoom 또는 Google Meet)이 가능한 날짜와 시간을 3개 입력해 주세요.<br>먼저 온라인 미팅으로 현재 상황을 자세히 확인합니다.<br>상담 후 진행 가능 여부와 현실적인 일정을 안내드립니다.<br>바로 진행 가능한 경우 비자 서류 준비를 함께 시작합니다.<br>준비가 더 필요한 경우 비자 준비 전에 트레이닝을 안내할 수 있습니다.<br>예상 단가 400만원에는 댄스 트레이닝, 오디션 비용, 계약서 작성, 비자 발급을 위한 행정 처리 비용이 포함됩니다.<br>온라인 상담 후 비용이 더 낮아지거나 올라갈 수 있습니다.<br>deetz 프로젝트 기회를 안내할 수 있지만 일거리와 비자 발급을 보장하지는 않습니다.",
     linkLabel: "추가 정보 입력하기",
     copyrightNote: "이 메일은 deetz 신청 주소로 발송되었습니다.",
   },
