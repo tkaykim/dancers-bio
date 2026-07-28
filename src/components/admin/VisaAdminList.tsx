@@ -56,6 +56,9 @@ export type VisaAdminRow = {
   follow_up_submitted_at: string | null;
   project_opportunity_opt_in: boolean | null;
   next_action: string | null;
+  declined_at: string | null;
+  decline_reason: string | null;
+  decline_reason_detail: string | null;
   tracking: {
     eventCount: number;
     sentAt: string | null;
@@ -140,6 +143,20 @@ function formatKstShort(value: string | null) {
   });
 }
 
+const DECLINE_REASON: Record<string, string> = {
+  other_agency: "다른 에이전시·경로",
+  price: "비용 부담",
+  schedule: "일정 불가",
+  not_ready: "결정 보류",
+  other: "기타",
+};
+
+function declineLabel(row: VisaAdminRow) {
+  if (!row.declined_at) return null;
+  const reason = row.decline_reason ? DECLINE_REASON[row.decline_reason] ?? row.decline_reason : "사유 미기재";
+  return `진행 안 함 · ${reason}`;
+}
+
 function trackingState(row: VisaAdminRow) {
   const t = row.tracking;
   if (!t?.sentAt) return null;
@@ -196,6 +213,12 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
                   {CASE_STAGE[r.case_stage] ?? r.case_stage}
                   {r.follow_up_submitted_at ? " · 질문지 완료" : ""}
                 </p>
+                {declineLabel(r) ? (
+                  <p className="mt-1 text-[11px] font-medium text-amber-600">
+                    {declineLabel(r)}
+                    {r.declined_at ? ` · ${formatKstShort(r.declined_at)}` : ""}
+                  </p>
+                ) : null}
                 {trackingState(r) ? (
                   <p className="mt-1 text-[11px] font-medium text-primary">
                     {trackingState(r)}
@@ -359,6 +382,19 @@ function VisaDetail({
         >
           댄스 영상 <ExternalLink className="size-3.5" />
         </a>
+      ) : null}
+
+      {row.declined_at ? (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <p className="text-xs font-semibold text-amber-700">지원자가 진행하지 않겠다고 응답</p>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
+            <Field label="응답 시각">{formatKstShort(row.declined_at) ?? "-"}</Field>
+            <Field label="사유">{row.decline_reason ? DECLINE_REASON[row.decline_reason] ?? row.decline_reason : "-"}</Field>
+          </div>
+          {row.decline_reason_detail ? (
+            <p className="mt-3 whitespace-pre-line text-[13px] leading-relaxed text-ink-2">{row.decline_reason_detail}</p>
+          ) : null}
+        </div>
       ) : null}
 
       <VisaCaseOpsEditor row={row} />

@@ -95,6 +95,9 @@ export async function submitVisaCaseFollowUpAction(
       case_stage: "triage_submitted",
       status: "reviewing",
       next_action: "온라인 상담 일정 협의",
+      declined_at: null,
+      decline_reason: null,
+      decline_reason_detail: null,
     })
     .eq("id", applicationId)
     .select("id")
@@ -107,4 +110,110 @@ export async function submitVisaCaseFollowUpAction(
   revalidatePath(`/visa/case/${parsed.data.token}`);
   revalidatePath("/admin/visa");
   return { ok: true, data: { submittedAt } };
+}
+
+// 지원자가 "지금은 진행하지 않겠다"를 직접 남기는 경로.
+// 사유는 5지선다이고, other일 때만 직접입력을 필수로 받는다.
+const declineSchema = z
+  .object({
+    token: z.string().min(20).max(1000),
+    reason: z.enum(["other_agency", "price", "schedule", "not_ready", "other"]),
+    reasonDetail: z.string().trim().max(1000),
+  })
+  .superRefine((value, context) => {
+    if (value.reason === "other" && value.reasonDetail.length < 2) {
+      context.addIssue({
+        code: "custom",
+        path: ["reasonDetail"],
+        message: "기타 사유를 직접 입력해 주세요.",
+      });
+    }
+  });
+
+export type VisaCaseDeclineInput = z.input<typeof declineSchema>;
+
+export async function submitVisaCaseDeclineAction(
+  input: VisaCaseDeclineInput,
+): Promise<ActionResult<{ declinedAt: string }>> {
+  const parsed = declineSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요." };
+  }
+
+  const applicationId = verifyVisaCaseToken(parsed.data.token);
+  if (!applicationId) {
+    return { ok: false, error: "링크가 유효하지 않습니다." };
+  }
+
+  const declinedAt = new Date().toISOString();
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("dancer_visa_applications")
+    .update({
+      declined_at: declinedAt,
+      decline_reason: parsed.data.reason,
+      decline_reason_detail: parsed.data.reasonDetail || null,
+      status: "on_hold",
+      case_stage: "on_hold",
+      next_action: "지원자 요청으로 진행 보류",
+    })
+    .eq("id", applicationId)
+    .select("id")
+    .maybeSingle();
+
+  if (error || !data) {
+    return { ok: false, error: "저장에 실패했습니다. 잠시 후 다시 시도해 주세요." };
+  }
+
+  revalidatePath(`/visa/case/${parsed.data.token}`);
+  revalidatePath("/admin/visa");
+  return { ok: true, data: { declinedAt } };
+}
+
+const resumeSchema = z.object({ token: z.string().min(20).max(1000) });
+
+export async function resumeVisaCaseAction(
+  input: z.input<typeof resumeSchema>,
+): Promise<ActionResult<{ resumed: true }>> {
+  const parsed = resumeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "입력값을 확인해 주세요." };
+  }
+
+  const applicationId = verifyVisaCaseToken(parsed.data.token);
+  if (!applicationId) {
+    return { ok: false, error: "링크가 유효하지 않습니다." };
+  }
+
+  const admin = createAdminClient();
+  const { data: current } = await admin
+    .from("dancer_visa_applications")
+    .select("follow_up_submitted_at")
+    .eq("id", applicationId)
+    .maybeSingle();
+  const alreadySubmitted = Boolean(
+    (current as { follow_up_submitted_at?: string | null } | null)?.follow_up_submitted_at,
+  );
+
+  const { data, error } = await admin
+    .from("dancer_visa_applications")
+    .update({
+      declined_at: null,
+      decline_reason: null,
+      decline_reason_detail: null,
+      status: alreadySubmitted ? "reviewing" : "new",
+      case_stage: alreadySubmitted ? "triage_submitted" : "application_received",
+      next_action: alreadySubmitted ? "온라인 상담 일정 협의" : "추가 정보 입력 대기",
+    })
+    .eq("id", applicationId)
+    .select("id")
+    .maybeSingle();
+
+  if (error || !data) {
+    return { ok: false, error: "저장에 실패했습니다. 잠시 후 다시 시도해 주세요." };
+  }
+
+  revalidatePath(`/visa/case/${parsed.data.token}`);
+  revalidatePath("/admin/visa");
+  return { ok: true, data: { resumed: true } };
 }

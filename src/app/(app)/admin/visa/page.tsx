@@ -45,6 +45,9 @@ type AppRow = {
   follow_up_submitted_at?: string | null;
   project_opportunity_opt_in?: boolean | null;
   next_action?: string | null;
+  declined_at?: string | null;
+  decline_reason?: string | null;
+  decline_reason_detail?: string | null;
 };
 
 type TrackingEventRow = {
@@ -193,6 +196,9 @@ export default async function AdminVisaPage() {
       follow_up_submitted_at: a.follow_up_submitted_at ?? null,
       project_opportunity_opt_in: a.project_opportunity_opt_in ?? null,
       next_action: a.next_action ?? null,
+      declined_at: a.declined_at ?? null,
+      decline_reason: a.decline_reason ?? null,
+      decline_reason_detail: a.decline_reason_detail ?? null,
       tracking: trackingMap.get(a.id) ?? null,
     };
   });
