@@ -11,6 +11,9 @@ const ALLOWED_EVENTS = new Set([
   "scroll_depth",
   "case_exit",
   "follow_up_submit_success",
+  "decline_open",
+  "decline_submit_success",
+  "resume_after_decline",
 ]);
 
 async function readBody(request: NextRequest): Promise<Record<string, unknown>> {

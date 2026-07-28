@@ -35,6 +35,9 @@ type CaseRow = {
   quoted_price_krw?: number | null;
   follow_up_answers?: Record<string, unknown> | null;
   follow_up_submitted_at?: string | null;
+  declined_at?: string | null;
+  decline_reason?: string | null;
+  decline_reason_detail?: string | null;
 };
 
 function requestedLang(value: string | string[] | undefined): string | null {
@@ -47,10 +50,12 @@ export default async function VisaCasePage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ lang?: string | string[] }>;
+  searchParams: Promise<{ lang?: string | string[]; decline?: string | string[] }>;
 }) {
   const { token } = await params;
   const query = await searchParams;
+  const declineRequested =
+    (Array.isArray(query.decline) ? query.decline[0] : query.decline) === "1";
   const applicationId = verifyVisaCaseToken(token);
   if (!applicationId) notFound();
 
@@ -106,7 +111,10 @@ export default async function VisaCasePage({
     nextAction: row.next_action ?? null,
     basePriceKrw: row.base_price_krw ?? 4_000_000,
     quotedPriceKrw: row.quoted_price_krw ?? null,
+    declinedAt: row.declined_at ?? null,
+    declineReason: row.decline_reason ?? null,
+    declineReasonDetail: row.decline_reason_detail ?? null,
   };
 
-  return <VisaCasePortal token={token} initial={initial} />;
+  return <VisaCasePortal token={token} initial={initial} declineRequested={declineRequested} />;
 }

@@ -11,10 +11,16 @@ import {
   CheckCircle2,
   CircleDot,
   Loader2,
+  PauseCircle,
+  RotateCcw,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import { submitVisaCaseFollowUpAction } from "@/app/actions/visa-case";
+import {
+  resumeVisaCaseAction,
+  submitVisaCaseDeclineAction,
+  submitVisaCaseFollowUpAction,
+} from "@/app/actions/visa-case";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { cn } from "@/lib/utils";
 import {
@@ -54,7 +60,20 @@ export type VisaCaseInitial = {
   nextAction: string | null;
   basePriceKrw: number;
   quotedPriceKrw: number | null;
+  declinedAt: string | null;
+  declineReason: string | null;
+  declineReasonDetail: string | null;
 };
+
+export const DECLINE_REASONS = [
+  "other_agency",
+  "price",
+  "schedule",
+  "not_ready",
+  "other",
+] as const;
+
+export type DeclineReason = (typeof DECLINE_REASONS)[number];
 
 type Copy = {
   title: string;
@@ -104,6 +123,21 @@ type Copy = {
   processAck: string;
   priceAck: string;
   required: string;
+  declineEntry: string;
+  declineEntryCta: string;
+  declineTitle: string;
+  declineIntro: string;
+  declineReasonLabel: string;
+  declineOptions: { value: DeclineReason; label: string }[];
+  declineDetail: string;
+  declineDetailHelp: string;
+  declineSubmit: string;
+  declineCancel: string;
+  declineRequired: string;
+  declinedTitle: string;
+  declinedBody: string;
+  declinedReasonLabel: string;
+  resume: string;
 };
 
 const COPY: Record<Lang, Copy> = {
@@ -179,6 +213,27 @@ const COPY: Record<Lang, Copy> = {
     processAck: "I understand that deetz will review my information first and may recommend either visa preparation or training before visa preparation.",
     priceAck: "I understand that the estimated ₩4,000,000 fee includes dance training, audition-related costs, contract preparation, and administrative handling for the visa process, and that the final amount may be lower or higher after the online consultation.",
     required: "Please complete the required fields and confirmations.",
+    declineEntry: "Not planning to continue right now?",
+    declineEntryCta: "Tell us you are not continuing",
+    declineTitle: "You are not continuing for now",
+    declineIntro: "Nothing else is required from you. A short reason helps us improve the program, and you can come back to this page any time.",
+    declineReasonLabel: "Main reason",
+    declineOptions: [
+      { value: "other_agency", label: "I found another agency or route" },
+      { value: "price", label: "The cost is too high for me" },
+      { value: "schedule", label: "The timing does not work for me" },
+      { value: "not_ready", label: "I am not ready to decide yet" },
+      { value: "other", label: "Other reason" },
+    ],
+    declineDetail: "Anything you would like to add (optional)",
+    declineDetailHelp: "If you selected Other, please write the reason here.",
+    declineSubmit: "Submit",
+    declineCancel: "Cancel",
+    declineRequired: "Please select a reason.",
+    declinedTitle: "We have noted that you are not continuing",
+    declinedBody: "Thank you for letting us know. We will keep your application on hold and will not send further steps.",
+    declinedReasonLabel: "Reason you shared",
+    resume: "I would like to continue after all",
   },
   ja: {
     title: "ビザプログラム専用ページ",
@@ -252,6 +307,27 @@ const COPY: Record<Lang, Copy> = {
     processAck: "deetzが情報を確認したうえで、ビザ準備または事前トレーニングをご案内する場合があることを理解しました。",
     priceAck: "想定料金400万ウォンには、ダンストレーニング、オーディション関連費用、契約書作成、ビザ発給のための行政手続き費用が含まれ、オンライン相談後に費用が下がる場合も上がる場合もあることを理解しました。",
     required: "必須項目と確認事項を入力してください。",
+    declineEntry: "今回は進めない場合はこちらからお知らせください。",
+    declineEntryCta: "進行しないことを伝える",
+    declineTitle: "今回は進行しない",
+    declineIntro: "これ以上のご対応は不要です。簡単な理由をお聞かせいただけると今後のプログラム改善に役立ちます。いつでもこのページから再開できます。",
+    declineReasonLabel: "主な理由",
+    declineOptions: [
+      { value: "other_agency", label: "他のエージェンシーや方法が見つかった" },
+      { value: "price", label: "費用の負担が大きい" },
+      { value: "schedule", label: "スケジュールが合わない" },
+      { value: "not_ready", label: "まだ決心がつかない" },
+      { value: "other", label: "その他の理由" },
+    ],
+    declineDetail: "補足があればご記入ください（任意）",
+    declineDetailHelp: "「その他の理由」を選んだ場合はこちらにご記入ください。",
+    declineSubmit: "送信する",
+    declineCancel: "キャンセル",
+    declineRequired: "理由を選択してください。",
+    declinedTitle: "進行しないご意向を承りました",
+    declinedBody: "ご連絡ありがとうございます。お申し込みは保留として扱い、次のステップのご案内は送りません。",
+    declinedReasonLabel: "お知らせいただいた理由",
+    resume: "やはり進めたいです",
   },
   ko: {
     title: "비자 프로그램 진행 페이지",
@@ -325,6 +401,27 @@ const COPY: Record<Lang, Copy> = {
     processAck: "deetz가 정보를 먼저 검토한 뒤 비자 준비 또는 사전 트레이닝을 안내할 수 있다는 점을 이해했습니다.",
     priceAck: "예상 단가 400만원에는 댄스 트레이닝, 오디션 비용, 계약서 작성, 비자 발급을 위한 행정 처리 비용이 포함되며, 온라인 상담 후 비용이 더 낮아지거나 올라갈 수 있다는 점을 이해했습니다.",
     required: "필수 항목과 확인 사항을 모두 입력해 주세요.",
+    declineEntry: "지금은 진행을 원하지 않으시나요?",
+    declineEntryCta: "진행하지 않겠다고 알리기",
+    declineTitle: "지금은 진행하지 않기",
+    declineIntro: "더 하실 일은 없습니다. 간단한 사유를 남겨주시면 프로그램을 개선하는 데 큰 도움이 됩니다. 마음이 바뀌시면 언제든 이 페이지에서 다시 진행할 수 있습니다.",
+    declineReasonLabel: "가장 가까운 사유",
+    declineOptions: [
+      { value: "other_agency", label: "다른 에이전시나 다른 경로를 찾았어요" },
+      { value: "price", label: "비용이 부담돼요" },
+      { value: "schedule", label: "일정이 맞지 않아요" },
+      { value: "not_ready", label: "아직 마음의 준비가 안 됐어요" },
+      { value: "other", label: "기타 사유" },
+    ],
+    declineDetail: "더 남기고 싶은 말씀 (선택)",
+    declineDetailHelp: "기타 사유를 선택하셨다면 여기에 직접 적어주세요.",
+    declineSubmit: "제출하기",
+    declineCancel: "취소",
+    declineRequired: "사유를 선택해 주세요.",
+    declinedTitle: "진행하지 않는 것으로 접수됐어요",
+    declinedBody: "알려주셔서 감사합니다. 신청은 보류 상태로 두고, 다음 단계 안내는 보내지 않겠습니다.",
+    declinedReasonLabel: "남겨주신 사유",
+    resume: "다시 진행하고 싶어요",
   },
 };
 
@@ -446,7 +543,15 @@ function arrayValue(answers: Answers, key: string): string[] {
   return Array.isArray(answers[key]) ? (answers[key] as unknown[]).filter((v): v is string => typeof v === "string") : [];
 }
 
-export function VisaCasePortal({ token, initial }: { token: string; initial: VisaCaseInitial }) {
+export function VisaCasePortal({
+  token,
+  initial,
+  declineRequested = false,
+}: {
+  token: string;
+  initial: VisaCaseInitial;
+  declineRequested?: boolean;
+}) {
   const router = useRouter();
   const initialLang: Lang = initial.preferredLang === "ja" || initial.preferredLang === "ko" ? initial.preferredLang : "en";
   const [lang, setLang] = useState<Lang>(initialLang);
@@ -476,6 +581,11 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
   );
   const [processAck, setProcessAck] = useState(a.processAcknowledged === true);
   const [priceAck, setPriceAck] = useState(a.priceAcknowledged === true);
+  const [declinedAt, setDeclinedAt] = useState<string | null>(initial.declinedAt);
+  const [declineReason, setDeclineReason] = useState<string>(initial.declineReason ?? "");
+  const [declineDetail, setDeclineDetail] = useState<string>(initial.declineReasonDetail ?? "");
+  const [declineOpen, setDeclineOpen] = useState(declineRequested && !initial.declinedAt);
+  const [declineError, setDeclineError] = useState<string | null>(null);
   const t = COPY[lang];
   const operationsCopy = OPERATIONS_COPY[lang];
   const trackingStartedAt = useRef<number | null>(null);
@@ -730,6 +840,68 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
     });
   };
 
+  const openDecline = useCallback((source: string) => {
+    setDeclineOpen(true);
+    setDeclineError(null);
+    sendTrackingEvent("decline_open", { eventKey: source });
+  }, [sendTrackingEvent]);
+
+  // 메일의 "진행하지 않겠습니다" 링크로 들어온 경우는 열림 상태가 이미 서버에서 정해지므로
+  // 여기서는 추적 이벤트만 한 번 남긴다.
+  useEffect(() => {
+    if (!declineRequested || declinedAt) return;
+    const key = "decline_open:email_link";
+    if (trackingKeysSent.current.has(key)) return;
+    trackingKeysSent.current.add(key);
+    sendTrackingEvent("decline_open", { eventKey: "email_link" });
+  }, [declineRequested, declinedAt, sendTrackingEvent]);
+
+  const submitDecline = () => {
+    if (!declineReason) {
+      setDeclineError(t.declineRequired);
+      return;
+    }
+    setDeclineError(null);
+    startTransition(async () => {
+      const result = await submitVisaCaseDeclineAction({
+        token,
+        reason: declineReason as DeclineReason,
+        reasonDetail: declineDetail,
+      });
+      if (!result.ok) {
+        setDeclineError(result.error);
+        return;
+      }
+      sendTrackingEvent("decline_submit_success", {
+        eventKey: declineReason,
+        beacon: true,
+        metadata: { hasDetail: declineDetail.trim().length > 0 },
+      });
+      setDeclinedAt(result.data?.declinedAt ?? new Date().toISOString());
+      setDeclineOpen(false);
+      setEditing(false);
+      router.refresh();
+    });
+  };
+
+  const resumeCase = () => {
+    setDeclineError(null);
+    startTransition(async () => {
+      const result = await resumeVisaCaseAction({ token });
+      if (!result.ok) {
+        setDeclineError(result.error);
+        return;
+      }
+      sendTrackingEvent("resume_after_decline", { eventKey: declineReason || "unknown" });
+      setDeclinedAt(null);
+      setDeclineOpen(false);
+      setEditing(!initial.followUpSubmittedAt);
+      router.refresh();
+    });
+  };
+
+  const declineReasonLabel = t.declineOptions.find((option) => option.value === declineReason)?.label ?? null;
+
   return (
     <main className={cn("mx-auto min-h-screen w-full max-w-3xl px-5 py-7 md:px-8 md:py-10", lang === "ko" && "break-keep")}>
       <header className="mb-8 flex items-center justify-between">
@@ -808,7 +980,36 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
         </div>
       </section>
 
-      {!editing ? (
+      {declinedAt ? (
+        <section className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-7">
+          <div className="flex flex-col items-center text-center">
+            <PauseCircle className="size-10 text-amber-600" />
+            <h2 className="mt-3 font-bold">{t.declinedTitle}</h2>
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">{t.declinedBody}</p>
+          </div>
+          {declineReasonLabel ? (
+            <div className="mt-5 rounded-xl border border-hairline-2 bg-background p-4">
+              <p className="text-xs text-ink-3">{t.declinedReasonLabel}</p>
+              <p className="mt-1 text-sm font-semibold text-foreground">{declineReasonLabel}</p>
+              {declineDetail.trim() ? (
+                <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-2">{declineDetail}</p>
+              ) : null}
+            </div>
+          ) : null}
+          {declineError ? <p className="mt-4 text-center text-sm text-rose-600">{declineError}</p> : null}
+          <div className="mt-5 flex justify-center">
+            <button
+              type="button"
+              onClick={resumeCase}
+              disabled={pending}
+              className="inline-flex items-center gap-2 rounded-lg border border-hairline-2 bg-background px-4 py-2 text-sm font-medium hover:bg-secondary disabled:opacity-50"
+            >
+              {pending ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
+              {t.resume}
+            </button>
+          </div>
+        </section>
+      ) : !editing ? (
         <section className="mt-4 flex flex-col items-center rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-7 text-center">
           <CheckCircle2 className="size-10 text-emerald-600" />
           <h2 className="mt-3 font-bold">{saved ? t.updated : t.submitted}</h2>
@@ -894,6 +1095,70 @@ export function VisaCasePortal({ token, initial }: { token: string; initial: Vis
           </div>
         </section>
       )}
+
+      {!declinedAt ? (
+        declineOpen ? (
+          <section className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 md:p-7">
+            <div className="flex items-center gap-2">
+              <PauseCircle className="size-5 text-amber-600" />
+              <h2 className="font-bold">{t.declineTitle}</h2>
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-ink-2">{t.declineIntro}</p>
+            <div className="mt-5 space-y-5">
+              <ChoiceGroup
+                label={t.declineReasonLabel}
+                options={t.declineOptions}
+                value={declineReason}
+                onChange={(value) => {
+                  setDeclineReason(value);
+                  setDeclineError(null);
+                }}
+              />
+              <Field label={t.declineDetail} help={t.declineDetailHelp}>
+                <textarea
+                  rows={3}
+                  value={declineDetail}
+                  onChange={(event) => setDeclineDetail(event.target.value)}
+                  className="w-full resize-none rounded-xl border border-hairline-2 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                />
+              </Field>
+            </div>
+            {declineError ? <p className="mt-4 text-sm text-rose-600">{declineError}</p> : null}
+            <div className="mt-6 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeclineOpen(false);
+                  setDeclineError(null);
+                }}
+                className="rounded-lg px-3 py-2 text-sm text-ink-2 hover:bg-secondary"
+              >
+                {t.declineCancel}
+              </button>
+              <button
+                type="button"
+                onClick={submitDecline}
+                disabled={pending}
+                className="inline-flex items-center gap-2 rounded-lg bg-foreground px-5 py-2.5 text-sm font-semibold text-background disabled:opacity-50"
+              >
+                {pending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+                {t.declineSubmit}
+              </button>
+            </div>
+          </section>
+        ) : (
+          <section className="mt-4 flex flex-col items-center gap-2 rounded-2xl border border-hairline-2 bg-card p-5 text-center">
+            <p className="text-sm text-ink-2">{t.declineEntry}</p>
+            <button
+              type="button"
+              onClick={() => openDecline("portal_link")}
+              className="text-sm font-semibold text-ink-3 underline underline-offset-4 hover:text-foreground"
+            >
+              {t.declineEntryCta}
+            </button>
+          </section>
+        )
+      ) : null}
 
       <footer className="mt-8 flex items-center justify-center gap-2 text-xs text-ink-4">
         <CalendarDays className="size-3.5" />
