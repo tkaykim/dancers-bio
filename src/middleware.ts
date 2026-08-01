@@ -25,7 +25,9 @@ const RESERVED_FIRST_SEGMENTS = new Set([
 ]);
 
 export async function middleware(request: NextRequest) {
-  const host = (request.headers.get("host") ?? "").toLowerCase();
+  const host = (request.headers.get("host") ?? "")
+    .toLowerCase()
+    .split(":")[0];
   if (VANITY_HOSTS.has(host)) {
     const { pathname } = request.nextUrl;
     // Bare root has no profile → send to the deetz brand site.

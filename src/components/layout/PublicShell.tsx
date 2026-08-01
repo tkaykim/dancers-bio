@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSelectedLayoutSegments } from "next/navigation";
 import {
   ArrowUpRight,
   Briefcase,
@@ -54,10 +54,18 @@ const navItems = [
 
 export function PublicShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "/";
+  const segments = useSelectedLayoutSegments();
+  const isPortfolioPage =
+    segments[0] === "d" || segments[0] === "t";
 
   return (
     <div className="min-h-svh bg-background">
-      <div className="mx-auto grid min-h-svh w-full max-w-md grid-cols-1 bg-background lg:max-w-[1360px] lg:grid-cols-[184px_minmax(0,1fr)]">
+      <div
+        className={
+          "mx-auto grid min-h-svh w-full grid-cols-1 bg-background lg:max-w-[1360px] lg:grid-cols-[184px_minmax(0,1fr)] " +
+          (isPortfolioPage ? "max-w-none" : "max-w-md")
+        }
+      >
         <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-svh lg:flex-col lg:border-r lg:border-border lg:px-5 lg:py-7">
           <Link href="/feed" className="mb-10 block">
             <DeetzLogo className="h-10 w-auto" priority />
@@ -129,13 +137,20 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1 pb-24 lg:pb-10">
+        <main
+          className={
+            "min-w-0 flex-1 " +
+            (isPortfolioPage ? "pb-0 lg:pb-10" : "pb-24 lg:pb-10")
+          }
+        >
           {children}
         </main>
 
-        <div className="lg:hidden">
-          <BottomTabBar />
-        </div>
+        {!isPortfolioPage ? (
+          <div className="lg:hidden">
+            <BottomTabBar />
+          </div>
+        ) : null}
       </div>
     </div>
   );

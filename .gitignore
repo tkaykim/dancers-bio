@@ -52,3 +52,4 @@ next-env.d.ts
 _probe.cjs
 _authgen.cjs
 _full_email.html
+.gstack/
