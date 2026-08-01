@@ -69,7 +69,7 @@ export function SocialIconRow({
           target="_blank"
           rel="noopener"
           aria-label={LABELS[p]}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/15 backdrop-blur transition-colors hover:bg-white/25"
+          className="flex size-11 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/15 backdrop-blur transition-colors hover:bg-white/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         >
           {ICONS[p]}
         </Link>

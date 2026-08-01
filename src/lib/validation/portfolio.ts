@@ -73,6 +73,18 @@ export const careerCategoryEnum = z.enum([
 
 export type CareerCategory = z.infer<typeof careerCategoryEnum>;
 
+export const CAREER_CATEGORY_ORDER: readonly CareerCategory[] = [
+  "choreo",
+  "broadcast",
+  "performance",
+  "judge",
+  "award",
+  "workshop",
+  "education",
+  "battle",
+  "other",
+];
+
 export const CAREER_CATEGORY_LABELS: Record<CareerCategory, string> = {
   choreo: "안무",
   performance: "공연",

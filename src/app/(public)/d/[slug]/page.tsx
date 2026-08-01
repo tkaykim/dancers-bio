@@ -1,19 +1,19 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile, getUser } from "@/lib/auth/guard";
-import { CAREER_CATEGORY_LABELS } from "@/lib/validation/portfolio";
-import { VideoThumbnail } from "@/components/portfolio/VideoEmbed";
+import {
+  CAREER_CATEGORY_LABELS,
+  CAREER_CATEGORY_ORDER,
+} from "@/lib/validation/portfolio";
 import { CareerGroup } from "@/components/portfolio/CareerGroup";
 import { ProfileFooterCTA } from "@/components/portfolio/ProfileFooterCTA";
-import { ShareLinkButton } from "@/components/share/ShareLinkButton";
 import { ProfileShareCard } from "@/components/share/ProfileShareCard";
-import { SocialIconRow } from "@/components/share/SocialIconRow";
-import { BackButton } from "@/components/ui/back-button";
+import { ArtistProfileHero } from "@/components/profile/ArtistProfileHero";
+import { ProfileMediaGallery } from "@/components/profile/ProfileMediaGallery";
+import { ProfileSectionHeading } from "@/components/profile/ProfileSectionHeading";
 import { Pencil, ChevronRight } from "lucide-react";
-// parseVideoUrl is now used inside CareerGroup's dialog
 import { SendProposalDialog } from "@/components/project/SendProposalDialog";
 
 type Career = {
@@ -256,9 +256,27 @@ export default async function PublicDancerPage({
     thumbnail?: string;
     type?: string;
   }>;
-  const yearsOnPlatform = list.length
-    ? new Date().getFullYear() - Math.min(...list.map((c) => Number(c.date.slice(0, 4))))
+  const isImageItem = (item: {
+    url: string;
+    type?: string;
+  }): boolean =>
+    item.type === "photo" ||
+    /\.(jpg|jpeg|png|gif|webp|avif)(\?|$)/i.test(item.url);
+  const photos = portfolio.filter(isImageItem);
+  const videos = portfolio.filter((item) => !isImageItem(item));
+  const careerYears = list
+    .map((career) => Number(career.date.slice(0, 4)))
+    .filter(Number.isFinite);
+  const yearsOnPlatform = careerYears.length
+    ? Math.max(
+        1,
+        new Date().getFullYear() - Math.min(...careerYears) + 1,
+      )
     : 0;
+  const personJsonLdString = JSON.stringify(personJsonLd).replace(
+    /</g,
+    "\\u003c",
+  );
 
   // 대표 경력(representative)은 Highlight 카루셀에 노출.
   const highlights = list.filter((c) => c.is_representative);
@@ -271,190 +289,119 @@ export default async function PublicDancerPage({
     arr.push(c);
     grouped.set(c.type, arr);
   }
-  // Order: choreo > broadcast > performance > judge > award > workshop > battle > other
-  const TYPE_ORDER = ["choreo", "broadcast", "performance", "judge", "award", "workshop", "battle", "other"];
-  const orderedTypes = TYPE_ORDER.filter((t) => grouped.has(t));
+  const orderedTypes = CAREER_CATEGORY_ORDER.filter((type) => grouped.has(type));
+  const genres = dancer.genres ?? [];
+  const genreSet = new Set(genres.map((genre) => genre.trim().toLowerCase()));
+  const extraSpecialties = (dancer.specialties ?? []).filter(
+    (specialty) => !genreSet.has(specialty.trim().toLowerCase()),
+  );
+  const roleLabel = grouped.has("choreo")
+    ? "Dancer · Choreographer"
+    : "Dancer";
+  const descriptor = [roleLabel, ...genres.slice(0, 2)].join(" · ");
 
   return (
-    <div className="relative mx-auto w-full max-w-md">
+    <div className="relative mx-auto w-full max-w-[1180px] lg:px-8 lg:pt-8">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(personJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: personJsonLdString }}
       />
-      {/* Back button (top-left, over hero) — 브라우저 히스토리로 직전 페이지 복귀 */}
-      <BackButton
-        fallback="/dancers"
-        ariaLabel="뒤로"
-        className="absolute left-4 top-4 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-background/70 text-foreground backdrop-blur hover:bg-background/90"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M19 12H5" />
-          <path d="M12 19l-7-7 7-7" />
-        </svg>
-      </BackButton>
-      {/* Top-right actions (over hero) — 공유는 모두에게, 수정은 owner/manager/admin */}
-      <div className="absolute right-4 top-4 z-40 flex items-center gap-2">
-        <ShareLinkButton
-          url={canonicalUrl}
-          title={`${dancerDisplayName(dancer)} | 댄서 프로필`}
-          variant="icon"
-        />
-        {canEdit ? (
-          <Link
-            href={editHref}
-            aria-label="프로필 수정"
-            className="flex h-10 items-center gap-1.5 rounded-full bg-background/70 px-4 text-sm font-semibold text-foreground backdrop-blur hover:bg-background/90"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-            </svg>
-            수정
-          </Link>
-        ) : null}
-      </div>
       {/* Hero */}
-      <div className="relative h-[420px] overflow-hidden">
-        {dancer.profile_img ? (
-          <Image
-            src={dancer.profile_img}
-            alt={dancer.stage_name}
-            fill
-            priority
-            sizes="(max-width: 672px) 100vw, 672px"
-            className="object-cover"
-          />
-        ) : (
-          <div
-            className="absolute inset-0"
-            style={{
-              background: `
-                radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.07), transparent 55%),
-                repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 12px, rgba(255,255,255,0.09) 12px 24px),
-                #1c1c19
-              `,
-            }}
-          />
-        )}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to top, rgba(14,14,12,1) 8%, rgba(14,14,12,0.6) 40%, transparent 80%)",
-          }}
-        />
-        <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-3 px-6 pb-7">
-          <div className="flex flex-wrap gap-1.5">
-            {dancer.is_verified ? (
-              <span className="rounded-full border border-hairline-2 bg-card/60 px-2.5 py-0.5 text-[11px] font-medium text-ink-2 backdrop-blur">
-                Verified ✓
-              </span>
+      <ArtistProfileHero
+        name={dancer.stage_name}
+        localName={dancer.korean_name}
+        eyebrow="Dancer portfolio"
+        descriptor={descriptor}
+        imageUrl={dancer.profile_img}
+        imageAlt={dancer.stage_name}
+        imageMode="portrait"
+        social={social}
+        canonicalUrl={canonicalUrl}
+        shareTitle={`${dancerDisplayName(dancer)} | 댄서 프로필`}
+        backHref="/dancers"
+        verified={Boolean(dancer.is_verified)}
+        location={dancer.location}
+        editHref={canEdit ? editHref : null}
+        stats={[
+          { value: list.length, label: "크레딧" },
+          { value: orderedTypes.length, label: "활동 분야" },
+          { value: yearsOnPlatform || "—", label: "활동 연차" },
+        ]}
+      />
+
+      {/* Profile summary — 히어로와 작업 목록 사이의 짧은 소개·역할 맥락 */}
+      {dancer.bio || genres.length > 0 || extraSpecialties.length > 0 ? (
+        <section className="border-b border-hairline-2 px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
+          <div className="max-w-3xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-2">
+              Profile
+            </p>
+            {dancer.bio ? (
+              <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-ink-2 sm:text-lg">
+                {dancer.bio}
+              </p>
             ) : null}
-            {dancer.location ? (
-              <span className="rounded-full border border-hairline-2 bg-card/60 px-2.5 py-0.5 text-[11px] font-medium text-ink-2 backdrop-blur">
-                {dancer.location}
-              </span>
+            {genres.length > 0 || extraSpecialties.length > 0 ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {genres.map((genre) => (
+                  <span
+                    key={`g-${genre}`}
+                    className="rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background"
+                  >
+                    {genre}
+                  </span>
+                ))}
+                {extraSpecialties.map((specialty) => (
+                  <span
+                    key={`s-${specialty}`}
+                    className="rounded-full border border-hairline-2 px-3 py-1.5 text-xs font-medium text-ink-2"
+                  >
+                    {specialty}
+                  </span>
+                ))}
+              </div>
             ) : null}
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight leading-none text-white">
-            {dancer.stage_name}
-          </h1>
-          {(() => {
-            const subtitle = [
-              (dancer.genres ?? []).slice(0, 3).join(" · "),
-              dancer.korean_name ?? "",
-            ]
-              .filter(Boolean)
-              .join(" · ");
-            return subtitle ? (
-              <p className="text-sm font-medium text-white/80">{subtitle}</p>
-            ) : null;
-          })()}
-          <SocialIconRow social={social} className="pt-1" />
-        </div>
-      </div>
-
-      {/* Stats */}
-      <section className="mx-4 mt-4 grid grid-cols-3 rounded-2xl border border-border bg-card py-4">
-        {[
-          { n: list.length, l: "Credits" },
-          { n: orderedTypes.length, l: "Categories" },
-          { n: yearsOnPlatform || "—", l: "Years" },
-        ].map((s, i, arr) => (
-          <div
-            key={s.l}
-            className={`text-center ${i < arr.length - 1 ? "border-r border-border" : ""}`}
-          >
-            <div className="text-xl font-bold tracking-tight">{s.n}</div>
-            <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-ink-3">
-              {s.l}
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {/* Bio */}
-      {dancer.bio ? (
-        <section className="px-6 pt-8">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">
-            ↳ About
-          </h2>
-          <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-ink-2">
-            {dancer.bio}
-          </p>
         </section>
       ) : null}
 
-      {/* Tags — genres에 이미 있는 값은 specialties에서 중복 제거(대소문자 무시) */}
-      {(() => {
-        const genres = dancer.genres ?? [];
-        const genreSet = new Set(genres.map((g) => g.trim().toLowerCase()));
-        const extraSpecialties = (dancer.specialties ?? []).filter(
-          (s) => !genreSet.has(s.trim().toLowerCase()),
-        );
-        if (genres.length === 0 && extraSpecialties.length === 0) return null;
-        return (
-          <section className="flex flex-wrap gap-1.5 px-6 pt-6">
-            {genres.map((g) => (
-              <span
-                key={`g-${g}`}
-                className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
-              >
-                {g}
-              </span>
-            ))}
-            {extraSpecialties.map((s) => (
-              <span
-                key={`s-${s}`}
-                className="rounded-full border border-border px-3 py-1 text-xs text-ink-2"
-              >
-                {s}
-              </span>
-            ))}
-          </section>
-        );
-      })()}
+      {/* Selected work — Apple Music/Spotify처럼 전체 목록보다 대표 작업을 먼저 보여준다. */}
+      {highlights.length > 0 ? (
+        <section className="px-5 pt-12 sm:px-8 lg:px-10 lg:pt-16">
+          <ProfileSectionHeading
+            eyebrow="Selected work"
+            title="대표 작업"
+            description="이 아티스트를 가장 빠르게 이해할 수 있는 주요 크레딧입니다."
+            count={highlights.length}
+          />
+          <div className="mt-6 max-w-4xl">
+            <CareerGroup
+              label="대표 경력"
+              items={highlights}
+              variant="carousel"
+            />
+          </div>
+        </section>
+      ) : null}
 
       {/* Portfolio file — downloadable PDF/JPG/PNG/MP4 */}
       {dancer.portfolio_file_url ? (
-        <section className="px-6 pt-8">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">
-            ↳ 포트폴리오 다운로드
-          </h2>
+        <section className="px-5 pt-10 sm:px-8 lg:px-10">
           <a
             href={dancer.portfolio_file_url}
             target="_blank"
             rel="noopener noreferrer"
             download={dancer.portfolio_file_name ?? undefined}
-            className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-secondary"
+            className="flex max-w-xl items-center gap-3 border-y border-hairline-2 py-4 transition-colors hover:bg-secondary/70"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
               ↓
             </span>
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="truncate text-sm font-semibold">
                 {dancer.portfolio_file_name ?? "포트폴리오 파일"}
               </span>
-              <span className="text-[11px] text-ink-3">
+              <span className="text-[11px] text-ink-2">
                 {dancer.portfolio_file_size_bytes
                   ? formatFileSize(dancer.portfolio_file_size_bytes)
                   : ""}
@@ -464,79 +411,63 @@ export default async function PublicDancerPage({
                 {prettyMime(dancer.portfolio_file_mime)}
               </span>
             </div>
-            <span className="text-ink-3">→</span>
+            <span className="text-ink-2">→</span>
           </a>
         </section>
       ) : null}
 
-      {/* Reel — uses dancer.portfolio jsonb */}
-      {portfolio.length > 0 ? (
-        <section className="pt-8">
-          <div className="flex items-center justify-between px-6">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">
-              ↳ Reel
-            </h2>
-            <span className="font-mono text-[11px] text-ink-3">
-              {portfolio.length}
-            </span>
-          </div>
-          <div className="scrollbar-none mt-3 flex gap-2.5 overflow-x-auto px-6 pb-1">
-            {portfolio.map((item, i) => {
-              const isImage =
-                item.type === "photo" ||
-                /\.(jpg|jpeg|png|gif|webp|avif)(\?|$)/i.test(item.url);
-              return (
-                <Link
-                  key={i}
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener"
-                  className="block w-40 shrink-0"
-                >
-                  {isImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.url}
-                      alt={`${dancer.stage_name} reel ${i + 1}`}
-                      loading="lazy"
-                      className="h-56 w-full rounded-md object-cover"
-                    />
-                  ) : (
-                    <VideoThumbnail
-                      url={item.url}
-                      className="!h-56 !w-full"
-                    />
-                  )}
-                </Link>
-              );
-            })}
+      {photos.length > 0 ? (
+        <section className="px-5 pt-12 sm:px-8 lg:px-10 lg:pt-16">
+          <ProfileSectionHeading
+            eyebrow="Visual portfolio"
+            title="갤러리"
+            description="무대와 작업의 분위기를 보여주는 대표 이미지입니다."
+            count={photos.length}
+          />
+          <div className="mt-6">
+            <ProfileMediaGallery
+              items={photos}
+              name={dancer.stage_name}
+              variant="photos"
+            />
           </div>
         </section>
       ) : null}
 
-      {/* Highlight — representative careers with thumbnails */}
-      {highlights.length > 0 ? (
-        <section className="px-6 pt-8">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">
-            ↳ Highlight
-          </h2>
-          <CareerGroup label="대표 경력" items={highlights} variant="carousel" />
+      {videos.length > 0 ? (
+        <section className="px-5 pt-12 sm:px-8 lg:px-10 lg:pt-16">
+          <ProfileSectionHeading
+            eyebrow="Showreel"
+            title="영상"
+            description="페이지를 벗어나지 않고 주요 퍼포먼스 영상을 확인할 수 있습니다."
+            count={videos.length}
+          />
+          <div className="mt-6">
+            <ProfileMediaGallery
+              items={videos}
+              name={dancer.stage_name}
+              variant="videos"
+            />
+          </div>
         </section>
       ) : null}
 
       {/* Credits — grouped by type, compact row layout */}
-      <section className="px-6 pb-16 pt-8">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">
-          ↳ Credits
-        </h2>
+      <section className="px-5 pb-16 pt-12 sm:px-8 lg:px-10 lg:pt-16">
+        <ProfileSectionHeading
+          eyebrow="Full credits"
+          title="전체 크레딧"
+          description="분야별 경력을 연도순으로 정리했습니다."
+          count={list.length}
+        />
         {orderedTypes.length === 0 ? (
-          <p className="mt-6 rounded-xl border border-dashed border-hairline-2 p-6 text-center text-sm text-ink-3">
+          <p className="mt-6 rounded-xl border border-dashed border-hairline-2 p-6 text-center text-sm text-ink-2">
             {highlights.length > 0
               ? "대표 경력 외 추가된 경력이 없습니다."
               : "아직 공개된 경력이 없습니다."}
           </p>
         ) : (
-          <div className="mt-4 flex flex-col gap-6">
+          <div className="mt-8 grid gap-x-10 gap-y-10 md:grid-cols-2">
             {orderedTypes.map((type) => (
               <CareerGroup
                 key={type}
@@ -553,21 +484,22 @@ export default async function PublicDancerPage({
         )}
       </section>
 
-      {/* 미claim 프로필 claim 후크: 도착한 캐스팅 제안이 있으면 강조 */}
-      {isCuration && pendingProposalCount > 0 ? (
-        <section className="mx-6 mt-6 rounded-2xl border border-primary/40 bg-primary/10 px-5 py-4">
-          <p className="text-sm font-semibold text-foreground">
-            🔥 이 프로필로 캐스팅 제안 {pendingProposalCount}건이 도착했어요
-          </p>
-          <p className="mt-1 text-xs text-ink-3">
-            본인 또는 매니저라면 권한을 신청하고 제안에 응답할 수 있어요. 아래에서 신청하세요.
-          </p>
-        </section>
-      ) : null}
+      <div className="mx-auto max-w-2xl pb-16">
+        {/* 미claim 프로필 claim 후크: 도착한 캐스팅 제안이 있으면 강조 */}
+        {isCuration && pendingProposalCount > 0 ? (
+          <section className="mx-6 mt-6 rounded-2xl border border-primary/40 bg-primary/10 px-5 py-4">
+            <p className="text-sm font-semibold text-foreground">
+              이 프로필로 캐스팅 제안 {pendingProposalCount}건이 도착했어요
+            </p>
+            <p className="mt-1 text-xs text-ink-2">
+              본인 또는 매니저라면 권한을 신청하고 제안에 응답할 수 있어요. 아래에서 신청하세요.
+            </p>
+          </section>
+        ) : null}
 
       {/* Owner edit entry — 본인(또는 매니저·관리자) 프로필이면 바로 수정 진입 */}
-      {canEdit ? (
-        <section className="mx-6 mt-6">
+        {canEdit ? (
+          <section className="mx-6 mt-6">
           <Link
             href={editHref}
             className="flex items-center gap-3 rounded-2xl bg-primary px-5 py-3.5 text-primary-foreground transition-opacity hover:opacity-90"
@@ -581,48 +513,48 @@ export default async function PublicDancerPage({
             </span>
             <ChevronRight className="size-5 shrink-0 text-primary-foreground/60" aria-hidden />
           </Link>
-        </section>
-      ) : null}
+          </section>
+        ) : null}
 
       {/* 본인 프로필이면 공유 유도 카드 (카카오·인스타 공유 + 링크 복붙). 승인 무관 — URL 직접 접근 가능. */}
-      {isOwner ? (
-        <section className="mx-6 mt-6">
+        {isOwner ? (
+          <section className="mx-6 mt-6">
           <ProfileShareCard
             url={canonicalUrl}
             title={`${dancerDisplayName(dancer)} | 댄서 프로필`}
           />
-        </section>
-      ) : null}
+          </section>
+        ) : null}
 
       {/* Footer CTAs: claim / signup / create-your-own */}
-      <ProfileFooterCTA
-        dancerId={dancer.id}
-        dancerName={dancer.stage_name}
-        dancerCount={typeof dancerCount === "number" ? dancerCount : null}
-        isCuration={isCuration}
-        isOwner={isOwner}
-        mode={
-          viewer
-            ? { kind: "logged", canClaim: isCuration, alreadyRequested, claimRequestId: existingClaimId }
-            : { kind: "guest" }
-        }
-      />
+        <ProfileFooterCTA
+          dancerId={dancer.id}
+          dancerName={dancer.stage_name}
+          dancerCount={typeof dancerCount === "number" ? dancerCount : null}
+          isCuration={isCuration}
+          isOwner={isOwner}
+          mode={
+            viewer
+              ? { kind: "logged", canClaim: isCuration, alreadyRequested, claimRequestId: existingClaimId }
+              : { kind: "guest" }
+          }
+        />
 
       {/* Send proposal — only for authenticated client-mode viewers */}
-      {canPropose ? (
-        <section className="px-6 pb-32 pt-4">
-          <SendProposalDialog
-            target={{
-              kind: "dancer",
-              dancer_id: dancer.id,
-              name: dancer.stage_name,
-            }}
-            myProjects={myProjects}
-          />
-        </section>
-      ) : null}
+        {canPropose ? (
+          <section className="px-6 pb-16 pt-4">
+            <SendProposalDialog
+              target={{
+                kind: "dancer",
+                dancer_id: dancer.id,
+                name: dancer.stage_name,
+              }}
+              myProjects={myProjects}
+            />
+          </section>
+        ) : null}
+      </div>
 
-      {/* Social links live as icon buttons in the hero (see SocialIconRow). */}
     </div>
   );
 }

@@ -3,13 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { getUser } from "@/lib/auth/guard";
-import { CAREER_CATEGORY_LABELS } from "@/lib/validation/portfolio";
-import { VideoThumbnail } from "@/components/portfolio/VideoEmbed";
-import { parseVideoUrl } from "@/lib/utils/video";
-import { SendProposalDialog } from "@/components/project/SendProposalDialog";
-import { ShareLinkButton } from "@/components/share/ShareLinkButton";
-import { SocialIconRow } from "@/components/share/SocialIconRow";
+import {
+  CAREER_CATEGORY_LABELS,
+  CAREER_CATEGORY_ORDER,
+} from "@/lib/validation/portfolio";
+import { CareerGroup } from "@/components/portfolio/CareerGroup";
+import { ArtistProfileHero } from "@/components/profile/ArtistProfileHero";
+import { ProfileMediaGallery } from "@/components/profile/ProfileMediaGallery";
+import { ProfileSectionHeading } from "@/components/profile/ProfileSectionHeading";
 
 type Career = {
   id: number;
@@ -38,7 +39,7 @@ type TeamRow = {
   social_links: Record<string, string> | null;
   approval_status: "pending" | "approved" | "rejected";
   is_active: boolean;
-  portfolio: { url?: string; thumbnail?: string }[] | null;
+  portfolio: { url?: string; thumbnail?: string; type?: string }[] | null;
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -124,7 +125,7 @@ export default async function PublicTeamPage({
   if (!team.is_active) notFound();
 
   const supabase = await createClient();
-  const [{ data: careers }, { data: memberRows }, viewer, { data: teamLead }] = await Promise.all([
+  const [{ data: careers }, { data: memberRows }] = await Promise.all([
     supabase
       .from("careers")
       .select("id, type, title, date, details, is_representative")
@@ -139,28 +140,7 @@ export default async function PublicTeamPage({
       )
       .eq("team_id", team.id)
       .order("sort_order", { ascending: true }),
-    getUser(),
-    supabase.from("teams").select("lead_profile_id").eq("id", team.id).maybeSingle(),
   ]);
-
-  const teamLeadId = teamLead?.lead_profile_id as string | undefined;
-  void teamLeadId;
-  // Lite MVP: direct_proposal OFF.
-  const canPropose = false;
-
-  let myProjects: Array<{ id: string; title: string; visibility: "public" | "private"; status: string; allow_team_apply: boolean }> = [];
-  if (canPropose) {
-    const { data: mp } = await supabase
-      .from("projects")
-      .select("id, title, visibility, status, allow_team_apply")
-      .eq("owner_id", viewer!.id)
-      .is("deleted_at", null)
-      .in("status", ["draft", "open"])
-      .eq("allow_team_apply", true)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    myProjects = (mp ?? []) as typeof myProjects;
-  }
 
   const list = (careers ?? []) as Career[];
   const social = (team.social_links ?? {}) as Record<string, string>;
@@ -194,7 +174,16 @@ export default async function PublicTeamPage({
   const portfolio = (team.portfolio ?? []).filter((p) => p?.url) as Array<{
     url: string;
     thumbnail?: string;
+    type?: string;
   }>;
+  const isImageItem = (item: {
+    url: string;
+    type?: string;
+  }): boolean =>
+    item.type === "photo" ||
+    /\.(jpg|jpeg|png|gif|webp|avif)(\?|$)/i.test(item.url);
+  const photos = portfolio.filter(isImageItem);
+  const videos = portfolio.filter((item) => !isImageItem(item));
   type PublicDancerJoin = {
     id: string;
     stage_name: string | null;
@@ -226,131 +215,119 @@ export default async function PublicTeamPage({
     arr.push(c);
     grouped.set(c.type, arr);
   }
-  const TYPE_ORDER = ["choreo", "broadcast", "performance", "judge", "award", "workshop", "battle", "other"];
-  const orderedTypes = TYPE_ORDER.filter((t) => grouped.has(t));
+  const orderedTypes = CAREER_CATEGORY_ORDER.filter((type) => grouped.has(type));
+  const highlights = list.filter((career) => career.is_representative);
+  const careerYears = list
+    .map((career) => Number(career.date.slice(0, 4)))
+    .filter(Number.isFinite);
+  const yearsActive = careerYears.length
+    ? Math.max(
+        1,
+        new Date().getFullYear() - Math.min(...careerYears) + 1,
+      )
+    : 0;
+  const genres = team.genres ?? [];
+  const genreSet = new Set(genres.map((genre) => genre.trim().toLowerCase()));
+  const extraSpecialties = (team.specialties ?? []).filter(
+    (specialty) => !genreSet.has(specialty.trim().toLowerCase()),
+  );
+  const descriptor = ["Dance crew", ...genres.slice(0, 2)].join(" · ");
+  const teamJsonLdString = JSON.stringify(teamJsonLd).replace(
+    /</g,
+    "\\u003c",
+  );
 
   return (
-    <div className="relative mx-auto w-full max-w-md">
+    <div className="relative mx-auto w-full max-w-[1180px] lg:px-8 lg:pt-8">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(teamJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: teamJsonLdString }}
       />
-      {/* Back button (top-left, over hero) */}
-      <Link
-        href="/dancers?tab=teams"
-        aria-label="뒤로"
-        className="absolute left-4 top-4 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-background/70 text-foreground backdrop-blur hover:bg-background/90"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M19 12H5" />
-          <path d="M12 19l-7-7 7-7" />
-        </svg>
-      </Link>
-      {/* Share button (top-right, over hero) — 모두에게. URL 직접 접근은 승인 무관(teams_select_all). */}
-      <div className="absolute right-4 top-4 z-40">
-        <ShareLinkButton
-          url={canonicalUrl}
-          title={`${teamDisplayName(team)} | 댄스팀`}
-          variant="icon"
-        />
-      </div>
       {/* Hero */}
-      <div className="relative h-[420px] overflow-hidden">
-        {team.profile_img ? (
-          <Image
-            src={team.profile_img}
-            alt={team.team_name}
-            fill
-            priority
-            sizes="(max-width: 672px) 100vw, 672px"
-            className="object-cover"
-          />
-        ) : (
-          <div
-            className="absolute inset-0"
-            style={{
-              background: `
-                radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.07), transparent 55%),
-                repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 12px, rgba(255,255,255,0.09) 12px 24px),
-                #1c1c19
-              `,
-            }}
-          />
-        )}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to top, rgba(14,14,12,1) 8%, rgba(14,14,12,0.6) 40%, transparent 80%)",
-          }}
-        />
-        <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-3 px-6 pb-7">
-          <div className="flex flex-wrap gap-1.5">
-            <span className="rounded-full border border-hairline-2 bg-card/60 px-2.5 py-0.5 text-[11px] font-medium text-ink-2 backdrop-blur">
-              팀
-            </span>
-            {team.location ? (
-              <span className="rounded-full border border-hairline-2 bg-card/60 px-2.5 py-0.5 text-[11px] font-medium text-ink-2 backdrop-blur">
-                {team.location}
-              </span>
+      <ArtistProfileHero
+        name={team.team_name}
+        localName={team.korean_name}
+        eyebrow="Dance crew portfolio"
+        descriptor={descriptor}
+        imageUrl={team.profile_img}
+        imageAlt={team.team_name}
+        imageMode="cover"
+        social={social}
+        canonicalUrl={canonicalUrl}
+        shareTitle={`${teamDisplayName(team)} | 댄스팀`}
+        backHref="/dancers?tab=teams"
+        verified={team.approval_status === "approved"}
+        verifiedLabel="승인된 팀"
+        location={team.location}
+        stats={[
+          { value: members.length, label: "멤버" },
+          { value: list.length, label: "크레딧" },
+          { value: yearsActive || "—", label: "활동 연차" },
+        ]}
+      />
+
+      {team.bio || genres.length > 0 || extraSpecialties.length > 0 ? (
+        <section className="border-b border-hairline-2 px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
+          <div className="max-w-3xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-2">
+              Profile
+            </p>
+            {team.bio ? (
+              <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-ink-2 sm:text-lg">
+                {team.bio}
+              </p>
+            ) : null}
+            {genres.length > 0 || extraSpecialties.length > 0 ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {genres.map((genre) => (
+                  <span
+                    key={`g-${genre}`}
+                    className="rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background"
+                  >
+                    {genre}
+                  </span>
+                ))}
+                {extraSpecialties.map((specialty) => (
+                  <span
+                    key={`s-${specialty}`}
+                    className="rounded-full border border-hairline-2 px-3 py-1.5 text-xs font-medium text-ink-2"
+                  >
+                    {specialty}
+                  </span>
+                ))}
+              </div>
             ) : null}
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight leading-none text-white">
-            {team.team_name}
-          </h1>
-          {(() => {
-            const subtitle = [
-              (team.genres ?? []).slice(0, 3).join(" · "),
-              team.korean_name ?? "",
-            ]
-              .filter(Boolean)
-              .join(" · ");
-            return subtitle ? (
-              <p className="text-sm font-medium text-white/80">{subtitle}</p>
-            ) : null;
-          })()}
-          <SocialIconRow social={social} className="pt-1" />
-        </div>
-      </div>
-
-      {/* Bio */}
-      {team.bio ? (
-        <section className="px-6 pt-8">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">↳ About</h2>
-          <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-ink-2">{team.bio}</p>
         </section>
       ) : null}
 
-      {/* Tags */}
-      {(team.specialties?.length || team.genres?.length) ? (
-        <section className="flex flex-wrap gap-1.5 px-6 pt-6">
-          {(team.genres ?? []).map((g) => (
-            <span
-              key={`g-${g}`}
-              className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
-            >
-              {g}
-            </span>
-          ))}
-          {(team.specialties ?? []).map((s) => (
-            <span
-              key={`s-${s}`}
-              className="rounded-full border border-border px-3 py-1 text-xs text-ink-2"
-            >
-              {s}
-            </span>
-          ))}
+      {highlights.length > 0 ? (
+        <section className="px-5 pt-12 sm:px-8 lg:px-10 lg:pt-16">
+          <ProfileSectionHeading
+            eyebrow="Selected work"
+            title="대표 작업"
+            description="이 팀을 가장 빠르게 이해할 수 있는 주요 크레딧입니다."
+            count={highlights.length}
+          />
+          <div className="mt-6 max-w-4xl">
+            <CareerGroup
+              label="대표 경력"
+              items={highlights}
+              variant="carousel"
+            />
+          </div>
         </section>
       ) : null}
 
       {/* Members */}
       {members.length > 0 ? (
-        <section className="pt-8">
-          <div className="flex items-center justify-between px-6">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">↳ Members</h2>
-            <span className="font-mono text-[11px] text-ink-3">{members.length}</span>
-          </div>
-          <div className="scrollbar-none mt-3 flex gap-4 overflow-x-auto px-6 pb-1">
+        <section className="px-5 pt-12 sm:px-8 lg:px-10 lg:pt-16">
+          <ProfileSectionHeading
+            eyebrow="Crew"
+            title="멤버"
+            count={members.length}
+          />
+          <div className="scrollbar-none -mx-5 mt-6 flex gap-5 overflow-x-auto px-5 pb-2 sm:-mx-0 sm:flex-wrap sm:px-0">
             {members.map((m) => {
               const avatar = m.avatar_url ? (
                 <Image
@@ -362,13 +339,13 @@ export default async function PublicTeamPage({
                 />
               ) : (
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-lg font-semibold ring-1 ring-hairline-2">
-                  {m.label[0]}
+                  {m.label === "(이름 없음)" ? "?" : m.label.charAt(0) || "?"}
                 </div>
               );
               return (
                 <div
                   key={m.id}
-                  className="flex w-16 shrink-0 flex-col items-center gap-1.5"
+                  className="flex w-20 shrink-0 flex-col items-center gap-2"
                 >
                   {m.slug ? (
                     <Link
@@ -381,7 +358,7 @@ export default async function PublicTeamPage({
                   ) : (
                     avatar
                   )}
-                  <span className="w-full truncate text-center text-xs font-medium text-ink-2">
+                  <span className="w-full truncate text-center text-sm font-medium text-ink-2">
                     {m.label}
                   </span>
                 </div>
@@ -391,93 +368,73 @@ export default async function PublicTeamPage({
         </section>
       ) : null}
 
-      {/* Reel */}
-      {portfolio.length > 0 ? (
-        <section className="pt-8">
-          <div className="flex items-center justify-between px-6">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">↳ Reel</h2>
-            <span className="font-mono text-[11px] text-ink-3">{portfolio.length}</span>
-          </div>
-          <div className="scrollbar-none mt-3 flex gap-2.5 overflow-x-auto px-6 pb-1">
-            {portfolio.map((item, i) => (
-              <Link
-                key={i}
-                href={item.url}
-                target="_blank"
-                rel="noopener"
-                className="block w-40 shrink-0"
-              >
-                <VideoThumbnail url={item.url} className="!h-56 !w-full" />
-              </Link>
-            ))}
+      {photos.length > 0 ? (
+        <section className="px-5 pt-12 sm:px-8 lg:px-10 lg:pt-16">
+          <ProfileSectionHeading
+            eyebrow="Visual portfolio"
+            title="갤러리"
+            description="팀의 무대와 작업 분위기를 보여주는 대표 이미지입니다."
+            count={photos.length}
+          />
+          <div className="mt-6">
+            <ProfileMediaGallery
+              items={photos}
+              name={team.team_name}
+              variant="photos"
+            />
           </div>
         </section>
       ) : null}
 
-      {/* Credits */}
-      <section className="px-6 pb-16 pt-8">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-3">↳ Credits</h2>
+      {videos.length > 0 ? (
+        <section className="px-5 pt-12 sm:px-8 lg:px-10 lg:pt-16">
+          <ProfileSectionHeading
+            eyebrow="Showreel"
+            title="영상"
+            count={videos.length}
+          />
+          <div className="mt-6">
+            <ProfileMediaGallery
+              items={videos}
+              name={team.team_name}
+              variant="videos"
+            />
+          </div>
+        </section>
+      ) : null}
+
+      <section className="px-5 pb-16 pt-12 sm:px-8 lg:px-10 lg:pt-16">
+        <ProfileSectionHeading
+          eyebrow="Full credits"
+          title="전체 크레딧"
+          description="분야별 참여 이력을 한눈에 확인할 수 있습니다."
+          count={list.length}
+        />
         {orderedTypes.length === 0 ? (
-          <p className="mt-6 rounded-xl border border-dashed border-hairline-2 p-6 text-center text-sm text-ink-3">
+          <p className="mt-8 border-y border-dashed border-hairline-2 py-10 text-center text-sm text-ink-2">
             아직 공개된 경력이 없습니다.
           </p>
         ) : (
-          <div className="mt-4 flex flex-col gap-8">
+          <div className="mt-8 grid gap-x-10 gap-y-10 md:grid-cols-2">
             {orderedTypes.map((type) => {
               const items = grouped.get(type) ?? [];
               return (
-                <div key={type}>
-                  <h3 className="mb-3 flex items-baseline gap-2 text-sm font-semibold">
-                    {CAREER_CATEGORY_LABELS[type as keyof typeof CAREER_CATEGORY_LABELS] ?? type}
-                    <span className="font-mono text-[11px] font-normal text-ink-3">{items.length}</span>
-                  </h3>
-                  <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {items.map((c) => {
-                      const video = parseVideoUrl(c.details?.link);
-                      const Card = video?.url ? "a" : "div";
-                      const cardProps = video?.url
-                        ? { href: video.url, target: "_blank" as const, rel: "noopener" }
-                        : {};
-                      return (
-                        <li key={c.id}>
-                          <Card
-                            {...cardProps}
-                            className="group flex flex-col gap-2 rounded-xl border border-border bg-card p-3 transition-colors hover:bg-secondary"
-                          >
-                            {video ? <VideoThumbnail url={video.url} alt={c.title} /> : null}
-                            <div className="flex items-center gap-2 font-mono text-[11px] text-ink-3">
-                              <span>{c.date}</span>
-                              {c.is_representative ? (
-                                <span className="text-primary">★ 대표</span>
-                              ) : null}
-                            </div>
-                            <div className="text-sm font-medium leading-snug">{c.title}</div>
-                            {c.details?.role ? (
-                              <div className="text-xs text-ink-3">{c.details.role}</div>
-                            ) : null}
-                          </Card>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
+                <CareerGroup
+                  key={type}
+                  label={
+                    CAREER_CATEGORY_LABELS[
+                      type as keyof typeof CAREER_CATEGORY_LABELS
+                    ] ?? type
+                  }
+                  items={items}
+                  variant="row"
+                />
               );
             })}
           </div>
         )}
       </section>
 
-      {/* Send proposal — only for authenticated client-mode viewers */}
-      {canPropose ? (
-        <section className="px-6 pb-32 pt-4">
-          <SendProposalDialog
-            target={{ kind: "team", team_id: team.id, name: team.team_name }}
-            myProjects={myProjects}
-          />
-        </section>
-      ) : null}
-
-      {/* Social links live as icon buttons in the hero (see SocialIconRow). */}
     </div>
   );
 }
