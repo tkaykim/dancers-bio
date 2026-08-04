@@ -80,6 +80,8 @@ export function VisaMeetingInvitePanel({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [openedInvite, setOpenedInvite] = useState<string | null>(null);
+  // 브라우저 기본 confirm 대신 버튼 2단계로 확인받는다 (자동화·모바일에서 모두 동작).
+  const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const runPreview = () => {
@@ -97,6 +99,7 @@ export function VisaMeetingInvitePanel({
         setError(result.error);
         return;
       }
+      setConfirming(false);
       setPreview({
         subject: result.data!.subject,
         html: result.data!.html,
@@ -106,7 +109,11 @@ export function VisaMeetingInvitePanel({
   };
 
   const runSend = () => {
-    if (!window.confirm("이 내용으로 지원자에게 미팅 안내 메일을 발송할까요?")) return;
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
+    setConfirming(false);
     setError(null);
     setMessage(null);
     startTransition(async () => {
@@ -122,6 +129,7 @@ export function VisaMeetingInvitePanel({
       }
       setMessage(`${result.data!.to} 로 발송했습니다.`);
       setPreview(null);
+      setConfirming(false);
       router.refresh();
     });
   };
@@ -193,12 +201,25 @@ export function VisaMeetingInvitePanel({
           type="button"
           onClick={runSend}
           disabled={pending || !preview}
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-primary px-4 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
+          className={
+            confirming
+              ? "inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-rose-600 px-4 text-[13px] font-semibold text-white disabled:opacity-50"
+              : "inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-primary px-4 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
+          }
           title={preview ? "" : "초안을 먼저 확인해 주세요."}
         >
           {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
-          발송하기
+          {confirming ? "한 번 더 누르면 발송됩니다" : "발송하기"}
         </button>
+        {confirming ? (
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            className="min-h-9 rounded-lg px-3 text-[13px] text-ink-3 hover:text-foreground"
+          >
+            취소
+          </button>
+        ) : null}
       </div>
 
       {error ? <p className="mt-3 text-[13px] text-rose-600">{error}</p> : null}
