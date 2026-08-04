@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { visaLabel } from "@/lib/data/korea-visas";
 import { VisaAdminList, type VisaAdminRow } from "@/components/admin/VisaAdminList";
 import type { MeetingInvite, MeetingTracking } from "@/components/admin/VisaMeetingInvitePanel";
+import type { OutboundMail } from "@/components/admin/VisaOutboundMailsPanel";
 import { VISA_MEETING_CAMPAIGN } from "@/lib/visa/tracking";
 import { makeVisaCaseToken } from "@/lib/quick-token";
 
@@ -121,6 +122,7 @@ export default async function AdminVisaPage() {
   const trackingMap = new Map<string, ReturnType<typeof summarizeTracking>>();
   const meetingTrackingMap = new Map<string, MeetingTracking>();
   const invitesMap = new Map<string, MeetingInvite[]>();
+  const outboundMap = new Map<string, OutboundMail[]>();
 
   if (dancerIds.length > 0) {
     const [{ data: dancers }, { data: privs }] = await Promise.all([
@@ -179,6 +181,18 @@ export default async function AdminVisaPage() {
       const { application_id: applicationId, ...rest } = invite;
       invitesMap.set(applicationId, [...(invitesMap.get(applicationId) ?? []), rest]);
     }
+
+    // 본문은 목록에 싣지 않는다 (열어볼 때만 서버 액션으로 가져온다).
+    const { data: mailRows } = await admin
+      .from("visa_outbound_mails")
+      .select("id, application_id, kind, lang, subject, status, source, sent_by_name, sent_at")
+      .in("application_id", appIds)
+      .order("sent_at", { ascending: false })
+      .limit(1000);
+    for (const mail of (mailRows ?? []) as unknown as Array<OutboundMail & { application_id: string }>) {
+      const { application_id: applicationId, ...rest } = mail;
+      outboundMap.set(applicationId, [...(outboundMap.get(applicationId) ?? []), rest]);
+    }
   }
 
   const rows: VisaAdminRow[] = apps.map((a) => {
@@ -235,6 +249,7 @@ export default async function AdminVisaPage() {
       tracking: trackingMap.get(a.id) ?? null,
       meeting_tracking: meetingTrackingMap.get(a.id) ?? null,
       meeting_invites: invitesMap.get(a.id) ?? [],
+      outbound_mails: outboundMap.get(a.id) ?? [],
     };
   });
 
