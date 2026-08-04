@@ -14,6 +14,7 @@ import {
   type MeetingInvite,
   type MeetingTracking,
 } from "@/components/admin/VisaMeetingInvitePanel";
+import { VisaOutboundMailsPanel, type OutboundMail } from "@/components/admin/VisaOutboundMailsPanel";
 import { cn } from "@/lib/utils";
 
 export type VisaAdminRow = {
@@ -66,6 +67,7 @@ export type VisaAdminRow = {
   decline_reason_detail: string | null;
   meeting_tracking: MeetingTracking | null;
   meeting_invites: MeetingInvite[];
+  outbound_mails: OutboundMail[];
   tracking: {
     eventCount: number;
     sentAt: string | null;
@@ -410,6 +412,8 @@ function VisaDetail({
         invites={row.meeting_invites}
         tracking={row.meeting_tracking}
       />
+
+      <VisaOutboundMailsPanel mails={row.outbound_mails} />
 
       <VisaCaseOpsEditor row={row} />
 

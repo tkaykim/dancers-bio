@@ -185,6 +185,21 @@ export async function sendVisaMeetingInviteAction(
     return { ok: false, error: `메일 발송에 실패했습니다. (${sent.error ?? "unknown"})` };
   }
 
+  // 지원자에게 나간 모든 메일의 단일 이력에도 남긴다.
+  await admin.from("visa_outbound_mails").insert({
+    application_id: parsed.data.applicationId,
+    kind: "meeting_invite",
+    campaign: VISA_MEETING_CAMPAIGN,
+    lang: parsed.data.lang,
+    subject: mail.subject,
+    body_text: mail.text,
+    body_html: mail.html,
+    status: "sent",
+    source: "admin",
+    sent_by_name: (profile.display_name as string | null) ?? null,
+    metadata: { inviteId: created.id, meetingAt: meetingAtIso, meetingUrl: parsed.data.meetingUrl },
+  });
+
   await recordVisaCaseTrackingEvent({
     applicationId: parsed.data.applicationId,
     campaign: VISA_MEETING_CAMPAIGN,
@@ -205,4 +220,25 @@ export async function sendVisaMeetingInviteAction(
 
   revalidatePath("/admin/visa");
   return { ok: true, data: { inviteId: created.id as string, to: found.row.email } };
+}
+
+const mailBodySchema = z.object({ mailId: z.string().uuid() });
+
+/** 보낸 메일 본문을 필요할 때만 불러온다 (목록에는 본문을 싣지 않는다). */
+export async function getVisaOutboundMailBodyAction(
+  input: z.input<typeof mailBodySchema>,
+): Promise<ActionResult<{ html: string }>> {
+  await requireAdmin();
+  const parsed = mailBodySchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "잘못된 요청입니다." };
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("visa_outbound_mails")
+    .select("body_html")
+    .eq("id", parsed.data.mailId)
+    .maybeSingle();
+
+  if (!data) return { ok: false, error: "메일을 찾을 수 없습니다." };
+  return { ok: true, data: { html: (data.body_html as string) ?? "" } };
 }
