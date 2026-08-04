@@ -95,15 +95,15 @@ export async function previewVisaMeetingInviteAction(
   const found = await loadCase(parsed.data.applicationId);
   if (!found) return { ok: false, error: "지원자를 찾을 수 없습니다." };
 
-  const urls = buildUrls(parsed.data.applicationId, parsed.data.lang);
   const mail = renderVisaMeetingInviteMail({
     name: found.name,
     lang: parsed.data.lang as MeetingInviteLang,
     meetingAtIso: toKstIso(parsed.data.meetingAtLocal),
     meetingUrl: parsed.data.meetingUrl,
-    // 미리보기에서는 추적 링크 대신 실제 미팅 링크를 그대로 보여준다.
+    // 미리보기에서는 추적 링크와 열람 픽셀을 모두 뺀다.
+    // 픽셀을 넣으면 관리자가 초안을 열어본 것이 지원자 열람으로 잡힌다.
     trackedUrl: null,
-    openPixelUrl: urls.openPixelUrl,
+    openPixelUrl: null,
   });
 
   return {
