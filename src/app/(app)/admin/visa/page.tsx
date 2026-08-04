@@ -3,6 +3,8 @@ import { requireProfile } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { visaLabel } from "@/lib/data/korea-visas";
 import { VisaAdminList, type VisaAdminRow } from "@/components/admin/VisaAdminList";
+import type { MeetingInvite, MeetingTracking } from "@/components/admin/VisaMeetingInvitePanel";
+import { VISA_MEETING_CAMPAIGN } from "@/lib/visa/tracking";
 import { makeVisaCaseToken } from "@/lib/quick-token";
 
 export const metadata = { title: "비자 신청 관리 | deetz admin" };
@@ -54,10 +56,26 @@ type TrackingEventRow = {
   application_id: string;
   created_at: string;
   event_type: string;
+  event_key: string | null;
+  campaign: string | null;
   lang: string | null;
   step: number | null;
   scroll_depth: number | null;
 };
+
+// 미팅 안내 메일 캠페인만 따로 집계한다 (발송 → 열람 → 링크 클릭).
+function summarizeMeeting(events: TrackingEventRow[]): MeetingTracking {
+  const of = (type: string) => events.filter((event) => event.event_type === type);
+  const firstOf = (type: string) => [...of(type)].reverse()[0] ?? null;
+  return {
+    sentCount: of("email_sent").length,
+    openedAt: firstOf("email_open")?.created_at ?? null,
+    openCount: of("email_open").length,
+    clickedAt: firstOf("cta_click")?.created_at ?? null,
+    clickCount: of("cta_click").length,
+    lastEventAt: events[0]?.created_at ?? null,
+  };
+}
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://deetz.kr";
 
@@ -101,6 +119,8 @@ export default async function AdminVisaPage() {
   const dancerMap = new Map<string, { stage_name: string | null; korean_name: string | null; slug: string | null }>();
   const privMap = new Map<string, { nationality: string | null; has_visa: boolean | null; visa_type: string | null }>();
   const trackingMap = new Map<string, ReturnType<typeof summarizeTracking>>();
+  const meetingTrackingMap = new Map<string, MeetingTracking>();
+  const invitesMap = new Map<string, MeetingInvite[]>();
 
   if (dancerIds.length > 0) {
     const [{ data: dancers }, { data: privs }] = await Promise.all([
@@ -135,7 +155,7 @@ export default async function AdminVisaPage() {
   if (appIds.length > 0) {
     const { data: trackingEvents } = await admin
       .from("visa_case_tracking_events")
-      .select("application_id, created_at, event_type, lang, step, scroll_depth")
+      .select("application_id, created_at, event_type, event_key, campaign, lang, step, scroll_depth")
       .in("application_id", appIds)
       .order("created_at", { ascending: false })
       .limit(5000);
@@ -145,6 +165,19 @@ export default async function AdminVisaPage() {
     }
     for (const [applicationId, events] of grouped.entries()) {
       trackingMap.set(applicationId, summarizeTracking(events));
+      const meetingEvents = events.filter((event) => event.campaign === VISA_MEETING_CAMPAIGN);
+      if (meetingEvents.length > 0) meetingTrackingMap.set(applicationId, summarizeMeeting(meetingEvents));
+    }
+
+    const { data: inviteRows } = await admin
+      .from("visa_meeting_invites")
+      .select("id, application_id, meeting_at, meeting_url, lang, subject, body_html, status, error, sent_by_name, created_at")
+      .in("application_id", appIds)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    for (const invite of (inviteRows ?? []) as unknown as Array<MeetingInvite & { application_id: string }>) {
+      const { application_id: applicationId, ...rest } = invite;
+      invitesMap.set(applicationId, [...(invitesMap.get(applicationId) ?? []), rest]);
     }
   }
 
@@ -200,6 +233,8 @@ export default async function AdminVisaPage() {
       decline_reason: a.decline_reason ?? null,
       decline_reason_detail: a.decline_reason_detail ?? null,
       tracking: trackingMap.get(a.id) ?? null,
+      meeting_tracking: meetingTrackingMap.get(a.id) ?? null,
+      meeting_invites: invitesMap.get(a.id) ?? [],
     };
   });
 

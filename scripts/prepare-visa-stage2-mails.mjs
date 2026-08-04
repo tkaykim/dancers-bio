@@ -38,6 +38,19 @@ const CONFIRMED_MEETINGS = {
     at: "2026-07-30T13:00",
     url: "https://us05web.zoom.us/j/89561005965?pwd=xAJmgDa3CpXkVKKNxFXxRHrCsbq2PK.1",
   },
+  // 2026-08-04 대표 확정분
+  "khl.nastya19@gmail.com": {
+    at: "2026-08-04T17:00",
+    url: "https://us05web.zoom.us/j/87354071016?pwd=rAkJn6gODCkV0SQz7bCr1q5iRhFh2O.1",
+  },
+  "ssunnysiia@gmail.com": {
+    at: "2026-08-05T17:00",
+    url: "https://us05web.zoom.us/j/88574304300?pwd=MQi4m0CA2gKBLh0lORF0lgHqLiFbXw.1",
+  },
+  "anyamuss11@gmail.com": {
+    at: "2026-08-06T16:00",
+    url: "https://us05web.zoom.us/j/83784472377?pwd=WgN1hmrPl5apg0FEIAXUHcJbpSWa65.1",
+  },
 };
 
 // 시험발송에서 confirm 세트에 사용할 샘플 일정.
@@ -604,6 +617,24 @@ const emailsWithSubmission = new Set(
   apps.filter((row) => row.follow_up_submitted_at).map((row) => String(row.email).toLowerCase()),
 );
 
+// 같은 사람이 여러 번 신청한 경우(예: ANNA는 visa/program 2건) 확정 안내가 두 번 나가지 않도록
+// 이메일당 한 건만 고른다. 추가 질문지를 제출한 행을 우선한다.
+const confirmRowByEmail = new Map();
+for (const row of apps) {
+  const email = String(row.email).toLowerCase();
+  if (!CONFIRMED_MEETINGS[email]) continue;
+  const current = confirmRowByEmail.get(email);
+  if (!current) {
+    confirmRowByEmail.set(email, row);
+    continue;
+  }
+  const better =
+    Boolean(row.follow_up_submitted_at) && !current.follow_up_submitted_at
+      ? row
+      : current;
+  confirmRowByEmail.set(email, better);
+}
+
 const excluded = [];
 function eligible(row) {
   const priv = privateInfo(row);
@@ -651,6 +682,10 @@ if (testMode) {
     let set = null;
     let note = null;
     if (meetingConfig) {
+      if (confirmRowByEmail.get(email)?.id !== row.id) {
+        excluded.push({ applicationId: row.id, email: row.email, name, reason: "duplicate_application_confirm_dedup" });
+        continue;
+      }
       set = "confirm";
     } else if (row.follow_up_submitted_at) {
       if (hasUsableSlot(row)) {
