@@ -5,6 +5,8 @@ import type { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const VISA_FOLLOWUP_CAMPAIGN = "visa_case_followup_20260723";
+// 어드민에서 발송하는 온라인 미팅 안내 메일 전용 캠페인.
+export const VISA_MEETING_CAMPAIGN = "visa_meeting_invite";
 
 type TrackingPayload = {
   applicationId: string;

@@ -9,6 +9,11 @@ import {
 } from "@/app/actions/visa";
 import { Drawer } from "@/components/ui/drawer";
 import { VisaCaseOpsEditor } from "@/components/admin/VisaCaseOpsEditor";
+import {
+  VisaMeetingInvitePanel,
+  type MeetingInvite,
+  type MeetingTracking,
+} from "@/components/admin/VisaMeetingInvitePanel";
 import { cn } from "@/lib/utils";
 
 export type VisaAdminRow = {
@@ -59,6 +64,8 @@ export type VisaAdminRow = {
   declined_at: string | null;
   decline_reason: string | null;
   decline_reason_detail: string | null;
+  meeting_tracking: MeetingTracking | null;
+  meeting_invites: MeetingInvite[];
   tracking: {
     eventCount: number;
     sentAt: string | null;
@@ -396,6 +403,13 @@ function VisaDetail({
           ) : null}
         </div>
       ) : null}
+
+      <VisaMeetingInvitePanel
+        applicationId={row.id}
+        preferredLang={row.preferred_lang}
+        invites={row.meeting_invites}
+        tracking={row.meeting_tracking}
+      />
 
       <VisaCaseOpsEditor row={row} />
 
