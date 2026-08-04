@@ -49,10 +49,12 @@ function formatKst(value: string | null | undefined): string {
 }
 
 // 수신자가 어디까지 왔는지 한 줄로 요약한다.
-function progressLabel(tracking: MeetingTracking | null): string {
-  if (!tracking || tracking.sentCount === 0) return "발송 전";
-  if (tracking.clickedAt) return "미팅 링크 클릭";
-  if (tracking.openedAt) return "메일 열람";
+// 발송 건수는 추적 이벤트와 발송 이력 중 큰 값을 쓴다.
+// (어드민 도입 전 스크립트로 보낸 건은 이 캠페인 추적 이벤트가 없다)
+function progressLabel(tracking: MeetingTracking | null, sentCount: number): string {
+  if (sentCount === 0) return "발송 전";
+  if (tracking?.clickedAt) return "미팅 링크 클릭";
+  if (tracking?.openedAt) return "메일 열람";
   return "발송 후 미열람";
 }
 
@@ -83,6 +85,11 @@ export function VisaMeetingInvitePanel({
   // 브라우저 기본 confirm 대신 버튼 2단계로 확인받는다 (자동화·모바일에서 모두 동작).
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  const sentInvites = invites.filter((invite) => invite.status === "sent").length;
+  const sentCount = Math.max(tracking?.sentCount ?? 0, sentInvites);
+  // 어드민 도입 전 스크립트로 보낸 건은 열람·클릭이 다른 캠페인에 쌓여 있다.
+  const hasLegacySend = sentInvites > (tracking?.sentCount ?? 0);
 
   const runPreview = () => {
     setError(null);
@@ -248,7 +255,7 @@ export function VisaMeetingInvitePanel({
       <div className="mt-5 border-t border-hairline-2 pt-4">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
           <span className="font-semibold text-ink-3">수신 현황</span>
-          <span className="font-semibold text-primary">{progressLabel(tracking)}</span>
+          <span className="font-semibold text-primary">{progressLabel(tracking, sentCount)}</span>
           <span className="inline-flex items-center gap-1 text-ink-2">
             <Eye className="size-3.5" />
             열람 {tracking?.openCount ?? 0}회
@@ -260,6 +267,13 @@ export function VisaMeetingInvitePanel({
             {tracking?.clickedAt ? ` · ${formatKst(tracking.clickedAt)}` : ""}
           </span>
         </div>
+
+        {hasLegacySend ? (
+          <p className="mt-2 text-[12px] leading-relaxed text-ink-3">
+            어드민 도입 전 스크립트로 보낸 건이 포함되어 있습니다. 그 건들의 열람·클릭 기록은 아래
+            &apos;메일·케이스 추적&apos;에서 확인해 주세요.
+          </p>
+        ) : null}
 
         <p className="mt-4 text-[11px] font-semibold text-ink-3">발송 내역 {invites.length}건</p>
         {invites.length === 0 ? (
