@@ -41,7 +41,6 @@ export function ApplyForm({
   const [feeCurrency, setFeeCurrency] = useState<string>("KRW");
   const [feeUnit, setFeeUnit] = useState<string>("회당");
   const [feeNegotiable, setFeeNegotiable] = useState(false);
-  const [feeUnsure, setFeeUnsure] = useState(false);
 
   function onFeeAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/[^\d]/g, "").slice(0, 10);
@@ -81,11 +80,18 @@ export function ApplyForm({
           formData.set("recruitment_channel_id", recruitmentChannelId);
         }
         if (collectFee) {
-          formData.set("fee_amount", feeAmount.replace(/[^\d]/g, ""));
+          const normalizedFeeAmount = feeAmount.replace(/[^\d]/g, "");
+          if (!normalizedFeeAmount) {
+            setMessage({
+              kind: "error",
+              text: "러프한 금액이라도 제안 단가를 입력해 주세요.",
+            });
+            return;
+          }
+          formData.set("fee_amount", normalizedFeeAmount);
           formData.set("fee_currency", feeCurrency);
           formData.set("fee_unit", feeUnit);
           formData.set("fee_negotiable", feeNegotiable ? "1" : "");
-          formData.set("fee_unsure", feeUnsure ? "1" : "");
         }
         startTransition(async () => {
           const result = await applyToProjectAction(formData);
@@ -124,64 +130,54 @@ export function ApplyForm({
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/30 p-3">
           <div className="flex items-baseline justify-between">
             <Label className="text-xs uppercase tracking-[0.14em] text-ink-3">
-              ↳ 제안 단가
+              ↳ 제안 단가 (필수)
             </Label>
             <span className="text-[11px] text-ink-3">운영자만 봅니다</span>
           </div>
 
-          {!feeUnsure ? (
-            <>
-              <div className="flex gap-2">
-                <div className="flex flex-1 items-center rounded-md border border-input bg-background px-2">
-                  <select
-                    aria-label="통화"
-                    value={feeCurrency}
-                    onChange={(e) => setFeeCurrency(e.target.value)}
-                    className="bg-transparent py-2 pr-1 text-sm focus:outline-none"
-                  >
-                    {FEE_CURRENCIES.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  <input
-                    inputMode="numeric"
-                    value={feeAmount}
-                    onChange={onFeeAmountChange}
-                    placeholder="예: 1,500,000"
-                    className="h-9 w-full min-w-0 bg-transparent px-1 text-sm focus:outline-none"
-                  />
-                </div>
-                <select
-                  aria-label="단위"
-                  value={feeUnit}
-                  onChange={(e) => setFeeUnit(e.target.value)}
-                  className="w-20 rounded-md border border-input bg-background px-2 text-sm"
-                >
-                  {FEE_UNITS.map((u) => (
-                    <option key={u} value={u}>{u}</option>
-                  ))}
-                </select>
-              </div>
-              <label className="flex items-center gap-2 text-xs text-ink-2">
-                <input
-                  type="checkbox"
-                  checked={feeNegotiable}
-                  onChange={(e) => setFeeNegotiable(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                협의 가능
-              </label>
-            </>
-          ) : null}
-
+          <p className="text-xs leading-5 text-ink-3">
+            정확한 금액이 아니어도 괜찮습니다. 가능한 범위의 러프한 금액을 먼저 입력해 주세요.
+          </p>
+          <div className="flex gap-2">
+            <div className="flex flex-1 items-center rounded-md border border-input bg-background px-2">
+              <select
+                aria-label="통화"
+                value={feeCurrency}
+                onChange={(e) => setFeeCurrency(e.target.value)}
+                className="bg-transparent py-2 pr-1 text-sm focus:outline-none"
+              >
+                {FEE_CURRENCIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <input
+                inputMode="numeric"
+                value={feeAmount}
+                onChange={onFeeAmountChange}
+                placeholder="예: 1,500,000"
+                required={collectFee}
+                className="h-9 w-full min-w-0 bg-transparent px-1 text-sm focus:outline-none"
+              />
+            </div>
+            <select
+              aria-label="단위"
+              value={feeUnit}
+              onChange={(e) => setFeeUnit(e.target.value)}
+              className="w-20 rounded-md border border-input bg-background px-2 text-sm"
+            >
+              {FEE_UNITS.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
           <label className="flex items-center gap-2 text-xs text-ink-2">
             <input
               type="checkbox"
-              checked={feeUnsure}
-              onChange={(e) => setFeeUnsure(e.target.checked)}
+              checked={feeNegotiable}
+              onChange={(e) => setFeeNegotiable(e.target.checked)}
               className="h-4 w-4"
             />
-            단가를 잘 모르겠어요 — <span className="text-foreground">협의 희망</span>으로 제출
+            입력한 금액을 기준으로 세부 조건은 협의 가능합니다.
           </label>
         </div>
       ) : null}
