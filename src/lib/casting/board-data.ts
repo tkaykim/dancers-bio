@@ -16,8 +16,10 @@ export type BoardCard = {
 };
 
 export type BoardRateRow = {
+  dancerId?: string | null;
   name: string;
-  category: string;
+  category?: string | null;
+  followersMan: number;
   highlight?: string | null;
   priceKrw: number;
 };

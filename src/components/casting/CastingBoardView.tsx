@@ -46,7 +46,7 @@ export function CastingBoardView({
         </div>
       </header>
 
-      <ProposalRateTable table={settings.rateTable} />
+      <ProposalRateTable table={settings.rateTable} cards={cards} />
 
       {canManage ? (
         <BoardNotesEditor boardId={board.id} initialNotes={board.notes} />
