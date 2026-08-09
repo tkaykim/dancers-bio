@@ -155,6 +155,12 @@ export function ProposalRateTable({
           );
         })}
       </div>
+
+      {table.notice?.trim() ? (
+        <p className="border-t border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-relaxed text-amber-950 sm:px-5">
+          {table.notice}
+        </p>
+      ) : null}
     </section>
   );
 }

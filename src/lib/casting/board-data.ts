@@ -27,6 +27,7 @@ export type BoardRateRow = {
 export type BoardRateTable = {
   title?: string | null;
   caption?: string | null;
+  notice?: string | null;
   rows: BoardRateRow[];
 };
 
