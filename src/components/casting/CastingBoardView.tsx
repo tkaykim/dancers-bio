@@ -3,6 +3,7 @@ import { CardSection } from "@/components/casting/CardSection";
 import { CommentDock } from "@/components/casting/CommentDock";
 import { BoardNotesEditor } from "@/components/casting/BoardNotesEditor";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
+import { ProposalRateTable } from "@/components/casting/ProposalRateTable";
 
 export function CastingBoardView({
   board,
@@ -44,6 +45,8 @@ export function CastingBoardView({
           </span>
         </div>
       </header>
+
+      <ProposalRateTable table={settings.rateTable} />
 
       {canManage ? (
         <BoardNotesEditor boardId={board.id} initialNotes={board.notes} />

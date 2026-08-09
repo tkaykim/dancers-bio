@@ -15,6 +15,19 @@ export type BoardCard = {
   slug: string | null;
 };
 
+export type BoardRateRow = {
+  name: string;
+  category: string;
+  highlight?: string | null;
+  priceKrw: number;
+};
+
+export type BoardRateTable = {
+  title?: string | null;
+  caption?: string | null;
+  rows: BoardRateRow[];
+};
+
 export type BoardSettings = {
   genderPriority?: "male" | "female" | null;
   sortBy?: "height" | "manual";
@@ -24,6 +37,7 @@ export type BoardSettings = {
   fields?: { height?: boolean; instagram?: boolean; career?: boolean };
   note?: string | null; // (레거시) 단일 참고사항 — notes로 대체됨
   notes?: string[]; // 클라이언트에게 보여줄 참고사항/공지 목록 (헤더 아래 표시)
+  rateTable?: BoardRateTable | null; // 클라이언트 제안서용 후보별 단가표
 };
 
 export type BoardView = {
