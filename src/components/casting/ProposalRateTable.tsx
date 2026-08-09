@@ -57,6 +57,11 @@ export function ProposalRateTable({
           <h2 className="mt-1 text-lg font-extrabold text-ink-1">
             {table.title?.trim() || "후보별 제안 단가"}
           </h2>
+          {table.notice?.trim() ? (
+            <p className="mt-1 text-sm font-normal leading-relaxed text-ink-2">
+              {table.notice}
+            </p>
+          ) : null}
         </div>
         {table.caption?.trim() ? (
           <p className="w-fit rounded-full border border-border bg-card px-3 py-1.5 text-[11px] font-semibold text-ink-2">
@@ -156,11 +161,6 @@ export function ProposalRateTable({
         })}
       </div>
 
-      {table.notice?.trim() ? (
-        <p className="border-t border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-relaxed text-amber-950 sm:px-5">
-          {table.notice}
-        </p>
-      ) : null}
     </section>
   );
 }
