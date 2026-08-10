@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { ArrowLeft, Check, Loader2, Plus, X } from "lucide-react";
+import { ArrowLeft, Check, CircleAlert, Loader2, Plus, X } from "lucide-react";
 import Link from "next/link";
 
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
@@ -64,6 +64,8 @@ type Dict = {
   view_profile: string;
   submitting: string;
   err: string;
+  korean_ineligible_title: string;
+  korean_ineligible_body: string;
 };
 
 const T: Record<Lang, Dict> = {
@@ -89,6 +91,9 @@ const T: Record<Lang, Dict> = {
     view_profile: "View your profile",
     submitting: "Submitting…",
     err: "Something went wrong. Please try again.",
+    korean_ineligible_title: "This visa program is for foreign dancers",
+    korean_ineligible_body:
+      "You can apply only if you need a visa to stay and work in Korea. South Korean citizens do not need this visa program.",
   },
   ja: {
     back: "戻る",
@@ -112,6 +117,9 @@ const T: Record<Lang, Dict> = {
     view_profile: "プロフィールを見る",
     submitting: "送信中…",
     err: "エラーが発生しました。もう一度お試しください。",
+    korean_ineligible_title: "このビザプログラムは外国人ダンサー向けです",
+    korean_ineligible_body:
+      "韓国での滞在・活動にビザの発給が必要な方のみお申し込みいただけます。韓国籍の方はこのビザプログラムへのお申し込みは不要です。",
   },
   ko: {
     back: "이전",
@@ -135,6 +143,9 @@ const T: Record<Lang, Dict> = {
     view_profile: "내 프로필 보기",
     submitting: "제출 중…",
     err: "문제가 발생했습니다. 다시 시도해 주세요.",
+    korean_ineligible_title: "비자 프로그램은 외국인 댄서를 위한 프로그램입니다",
+    korean_ineligible_body:
+      "한국에서 체류하고 활동하기 위해 비자 발급이 필요한 경우에만 신청할 수 있습니다. 대한민국 국적자는 국내 체류 비자가 필요하지 않아 이 프로그램을 신청할 필요가 없습니다.",
   },
 };
 
@@ -474,12 +485,28 @@ export function VisaApplyWizard({
                 value={a.nationality || null}
                 onChange={(v) => {
                   const next = setFieldAndGetNext("nationality", v);
+                  if (v === "KR") return;
                   setTimeout(() => go(1, next), 80);
                 }}
                 placeholder={t.search}
                 searchPlaceholder={t.search}
                 ariaLabel={t.search}
               />
+            ) : null}
+
+            {s.type === "country" && a.nationality === "KR" ? (
+              <div
+                role="alert"
+                className="mt-4 rounded-xl border border-amber-400/50 bg-amber-50 p-4 text-amber-950"
+              >
+                <div className="flex items-start gap-3">
+                  <CircleAlert className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+                  <div>
+                    <p className="text-sm font-bold leading-snug">{t.korean_ineligible_title}</p>
+                    <p className="mt-1.5 text-sm leading-relaxed">{t.korean_ineligible_body}</p>
+                  </div>
+                </div>
+              </div>
             ) : null}
 
             {s.type === "visa" ? (
