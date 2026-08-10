@@ -41,6 +41,7 @@ export type BoardSettings = {
   note?: string | null; // (레거시) 단일 참고사항 — notes로 대체됨
   notes?: string[]; // 클라이언트에게 보여줄 참고사항/공지 목록 (헤더 아래 표시)
   rateTable?: BoardRateTable | null; // 클라이언트 제안서용 후보별 단가표
+  rateTableAfterNotes?: boolean; // 구간별 요약 등 참고사항을 단가표보다 먼저 표시
 };
 
 export type BoardView = {

@@ -26,6 +26,26 @@ export function CastingBoardView({
   );
   const ordered = gp === "female" ? [femaleSec, maleSec] : [maleSec, femaleSec];
 
+  const notesSection = canManage ? (
+    <BoardNotesEditor boardId={board.id} initialNotes={board.notes} />
+  ) : board.notes.length ? (
+    <div className="mt-4 rounded-2xl border border-border bg-secondary/40 px-4 py-3.5">
+      <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-ink-3">
+        참고사항
+      </p>
+      <div className="flex flex-col gap-3">
+        {board.notes.map((n, i) => (
+          <p
+            key={i}
+            className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2 [&:not(:first-child)]:border-t [&:not(:first-child)]:border-border [&:not(:first-child)]:pt-3"
+          >
+            {n}
+          </p>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <header className="border-b-2 border-ink-1 pb-5">
@@ -46,27 +66,11 @@ export function CastingBoardView({
         </div>
       </header>
 
+      {settings.rateTableAfterNotes ? notesSection : null}
+
       <ProposalRateTable table={settings.rateTable} cards={cards} />
 
-      {canManage ? (
-        <BoardNotesEditor boardId={board.id} initialNotes={board.notes} />
-      ) : board.notes.length ? (
-        <div className="mt-4 rounded-2xl border border-border bg-secondary/40 px-4 py-3.5">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-ink-3">
-            참고사항
-          </p>
-          <div className="flex flex-col gap-3">
-            {board.notes.map((n, i) => (
-              <p
-                key={i}
-                className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2 [&:not(:first-child)]:border-t [&:not(:first-child)]:border-border [&:not(:first-child)]:pt-3"
-              >
-                {n}
-              </p>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {settings.rateTableAfterNotes ? null : notesSection}
 
       {counts.total === 0 ? (
         <p className="mt-10 text-center text-sm text-ink-3">표시할 인원이 없습니다.</p>
