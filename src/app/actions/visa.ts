@@ -96,6 +96,15 @@ export async function submitVisaApplicationAction(
   }
   const d = parsed.data;
 
+  if (d.nationalityCode.toUpperCase() === "KR") {
+    const errorByLang = {
+      en: "This visa program is only for foreign dancers who need a visa to stay and work in Korea. South Korean citizens do not need to apply.",
+      ja: "このビザプログラムは、韓国での滞在・活動にビザが必要な外国人ダンサーのみお申し込みいただけます。韓国籍の方はお申し込み不要です。",
+      ko: "이 비자 프로그램은 한국 체류와 활동을 위해 비자 발급이 필요한 외국인 댄서만 신청할 수 있습니다. 대한민국 국적자는 신청할 필요가 없습니다.",
+    } satisfies Record<typeof d.lang, string>;
+    return { ok: false, error: errorByLang[d.lang] };
+  }
+
   let admin: AdminClient;
   try {
     admin = createAdminClient();
@@ -103,7 +112,6 @@ export async function submitVisaApplicationAction(
     return { ok: false, error: "서버 설정 오류로 제출에 실패했습니다. 잠시 후 다시 시도해 주세요." };
   }
 
-  const isKorean = d.nationalityCode.toUpperCase() === "KR";
   const nationality = countryLabel(d.nationalityCode, "ko") || d.nationalityCode;
   const stageName = (d.stageName && d.stageName.trim()) || d.name;
   const slug = await resolveSlug(admin, stageName);
@@ -136,7 +144,7 @@ export async function submitVisaApplicationAction(
     phone: phoneContact?.handle ?? null,
     nationality_code: d.nationalityCode,
     nationality,
-    is_korean_national: isKorean,
+    is_korean_national: false,
     has_visa: d.hasVisa,
     visa_type: d.hasVisa ? (d.visaType ?? null) : null,
     source: "visa_onboarding",
