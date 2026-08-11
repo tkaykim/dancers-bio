@@ -12,6 +12,11 @@ import {
 } from "@/components/settlement/MySettlements";
 import type { DancerDocsState } from "@/components/settlement/DancerDocuments";
 import type { SettlementStatus } from "@/lib/settlement";
+import {
+  isPayoutAccountValid,
+  isPayoutInfoComplete,
+  normalizeAccountNumber,
+} from "@/lib/payout-validation";
 
 function Shell({
   projectTitle,
@@ -124,9 +129,14 @@ export default async function WithdrawSharePage({
 
   const { data: pi } = await admin
     .from("dancer_private_info")
-    .select("bank_name, bank_account_number, bank_account_holder, id_card_path, bankbook_path")
+    .select(
+      "bank_name, bank_account_number, bank_account_holder, resident_registration_number, id_card_path, bankbook_path",
+    )
     .eq("dancer_id", dancerId)
     .maybeSingle();
+
+  const accountNumber = normalizeAccountNumber(pi?.bank_account_number);
+  const hasAccount = isPayoutAccountValid(pi);
 
   const settlements: MySettlementRow[] = [
     {
@@ -142,11 +152,11 @@ export default async function WithdrawSharePage({
   ];
   const accounts: Record<string, PayoutAccount | null> = {
     [dancerId]:
-      pi?.bank_name && pi?.bank_account_number && pi?.bank_account_holder
+      hasAccount
         ? {
-            bankName: pi.bank_name as string,
-            accountNumber: pi.bank_account_number as string,
-            accountHolder: pi.bank_account_holder as string,
+            bankName: pi?.bank_name as string,
+            accountNumber,
+            accountHolder: pi?.bank_account_holder as string,
           }
         : null,
   };
@@ -159,6 +169,9 @@ export default async function WithdrawSharePage({
       <MySettlements
         settlements={settlements}
         accounts={accounts}
+        payoutReady={{
+          [dancerId]: isPayoutInfoComplete(pi),
+        }}
         docs={docs}
         dancerNames={{ [dancerId]: dancerName }}
       />

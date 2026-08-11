@@ -8,6 +8,11 @@ import {
 } from "@/components/settlement/MySettlements";
 import type { DancerDocsState } from "@/components/settlement/DancerDocuments";
 import type { SettlementStatus } from "@/lib/settlement";
+import {
+  isPayoutAccountValid,
+  isPayoutInfoComplete,
+  normalizeAccountNumber,
+} from "@/lib/payout-validation";
 
 export default async function MySettlementsPage() {
   const user = await requireUser();
@@ -27,6 +32,7 @@ export default async function MySettlementsPage() {
 
   let settlements: MySettlementRow[] = [];
   const accounts: Record<string, PayoutAccount | null> = {};
+  const payoutReady: Record<string, boolean> = {};
   const docs: Record<string, DancerDocsState> = {};
 
   if (dancerIds.length > 0) {
@@ -66,11 +72,12 @@ export default async function MySettlementsPage() {
     const { data: piRows } = await supabase
       .from("dancer_private_info")
       .select(
-        "dancer_id, bank_name, bank_account_number, bank_account_holder, id_card_path, bankbook_path",
+        "dancer_id, bank_name, bank_account_number, bank_account_holder, resident_registration_number, id_card_path, bankbook_path",
       )
       .in("dancer_id", dancerIds);
     for (const id of dancerIds) {
       accounts[id] = null;
+      payoutReady[id] = false;
       docs[id] = { idCard: false, bankbook: false };
     }
     for (const pi of (piRows ?? []) as Array<{
@@ -78,17 +85,21 @@ export default async function MySettlementsPage() {
       bank_name: string | null;
       bank_account_number: string | null;
       bank_account_holder: string | null;
+      resident_registration_number: string | null;
       id_card_path: string | null;
       bankbook_path: string | null;
     }>) {
+      const accountNumber = normalizeAccountNumber(pi.bank_account_number);
+      const hasAccount = isPayoutAccountValid(pi);
       accounts[pi.dancer_id] =
-        pi.bank_name && pi.bank_account_number && pi.bank_account_holder
+        hasAccount
           ? {
-              bankName: pi.bank_name,
-              accountNumber: pi.bank_account_number,
-              accountHolder: pi.bank_account_holder,
+              bankName: pi.bank_name!,
+              accountNumber,
+              accountHolder: pi.bank_account_holder!,
             }
           : null;
+      payoutReady[pi.dancer_id] = isPayoutInfoComplete(pi);
       docs[pi.dancer_id] = {
         idCard: !!pi.id_card_path,
         bankbook: !!pi.bankbook_path,
@@ -123,6 +134,7 @@ export default async function MySettlementsPage() {
         <MySettlements
           settlements={settlements}
           accounts={accounts}
+          payoutReady={payoutReady}
           docs={docs}
           dancerNames={Object.fromEntries(nameById)}
         />

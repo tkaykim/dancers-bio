@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import {
+  useMemo,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
@@ -17,6 +22,11 @@ import {
 import { DancerDocuments } from "@/components/settlement/DancerDocuments";
 import { BankPicker } from "@/components/settlement/BankPicker";
 import { matchBank, type Bank } from "@/lib/banks";
+import {
+  isPayoutAccountValid,
+  isPayoutInfoComplete,
+  isResidentNumberValid,
+} from "@/lib/payout-validation";
 import { Drawer } from "@/components/ui/drawer";
 import {
   calcSettlement,
@@ -31,6 +41,8 @@ export type WithdrawalRow = {
   projectId: string;
   dancerId: string;
   dancerName: string;
+  dancerKoreanName: string | null;
+  dancerStageName: string | null;
   projectTitle: string;
   grossAmount: number;
   rate: number;
@@ -45,6 +57,14 @@ export type WithdrawalRow = {
   hasBankbook: boolean;
 };
 
+function normalizeSearch(value: string): string {
+  return value
+    .normalize("NFKC")
+    .toLocaleLowerCase("ko-KR")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 const STATUS_TONE: Record<SettlementStatus, string> = {
   pending: "bg-amber-100 text-amber-700",
   requested: "bg-blue-100 text-blue-700",
@@ -56,26 +76,48 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [searchInput, setSearchInput] = useState("");
   const [bulkBusy, startBulk] = useTransition();
-  const requested = rows.filter((r) => r.status === "requested");
+  const normalizedQuery = normalizeSearch(searchInput);
+  const filteredRows = useMemo(() => {
+    if (!normalizedQuery) return rows;
+    return rows.filter((row) =>
+      normalizeSearch(
+        [
+          row.dancerName,
+          row.dancerKoreanName,
+          row.dancerStageName,
+          row.projectTitle,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      ).includes(normalizedQuery),
+    );
+  }, [normalizedQuery, rows]);
+  const requested = filteredRows.filter((r) => r.status === "requested");
   // 금액 미입력(셀프 계좌제출만 한) pending = '정산대기'. '정산완료'와 분리한다.
-  const awaitingAmount = rows.filter((r) =>
+  const awaitingAmount = filteredRows.filter((r) =>
     isAwaitingAmount(r.status, r.grossAmount),
   );
-  const awaiting = rows.filter(
+  const awaiting = filteredRows.filter(
     (r) => r.status === "pending" && !isAwaitingAmount(r.status, r.grossAmount),
   );
-  const paid = rows.filter((r) => r.status === "paid");
+  const paid = filteredRows.filter((r) => r.status === "paid");
   const selected = rows.find((r) => r.id === selectedId) ?? null;
 
-  // 입금완료로 넘길 수 있는 건(아직 미지급 + 계좌 등록됨 + 금액 입력됨)만 선택 대상.
+  // 출금신청 완료 + 유효 계좌·주민번호 + 금액 입력 건만 실제 지급 대상으로 선택한다.
   const payableById = new Map(
-    rows
+    filteredRows
       .filter(
         (r) =>
-          r.status !== "paid" &&
+          r.status === "requested" &&
           !isAwaitingAmount(r.status, r.grossAmount) &&
-          !!(r.bankName && r.accountNumber && r.accountHolder),
+          isPayoutInfoComplete({
+            bank_name: r.bankName,
+            bank_account_number: r.accountNumber,
+            bank_account_holder: r.accountHolder,
+            resident_registration_number: r.residentNumber,
+          }),
       )
       .map((r) => [r.id, r]),
   );
@@ -83,6 +125,18 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
   const checkedPayableIds = payableIds.filter((id) => checked.has(id));
   const allPayableChecked =
     payableIds.length > 0 && checkedPayableIds.length === payableIds.length;
+
+  function updateSearch(value: string) {
+    setSearchInput(value);
+    setChecked(new Set());
+    setSelectedId(null);
+  }
+
+  function clearSearch() {
+    setSearchInput("");
+    setChecked(new Set());
+    setSelectedId(null);
+  }
 
   function toggle(id: string) {
     setChecked((prev) => {
@@ -171,6 +225,37 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-3 sm:flex-row sm:items-center">
+        <input
+          type="search"
+          value={searchInput}
+          onChange={(event) => updateSearch(event.target.value)}
+          placeholder="이름 · 닉네임 · 프로젝트명 검색"
+          aria-label="정산 대상 검색"
+          className="h-10 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+        />
+        {normalizedQuery ? (
+          <button
+            type="button"
+            onClick={clearSearch}
+            className="h-10 rounded-xl border border-border px-4 text-sm font-medium text-ink-2 hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            초기화
+          </button>
+        ) : null}
+        {normalizedQuery ? (
+          <p className="text-xs text-ink-3 sm:ml-1 sm:whitespace-nowrap">
+            전체 {rows.length}건 중 {filteredRows.length}건
+          </p>
+        ) : null}
+      </div>
+
+      {normalizedQuery && filteredRows.length === 0 ? (
+        <div className="rounded-2xl border border-border bg-card p-5 text-center text-sm text-ink-3">
+          이름, 닉네임 또는 프로젝트명과 일치하는 정산 건이 없어요.
+        </div>
+      ) : null}
+
       {payableIds.length > 0 ? (
         <div className="sticky top-2 z-10 flex flex-col gap-2 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center justify-between gap-3">
@@ -219,20 +304,22 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
         </div>
       ) : null}
 
-      <Section title="출금신청" count={requested.length} empty="처리할 출금 신청이 없어요.">
-        {requested.map((r) => (
-          <Row
-            key={r.id}
-            row={r}
-            onOpen={() => setSelectedId(r.id)}
-            payable={payableById.has(r.id)}
-            checked={checked.has(r.id)}
-            onToggle={() => toggle(r.id)}
-            onMarkPaid={() => markOne(r)}
-            busy={bulkBusy}
-          />
-        ))}
-      </Section>
+      {!normalizedQuery || requested.length > 0 ? (
+        <Section title="출금신청" count={requested.length} empty="처리할 출금 신청이 없어요.">
+          {requested.map((r) => (
+            <Row
+              key={r.id}
+              row={r}
+              onOpen={() => setSelectedId(r.id)}
+              payable={payableById.has(r.id)}
+              checked={checked.has(r.id)}
+              onToggle={() => toggle(r.id)}
+              onMarkPaid={() => markOne(r)}
+              busy={bulkBusy}
+            />
+          ))}
+        </Section>
+      ) : null}
 
       {awaiting.length > 0 ? (
         <Section title="정산완료 · 출금신청 전" count={awaiting.length}>
@@ -328,7 +415,12 @@ function Row({
 }) {
   const calc = calcSettlement(row.grossAmount, row.rate);
   const awaitingAmt = isAwaitingAmount(row.status, row.grossAmount);
-  const hasAccount = !!(row.bankName && row.accountNumber && row.accountHolder);
+  const hasAccount = isPayoutAccountValid({
+    bank_name: row.bankName,
+    bank_account_number: row.accountNumber,
+    bank_account_holder: row.accountHolder,
+  });
+  const hasResidentNumber = isResidentNumberValid(row.residentNumber);
   const docCount = (row.hasIdCard ? 1 : 0) + (row.hasBankbook ? 1 : 0);
   return (
     <li
@@ -362,7 +454,7 @@ function Row({
           <span className="truncate text-xs text-ink-3">{row.projectTitle}</span>
           <div className="mt-0.5 flex flex-wrap items-center gap-1">
             <ReadyChip ok={hasAccount} label="계좌" />
-            <ReadyChip ok={!!row.residentNumber} label="주민번호" />
+            <ReadyChip ok={hasResidentNumber} label="주민번호" />
             <ReadyChip ok={docCount === 2} label={`서류 ${docCount}/2`} partial={docCount === 1} />
           </div>
         </div>
@@ -427,7 +519,17 @@ function SettlementDetail({
   const [confirming, setConfirming] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const calc = calcSettlement(row.grossAmount, row.rate);
-  const hasAccount = !!(row.bankName && row.accountNumber && row.accountHolder);
+  const hasAccount = isPayoutAccountValid({
+    bank_name: row.bankName,
+    bank_account_number: row.accountNumber,
+    bank_account_holder: row.accountHolder,
+  });
+  const payoutReady = isPayoutInfoComplete({
+    bank_name: row.bankName,
+    bank_account_number: row.accountNumber,
+    bank_account_holder: row.accountHolder,
+    resident_registration_number: row.residentNumber,
+  });
 
   function markPaid() {
     const fd = new FormData();
@@ -490,8 +592,8 @@ function SettlementDetail({
         <span className="text-[11px] text-ink-3">신청 {fmtDate(row.requestedAt)}</span>
       ) : null}
 
-      {/* 핵심 액션: 입금완료 처리 — 정산완료·출금신청 공통 */}
-      {row.status !== "paid" ? (
+      {/* 핵심 액션: 본인이 출금신청을 마치고 지급정보도 유효한 건만 처리 */}
+      {row.status === "requested" ? (
         confirming ? (
           <div className="flex flex-col gap-2 rounded-xl bg-amber-50 p-3">
             <p className="text-xs text-amber-800">
@@ -521,10 +623,10 @@ function SettlementDetail({
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            disabled={!hasAccount}
+            disabled={!payoutReady}
             className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors active:opacity-80 disabled:opacity-50"
           >
-            {hasAccount ? "입금완료 처리" : "계좌 등록 후 처리 가능"}
+            {payoutReady ? "입금완료 처리" : "계좌·주민번호 확인 필요"}
           </button>
         )
       ) : null}

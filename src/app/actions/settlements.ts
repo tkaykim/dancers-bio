@@ -10,6 +10,11 @@ import { sendGmailEmail } from "@/lib/gmail";
 import { buildWithdrawalRequestEmail } from "@/lib/notify/settlement-mail";
 import { notify } from "@/lib/notify";
 import {
+  isPayoutInfoComplete,
+  isResidentNumberValid,
+  normalizeResidentNumber,
+} from "@/lib/payout-validation";
+import {
   sendSettlementConfirmedAlimtalk,
   sendSettlementPaidAlimtalk,
   sendSettlementInfoRequiredAlimtalk,
@@ -147,12 +152,7 @@ async function settlementInfoComplete(
     )
     .eq("dancer_id", dancerId)
     .maybeSingle();
-  return !!(
-    pi?.bank_name &&
-    pi?.bank_account_number &&
-    pi?.bank_account_holder &&
-    pi?.resident_registration_number
-  );
+  return isPayoutInfoComplete(pi);
 }
 
 async function notifyDancerSettlement(
@@ -349,6 +349,8 @@ export async function savePayoutAccountAction(
   if (!dancerId) return { ok: false, error: "잘못된 요청입니다." };
   if (!bank_name || !bank_account_number || !bank_account_holder)
     return { ok: false, error: "은행·계좌번호·예금주를 모두 입력해 주세요." };
+  if (!/^[0-9]{8,20}$/.test(bank_account_number))
+    return { ok: false, error: "계좌번호는 숫자 8~20자리로 입력해 주세요." };
 
   // 본인 댄서 또는 슈퍼관리자(담당자가 사진 보고 대신 입력)만 허용.
   if (!(await isAdmin(user.id))) {
@@ -456,12 +458,10 @@ export async function saveResidentNumberAction(
 ): Promise<ActionResult> {
   const user = await requireUser();
   const dancerId = (fd.get("dancer_id") ?? "").toString().trim();
-  const rrn = (fd.get("resident_registration_number") ?? "")
-    .toString()
-    .replace(/\s/g, "")
-    .trim();
+  const rrn = normalizeResidentNumber(fd.get("resident_registration_number"));
   if (!dancerId) return { ok: false, error: "잘못된 요청입니다." };
-  if (!rrn) return { ok: false, error: "주민(외국인)등록번호를 입력해 주세요." };
+  if (!rrn || !isResidentNumberValid(rrn))
+    return { ok: false, error: "유효한 주민(외국인)등록번호를 입력해 주세요." };
 
   if (!(await isAdmin(user.id))) {
     const mine = await myDancerIds(user.id);
@@ -475,7 +475,9 @@ export async function saveResidentNumberAction(
     .select("dancer_id")
     .eq("dancer_id", dancerId)
     .maybeSingle();
-  const patch = { resident_registration_number: rrn };
+  const patch = {
+    resident_registration_number: `${rrn.slice(0, 6)}-${rrn.slice(6)}`,
+  };
   const { error } = existing
     ? await admin.from("dancer_private_info").update(patch).eq("dancer_id", dancerId)
     : await admin.from("dancer_private_info").insert({ dancer_id: dancerId, ...patch });
@@ -486,7 +488,7 @@ export async function saveResidentNumberAction(
   return { ok: true };
 }
 
-// ── 댄서: 출금 신청 (pending → requested). 계좌 등록 필수. ──────────────────
+// ── 댄서: 출금 신청 (pending → requested). 계좌+주민번호 등록 필수. ─────────
 export async function requestWithdrawalAction(
   fd: FormData,
 ): Promise<ActionResult> {
@@ -515,11 +517,16 @@ export async function requestWithdrawalAction(
   // 계좌 등록 확인
   const { data: pi } = await admin
     .from("dancer_private_info")
-    .select("bank_name, bank_account_number, bank_account_holder")
+    .select(
+      "bank_name, bank_account_number, bank_account_holder, resident_registration_number",
+    )
     .eq("dancer_id", s.dancer_id)
     .maybeSingle();
-  if (!pi?.bank_name || !pi?.bank_account_number || !pi?.bank_account_holder)
-    return { ok: false, error: "먼저 입금 계좌를 등록해 주세요." };
+  if (!isPayoutInfoComplete(pi))
+    return {
+      ok: false,
+      error: "출금 신청 전에 유효한 입금 계좌와 주민(외국인)등록번호를 모두 등록해 주세요.",
+    };
 
   const { data: updated, error } = await admin
     .from("settlements")
@@ -598,8 +605,8 @@ export async function markSettlementPaidAction(
   if (!s) return { ok: false, error: "정산 내역을 찾을 수 없습니다." };
   if (s.status === "paid")
     return { ok: false, error: "이미 입금완료 처리된 건입니다." };
-  if (s.status !== "pending" && s.status !== "requested")
-    return { ok: false, error: "취소되었거나 처리할 수 없는 정산입니다." };
+  if (s.status !== "requested")
+    return { ok: false, error: "출금신청이 완료된 건만 입금완료 처리할 수 있습니다." };
 
   const { data: updated, error } = await admin
     .from("settlements")
@@ -609,7 +616,7 @@ export async function markSettlementPaidAction(
       paid_by: admin_profile.id,
     })
     .eq("id", settlementId)
-    .eq("status", s.status)
+    .eq("status", "requested")
     .select("id")
     .maybeSingle();
   if (error) return { ok: false, error: "처리에 실패했습니다. 다시 시도해 주세요." };
@@ -647,7 +654,7 @@ export async function markSettlementsPaidAction(
       paid_by: admin_profile.id,
     })
     .in("id", ids)
-    .in("status", ["pending", "requested"])
+    .eq("status", "requested")
     .select("id");
   if (error) return { ok: false, error: "처리에 실패했습니다. 다시 시도해 주세요." };
 
@@ -712,7 +719,9 @@ export async function buildTransferFileAction(
     admin.from("dancers").select("id, stage_name").in("id", dancerIds),
     admin
       .from("dancer_private_info")
-      .select("dancer_id, bank_name, bank_account_number, bank_account_holder")
+      .select(
+        "dancer_id, bank_name, bank_account_number, bank_account_holder, resident_registration_number",
+      )
       .in("dancer_id", dancerIds),
   ]);
   const nameById = new Map(
@@ -725,7 +734,7 @@ export async function buildTransferFileAction(
   const rows: (string | number)[][] = [];
   let skipped = 0;
   for (const s of sRows) {
-    if (s.status !== "pending" && s.status !== "requested") {
+    if (s.status !== "requested") {
       skipped++;
       continue;
     }
@@ -738,7 +747,7 @@ export async function buildTransferFileAction(
     const accountNumber = (acct?.bank_account_number ?? "")
       .toString()
       .replace(/[\s-]/g, "");
-    if (!acct?.bank_name || !accountNumber || !acct?.bank_account_holder) {
+    if (!acct || !isPayoutInfoComplete(acct)) {
       skipped++;
       continue;
     }
@@ -761,7 +770,7 @@ export async function buildTransferFileAction(
   if (rows.length === 0)
     return {
       ok: false,
-      error: "이체할 수 있는 건이 없어요(계좌 미등록 또는 이미 입금완료).",
+      error: "이체할 수 있는 건이 없어요(출금신청·계좌·주민번호 상태를 확인해 주세요).",
     };
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -861,14 +870,12 @@ export async function submitSettlementCollectionAction(
       .replace(/[\s-]/g, "")
       .trim() || null;
   const bank_account_holder = strOrNull(fd, "bank_account_holder");
-  const rrn =
-    (fd.get("resident_registration_number") ?? "")
-      .toString()
-      .replace(/\s/g, "")
-      .trim() || null;
+  const rrn = normalizeResidentNumber(fd.get("resident_registration_number"));
   if (!code) return { ok: false, error: "잘못된 요청입니다." };
   if (!bank_name || !bank_account_number || !bank_account_holder)
     return { ok: false, error: "은행·계좌번호·예금주를 모두 입력해 주세요." };
+  if (!/^[0-9]{8,20}$/.test(bank_account_number))
+    return { ok: false, error: "계좌번호는 숫자 8~20자리로 입력해 주세요." };
 
   const admin = createAdminClient();
   const { data: proj } = await admin
@@ -901,16 +908,23 @@ export async function submitSettlementCollectionAction(
   // 지급정보 upsert (민감정보 → dancer_private_info)
   const { data: existingPi } = await admin
     .from("dancer_private_info")
-    .select("dancer_id")
+    .select("dancer_id, resident_registration_number")
     .eq("dancer_id", dancerId)
     .maybeSingle();
+  const residentToSave =
+    rrn ?? normalizeResidentNumber(existingPi?.resident_registration_number);
+  if (!residentToSave || !isResidentNumberValid(residentToSave))
+    return {
+      ok: false,
+      error: "정산정보 제출에는 유효한 주민(외국인)등록번호가 필요합니다.",
+    };
   const patch: Record<string, unknown> = {
     bank_name,
     bank_code,
     bank_account_number,
     bank_account_holder,
   };
-  if (rrn) patch.resident_registration_number = rrn;
+  patch.resident_registration_number = `${residentToSave.slice(0, 6)}-${residentToSave.slice(6)}`;
   const piErr = existingPi
     ? (await admin.from("dancer_private_info").update(patch).eq("dancer_id", dancerId)).error
     : (await admin.from("dancer_private_info").insert({ dancer_id: dancerId, ...patch })).error;
