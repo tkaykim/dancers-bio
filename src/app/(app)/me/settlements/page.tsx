@@ -36,6 +36,7 @@ export default async function MySettlementsPage() {
         "id, dancer_id, gross_amount, withholding_rate, status, requested_at, paid_at, project:projects!settlements_project_id_fkey ( title )",
       )
       .in("dancer_id", dancerIds)
+      .neq("status", "cancelled")
       .order("created_at", { ascending: false });
 
     type Row = {

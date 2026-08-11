@@ -521,17 +521,62 @@ export async function requestWithdrawalAction(
   if (!pi?.bank_name || !pi?.bank_account_number || !pi?.bank_account_holder)
     return { ok: false, error: "먼저 입금 계좌를 등록해 주세요." };
 
-  const { error } = await admin
+  const { data: updated, error } = await admin
     .from("settlements")
     .update({ status: "requested", requested_at: new Date().toISOString() })
-    .eq("id", settlementId);
+    .eq("id", settlementId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, error: "신청에 실패했습니다. 다시 시도해 주세요." };
+  if (!updated)
+    return { ok: false, error: "상태가 변경되었습니다. 새로고침 후 다시 시도해 주세요." };
 
   // 경영지원실(슈퍼관리자)에게 출금신청 접수 알림 (비치명적).
   await notifyAdminsWithdrawalRequested(settlementId);
 
   revalidatePath("/me/settlements");
   revalidatePath("/admin/settlements");
+  return { ok: true };
+}
+
+// ── 관리자: 미지급 정산 취소 (pending/requested → cancelled) ──────────────
+// 테스트 제출·중복·지급 대상 아님을 확인한 건을 대기열에서 제외한다.
+// 입금완료 건은 장부 정합성을 위해 이 액션으로 취소할 수 없다.
+export async function cancelSettlementAction(
+  fd: FormData,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const settlementId = (fd.get("settlement_id") ?? "").toString().trim();
+  if (!settlementId) return { ok: false, error: "잘못된 요청입니다." };
+
+  const admin = createAdminClient();
+  const { data: settlement } = await admin
+    .from("settlements")
+    .select("id, project_id, status")
+    .eq("id", settlementId)
+    .maybeSingle();
+  if (!settlement) return { ok: false, error: "정산 내역을 찾을 수 없습니다." };
+  if (settlement.status === "paid")
+    return { ok: false, error: "입금완료된 건은 취소할 수 없습니다." };
+  if (settlement.status === "cancelled")
+    return { ok: false, error: "이미 취소된 정산입니다." };
+
+  const { data: updated, error } = await admin
+    .from("settlements")
+    .update({ status: "cancelled" })
+    .eq("id", settlementId)
+    .eq("status", settlement.status)
+    .select("id")
+    .maybeSingle();
+  if (error)
+    return { ok: false, error: "취소 처리에 실패했습니다. 다시 시도해 주세요." };
+  if (!updated)
+    return { ok: false, error: "상태가 변경되었습니다. 새로고침 후 다시 시도해 주세요." };
+
+  revalidatePath("/admin/settlements");
+  revalidatePath("/me/settlements");
+  revalidatePath(`/projects/${settlement.project_id}/settlements`);
   return { ok: true };
 }
 
@@ -553,16 +598,23 @@ export async function markSettlementPaidAction(
   if (!s) return { ok: false, error: "정산 내역을 찾을 수 없습니다." };
   if (s.status === "paid")
     return { ok: false, error: "이미 입금완료 처리된 건입니다." };
+  if (s.status !== "pending" && s.status !== "requested")
+    return { ok: false, error: "취소되었거나 처리할 수 없는 정산입니다." };
 
-  const { error } = await admin
+  const { data: updated, error } = await admin
     .from("settlements")
     .update({
       status: "paid",
       paid_at: new Date().toISOString(),
       paid_by: admin_profile.id,
     })
-    .eq("id", settlementId);
+    .eq("id", settlementId)
+    .eq("status", s.status)
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, error: "처리에 실패했습니다. 다시 시도해 주세요." };
+  if (!updated)
+    return { ok: false, error: "상태가 변경되었습니다. 새로고침 후 다시 시도해 주세요." };
 
   // 입금완료 알림 — 인앱 + 웹푸시 + 알림톡(게이트).
   await notifyDancerSettlement(settlementId, "paid");
@@ -595,7 +647,7 @@ export async function markSettlementsPaidAction(
       paid_by: admin_profile.id,
     })
     .in("id", ids)
-    .neq("status", "paid")
+    .in("status", ["pending", "requested"])
     .select("id");
   if (error) return { ok: false, error: "처리에 실패했습니다. 다시 시도해 주세요." };
 
@@ -673,7 +725,7 @@ export async function buildTransferFileAction(
   const rows: (string | number)[][] = [];
   let skipped = 0;
   for (const s of sRows) {
-    if (s.status === "paid") {
+    if (s.status !== "pending" && s.status !== "requested") {
       skipped++;
       continue;
     }
