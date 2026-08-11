@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4 - 2026-08-11
+
+- Collect name, birth year, height, primary genre, dance video, backup-dancer history, and optional personal-profile links on selected casting posts.
+- Pre-fill application fields from the member profile while allowing applicants to complete or correct missing details before submission.
+- Preserve submitted details as administrator-visible snapshots and enforce completeness, safe links, and applicant-side immutability at the database boundary.
+
 ## 0.1.3 - 2026-08-11
 
 - Let administrators cancel unpaid test, duplicate, or otherwise invalid settlements from the detail panel.

@@ -32,6 +32,7 @@ export type ApplicantPortfolio = {
   } | null;
   careers: PortfolioCareer[];
   // 민감정보(dancer_private_info/계정) — 매니저(admin·소유자·공동관리자)에게만 노출.
+  birth_year: number | null;
   height_cm: number | null;
   shoe_size_mm: number | null;
   contactEmail: string | null;
@@ -125,8 +126,9 @@ export async function getApplicantPortfolioAction(
     is_representative: !!r.is_representative,
   }));
 
-  // 키(height_cm)만 service-role로 읽어 매니저에게 노출. 연락처·국적·비자 등 나머지
+  // 출생연도·키만 service-role로 읽어 매니저에게 노출. 연락처·국적·비자 등 나머지
   // 민감정보는 절대 반환하지 않는다. (canManageProject 게이트는 위에서 통과 확인됨)
+  let birth_year: number | null = null;
   let height_cm: number | null = null;
   let shoe_size_mm: number | null = null;
   let contactEmail: string | null = null;
@@ -144,9 +146,12 @@ export async function getApplicantPortfolioAction(
       : null;
     const { data: priv } = await admin
       .from("dancer_private_info")
-      .select("height_cm, shoe_size_mm, email, phone")
+      .select("birth_date, height_cm, shoe_size_mm, email, phone")
       .eq("dancer_id", dancerId)
       .maybeSingle();
+    birth_year = priv?.birth_date
+      ? Number(String(priv.birth_date).slice(0, 4))
+      : null;
     height_cm = (priv?.height_cm as number | null) ?? null;
     shoe_size_mm = (priv?.shoe_size_mm as number | null) ?? null;
     contactEmail = (priv?.email as string | null) ?? null;
@@ -183,6 +188,7 @@ export async function getApplicantPortfolioAction(
     data: {
       dancer: (d ?? null) as ApplicantPortfolio["dancer"],
       careers,
+      birth_year,
       height_cm,
       shoe_size_mm,
       contactEmail,

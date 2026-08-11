@@ -16,6 +16,7 @@ import { setSettlementAmountAction } from "@/app/actions/settlements";
 import { setApplicationConfirmedAction } from "@/app/actions/evaluations";
 import { calcSettlement, formatWon, formatWonInput } from "@/lib/settlement";
 import { EvaluationPanel } from "@/components/project/EvaluationPanel";
+import type { SubmittedCastingDetails } from "@/lib/casting-application-details";
 
 export type SheetApplicant = {
   applicationId: string;
@@ -25,6 +26,7 @@ export type SheetApplicant = {
   publicHref: string | null;
   rejectionReason: string | null;
   confirmedAt: string | null;
+  castingDetails: SubmittedCastingDetails;
 };
 
 const SOCIAL_KEYS = ["instagram", "youtube", "tiktok", "twitter", "x"] as const;
@@ -260,10 +262,15 @@ export function ApplicantPortfolioSheet({
     string,
     string,
   ][];
+  const birthYear = data?.birth_year ?? null;
   const heightCm = data?.height_cm ?? null;
   const shoeMm = data?.shoe_size_mm ?? null;
   const cEmail = data?.contactEmail ?? null;
   const cPhone = data?.contactPhone ?? null;
+  const submitted = applicant?.castingDetails ?? null;
+  const hasSubmittedCastingDetails = submitted
+    ? Object.values(submitted).some((value) => value != null && value !== "")
+    : false;
 
   return (
     <BottomSheet
@@ -297,6 +304,11 @@ export function ApplicantPortfolioSheet({
               ) : null}
             </p>
             <div className="flex flex-wrap items-center gap-1">
+              {birthYear ? (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                  {birthYear}년생
+                </span>
+              ) : null}
               {heightCm ? (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                   키 {heightCm}cm
@@ -365,6 +377,64 @@ export function ApplicantPortfolioSheet({
               </p>
             ) : null}
           </div>
+        ) : null}
+
+        {hasSubmittedCastingDetails && submitted ? (
+          <section className="flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary/5 p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">
+              제출한 캐스팅 정보
+            </p>
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+              <div>
+                <dt className="text-[11px] text-ink-3">이름</dt>
+                <dd className="font-medium">{submitted.applicant_name ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] text-ink-3">출생연도</dt>
+                <dd className="font-medium">{submitted.birth_year ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] text-ink-3">키</dt>
+                <dd className="font-medium">
+                  {submitted.height_cm != null ? `${submitted.height_cm}cm` : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[11px] text-ink-3">주 장르</dt>
+                <dd className="font-medium">{submitted.primary_genre ?? "—"}</dd>
+              </div>
+            </dl>
+            {submitted.dance_video_url ? (
+              <a
+                href={submitted.dance_video_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-secondary"
+              >
+                춤 영상
+                <span className="text-primary">열기 →</span>
+              </a>
+            ) : null}
+            <div>
+              <p className="mb-1 text-[11px] text-ink-3">백업댄서 이력</p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                {submitted.backup_dancer_history ?? "—"}
+              </p>
+            </div>
+            {submitted.personal_profile_url ? (
+              <a
+                href={submitted.personal_profile_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-secondary"
+              >
+                개인 프로필
+                <span className="text-primary">열기 →</span>
+              </a>
+            ) : (
+              <p className="text-xs text-ink-3">개인 프로필: 미제출</p>
+            )}
+          </section>
         ) : null}
 
         {applicant?.status === "rejected" && applicant.rejectionReason ? (

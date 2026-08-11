@@ -15,6 +15,7 @@ import {
   type SheetApplicant,
 } from "@/components/project/ApplicantPortfolioSheet";
 import { RejectReasonDialog } from "@/components/project/RejectReasonDialog";
+import type { SubmittedCastingDetails } from "@/lib/casting-application-details";
 
 export type ConsoleApplicant = {
   id: string;
@@ -39,6 +40,7 @@ export type ConsoleApplicant = {
   proposed_fee_currency: string | null;
   proposed_fee_unit: string | null;
   fee_status: string | null;
+  castingDetails: SubmittedCastingDetails;
   confirmedAt: string | null;
   evalCount: number;
   avgScore: number | null;
@@ -240,6 +242,7 @@ export function ApplicantsConsole({
       publicHref: a.publicHref,
       rejectionReason: a.rejection_reason,
       confirmedAt: a.confirmedAt,
+      castingDetails: a.castingDetails,
     };
   }, [items, sheetId]);
 

@@ -28,6 +28,13 @@ type ApplicationRow = {
   proposed_fee_currency: string | null;
   proposed_fee_unit: string | null;
   fee_status: string | null;
+  applicant_name: string | null;
+  birth_year: number | null;
+  height_cm: number | null;
+  primary_genre: string | null;
+  dance_video_url: string | null;
+  backup_dancer_history: string | null;
+  personal_profile_url: string | null;
   confirmed_at: string | null;
   dancer:
     | {
@@ -77,6 +84,8 @@ export default async function ChannelApplicantsPage({
     .select(
       `id, status, source, cover_message, created_at, rejection_reason, recruitment_channel_id,
        proposed_fee, proposed_fee_currency, proposed_fee_unit, fee_status, confirmed_at,
+       applicant_name, birth_year, height_cm, primary_genre, dance_video_url,
+       backup_dancer_history, personal_profile_url,
        applicant:profiles!applications_applicant_id_fkey ( id, display_name, avatar_url ),
        dancer:dancers!applications_dancer_id_fkey ( id, stage_name, korean_name, slug, profile_img, genres, location, gender )`,
     )
@@ -148,6 +157,15 @@ export default async function ChannelApplicantsPage({
       proposed_fee_currency: app.proposed_fee_currency ?? null,
       proposed_fee_unit: app.proposed_fee_unit ?? null,
       fee_status: app.fee_status ?? null,
+      castingDetails: {
+        applicant_name: app.applicant_name ?? null,
+        birth_year: app.birth_year ?? null,
+        height_cm: app.height_cm ?? null,
+        primary_genre: app.primary_genre ?? null,
+        dance_video_url: app.dance_video_url ?? null,
+        backup_dancer_history: app.backup_dancer_history ?? null,
+        personal_profile_url: app.personal_profile_url ?? null,
+      },
       confirmedAt: app.confirmed_at ?? null,
       evalCount: 0,
       avgScore: null,
