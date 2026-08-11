@@ -6,6 +6,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import {
   buildTransferFileAction,
+  cancelSettlementAction,
   markSettlementPaidAction,
   markSettlementsPaidAction,
   setSettlementAmountAction,
@@ -78,6 +79,10 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
       )
       .map((r) => [r.id, r]),
   );
+  const payableIds = [...payableById.keys()];
+  const checkedPayableIds = payableIds.filter((id) => checked.has(id));
+  const allPayableChecked =
+    payableIds.length > 0 && checkedPayableIds.length === payableIds.length;
 
   function toggle(id: string) {
     setChecked((prev) => {
@@ -86,6 +91,10 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
       else next.add(id);
       return next;
     });
+  }
+
+  function toggleAllPayable() {
+    setChecked(allPayableChecked ? new Set() : new Set(payableIds));
   }
 
   // 단건 입금완료 (리스트 행 빠른 처리)
@@ -111,7 +120,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
   // 선택 건 → 우리은행 다계좌이체 파일(.xls) 다운로드.
   // 다운로드 후 사람이 우리WON비즈에 업로드·OTP 승인 → 그 다음 '일괄 입금완료'로 기록.
   function downloadTransferFile() {
-    const ids = [...checked].filter((id) => payableById.has(id));
+    const ids = checkedPayableIds;
     if (ids.length === 0) return;
     const fd = new FormData();
     fd.set("ids", JSON.stringify(ids));
@@ -140,7 +149,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
 
   // 일괄 입금완료
   function markBulk() {
-    const ids = [...checked].filter((id) => payableById.has(id));
+    const ids = checkedPayableIds;
     if (ids.length === 0) return;
     if (
       !confirm(
@@ -162,30 +171,47 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
 
   return (
     <div className="flex flex-col gap-6">
-      {checked.size > 0 ? (
-        <div className="sticky top-2 z-10 flex items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3">
-          <span className="text-sm font-semibold">{checked.size}명 선택됨</span>
-          <div className="flex items-center gap-2">
+      {payableIds.length > 0 ? (
+        <div className="sticky top-2 z-10 flex flex-col gap-2 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center justify-between gap-3">
             <button
               type="button"
-              onClick={() => setChecked(new Set())}
-              className="rounded-lg px-3 py-1.5 text-xs text-ink-2 hover:bg-secondary"
+              onClick={toggleAllPayable}
+              disabled={bulkBusy}
+              className="rounded-lg border border-primary/40 bg-card px-3 py-1.5 text-xs font-semibold text-primary disabled:opacity-50"
             >
-              해제
+              {allPayableChecked
+                ? `전체 선택 해제 (${payableIds.length}명)`
+                : `전체 선택 (${payableIds.length}명)`}
             </button>
+            <span className="text-xs font-semibold text-ink-2">
+              {checkedPayableIds.length}명 선택됨
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {checkedPayableIds.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setChecked(new Set())}
+                disabled={bulkBusy}
+                className="rounded-lg px-3 py-1.5 text-xs text-ink-2 hover:bg-secondary disabled:opacity-50"
+              >
+                선택 해제
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={downloadTransferFile}
-              disabled={bulkBusy}
-              className="rounded-lg border border-primary/40 bg-card px-4 py-1.5 text-xs font-semibold text-primary disabled:opacity-50"
+              disabled={bulkBusy || checkedPayableIds.length === 0}
+              className="flex-1 rounded-lg border border-primary/40 bg-card px-4 py-1.5 text-xs font-semibold text-primary disabled:opacity-50 sm:flex-none"
             >
               다계좌이체 파일
             </button>
             <button
               type="button"
               onClick={markBulk}
-              disabled={bulkBusy}
-              className="rounded-lg bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+              disabled={bulkBusy || checkedPayableIds.length === 0}
+              className="flex-1 rounded-lg bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50 sm:flex-none"
             >
               {bulkBusy ? "처리 중…" : "일괄 입금완료"}
             </button>
@@ -399,6 +425,7 @@ function SettlementDetail({
   const router = useRouter();
   const [busy, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
   const calc = calcSettlement(row.grossAmount, row.rate);
   const hasAccount = !!(row.bankName && row.accountNumber && row.accountHolder);
 
@@ -427,6 +454,22 @@ function SettlementDetail({
         toast.success(`${row.dancerName}에게 출금신청 안내 메일을 보냈어요.`);
         router.refresh();
       } else toast.error(res.error);
+    });
+  }
+
+  function cancelSettlement() {
+    const fd = new FormData();
+    fd.set("settlement_id", row.id);
+    startTransition(async () => {
+      const res = await cancelSettlementAction(fd);
+      if (res.ok) {
+        toast.success(`${row.dancerName} 정산을 취소했어요.`);
+        onClose();
+        router.refresh();
+      } else {
+        toast.error(res.error);
+        setConfirmingCancel(false);
+      }
     });
   }
 
@@ -502,6 +545,43 @@ function SettlementDetail({
         <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
           {fmtDate(row.paidAt)} 입금완료 — {formatWon(calc.net)}
         </p>
+      ) : null}
+
+      {row.status !== "paid" ? (
+        confirmingCancel ? (
+          <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-3">
+            <p className="text-xs text-red-800">
+              이 정산을 취소하면 대기 목록과 댄서 정산 화면에서 제외됩니다.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmingCancel(false)}
+                disabled={busy}
+                className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-ink-2 disabled:opacity-50"
+              >
+                돌아가기
+              </button>
+              <button
+                type="button"
+                onClick={cancelSettlement}
+                disabled={busy}
+                className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              >
+                {busy ? "처리 중…" : "정산 취소 확정"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmingCancel(true)}
+            disabled={busy}
+            className="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 active:bg-red-50 disabled:opacity-50"
+          >
+            정산 취소
+          </button>
+        )
       ) : null}
     </div>
   );

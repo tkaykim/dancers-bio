@@ -107,6 +107,7 @@ export default async function WithdrawSharePage({
     .select("id, gross_amount, withholding_rate, status, paid_at")
     .eq("project_id", projectId)
     .eq("dancer_id", dancerId)
+    .neq("status", "cancelled")
     .maybeSingle();
 
   if (!s) {

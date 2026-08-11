@@ -263,6 +263,12 @@
 - [ ] **ADM-030** `/admin/dancers` 승인/거절 (`approveDancerAction`/`rejectDancerAction`), `setDancerDisplayOrderAction`
 - [ ] **ADM-040** `/admin/teams` 승인/거절
 - [ ] **ADM-050** `/admin/verifications` 인스타 승인/거절 (사유 포함)
+- [ ] **ADM-060** `/admin/settlements`에서 `pending` 또는 `requested` 건의 상세를 열고 2단계 확인 후 취소 → 대기열에서 제외
+- [ ] **ADM-061** `paid` 건에는 정산 취소 버튼이 노출되지 않고 서버 액션 직접 호출도 거절
+- [ ] **ADM-062** 취소와 입금완료가 동시에 요청되면 먼저 반영된 상태만 유지되고 늦은 요청은 상태 변경 오류 반환
+- [ ] **ADM-063** 취소된 건은 `/me/settlements`와 `/w/[code]`에서 노출되지 않음
+- [ ] **ADM-064** `전체 선택 (N명)`이 금액·계좌가 준비된 `pending`/`requested` 건만 선택하고 표시 인원수와 실제 선택 수가 일치
+- [ ] **ADM-065** 전체 선택 해제 후 다계좌이체 파일·일괄 입금완료 버튼이 비활성화
 
 ---
 
@@ -361,6 +367,7 @@ draft → open → (지원 수령) → close → 합의금 입력 → 소프트 
 | `applyToProjectAction`, `withdrawApplicationAction`, `decideApplicationAction`, `sendDirectProposalAction`, `respondToProposalAction` | `src/app/actions/applications.ts` |
 | `createTeamAction`, `updateTeamAction`, `addTeamMemberAction`, `removeTeamMemberAction`, `transferTeamLeadAction`, `disbandTeamAction`, `lookupProfileByEmailAction`, `approveTeamAction`, `rejectTeamAction` | `src/app/actions/teams.ts` |
 | `approveDancerAction`, `rejectDancerAction`, `setDancerDisplayOrderAction`, `setCanCreateProjectAction` | `src/app/actions/admin.ts` |
+| `cancelSettlementAction`, `markSettlementPaidAction`, `markSettlementsPaidAction`, `buildTransferFileAction` | `src/app/actions/settlements.ts` |
 
 ## 부록 B. 가드 / 미들웨어
 
