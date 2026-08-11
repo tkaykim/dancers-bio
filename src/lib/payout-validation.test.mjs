@@ -4,6 +4,7 @@ import {
   isPayoutAccountValid,
   isPayoutInfoComplete,
   isResidentNumberValid,
+  formatResidentNumberInput,
   normalizeAccountNumber,
   normalizeResidentNumber,
 } from "./payout-validation.ts";
@@ -25,6 +26,8 @@ test("normalizes payout identifiers without accepting non-digits", () => {
   assert.equal(normalizeAccountNumber("123-456 7890"), "1234567890");
   assert.equal(normalizeResidentNumber("900101-1234567"), "9001011234567");
   assert.equal(normalizeResidentNumber("900101-A234567"), null);
+  assert.equal(formatResidentNumberInput("9001011234567"), "900101-1234567");
+  assert.equal(formatResidentNumberInput("900101-12ab34567"), "900101-1234567");
 });
 
 test("validates domestic and foreign resident numbers", () => {
