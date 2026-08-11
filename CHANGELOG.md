@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5 - 2026-08-11
+
+- Search administrator settlements instantly by dancer name, nickname, or project without refreshing the page or sending a request for each keystroke.
+- Require a valid bank account and resident or foreigner registration number before withdrawal requests, transfer files, or paid-state transitions can proceed.
+- Keep payout eligibility consistent in the dancer and administrator screens, and preserve the live database trigger as a versioned migration.
+
 ## 0.1.4 - 2026-08-11
 
 - Collect name, birth year, height, primary genre, dance video, backup-dancer history, and optional personal-profile links on selected casting posts.

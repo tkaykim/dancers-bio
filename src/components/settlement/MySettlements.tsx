@@ -56,11 +56,13 @@ export type PayoutAccount = {
 export function MySettlements({
   settlements,
   accounts,
+  payoutReady,
   docs,
   dancerNames,
 }: {
   settlements: MySettlementRow[];
   accounts: Record<string, PayoutAccount | null>;
+  payoutReady: Record<string, boolean>;
   docs: Record<string, DancerDocsState>;
   dancerNames: Record<string, string>;
 }) {
@@ -176,6 +178,7 @@ export function MySettlements({
           <ul className="flex flex-col gap-3">
             {settlements.map((s) => {
               const hasAccount = !!accounts[s.dancerId];
+              const hasPayoutInfo = payoutReady[s.dancerId] === true;
               // 셀프 제출 직후 등 금액 미정 건 = 금액 산정 대기 카드.
               if (s.grossAmount == null) {
                 return (
@@ -237,7 +240,7 @@ export function MySettlements({
                   </div>
 
                   {s.status === "pending" ? (
-                    hasAccount ? (
+                    hasPayoutInfo ? (
                       <button
                         type="button"
                         onClick={() => setConfirm(s)}
@@ -247,7 +250,9 @@ export function MySettlements({
                       </button>
                     ) : (
                       <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                        출금 신청하려면 위에서 입금 계좌를 먼저 등록해 주세요.
+                        {hasAccount
+                          ? "출금 신청하려면 주민(외국인)등록번호도 등록해 주세요."
+                          : "출금 신청하려면 입금 계좌와 주민(외국인)등록번호를 모두 등록해 주세요."}
                       </p>
                     )
                   ) : null}

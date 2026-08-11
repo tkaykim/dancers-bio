@@ -37,7 +37,10 @@ export default async function AdminSettlementsPage() {
 
   // 댄서 이름 + 계좌 (service-role)
   const dancerIds = [...new Set(rows.map((r) => r.dancer_id))];
-  const nameById = new Map<string, string>();
+  const dancerById = new Map<
+    string,
+    { displayName: string; koreanName: string | null; stageName: string | null }
+  >();
   const acctById = new Map<
     string,
     { bank: string; number: string; holder: string } | null
@@ -47,13 +50,19 @@ export default async function AdminSettlementsPage() {
   if (dancerIds.length > 0) {
     const { data: dRows } = await admin
       .from("dancers")
-      .select("id, stage_name")
+      .select("id, stage_name, korean_name")
       .in("id", dancerIds);
     for (const d of (dRows ?? []) as Array<{
       id: string;
       stage_name: string | null;
-    }>)
-      nameById.set(d.id, d.stage_name ?? "(이름 없음)");
+      korean_name: string | null;
+    }>) {
+      dancerById.set(d.id, {
+        displayName: d.stage_name ?? d.korean_name ?? "(이름 없음)",
+        koreanName: d.korean_name,
+        stageName: d.stage_name,
+      });
+    }
 
     const { data: piRows } = await admin
       .from("dancer_private_info")
@@ -92,11 +101,14 @@ export default async function AdminSettlementsPage() {
     const proj = Array.isArray(r.project) ? r.project[0] ?? null : r.project;
     const acct = acctById.get(r.dancer_id) ?? null;
     const doc = docsById.get(r.dancer_id) ?? { idCard: false, bankbook: false };
+    const dancer = dancerById.get(r.dancer_id);
     return {
       id: r.id,
       projectId: r.project_id,
       dancerId: r.dancer_id,
-      dancerName: nameById.get(r.dancer_id) ?? "(이름 없음)",
+      dancerName: dancer?.displayName ?? "(이름 없음)",
+      dancerKoreanName: dancer?.koreanName ?? null,
+      dancerStageName: dancer?.stageName ?? null,
       projectTitle: proj?.title ?? "(공고)",
       grossAmount: r.gross_amount,
       rate: Number(r.withholding_rate),

@@ -1,6 +1,6 @@
 {
   "name": "deetz",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:payout-validation": "node --test src/lib/payout-validation.test.mjs",
     "db:types": "supabase gen types typescript --project-id wvfmqiajdvbsevlhlgtl --schema public > src/lib/supabase/types.ts",
     "seo:indexnow": "node scripts/submit-indexnow.mjs"
   },
