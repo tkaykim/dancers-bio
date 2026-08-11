@@ -190,11 +190,16 @@
 - [ ] **APP-005** 팀 지원: 팀 리드만 가능
 - [ ] **APP-006** 댄서 프로필 없는데 개인 지원 → 차단
 - [ ] **APP-007** 중복 지원 (23505) → "이미 지원하셨습니다."
+- [ ] **APP-008** `collect_casting_details=false` 일반 공고는 기존 지원 흐름과 동일
+- [ ] **APP-009** 상세 캐스팅 공고에서 이름·출생연도·키·주 장르·춤 영상·백업댄서 이력·개인 프로필 자동입력, 누락값 직접 입력·제출 전 수정
+- [ ] **APP-010** 이름·출생연도·키·주 장르·춤 영상·백업댄서 이력 누락, 범위 오류, 비-http(s) URL은 서버·DB 모두 거절
+- [ ] **APP-011** 제출값 7개 스냅샷 저장, 지원자 사후 수정 차단, 관리자·프로젝트 관리자·모집채널 담당자 화면 표시
+- [ ] **APP-012** 인증 사용자의 직접 PostgREST INSERT도 상세정보 누락 시 거절
 
 ### 7.2 지원 철회
-- [ ] **APP-010** status=pending일 때 본인/팀리드만 `withdrawApplicationAction`
-- [ ] **APP-011** accepted/rejected 상태에서 철회 시도 → 차단
-- [ ] **APP-012** 철회 후 status=withdrawn, 재지원 가능 여부 정책 확인
+- [ ] **APP-013** status=pending일 때 본인/팀리드만 `withdrawApplicationAction`
+- [ ] **APP-014** accepted/rejected 상태에서 철회 시도 → 차단
+- [ ] **APP-015** 철회 후 status=withdrawn, 재지원 가능 여부 정책 확인
 
 ### 7.3 다이렉트 제안 (direct_proposal)
 - [ ] **PROP-001** 오너만 `SendProposalDialog` 노출
