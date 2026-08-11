@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import {
   requestWithdrawalAction,
   savePayoutAccountAction,
+  saveResidentNumberAction,
 } from "@/app/actions/settlements";
 import {
   calcSettlement,
@@ -20,6 +21,7 @@ import {
 } from "@/components/settlement/DancerDocuments";
 import { BankPicker } from "@/components/settlement/BankPicker";
 import { matchBank, type Bank } from "@/lib/banks";
+import { formatResidentNumberInput } from "@/lib/payout-validation";
 
 export type MySettlementRow = {
   id: string;
@@ -57,12 +59,14 @@ export function MySettlements({
   settlements,
   accounts,
   payoutReady,
+  residentNumberRegistered,
   docs,
   dancerNames,
 }: {
   settlements: MySettlementRow[];
   accounts: Record<string, PayoutAccount | null>;
   payoutReady: Record<string, boolean>;
+  residentNumberRegistered: Record<string, boolean>;
   docs: Record<string, DancerDocsState>;
   dancerNames: Record<string, string>;
 }) {
@@ -148,6 +152,22 @@ export function MySettlements({
             dancerName={dancerNames[id]}
             showName={dancerIds.length > 1}
             account={accounts[id] ?? null}
+          />
+        ))}
+      </section>
+
+      {/* 주민(외국인)등록번호 */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-bold text-ink-2">
+          주민(외국인)등록번호
+        </h2>
+        {dancerIds.map((id) => (
+          <ResidentNumberCard
+            key={id}
+            dancerId={id}
+            dancerName={dancerNames[id]}
+            showName={dancerIds.length > 1}
+            registered={residentNumberRegistered[id] === true}
           />
         ))}
       </section>
@@ -286,6 +306,127 @@ export function MySettlements({
           }}
         />
       ) : null}
+    </div>
+  );
+}
+
+function ResidentNumberCard({
+  dancerId,
+  dancerName,
+  showName,
+  registered,
+}: {
+  dancerId: string;
+  dancerName: string;
+  showName: boolean;
+  registered: boolean;
+}) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(!registered);
+  const [residentNumber, setResidentNumber] = useState("");
+  const [reveal, setReveal] = useState(false);
+  const [busy, startTransition] = useTransition();
+
+  function save() {
+    if (residentNumber.replace(/\D/g, "").length !== 13) {
+      toast.error("주민(외국인)등록번호 13자리를 입력해 주세요.");
+      return;
+    }
+
+    const fd = new FormData();
+    fd.set("dancer_id", dancerId);
+    fd.set("resident_registration_number", residentNumber);
+    startTransition(async () => {
+      const res = await saveResidentNumberAction(fd);
+      if (res.ok) {
+        toast.success("주민(외국인)등록번호를 저장했어요.");
+        setResidentNumber("");
+        setReveal(false);
+        setEditing(false);
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+      {showName ? (
+        <span className="text-xs font-semibold text-ink-2">{dancerName}</span>
+      ) : null}
+      {!editing && registered ? (
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="text-sm font-semibold">등록됨</span>
+            <span className="text-xs text-ink-3">
+              번호는 보안을 위해 다시 표시하지 않아요.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-ink-2 active:bg-secondary"
+          >
+            변경
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <div className="relative">
+            <input
+              type={reveal ? "text" : "password"}
+              inputMode="numeric"
+              autoComplete="off"
+              value={residentNumber}
+              onChange={(event) =>
+                setResidentNumber(formatResidentNumberInput(event.target.value))
+              }
+              placeholder="주민(외국인)등록번호 13자리"
+              aria-label="주민 또는 외국인 등록번호"
+              maxLength={14}
+              disabled={busy}
+              className="w-full rounded-xl border border-border bg-background py-2 pl-3 pr-11 text-sm outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+            />
+            <button
+              type="button"
+              onClick={() => setReveal((value) => !value)}
+              aria-label={reveal ? "등록번호 가리기" : "등록번호 보기"}
+              disabled={busy}
+              className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-ink-2 active:bg-secondary disabled:opacity-50"
+            >
+              {reveal ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={save}
+              disabled={busy}
+              className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground active:opacity-80 disabled:opacity-50"
+            >
+              {busy ? "저장 중…" : "등록번호 저장"}
+            </button>
+            {registered ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setResidentNumber("");
+                  setReveal(false);
+                  setEditing(false);
+                }}
+                disabled={busy}
+                className="rounded-xl border border-border px-4 py-2.5 text-sm text-ink-2 active:bg-secondary"
+              >
+                취소
+              </button>
+            ) : null}
+          </div>
+          <p className="text-[11px] text-ink-3">
+            원천징수 신고와 정산 처리에만 사용하며 담당자만 확인할 수 있어요.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

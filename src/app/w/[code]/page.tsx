@@ -15,6 +15,7 @@ import type { SettlementStatus } from "@/lib/settlement";
 import {
   isPayoutAccountValid,
   isPayoutInfoComplete,
+  isResidentNumberValid,
   normalizeAccountNumber,
 } from "@/lib/payout-validation";
 
@@ -171,6 +172,9 @@ export default async function WithdrawSharePage({
         accounts={accounts}
         payoutReady={{
           [dancerId]: isPayoutInfoComplete(pi),
+        }}
+        residentNumberRegistered={{
+          [dancerId]: isResidentNumberValid(pi?.resident_registration_number),
         }}
         docs={docs}
         dancerNames={{ [dancerId]: dancerName }}

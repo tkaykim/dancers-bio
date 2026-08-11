@@ -11,6 +11,7 @@ import type { SettlementStatus } from "@/lib/settlement";
 import {
   isPayoutAccountValid,
   isPayoutInfoComplete,
+  isResidentNumberValid,
   normalizeAccountNumber,
 } from "@/lib/payout-validation";
 
@@ -33,6 +34,7 @@ export default async function MySettlementsPage() {
   let settlements: MySettlementRow[] = [];
   const accounts: Record<string, PayoutAccount | null> = {};
   const payoutReady: Record<string, boolean> = {};
+  const residentNumberRegistered: Record<string, boolean> = {};
   const docs: Record<string, DancerDocsState> = {};
 
   if (dancerIds.length > 0) {
@@ -78,6 +80,7 @@ export default async function MySettlementsPage() {
     for (const id of dancerIds) {
       accounts[id] = null;
       payoutReady[id] = false;
+      residentNumberRegistered[id] = false;
       docs[id] = { idCard: false, bankbook: false };
     }
     for (const pi of (piRows ?? []) as Array<{
@@ -100,6 +103,9 @@ export default async function MySettlementsPage() {
             }
           : null;
       payoutReady[pi.dancer_id] = isPayoutInfoComplete(pi);
+      residentNumberRegistered[pi.dancer_id] = isResidentNumberValid(
+        pi.resident_registration_number,
+      );
       docs[pi.dancer_id] = {
         idCard: !!pi.id_card_path,
         bankbook: !!pi.bankbook_path,
@@ -135,6 +141,7 @@ export default async function MySettlementsPage() {
           settlements={settlements}
           accounts={accounts}
           payoutReady={payoutReady}
+          residentNumberRegistered={residentNumberRegistered}
           docs={docs}
           dancerNames={Object.fromEntries(nameById)}
         />

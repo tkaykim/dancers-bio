@@ -24,6 +24,13 @@ export function normalizeResidentNumber(value: unknown): string | null {
   return /^[0-9]{13}$/.test(digits) ? digits : null;
 }
 
+export function formatResidentNumberInput(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 13);
+  return digits.length > 6
+    ? `${digits.slice(0, 6)}-${digits.slice(6)}`
+    : digits;
+}
+
 export function isResidentNumberValid(value: unknown): boolean {
   const digits = normalizeResidentNumber(value);
   if (!digits || !/^[1-8]$/.test(digits[6])) return false;
