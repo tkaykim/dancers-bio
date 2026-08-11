@@ -16,7 +16,7 @@ import { setSettlementAmountAction } from "@/app/actions/settlements";
 import { setApplicationConfirmedAction } from "@/app/actions/evaluations";
 import { calcSettlement, formatWon, formatWonInput } from "@/lib/settlement";
 import { EvaluationPanel } from "@/components/project/EvaluationPanel";
-import type { SubmittedCastingDetails } from "@/lib/validation/application-details";
+import type { SubmittedCastingDetails } from "@/lib/casting-application-details";
 
 export type SheetApplicant = {
   applicationId: string;

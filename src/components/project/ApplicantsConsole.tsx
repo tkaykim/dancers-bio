@@ -15,7 +15,7 @@ import {
   type SheetApplicant,
 } from "@/components/project/ApplicantPortfolioSheet";
 import { RejectReasonDialog } from "@/components/project/RejectReasonDialog";
-import type { SubmittedCastingDetails } from "@/lib/validation/application-details";
+import type { SubmittedCastingDetails } from "@/lib/casting-application-details";
 
 export type ConsoleApplicant = {
   id: string;

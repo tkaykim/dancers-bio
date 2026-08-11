@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
   EMPTY_CASTING_APPLICATION_DEFAULTS,
   type CastingApplicationDefaults,
-} from "@/lib/validation/application-details";
+} from "@/lib/casting-application-details";
 
 // Lite: 본인 own dancer 1개로만 지원. dancer 없으면 onboarding 유도.
 const FEE_CURRENCIES = ["KRW", "USD", "JPY", "EUR"] as const;
@@ -306,6 +306,7 @@ export function ApplyForm({
 
       {message ? (
         <p
+          role={message.kind === "error" ? "alert" : "status"}
           className={
             "rounded-md px-3 py-2 text-sm " +
             (message.kind === "ok"

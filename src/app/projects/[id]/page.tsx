@@ -20,7 +20,12 @@ import { formatWhen } from "@/lib/format-when";
 import {
   EMPTY_CASTING_APPLICATION_DEFAULTS,
   type CastingApplicationDefaults,
-} from "@/lib/validation/application-details";
+} from "@/lib/casting-application-details";
+
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://deetz.kr").replace(
+  /\/$/,
+  "",
+);
 
 // 설명글 안의 http(s) URL을 클릭 가능한 링크로 변환.
 // 텍스트 조각은 React가 자동 이스케이프하므로 XSS 안전 (dangerouslySetInnerHTML 미사용).
@@ -334,7 +339,7 @@ export default async function ProjectDetailPage({
     const profileUrl = dancer?.portfolio_file_url
       ? (dancer.portfolio_file_url as string)
       : dancer
-        ? `https://www.deetz.kr/d/${dancer.slug ?? dancer.id}`
+        ? `${SITE_URL}/d/${dancer.slug ?? dancer.id}`
         : "";
     castingDefaults = {
       applicant_name:
