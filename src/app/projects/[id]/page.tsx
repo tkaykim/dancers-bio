@@ -17,6 +17,10 @@ import {
   VISIBILITY_LABELS,
 } from "@/lib/validation/projects";
 import { formatWhen } from "@/lib/format-when";
+import {
+  EMPTY_CASTING_APPLICATION_DEFAULTS,
+  type CastingApplicationDefaults,
+} from "@/lib/validation/application-details";
 
 // 설명글 안의 http(s) URL을 클릭 가능한 링크로 변환.
 // 텍스트 조각은 React가 자동 이스케이프하므로 XSS 안전 (dangerouslySetInnerHTML 미사용).
@@ -112,6 +116,7 @@ type ProjectRow = {
   application_deadline: string | null;
   is_standing_pool: boolean | null;
   collect_applicant_fee: boolean | null;
+  collect_casting_details: boolean | null;
   created_at: string;
   region_text: string | null;
   genre: { label_ko: string } | null;
@@ -178,7 +183,7 @@ export default async function ProjectDetailPage({
     .select(
       `id, short_code, owner_id, title, description, visibility, status, pay_amount, pay_type,
        agreed_pay, recruitment_count, posted_by_label,
-       application_deadline, is_standing_pool, collect_applicant_fee, created_at, region_text,
+       application_deadline, is_standing_pool, collect_applicant_fee, collect_casting_details, created_at, region_text,
        genre:genres ( label_ko ),
        region:regions ( label_ko )`,
     )
@@ -277,6 +282,75 @@ export default async function ProjectDetailPage({
     viewerProfile = (vp ?? null) as ViewerProfile | null;
     ownDancers = (od ?? []) as OwnDancerLite[];
     myApplications = (ma ?? []) as ApplicationRow[];
+  }
+
+  let castingDefaults: CastingApplicationDefaults = {
+    ...EMPTY_CASTING_APPLICATION_DEFAULTS,
+  };
+  const ownDancerId = ownDancers[0]?.id ?? null;
+  if (user && ownDancerId && p.collect_casting_details) {
+    const [{ data: dancer }, { data: privateInfo }, { data: careerRows }] =
+      await Promise.all([
+        admin
+          .from("dancers")
+          .select(
+            "id, stage_name, korean_name, slug, genres, portfolio_file_url",
+          )
+          .eq("id", ownDancerId)
+          .maybeSingle(),
+        admin
+          .from("dancer_private_info")
+          .select("birth_date, height_cm")
+          .eq("dancer_id", ownDancerId)
+          .maybeSingle(),
+        admin
+          .from("careers")
+          .select("title, type, details, is_representative, sort_order")
+          .eq("dancer_id", ownDancerId)
+          .eq("is_public", true)
+          .order("is_representative", { ascending: false })
+          .order("sort_order")
+          .limit(60),
+      ]);
+    const careers = (careerRows ?? []) as Array<{
+      title: string | null;
+      type: string | null;
+      details: { role?: string | null; description?: string | null; link?: string | null } | null;
+    }>;
+    const danceVideo = careers.find((career) => career.details?.link)?.details
+      ?.link;
+    const backupHistory = careers
+      .filter((career) =>
+        /백업|백댄|back\s*-?\s*up/i.test(
+          [career.title, career.details?.role, career.details?.description]
+            .filter(Boolean)
+            .join(" "),
+        ),
+      )
+      .map((career) =>
+        [career.title, career.details?.role].filter(Boolean).join(" · "),
+      )
+      .join("\n");
+    const profileUrl = dancer?.portfolio_file_url
+      ? (dancer.portfolio_file_url as string)
+      : dancer
+        ? `https://www.deetz.kr/d/${dancer.slug ?? dancer.id}`
+        : "";
+    castingDefaults = {
+      applicant_name:
+        ((dancer?.korean_name as string | null) ?? "").trim() ||
+        ((dancer?.stage_name as string | null) ?? ""),
+      birth_year: privateInfo?.birth_date
+        ? String(privateInfo.birth_date).slice(0, 4)
+        : "",
+      height_cm:
+        privateInfo?.height_cm != null ? String(privateInfo.height_cm) : "",
+      primary_genre:
+        (((dancer?.genres as string[] | null) ?? [])[0] ?? "").trim(),
+      dance_video_url: danceVideo ?? "",
+      backup_dancer_history: backupHistory,
+      personal_profile_url: profileUrl,
+    };
   }
 
   const sessions = (sessionsData ?? []) as SessionRow[];
@@ -575,6 +649,8 @@ export default async function ProjectDetailPage({
               projectShortCode={p.short_code}
               hasDancer={hasDancer}
               collectFee={!!p.collect_applicant_fee}
+              collectCastingDetails={!!p.collect_casting_details}
+              castingDefaults={castingDefaults}
               recruitmentChannelId={activeRecruitmentChannel?.id ?? null}
               recruitmentChannelName={activeRecruitmentChannel?.name ?? null}
               recruitmentChannelCode={activeRecruitmentChannel?.share_code ?? null}

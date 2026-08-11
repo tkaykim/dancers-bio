@@ -6,6 +6,10 @@ import { applyToProjectAction } from "@/app/actions/applications";
 import { NEEDS_DANCER_ERROR } from "@/lib/lite-constants";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  EMPTY_CASTING_APPLICATION_DEFAULTS,
+  type CastingApplicationDefaults,
+} from "@/lib/validation/application-details";
 
 // Lite: 본인 own dancer 1개로만 지원. dancer 없으면 onboarding 유도.
 const FEE_CURRENCIES = ["KRW", "USD", "JPY", "EUR"] as const;
@@ -16,6 +20,8 @@ export function ApplyForm({
   projectShortCode,
   hasDancer,
   collectFee = false,
+  collectCastingDetails = false,
+  castingDefaults = EMPTY_CASTING_APPLICATION_DEFAULTS,
   recruitmentChannelId,
   recruitmentChannelName,
   recruitmentChannelCode,
@@ -27,6 +33,10 @@ export function ApplyForm({
   hasDancer: boolean;
   /** 이 공고가 지원자에게 단가를 받는지 (projects.collect_applicant_fee) */
   collectFee?: boolean;
+  /** 이름·출생연도·키·주 장르·춤 영상·백업댄서 이력을 필수로 받는 공고. */
+  collectCastingDetails?: boolean;
+  /** 회원 프로필에서 미리 채운 값. 지원자가 제출 전 수정할 수 있다. */
+  castingDefaults?: CastingApplicationDefaults;
   recruitmentChannelId?: string | null;
   recruitmentChannelName?: string | null;
   recruitmentChannelCode?: string | null;
@@ -125,6 +135,118 @@ export function ApplyForm({
         placeholder="예: 무대 댄서 7년차, K-pop 다수 경험 보유. 빠른 캐치 자신 있어요."
         className="rounded-md border border-input bg-background px-3 py-2 text-sm"
       />
+
+      {collectCastingDetails ? (
+        <fieldset className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/30 p-3">
+          <legend className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-ink-3">
+            상세 지원 정보
+          </legend>
+          <p className="text-xs leading-relaxed text-ink-3">
+            회원 프로필에 등록된 정보는 자동으로 불러왔습니다.
+            비어 있거나 달라진 내용은 여기서 바로 수정해 제출해 주세요.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="applicant_name">이름 *</Label>
+              <input
+                id="applicant_name"
+                name="applicant_name"
+                required
+                maxLength={100}
+                defaultValue={castingDefaults.applicant_name}
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="birth_year">출생연도 *</Label>
+              <input
+                id="birth_year"
+                name="birth_year"
+                type="number"
+                inputMode="numeric"
+                required
+                min={1900}
+                max={new Date().getFullYear()}
+                defaultValue={castingDefaults.birth_year}
+                placeholder="예: 1998"
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="height_cm">키(cm) *</Label>
+              <input
+                id="height_cm"
+                name="height_cm"
+                type="number"
+                inputMode="numeric"
+                required
+                min={50}
+                max={250}
+                defaultValue={castingDefaults.height_cm}
+                placeholder="예: 165"
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="primary_genre">주 장르 *</Label>
+              <input
+                id="primary_genre"
+                name="primary_genre"
+                required
+                maxLength={100}
+                defaultValue={castingDefaults.primary_genre}
+                placeholder="예: K-POP, 코레오그래피"
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="dance_video_url">춤 영상 링크 *</Label>
+            <input
+              id="dance_video_url"
+              name="dance_video_url"
+              type="url"
+              required
+              maxLength={2000}
+              defaultValue={castingDefaults.dance_video_url}
+              placeholder="YouTube·Vimeo·Drive·SNS 영상 링크"
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="backup_dancer_history">백업댄서 이력 *</Label>
+            <textarea
+              id="backup_dancer_history"
+              name="backup_dancer_history"
+              required
+              rows={4}
+              maxLength={2000}
+              defaultValue={castingDefaults.backup_dancer_history}
+              placeholder="아티스트·공연명·연도·역할을 적어 주세요. 경력이 없으면 '없음'이라고 입력해 주세요."
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="personal_profile_url">개인 프로필 링크 (보유 시)</Label>
+            <input
+              id="personal_profile_url"
+              name="personal_profile_url"
+              type="url"
+              maxLength={2000}
+              defaultValue={castingDefaults.personal_profile_url}
+              placeholder="프로필 파일·소개 페이지·포트폴리오 링크"
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            />
+          </div>
+        </fieldset>
+      ) : null}
 
       {collectFee ? (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/30 p-3">

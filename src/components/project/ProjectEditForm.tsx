@@ -30,6 +30,7 @@ export type ProjectEditInitial = {
   recruitment_count: number;
   application_deadline: string | null;
   collect_applicant_fee: boolean;
+  collect_casting_details: boolean;
   posted_by_label: string | null;
 };
 
@@ -58,6 +59,9 @@ export function ProjectEditForm({
     initial.category ?? "",
   );
   const [collectFee, setCollectFee] = useState(initial.collect_applicant_fee);
+  const [collectCastingDetails, setCollectCastingDetails] = useState(
+    initial.collect_casting_details,
+  );
 
   function onPayChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/[^\d]/g, "");
@@ -209,6 +213,23 @@ export function ProjectEditForm({
           {collectFee
             ? "지원 시 댄서가 본인 단가를 적어 제출합니다. 잘 모르면 '협의 희망'으로도 낼 수 있어요. 단가는 운영자만 봅니다."
             : "켜면 위 고정 페이 대신, 지원자가 각자 단가를 불러서 제출하는 공고가 됩니다."}
+        </span>
+      </label>
+
+      <label className="flex flex-col gap-1 rounded-xl border border-border p-4">
+        <span className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            name="collect_casting_details"
+            checked={collectCastingDetails}
+            onChange={(e) => setCollectCastingDetails(e.target.checked)}
+            className="h-4 w-4"
+          />
+          상세 캐스팅 정보 필수로 받기
+        </span>
+        <span className="ml-6 text-xs text-muted-foreground">
+          이름·출생연도·키·주 장르·춤 영상·백업댄서 이력을 필수로 받고,
+          개인 프로필은 보유한 경우 함께 받습니다.
         </span>
       </label>
 

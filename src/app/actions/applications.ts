@@ -8,6 +8,7 @@ import { humanizeDbError } from "@/lib/db-errors";
 import { sendApplicationRejectionEmail } from "@/lib/notify/rejection-mail";
 import { NEEDS_DANCER_ERROR } from "@/lib/lite-constants";
 import { isExpired } from "@/lib/utils/deadline";
+import { castingApplicationDetailsSchema } from "@/lib/validation/application-details";
 import type { ActionResult } from "./auth";
 
 // Lite MVP: 1계정 = 1댄서 가정. team apply / manager-as-actor 분기 모두 제거.
@@ -29,7 +30,7 @@ export async function applyToProjectAction(
   const supabase = await createClient();
   const { data: project } = await supabase
     .from("projects")
-    .select("owner_id, status, visibility, deleted_at, application_deadline, is_standing_pool, collect_applicant_fee")
+    .select("owner_id, status, visibility, deleted_at, application_deadline, is_standing_pool, collect_applicant_fee, collect_casting_details")
     .eq("id", project_id)
     .single();
 
@@ -107,6 +108,40 @@ export async function applyToProjectAction(
     fee_status = negotiable ? "negotiable" : "quoted";
   }
 
+  let applicant_name: string | null = null;
+  let birth_year: number | null = null;
+  let height_cm: number | null = null;
+  let primary_genre: string | null = null;
+  let dance_video_url: string | null = null;
+  let backup_dancer_history: string | null = null;
+  let personal_profile_url: string | null = null;
+  if (project.collect_casting_details) {
+    const parsed = castingApplicationDetailsSchema.safeParse({
+      applicant_name: formData.get("applicant_name"),
+      birth_year: formData.get("birth_year"),
+      height_cm: formData.get("height_cm"),
+      primary_genre: formData.get("primary_genre"),
+      dance_video_url: formData.get("dance_video_url"),
+      backup_dancer_history: formData.get("backup_dancer_history"),
+      personal_profile_url: formData.get("personal_profile_url"),
+    });
+    if (!parsed.success) {
+      return {
+        ok: false,
+        error:
+          parsed.error.issues[0]?.message ??
+          "상세 지원 정보를 모두 입력해 주세요.",
+      };
+    }
+    applicant_name = parsed.data.applicant_name;
+    birth_year = parsed.data.birth_year;
+    height_cm = parsed.data.height_cm;
+    primary_genre = parsed.data.primary_genre;
+    dance_video_url = parsed.data.dance_video_url;
+    backup_dancer_history = parsed.data.backup_dancer_history;
+    personal_profile_url = parsed.data.personal_profile_url;
+  }
+
   const { error } = await supabase.from("applications").insert({
     project_id,
     applicant_id: user.id,
@@ -120,6 +155,13 @@ export async function applyToProjectAction(
     proposed_fee_currency,
     proposed_fee_unit,
     fee_status,
+    applicant_name,
+    birth_year,
+    height_cm,
+    primary_genre,
+    dance_video_url,
+    backup_dancer_history,
+    personal_profile_url,
   });
 
   if (error) {

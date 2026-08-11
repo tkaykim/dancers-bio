@@ -96,6 +96,8 @@ export const projectSchema = z.object({
   is_standing_pool: z.boolean().default(false),
   // 지원 시 댄서에게 단가(견적) 제출을 받는 공고인지. 기본 false(기존 동작).
   collect_applicant_fee: z.boolean().default(false),
+  // 이름·출생연도·키·주 장르·춤 영상·백업댄서 이력을 지원서에 필수로 받는다.
+  collect_casting_details: z.boolean().default(false),
   // Lite: admin이 직접 입력하는 등록자 표시 텍스트 (max 80)
   posted_by_label: z.string().trim().max(80).nullable().optional(),
 });
@@ -130,6 +132,7 @@ export const projectUpdateSchema = z.object({
   recruitment_count: z.coerce.number().int().min(1).max(999).default(1),
   application_deadline: z.string().datetime().nullable().optional(),
   collect_applicant_fee: z.boolean().default(false),
+  collect_casting_details: z.boolean().default(false),
   posted_by_label: z.string().trim().max(80).nullable().optional(),
   status: z
     .enum(["draft", "open", "closed", "cancelled", "completed"])
