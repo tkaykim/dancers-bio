@@ -739,9 +739,15 @@ export async function buildTransferFileAction(
     (piRows ?? []).map((p) => [p.dancer_id as string, p]),
   );
 
+  const rowById = new Map((sRows ?? []).map((row) => [row.id as string, row]));
   const rows: (string | number)[][] = [];
   let skipped = 0;
-  for (const s of sRows) {
+  for (const id of ids) {
+    const s = rowById.get(id);
+    if (!s) {
+      skipped++;
+      continue;
+    }
     if (s.status !== "requested") {
       skipped++;
       continue;
