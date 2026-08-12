@@ -129,6 +129,31 @@ type ApplicationRow = {
   personal_profile_url: string | null;
 };
 
+export type CastingReviewProfileCareer = {
+  id: number;
+  type: string | null;
+  title: string | null;
+  date: string | null;
+  link: string | null;
+  isRepresentative: boolean;
+};
+
+export type CastingReviewProfile = {
+  name: string;
+  koreanName: string | null;
+  slug: string | null;
+  photo: string | null;
+  bio: string | null;
+  location: string | null;
+  gender: string | null;
+  genres: string[];
+  specialties: string[];
+  portfolioFileUrl: string | null;
+  portfolioFileName: string | null;
+  socialLinks: Record<string, string>;
+  careers: CastingReviewProfileCareer[];
+};
+
 function resolveNotes(settings: BoardSettings): string[] {
   const list =
     Array.isArray(settings.notes) && settings.notes.length
@@ -459,4 +484,95 @@ export async function getCastingBoardByReviewToken(
     return null;
   }
   return buildBoardView(board, true);
+}
+
+/**
+ * 전용 검토 링크에서 한 후보의 deetz 고유 프로필을 지연 조회한다.
+ * 연락처·정산·평가·비공개 댄서 정보는 반환하지 않는다.
+ */
+export async function getCastingReviewProfileByToken(
+  token: string,
+  memberId: string,
+): Promise<CastingReviewProfile | null> {
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      memberId,
+    )
+  ) {
+    return null;
+  }
+
+  const board = await getCastingBoardByReviewToken(token);
+  const card = board?.cards.find((candidate) => candidate.memberId === memberId);
+  if (!card || !/^[0-9a-f-]{36}$/i.test(card.dancerId)) return null;
+
+  const admin = createAdminClient();
+  const [{ data: dancerData }, { data: careerData }] = await Promise.all([
+    admin
+      .from("dancers")
+      .select(
+        "stage_name, korean_name, slug, profile_img, bio, location, gender, genres, specialties, portfolio_file_url, portfolio_file_name, social_links",
+      )
+      .eq("id", card.dancerId)
+      .maybeSingle(),
+    admin
+      .from("careers")
+      .select("id, type, title, date, details, is_representative, sort_order")
+      .eq("dancer_id", card.dancerId)
+      .eq("is_public", true)
+      .order("is_representative", { ascending: false })
+      .order("sort_order", { ascending: true })
+      .order("date", { ascending: false })
+      .limit(60),
+  ]);
+
+  const dancer = dancerData as {
+    stage_name: string | null;
+    korean_name: string | null;
+    slug: string | null;
+    profile_img: string | null;
+    bio: string | null;
+    location: string | null;
+    gender: string | null;
+    genres: string[] | null;
+    specialties: string[] | null;
+    portfolio_file_url: string | null;
+    portfolio_file_name: string | null;
+    social_links: Record<string, string> | null;
+  } | null;
+  if (!dancer) return null;
+
+  const careers = (
+    (careerData ?? []) as Array<{
+      id: number;
+      type: string | null;
+      title: string | null;
+      date: string | null;
+      details: { link?: string | null } | null;
+      is_representative: boolean | null;
+    }>
+  ).map((career) => ({
+    id: career.id,
+    type: career.type,
+    title: career.title,
+    date: career.date,
+    link: career.details?.link ?? null,
+    isRepresentative: career.is_representative === true,
+  }));
+
+  return {
+    name: dancer.stage_name || dancer.korean_name || card.name,
+    koreanName: dancer.korean_name,
+    slug: dancer.slug,
+    photo: dancer.profile_img,
+    bio: dancer.bio,
+    location: dancer.location,
+    gender: dancer.gender,
+    genres: dancer.genres ?? [],
+    specialties: dancer.specialties ?? [],
+    portfolioFileUrl: dancer.portfolio_file_url,
+    portfolioFileName: dancer.portfolio_file_name,
+    socialLinks: dancer.social_links ?? {},
+    careers,
+  };
 }

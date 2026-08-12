@@ -3,18 +3,11 @@
 import { useEffect, useState } from "react";
 import type { BoardView, BoardCard } from "@/lib/casting/board-data";
 import type { ClientDecision } from "@/lib/casting/review";
-
-export function resolveCastingCardFields(
-  fields: BoardView["settings"]["fields"],
-) {
-  return {
-    height: fields?.height !== false,
-    instagram: fields?.instagram !== false,
-    career: fields?.career !== false,
-    profile: fields?.profile !== false,
-    applicationDetails: fields?.applicationDetails === true,
-  };
-}
+import { ReviewProfileSheet } from "@/components/casting/ReviewProfileSheet";
+import {
+  resolveCastingCardFields,
+  resolveCastingProfileAccess,
+} from "@/lib/casting/card-fields";
 
 function instaHandle(url: string | null): string | null {
   if (!url) return null;
@@ -27,6 +20,7 @@ function genderKo(g: string | null): string {
 }
 
 type ReviewControls = {
+  token: string;
   choices: Record<string, ClientDecision>;
   onChange: (memberId: string, decision: ClientDecision) => void;
   disabled?: boolean;
@@ -65,15 +59,23 @@ function Card({
   c,
   fields,
   review,
+  onProfileOpen,
 }: {
   c: BoardCard;
   fields: BoardView["settings"]["fields"];
   review?: ReviewControls;
+  onProfileOpen?: (card: BoardCard) => void;
 }) {
   const handle = instaHandle(c.instagram);
   const visibleFields = resolveCastingCardFields(fields);
   const statusLabel = applicationLabel(c);
   const selectedDecision = review?.choices[c.memberId] ?? "undecided";
+  const profileAccess = resolveCastingProfileAccess({
+    enabled: visibleFields.profile,
+    reviewToken: review?.token,
+    dancerId: c.dancerId,
+    slug: c.slug,
+  });
   const sub = [
     genderKo(c.gender),
     c.birthYear ? `${c.birthYear}년생` : null,
@@ -136,7 +138,7 @@ function Card({
               rel="noopener noreferrer"
               className="rounded-md border border-border bg-background px-1.5 py-1 text-center text-[10px] font-semibold text-ink-1 hover:bg-secondary"
             >
-              개인 프로필 ↗
+              제출 프로필 ↗
             </a>
           ) : null}
           {visibleFields.instagram && handle ? (
@@ -149,7 +151,15 @@ function Card({
               {handle}
             </a>
           ) : null}
-          {visibleFields.profile && c.slug ? (
+          {profileAccess === "review-sheet" ? (
+            <button
+              type="button"
+              onClick={() => onProfileOpen?.(c)}
+              className="rounded-md border border-border bg-background px-1.5 py-1 text-center text-[10px] font-semibold text-ink-1 hover:bg-secondary"
+            >
+              deetz 프로필 보기
+            </button>
+          ) : profileAccess === "public-link" ? (
             <a
               href={`https://dancers.bio/${c.slug}`}
               target="_blank"
@@ -212,6 +222,7 @@ export function CardSection({
 }) {
   const [cols, setCols] = useState(5);
   const [rows, setRows] = useState(INITIAL_ROWS);
+  const [profileCard, setProfileCard] = useState<BoardCard | null>(null);
 
   useEffect(() => {
     const calc = () => {
@@ -238,7 +249,13 @@ export function CardSection({
       </h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {shown.map((c) => (
-          <Card key={c.memberId} c={c} fields={fields} review={review} />
+          <Card
+            key={c.memberId}
+            c={c}
+            fields={fields}
+            review={review}
+            onProfileOpen={setProfileCard}
+          />
         ))}
       </div>
       {remaining > 0 || canCollapse ? (
@@ -255,6 +272,16 @@ export function CardSection({
             {remaining > 0 ? `더보기 (+${nextBatch}명 · 남은 ${remaining}명)` : "접기"}
           </button>
         </div>
+      ) : null}
+      {review ? (
+        <ReviewProfileSheet
+          open={profileCard !== null}
+          onOpenChange={(open) => {
+            if (!open) setProfileCard(null);
+          }}
+          reviewToken={review.token}
+          card={profileCard}
+        />
       ) : null}
     </section>
   );

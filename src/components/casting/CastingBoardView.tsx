@@ -58,6 +58,7 @@ export function CastingBoardView({
   );
   const reviewControls = isReview
     ? {
+        token: reviewToken as string,
         choices,
         disabled: submitting,
         onChange: (memberId: string, decision: ClientDecision) =>

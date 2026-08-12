@@ -5,7 +5,10 @@ import {
   normalizeCandidateStatuses,
   normalizeClientDecision,
 } from "./review";
-import { resolveCastingCardFields } from "../../components/casting/CardSection";
+import {
+  resolveCastingCardFields,
+  resolveCastingProfileAccess,
+} from "./card-fields";
 
 test("클라이언트 결정값은 허용 목록만 통과한다", () => {
   assert.equal(normalizeClientDecision("selected"), "selected");
@@ -78,4 +81,24 @@ test("클라이언트 보드는 저장된 링크·지원 상세 표시 설정을
     profile: false,
     applicationDetails: false,
   });
+});
+
+test("전용 검토 링크는 slug가 없어도 deetz 고유 프로필 시트를 연다", () => {
+  assert.equal(
+    resolveCastingProfileAccess({
+      enabled: true,
+      reviewToken: "signed-token",
+      dancerId: "0a98dd0a-a05b-4738-ac66-7b89abe85e59",
+      slug: null,
+    }),
+    "review-sheet",
+  );
+  assert.equal(
+    resolveCastingProfileAccess({
+      enabled: true,
+      dancerId: "0a98dd0a-a05b-4738-ac66-7b89abe85e59",
+      slug: "maan-gyu",
+    }),
+    "public-link",
+  );
 });
