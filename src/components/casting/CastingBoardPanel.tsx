@@ -28,7 +28,13 @@ type Settings = {
   minHeight?: number | null;
   note?: string | null; // 레거시 단일 공지
   notes?: string[]; // 공지 목록
-  fields?: { height?: boolean; instagram?: boolean; career?: boolean; profile?: boolean };
+  fields?: {
+    height?: boolean;
+    instagram?: boolean;
+    career?: boolean;
+    profile?: boolean;
+    applicationDetails?: boolean;
+  };
   clientReview?: ClientReviewSettings;
 };
 
@@ -82,11 +88,12 @@ export function CastingBoardPanel({
   const [minHeight, setMinHeight] = useState<string>(
     board?.settings.minHeight != null ? String(board.settings.minHeight) : "",
   );
-  // 클라이언트 대행 모드: 인스타·프로필 링크를 가려 중개 우회(직접 섭외)를 막는다.
   const [hideContact, setHideContact] = useState(
-    board?.settings.clientReview?.enabled === true ||
-      board?.settings.fields?.profile === false ||
+    board?.settings.fields?.profile === false ||
       board?.settings.fields?.instagram === false,
+  );
+  const [showApplicationDetails, setShowApplicationDetails] = useState(
+    board?.settings.fields?.applicationDetails === true,
   );
   const [clientReviewEnabled, setClientReviewEnabled] = useState(
     board?.settings.clientReview?.enabled === true,
@@ -156,6 +163,7 @@ export function CastingBoardPanel({
           ...(board.settings.fields ?? {}),
           instagram: !hideContact,
           profile: !hideContact,
+          applicationDetails: showApplicationDetails,
         },
         clientReview: {
           enabled: clientReviewEnabled,
@@ -470,6 +478,20 @@ export function CastingBoardPanel({
                 </span>
               </span>
             </label>
+            <label className="flex items-start gap-2 rounded-lg border border-border bg-secondary/30 px-2.5 py-2 text-[11px] text-ink-2">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={showApplicationDetails}
+                onChange={(event) => setShowApplicationDetails(event.target.checked)}
+              />
+              <span>
+                <b>지원 상세 표시</b>
+                <span className="mt-0.5 block text-ink-3">
+                  출생연도·주 장르·백업댄서 이력과 제출한 춤 영상·개인 프로필 링크를 보드에 표시합니다.
+                </span>
+              </span>
+            </label>
             <div className="flex flex-col gap-2 rounded-lg border border-border bg-secondary/30 p-3">
               <label className="flex items-start gap-2 text-[11px] text-ink-2">
                 <input
@@ -478,7 +500,6 @@ export function CastingBoardPanel({
                   checked={clientReviewEnabled}
                   onChange={(event) => {
                     setClientReviewEnabled(event.target.checked);
-                    if (event.target.checked) setHideContact(true);
                   }}
                 />
                 <span>

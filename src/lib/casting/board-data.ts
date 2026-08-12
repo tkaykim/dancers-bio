@@ -25,6 +25,11 @@ export type BoardCard = {
   instagram: string | null;
   career: string | null;
   slug: string | null;
+  birthYear: number | null;
+  primaryGenre: string | null;
+  danceVideoUrl: string | null;
+  backupDancerHistory: string | null;
+  personalProfileUrl: string | null;
   clientDecision?: ClientDecision;
   clientDecidedAt?: string | null;
   clientDecidedBy?: string | null;
@@ -57,6 +62,7 @@ export type BoardSettings = {
     instagram?: boolean;
     career?: boolean;
     profile?: boolean;
+    applicationDetails?: boolean;
   };
   note?: string | null;
   notes?: string[];
@@ -115,6 +121,12 @@ type ApplicationRow = {
   id: string;
   status: string;
   confirmed_at: string | null;
+  birth_year: number | null;
+  height_cm: number | null;
+  primary_genre: string | null;
+  dance_video_url: string | null;
+  backup_dancer_history: string | null;
+  personal_profile_url: string | null;
 };
 
 function resolveNotes(settings: BoardSettings): string[] {
@@ -146,16 +158,7 @@ async function buildBoardView(
 
   const admin = createAdminClient();
   const rawSettings = (board.settings ?? {}) as BoardSettings;
-  const settings: BoardSettings = reviewAuthorized
-    ? {
-        ...rawSettings,
-        fields: {
-          ...rawSettings.fields,
-          instagram: false,
-          profile: false,
-        },
-      }
-    : rawSettings;
+  const settings: BoardSettings = rawSettings;
   const candidateStatuses = normalizeCandidateStatuses(
     settings.clientReview?.candidateStatuses,
   );
@@ -186,7 +189,9 @@ async function buildBoardView(
   const { data: applicationData } = applicationIds.length
     ? await admin
         .from("applications")
-        .select("id, status, confirmed_at")
+        .select(
+          "id, status, confirmed_at, birth_year, height_cm, primary_genre, dance_video_url, backup_dancer_history, personal_profile_url",
+        )
         .eq("project_id", board.project_id)
         .in("id", applicationIds)
         .is("archived_at", null)
@@ -311,12 +316,23 @@ async function buildBoardView(
         koreanName: live.korean_name ?? member.korean_name,
         gender: live.gender ?? member.gender,
         height:
-          heightOf.get(member.dancer_id as string) ?? member.height_cm ?? null,
+          application?.height_cm ??
+          heightOf.get(member.dancer_id as string) ??
+          member.height_cm ??
+          null,
         photo:
           live.profile_img && live.profile_img.trim() ? live.profile_img : null,
         instagram: instaUrl(live.social_links?.instagram ?? null),
-        career: careerOf.get(member.dancer_id as string) ?? null,
+        career:
+          application?.backup_dancer_history ??
+          careerOf.get(member.dancer_id as string) ??
+          null,
         slug: live.slug,
+        birthYear: application?.birth_year ?? null,
+        primaryGenre: application?.primary_genre ?? null,
+        danceVideoUrl: application?.dance_video_url ?? null,
+        backupDancerHistory: application?.backup_dancer_history ?? null,
+        personalProfileUrl: application?.personal_profile_url ?? null,
         ...reviewFields,
       };
     }
@@ -334,6 +350,11 @@ async function buildBoardView(
       instagram: null,
       career: null,
       slug: null,
+      birthYear: application?.birth_year ?? null,
+      primaryGenre: application?.primary_genre ?? null,
+      danceVideoUrl: application?.dance_video_url ?? null,
+      backupDancerHistory: application?.backup_dancer_history ?? null,
+      personalProfileUrl: application?.personal_profile_url ?? null,
       ...reviewFields,
     };
   });

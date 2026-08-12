@@ -4,6 +4,18 @@ import { useEffect, useState } from "react";
 import type { BoardView, BoardCard } from "@/lib/casting/board-data";
 import type { ClientDecision } from "@/lib/casting/review";
 
+export function resolveCastingCardFields(
+  fields: BoardView["settings"]["fields"],
+) {
+  return {
+    height: fields?.height !== false,
+    instagram: fields?.instagram !== false,
+    career: fields?.career !== false,
+    profile: fields?.profile !== false,
+    applicationDetails: fields?.applicationDetails === true,
+  };
+}
+
 function instaHandle(url: string | null): string | null {
   if (!url) return null;
   const m = url.replace(/\/+$/, "").match(/instagram\.com\/([^/?#]+)/i);
@@ -59,9 +71,14 @@ function Card({
   review?: ReviewControls;
 }) {
   const handle = instaHandle(c.instagram);
+  const visibleFields = resolveCastingCardFields(fields);
   const statusLabel = applicationLabel(c);
   const selectedDecision = review?.choices[c.memberId] ?? "undecided";
-  const sub = [genderKo(c.gender), c.height ? `${c.height}cm` : null]
+  const sub = [
+    genderKo(c.gender),
+    c.birthYear ? `${c.birthYear}년생` : null,
+    c.height ? `${c.height}cm` : null,
+  ]
     .filter(Boolean)
     .join(" · ");
   return (
@@ -91,30 +108,55 @@ function Card({
           {c.koreanName ?? ""}
         </div>
         <div className="mt-0.5 text-[12px] font-semibold">{sub}</div>
-        {fields?.career !== false && c.career ? (
+        {visibleFields.applicationDetails && c.primaryGenre ? (
+          <div className="mt-1 text-[10px] font-medium text-ink-2">
+            주 장르 · {c.primaryGenre}
+          </div>
+        ) : null}
+        {visibleFields.career && c.career ? (
           <div className="mt-1 line-clamp-2 text-[10px] leading-snug text-ink-2">
             {c.career}
           </div>
         ) : null}
-        <div className="mt-1.5 flex flex-col gap-0.5">
-          {fields?.instagram !== false && handle ? (
+        <div className="mt-2 grid grid-cols-2 gap-1">
+          {visibleFields.applicationDetails && c.danceVideoUrl ? (
+            <a
+              href={c.danceVideoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-md border border-primary/25 bg-primary/5 px-1.5 py-1 text-center text-[10px] font-semibold text-primary hover:bg-primary/10"
+            >
+              춤 영상 ↗
+            </a>
+          ) : null}
+          {visibleFields.applicationDetails && c.personalProfileUrl ? (
+            <a
+              href={c.personalProfileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-md border border-border bg-background px-1.5 py-1 text-center text-[10px] font-semibold text-ink-1 hover:bg-secondary"
+            >
+              개인 프로필 ↗
+            </a>
+          ) : null}
+          {visibleFields.instagram && handle ? (
             <a
               href={c.instagram!}
               target="_blank"
-              rel="noreferrer"
-              className="truncate text-[10px] text-primary"
+              rel="noopener noreferrer"
+              className="truncate rounded-md border border-border bg-background px-1.5 py-1 text-center text-[10px] text-primary hover:bg-secondary"
             >
               {handle}
             </a>
           ) : null}
-          {fields?.profile !== false && c.slug ? (
+          {visibleFields.profile && c.slug ? (
             <a
               href={`https://dancers.bio/${c.slug}`}
               target="_blank"
-              rel="noreferrer"
-              className="text-[10px] font-semibold text-ink-1"
+              rel="noopener noreferrer"
+              className="rounded-md border border-border bg-background px-1.5 py-1 text-center text-[10px] font-semibold text-ink-1 hover:bg-secondary"
             >
-              프로필 보기 →
+              deetz 프로필 ↗
             </a>
           ) : null}
         </div>

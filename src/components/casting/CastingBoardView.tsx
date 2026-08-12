@@ -150,8 +150,7 @@ export function CastingBoardView({
 
       <div className="mt-4 rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-[12px] leading-relaxed text-amber-900">
         본 명단은 <b>캐스팅 검토 전용</b>입니다.
-        무단 외부 공유, 그리고 명단에 포함된 댄서에 대한 <b>직접 섭외·연락을 금합니다</b>.
-        모든 섭외·출연 협의·계약·정산은 deetz를 통해 진행됩니다.
+        무단 외부 공유를 금지합니다.
       </div>
 
       {isReview ? (
