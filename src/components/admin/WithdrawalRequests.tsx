@@ -57,6 +57,8 @@ export type WithdrawalRow = {
   hasBankbook: boolean;
 };
 
+type SortKey = "default" | "name" | "project" | "gross" | "requestedAt";
+
 function normalizeSearch(value: string): string {
   return value
     .normalize("NFKC")
@@ -86,12 +88,16 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [searchInput, setSearchInput] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | SettlementStatus>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("default");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [bulkBusy, startBulk] = useTransition();
   const normalizedQuery = normalizeSearch(searchInput);
   const filteredRows = useMemo(() => {
-    if (!normalizedQuery) return rows;
-    return rows.filter((row) =>
-      normalizeSearch(
+    const filtered = rows.filter((row) => {
+      if (statusFilter !== "all" && row.status !== statusFilter) return false;
+      if (!normalizedQuery) return true;
+      return normalizeSearch(
         [
           row.dancerName,
           row.dancerKoreanName,
@@ -100,9 +106,37 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
         ]
           .filter(Boolean)
           .join(" "),
-      ).includes(normalizedQuery),
-    );
-  }, [normalizedQuery, rows]);
+      ).includes(normalizedQuery);
+    });
+    if (sortKey === "default") return filtered;
+    const direction = sortDirection === "asc" ? 1 : -1;
+    return filtered
+      .map((row, index) => ({ row, index }))
+      .sort((a, b) => {
+        let comparison = 0;
+        if (sortKey === "name") {
+          comparison = normalizeSearch(dancerDisplayName(a.row)).localeCompare(
+            normalizeSearch(dancerDisplayName(b.row)),
+            "ko-KR",
+          );
+        } else if (sortKey === "project") {
+          comparison = normalizeSearch(a.row.projectTitle).localeCompare(
+            normalizeSearch(b.row.projectTitle),
+            "ko-KR",
+          );
+        } else if (sortKey === "gross") {
+          comparison = a.row.grossAmount - b.row.grossAmount;
+        } else if (sortKey === "requestedAt") {
+          comparison = (a.row.requestedAt ?? "").localeCompare(b.row.requestedAt ?? "");
+        }
+        return comparison === 0 ? a.index - b.index : comparison * direction;
+      })
+      .map(({ row }) => row);
+  }, [normalizedQuery, rows, sortDirection, sortKey, statusFilter]);
+  const displayNumberById = useMemo(
+    () => new Map(filteredRows.map((row, index) => [row.id, index + 1])),
+    [filteredRows],
+  );
   const requested = filteredRows.filter((r) => r.status === "requested");
   // 금액 미입력(셀프 계좌제출만 한) pending = '정산대기'. '정산완료'와 분리한다.
   const awaitingAmount = filteredRows.filter((r) =>
@@ -139,6 +173,22 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
     setSearchInput(value);
     setChecked(new Set());
     setSelectedId(null);
+  }
+
+  function updateStatusFilter(value: "all" | SettlementStatus) {
+    setStatusFilter(value);
+    setChecked(new Set());
+    setSelectedId(null);
+  }
+
+  function updateSortKey(value: SortKey) {
+    setSortKey(value);
+    setChecked(new Set());
+  }
+
+  function toggleSortDirection() {
+    setSortDirection((value) => (value === "asc" ? "desc" : "asc"));
+    setChecked(new Set());
   }
 
   function clearSearch() {
@@ -234,7 +284,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-3">
         <input
           type="search"
           value={searchInput}
@@ -243,20 +293,54 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
           aria-label="정산 대상 검색"
           className="h-10 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
         />
-        {normalizedQuery ? (
-          <button
-            type="button"
-            onClick={clearSearch}
-            className="h-10 rounded-xl border border-border px-4 text-sm font-medium text-ink-2 hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={statusFilter}
+            onChange={(event) => updateStatusFilter(event.target.value as "all" | SettlementStatus)}
+            aria-label="정산 상태 필터"
+            className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-ink-2"
           >
-            초기화
-          </button>
-        ) : null}
-        {normalizedQuery ? (
-          <p className="text-xs text-ink-3 sm:ml-1 sm:whitespace-nowrap">
-            전체 {rows.length}건 중 {filteredRows.length}건
+            <option value="all">상태 전체</option>
+            <option value="requested">출금신청</option>
+            <option value="pending">정산대기·완료</option>
+            <option value="paid">입금완료</option>
+            <option value="cancelled">취소</option>
+          </select>
+          <select
+            value={sortKey}
+            onChange={(event) => updateSortKey(event.target.value as SortKey)}
+            aria-label="정산 목록 정렬 기준"
+            className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-ink-2"
+          >
+            <option value="default">기본 순서</option>
+            <option value="name">이름순</option>
+            <option value="project">프로젝트순</option>
+            <option value="gross">세전 금액순</option>
+            <option value="requestedAt">출금신청일순</option>
+          </select>
+          {sortKey !== "default" ? (
+            <button
+              type="button"
+              onClick={toggleSortDirection}
+              className="h-9 rounded-lg border border-border bg-background px-3 text-xs font-medium text-ink-2"
+              aria-label="정렬 방향 변경"
+            >
+              {sortDirection === "asc" ? "오름차순 ↑" : "내림차순 ↓"}
+            </button>
+          ) : null}
+          {normalizedQuery ? (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="h-9 rounded-lg border border-border px-3 text-xs font-medium text-ink-2 hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              검색 초기화
+            </button>
+          ) : null}
+          <p className="text-xs text-ink-3">
+            전체 {rows.length}건 중 {filteredRows.length}건 · 화면 순서대로 다운로드
           </p>
-        ) : null}
+        </div>
       </div>
 
       {normalizedQuery && filteredRows.length === 0 ? (
@@ -319,6 +403,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
             <Row
               key={r.id}
               row={r}
+              number={displayNumberById.get(r.id)}
               onOpen={() => setSelectedId(r.id)}
               payable={payableById.has(r.id)}
               checked={checked.has(r.id)}
@@ -336,6 +421,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
             <Row
               key={r.id}
               row={r}
+              number={displayNumberById.get(r.id)}
               onOpen={() => setSelectedId(r.id)}
               payable={payableById.has(r.id)}
               checked={checked.has(r.id)}
@@ -350,7 +436,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
       {awaitingAmount.length > 0 ? (
         <Section title="정산대기 · 금액 미입력" count={awaitingAmount.length}>
           {awaitingAmount.map((r) => (
-            <Row key={r.id} row={r} onOpen={() => setSelectedId(r.id)} />
+            <Row key={r.id} row={r} number={displayNumberById.get(r.id)} onOpen={() => setSelectedId(r.id)} />
           ))}
         </Section>
       ) : null}
@@ -358,7 +444,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
       {paid.length > 0 ? (
         <Section title="입금완료" count={paid.length}>
           {paid.map((r) => (
-            <Row key={r.id} row={r} onOpen={() => setSelectedId(r.id)} />
+            <Row key={r.id} row={r} number={displayNumberById.get(r.id)} onOpen={() => setSelectedId(r.id)} />
           ))}
         </Section>
       ) : null}
@@ -407,6 +493,7 @@ function Section({
 
 function Row({
   row,
+  number,
   onOpen,
   payable,
   checked,
@@ -415,6 +502,7 @@ function Row({
   busy,
 }: {
   row: WithdrawalRow;
+  number?: number;
   onOpen: () => void;
   payable?: boolean;
   checked?: boolean;
@@ -437,6 +525,11 @@ function Row({
         checked ? "bg-primary/5" : ""
       }`}
     >
+      {number ? (
+        <span className="w-6 shrink-0 text-right text-[11px] font-semibold text-ink-3">
+          {number}
+        </span>
+      ) : null}
       {payable ? (
         <input
           type="checkbox"
