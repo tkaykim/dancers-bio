@@ -6,6 +6,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendGmailEmail } from "@/lib/gmail";
 import { buildCastingBoardEmail } from "@/lib/casting/board-email";
+import { makeCastingReviewToken } from "@/lib/quick-token";
+import {
+  applicationMatchesCandidateStatuses,
+  normalizeCandidateStatuses,
+  type ClientReviewSettings,
+} from "@/lib/casting/review";
 import type { ActionResult } from "./auth";
 
 type Settings = {
@@ -14,7 +20,8 @@ type Settings = {
   requirePhoto?: boolean;
   genders?: string[];
   minHeight?: number | null;
-  fields?: { height?: boolean; instagram?: boolean; career?: boolean };
+  fields?: { height?: boolean; instagram?: boolean; career?: boolean; profile?: boolean };
+  clientReview?: ClientReviewSettings;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -23,26 +30,74 @@ const DEFAULT_SETTINGS: Settings = {
   requirePhoto: true,
   genders: ["male", "female"],
   minHeight: null,
-  fields: { height: true, instagram: true, career: true },
+  fields: { height: true, instagram: false, career: true, profile: false },
+  clientReview: {
+    enabled: false,
+    candidateStatuses: ["pending", "accepted", "confirmed"],
+    applySelectedAs: "accepted",
+  },
 };
 
-// 보드에 넣을 댄서 id 목록.
-// 확정(confirmed_at)이 하나라도 있으면 = 확정자만(최종 캐스팅). 없으면 accepted 전원(확정 흐름 미사용 프로젝트 호환).
-async function acceptedDancerIds(
+type CandidateApplication = { applicationId: string; dancerId: string };
+type CandidateApplicationRow = {
+  id: string;
+  dancer_id: string;
+  status: string;
+  confirmed_at: string | null;
+};
+
+function uniqueCandidateApplications(
+  rows: CandidateApplicationRow[],
+): CandidateApplication[] {
+  const byDancer = new Map<
+    string,
+    { candidate: CandidateApplication; priority: number }
+  >();
+  for (const row of rows) {
+    const priority = row.confirmed_at ? 2 : row.status === "accepted" ? 1 : 0;
+    const current = byDancer.get(row.dancer_id);
+    if (!current || priority > current.priority) {
+      byDancer.set(row.dancer_id, {
+        candidate: { applicationId: row.id, dancerId: row.dancer_id },
+        priority,
+      });
+    }
+  }
+  return [...byDancer.values()].map(({ candidate }) => candidate);
+}
+
+// 기존 보드의 합격자 자동선별과 새 클라이언트 검토 대상 선별을 한 경로에서 처리한다.
+async function candidateApplications(
   admin: ReturnType<typeof createAdminClient>,
   projectId: string,
-): Promise<string[]> {
+  settings: Settings,
+): Promise<CandidateApplication[]> {
   const { data } = await admin
     .from("applications")
-    .select("dancer_id, confirmed_at")
+    .select("id, dancer_id, status, confirmed_at")
     .eq("project_id", projectId)
     .is("archived_at", null)
-    .eq("status", "accepted")
+    .in("status", ["pending", "accepted"])
     .not("dancer_id", "is", null);
-  const rows = (data ?? []) as Array<{ dancer_id: string; confirmed_at: string | null }>;
-  const confirmed = rows.filter((r) => r.confirmed_at);
-  const use = confirmed.length > 0 ? confirmed : rows;
-  return [...new Set(use.map((r) => r.dancer_id))];
+  const rows = (data ?? []) as CandidateApplicationRow[];
+  if (settings.clientReview?.enabled) {
+    const candidateStatuses = normalizeCandidateStatuses(
+      settings.clientReview.candidateStatuses,
+    );
+    return uniqueCandidateApplications(
+      rows.filter((row) =>
+        applicationMatchesCandidateStatuses(
+          { status: row.status, confirmedAt: row.confirmed_at },
+          candidateStatuses,
+        ),
+      ),
+    );
+  }
+
+  const accepted = rows.filter((row) => row.status === "accepted");
+  const confirmed = accepted.filter((row) => row.confirmed_at);
+  const selected = confirmed.length > 0 ? confirmed : accepted;
+  return uniqueCandidateApplications(selected);
 }
 
 // 보드 생성 + 합격자 전원을 멤버로 시드. 반환=share_code.
@@ -67,11 +122,17 @@ export async function createCastingBoardAction(
   // 합격자 전원 시드 (best-effort, service-role).
   try {
     const admin = createAdminClient();
-    const ids = await acceptedDancerIds(admin, projectId);
-    if (ids.length)
+    const candidates = await candidateApplications(admin, projectId, DEFAULT_SETTINGS);
+    if (candidates.length)
       await admin
         .from("casting_board_members")
-        .insert(ids.map((dancer_id) => ({ board_id: board.id as string, dancer_id })));
+        .insert(
+          candidates.map((candidate) => ({
+            board_id: board.id as string,
+            dancer_id: candidate.dancerId,
+            application_id: candidate.applicationId,
+          })),
+        );
   } catch {
     /* 멤버 시드 실패해도 보드는 생성됨 — UI에서 동기화 버튼으로 보정 */
   }
@@ -106,13 +167,18 @@ export async function updateCastingBoardAction(fd: FormData): Promise<ActionResu
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("casting_boards").update(patch).eq("id", boardId);
+  const { error } = await supabase
+    .from("casting_boards")
+    .update(patch)
+    .eq("id", boardId)
+    .eq("project_id", projectId);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/projects/${projectId}/applicants`);
   return { ok: true };
 }
 
-// 멤버 = 현재 합격자 전원으로 재동기화(추가만; 기존 수동 제외는 유지하지 않음 = 전체 리셋).
+// 현재 보드 설정의 후보 상태와 동기화한다.
+// 검토 모드에서는 기존 선택 이력을 보존하기 위해 후보를 upsert하고, 읽기 시 상태 필터를 적용한다.
 export async function syncCastingBoardMembersAction(
   fd: FormData,
 ): Promise<ActionResult<{ count: number }>> {
@@ -124,14 +190,33 @@ export async function syncCastingBoardMembersAction(
     return { ok: false, error: "권한이 없습니다." };
 
   const admin = createAdminClient();
-  const ids = await acceptedDancerIds(admin, projectId);
-  await admin.from("casting_board_members").delete().eq("board_id", boardId);
-  if (ids.length)
+  const { data: boardData } = await admin
+    .from("casting_boards")
+    .select("id, settings")
+    .eq("id", boardId)
+    .eq("project_id", projectId)
+    .maybeSingle();
+  if (!boardData) return { ok: false, error: "보드를 찾을 수 없습니다." };
+  const settings = (boardData.settings ?? {}) as Settings;
+  const candidates = await candidateApplications(admin, projectId, settings);
+
+  if (!settings.clientReview?.enabled) {
+    await admin.from("casting_board_members").delete().eq("board_id", boardId);
+  }
+  if (candidates.length) {
     await admin
       .from("casting_board_members")
-      .insert(ids.map((dancer_id) => ({ board_id: boardId, dancer_id })));
+      .upsert(
+        candidates.map((candidate) => ({
+          board_id: boardId,
+          dancer_id: candidate.dancerId,
+          application_id: candidate.applicationId,
+        })),
+        { onConflict: "board_id,dancer_id" },
+      );
+  }
   revalidatePath(`/projects/${projectId}/applicants`);
-  return { ok: true, data: { count: ids.length } };
+  return { ok: true, data: { count: candidates.length } };
 }
 
 // 공지(notes)만 인라인 저장 — 공개 보드 페이지(/cast)에서 관리자가 바로 편집할 때 사용.
@@ -198,13 +283,19 @@ export async function sendCastingBoardEmailAction(
   const admin = createAdminClient();
   const { data: board } = await admin
     .from("casting_boards")
-    .select("id, title, share_code, project_id")
+    .select("id, title, share_code, project_id, settings, review_token_version")
     .eq("id", boardId)
     .maybeSingle();
   if (!board || board.project_id !== projectId)
     return { ok: false, error: "보드를 찾을 수 없습니다." };
 
-  const url = `https://deetz.kr/cast/${board.share_code as string}`;
+  const settings = (board.settings ?? {}) as Settings;
+  const url = settings.clientReview?.enabled
+    ? `https://deetz.kr/review/${makeCastingReviewToken(
+        board.id as string,
+        Number(board.review_token_version ?? 1),
+      )}`
+    : `https://deetz.kr/cast/${board.share_code as string}`;
   const mail = buildCastingBoardEmail({
     boardTitle: (board.title as string) ?? null,
     boardUrl: url,
@@ -243,6 +334,13 @@ export async function toggleCastingBoardMemberAction(
     return { ok: false, error: "권한이 없습니다." };
 
   const admin = createAdminClient();
+  const { data: board } = await admin
+    .from("casting_boards")
+    .select("id")
+    .eq("id", boardId)
+    .eq("project_id", projectId)
+    .maybeSingle();
+  if (!board) return { ok: false, error: "보드를 찾을 수 없습니다." };
   if (include) {
     await admin
       .from("casting_board_members")

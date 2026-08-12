@@ -28,7 +28,12 @@ import {
 } from "@/components/project/AnnouncementsPanel";
 import { WithdrawalLinkPanel } from "@/components/project/WithdrawalLinkPanel";
 import { FitSizePanel, type FitRow } from "@/components/project/FitSizePanel";
-import { makeHeightToken } from "@/lib/quick-token";
+import { makeCastingReviewToken, makeHeightToken } from "@/lib/quick-token";
+import {
+  applicationMatchesCandidateStatuses,
+  normalizeCandidateStatuses,
+  type ClientDecision,
+} from "@/lib/casting/review";
 import {
   CastingBoardPanel,
   type CastingBoardInfo,
@@ -186,16 +191,18 @@ export default async function ApplicantsPage({
   {
     const { data: cb } = await supabase
       .from("casting_boards")
-      .select("id, share_code, settings")
+      .select(
+        "id, share_code, settings, is_active, expires_at, review_token_version, review_submitted_at, review_submitted_by",
+      )
       .eq("project_id", p.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (cb) {
-      const [{ count }, { data: sendRows }, { data: commentRows }] = await Promise.all([
+      const [{ data: memberRows }, { data: sendRows }, { data: commentRows }] = await Promise.all([
         supabase
           .from("casting_board_members")
-          .select("id", { count: "exact", head: true })
+          .select("id, application_id, client_decision")
           .eq("board_id", cb.id as string),
         supabase
           .from("casting_board_sends")
@@ -210,11 +217,74 @@ export default async function ApplicantsPage({
           .order("created_at", { ascending: false })
           .limit(50),
       ]);
+      const settings = (cb.settings ?? {}) as CastingBoardInfo["settings"];
+      const rawMemberRows = (memberRows ?? []) as Array<{
+        id: string;
+        application_id: string | null;
+        client_decision: ClientDecision | null;
+      }>;
+      let visibleMemberRows = rawMemberRows;
+      if (settings.clientReview?.enabled) {
+        const applicationIds = rawMemberRows
+          .map((row) => row.application_id)
+          .filter((id): id is string => Boolean(id));
+        const { data: boardApplicationRows } = applicationIds.length
+          ? await supabase
+              .from("applications")
+              .select("id, status, confirmed_at")
+              .eq("project_id", p.id)
+              .in("id", applicationIds)
+              .is("archived_at", null)
+          : { data: [] };
+        const applicationById = new Map(
+          ((boardApplicationRows ?? []) as Array<{
+            id: string;
+            status: string;
+            confirmed_at: string | null;
+          }>).map((application) => [application.id, application]),
+        );
+        const candidateStatuses = normalizeCandidateStatuses(
+          settings.clientReview.candidateStatuses,
+        );
+        visibleMemberRows = rawMemberRows.filter((row) => {
+          if (!row.application_id) return true;
+          const application = applicationById.get(row.application_id);
+          return Boolean(
+            application &&
+              applicationMatchesCandidateStatuses(
+                {
+                  status: application.status,
+                  confirmedAt: application.confirmed_at,
+                },
+                candidateStatuses,
+              ),
+          );
+        });
+      }
+      const decisionCounts: Record<ClientDecision, number> = {
+        undecided: 0,
+        selected: 0,
+        hold: 0,
+        excluded: 0,
+      };
+      for (const row of visibleMemberRows) {
+        decisionCounts[row.client_decision ?? "undecided"] += 1;
+      }
+      const reviewToken = makeCastingReviewToken(
+        cb.id as string,
+        Number(cb.review_token_version ?? 1),
+      );
       castingBoard = {
         id: cb.id as string,
         shareCode: cb.share_code as string,
-        settings: (cb.settings ?? {}) as CastingBoardInfo["settings"],
-        memberCount: count ?? 0,
+        settings,
+        memberCount: visibleMemberRows.length,
+        reviewUrl: `https://deetz.kr/review/${reviewToken}`,
+        isActive: cb.is_active !== false,
+        expiresAt: (cb.expires_at as string | null) ?? null,
+        reviewSubmittedAt: (cb.review_submitted_at as string | null) ?? null,
+        reviewSubmittedBy: (cb.review_submitted_by as string | null) ?? null,
+        decisionCounts,
         sends: ((sendRows ?? []) as Array<{
           recipient_email: string;
           recipient_name: string | null;
