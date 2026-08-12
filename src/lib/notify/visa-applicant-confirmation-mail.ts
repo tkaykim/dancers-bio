@@ -92,6 +92,9 @@ export async function sendVisaApplicantConfirmationEmail(params: {
   name: string;
   lang: string | null;
   caseUrl: string;
+  // 추적 링크·픽셀. 없으면 caseUrl 로 그대로 나가고 열람 추적만 빠진다(미리보기용).
+  trackedUrl?: string | null;
+  openPixelUrl?: string | null;
 }): Promise<{
   ok: boolean;
   error?: string;
@@ -104,6 +107,7 @@ export async function sendVisaApplicantConfirmationEmail(params: {
   if (!params.to) {
     return { ok: false, error: "no_recipient", lang, subject: "", text: "", html: "" };
   }
+  const ctaUrl = params.trackedUrl || params.caseUrl;
   const c = COPY[lang];
   const name = params.name?.trim() || "dancer";
 
@@ -115,7 +119,7 @@ export async function sendVisaApplicantConfirmationEmail(params: {
     `[${c.nextTitle}]`,
     ...c.nextHtml.replace(/<br>/g, "\n").split("\n"),
     "",
-    `${c.linkLabel}: ${params.caseUrl}`,
+    `${c.linkLabel}: ${ctaUrl}`,
     "",
     "deetz · deetz.kr · contact@deetz.kr",
   ].join("\n");
@@ -134,7 +138,7 @@ export async function sendVisaApplicantConfirmationEmail(params: {
   <div style="background:#f6f6f7;border:1px solid #ececef;border-radius:14px;padding:16px 18px;">
     <div style="font-size:13px;font-weight:700;color:#111111;margin-bottom:8px;">${esc(c.nextTitle)}</div>
     <div style="font-size:14px;line-height:1.75;color:#33363b;">${c.nextHtml}</div>
-    <a href="${esc(params.caseUrl)}" style="display:inline-block;margin-top:14px;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:11px 16px;border-radius:10px;">${esc(c.linkLabel)}</a></div></td></tr>
+    <a href="${esc(ctaUrl)}" style="display:inline-block;margin-top:14px;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:11px 16px;border-radius:10px;">${esc(c.linkLabel)}</a></div></td></tr>
 <tr><td style="padding:22px 32px 28px;border-top:1px solid #ececef;background:#fafafa;">
   <img src="https://www.deetz.kr/brand/deetz-logo-black.png" alt="deetz" width="41" height="20" style="display:block;height:20px;width:auto;border:0;">
   <div style="font-size:12px;color:#6b7280;margin:10px 0 14px;">${c.tagline}</div>
@@ -145,7 +149,11 @@ export async function sendVisaApplicantConfirmationEmail(params: {
   <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:14px;">
     <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:contact@deetz.kr" style="color:#44474d;text-decoration:none;">contact@deetz.kr</a></div>
   <div style="font-size:11px;color:#a1a1aa;margin-top:12px;line-height:1.6;">© 2026 deetz. All rights reserved.<br>${esc(c.copyrightNote)}</div></td></tr>
-</table></td></tr></table></body></html>`;
+</table></td></tr></table>${
+    params.openPixelUrl
+      ? `<img src="${esc(params.openPixelUrl)}" width="1" height="1" alt="" style="display:block;border:0;">`
+      : ""
+  }</body></html>`;
 
   const sent = await sendGmailEmail({ to: params.to, subject: c.subject, text, html });
   // 발송 성공·실패 모두 본문과 함께 돌려준다. 호출부가 visa_outbound_mails 에 이력을 남겨

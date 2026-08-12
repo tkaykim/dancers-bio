@@ -7,6 +7,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const VISA_FOLLOWUP_CAMPAIGN = "visa_case_followup_20260723";
 // 어드민에서 발송하는 온라인 미팅 안내 메일 전용 캠페인.
 export const VISA_MEETING_CAMPAIGN = "visa_meeting_invite";
+// 신청 즉시 자동 발송되는 접수 확인 메일 전용 캠페인.
+export const VISA_APPLICATION_CONFIRMATION_CAMPAIGN = "visa_application_confirmation";
 
 type TrackingPayload = {
   applicationId: string;
