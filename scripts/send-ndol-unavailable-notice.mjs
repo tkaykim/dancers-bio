@@ -274,7 +274,7 @@ async function sendOne(transporter, row, toOverride = null) {
   await transporter.sendMail({
     from: `"${process.env.GMAIL_FROM_NAME || "deetz"}" <${requiredEnv("GMAIL_USER")}>`,
     to,
-    replyTo: "dancers.bio.kr@gmail.com",
+    replyTo: "contact@deetz.kr",
     subject: mail.subject,
     text: mail.text,
     html: mail.html,

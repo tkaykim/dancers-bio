@@ -15,12 +15,18 @@ interface SendGmailParams {
 
 let _transporter: Transporter | null = null;
 
+// deetz 공식 도메인 메일함(Google Workspace, contact@deetz.kr)에서 발신하는 것이 정본이다.
+// 옛 개인 Gmail 계정(GMAIL_USER)은 DEETZ_GMAIL_* 가 비어 있을 때만 쓰이는 폴백이다.
+export function senderAddress(): string {
+  return process.env.DEETZ_GMAIL_USER || process.env.GMAIL_USER || "contact@deetz.kr";
+}
+
 function getTransporter(): Transporter | null {
   if (_transporter) return _transporter;
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
+  const user = process.env.DEETZ_GMAIL_USER || process.env.GMAIL_USER;
+  const pass = process.env.DEETZ_GMAIL_APP_PASSWORD || process.env.GMAIL_APP_PASSWORD;
   if (!user || !pass) {
-    console.error("[gmail] GMAIL_USER or GMAIL_APP_PASSWORD env missing");
+    console.error("[gmail] DEETZ_GMAIL_USER/GMAIL_USER or app password env missing");
     return null;
   }
   _transporter = nodemailer.createTransport({
@@ -40,7 +46,7 @@ export async function sendGmailEmail({
   const t = getTransporter();
   if (!t) return { ok: false, error: "transporter_unavailable" };
   const fromName = DEETZ_FROM_NAME;
-  const fromEmail = process.env.GMAIL_USER!;
+  const fromEmail = senderAddress();
   try {
     await t.sendMail({
       from: `"${fromName}" <${fromEmail}>`,

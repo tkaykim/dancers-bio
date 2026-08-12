@@ -119,7 +119,7 @@ const transporter = nodemailer.createTransport({
 await transporter.sendMail({
   from: `"${process.env.GMAIL_FROM_NAME || "deetz"}" <${requiredEnv("GMAIL_USER")}>`,
   to: recipients.join(","),
-  replyTo: "dancers.bio.kr@gmail.com",
+  replyTo: "contact@deetz.kr",
   subject,
   text,
   html,

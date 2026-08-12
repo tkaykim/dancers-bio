@@ -20,6 +20,7 @@ const KIND_LABEL: Record<string, string> = {
   reschedule: "일정 재조율",
   revive: "진행 희망 확인",
   followup: "추가 질문지 안내",
+  application_confirmation: "접수 확인 (자동)",
 };
 
 const KIND_TONE: Record<string, string> = {
@@ -27,6 +28,7 @@ const KIND_TONE: Record<string, string> = {
   reschedule: "bg-amber-500/10 text-amber-700",
   revive: "bg-sky-500/10 text-sky-700",
   followup: "bg-secondary text-ink-2",
+  application_confirmation: "bg-emerald-500/10 text-emerald-700",
 };
 
 function formatKst(value: string): string {

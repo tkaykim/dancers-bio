@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 const DEFAULT_OUTPUT_DIR = "C:\\Users\\tkay\\Documents\\Codex\\2026-07-23\\deetz\\outputs\\visa-followup-mails";
 const FALLBACK_ENV = "C:\\Users\\tkay\\Desktop\\dev\\dancers-bio\\.env.local";
 const DEETZ_FROM_NAME = "deetz 에이전시 & 매거진";
-const REPLY_TO = "dancers.bio.kr@gmail.com";
+const REPLY_TO = "contact@deetz.kr";
 const TRACKING_CAMPAIGN = "visa_case_followup_20260723";
 
 function loadEnv(file) {
@@ -272,7 +272,26 @@ if (fs.existsSync(sentLogPath) && !force) {
   }
 }
 
+// --only=a@b.com,c@d.com 로 수신자를 명시 지정한다.
+// sent-log.jsonl 이 유실되면 이미 받은 사람까지 후보로 잡히므로, 특정 인원만 보낼 때는 항상 이 필터를 쓴다.
+const onlyRaw = argValue("--only");
+const onlyKeys = onlyRaw
+  ? new Set(onlyRaw.split(",").map((v) => v.trim().toLowerCase()).filter(Boolean))
+  : null;
+if (onlyKeys) {
+  const matched = candidates.filter(
+    (row) => onlyKeys.has(String(row.email).toLowerCase()) || onlyKeys.has(row.id),
+  );
+  const missing = [...onlyKeys].filter(
+    (key) => !matched.some((row) => String(row.email).toLowerCase() === key || row.id === key),
+  );
+  if (missing.length) {
+    throw new Error(`--only 대상이 후보에 없습니다: ${missing.join(", ")}`);
+  }
+}
+
 const rows = candidates
+  .filter((row) => (onlyKeys ? onlyKeys.has(String(row.email).toLowerCase()) || onlyKeys.has(row.id) : true))
   .filter((row) => force || !sentIds.has(row.id))
   .map((row) => {
     const lang = normalizeLang(row.preferred_lang);

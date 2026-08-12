@@ -11,7 +11,7 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-// 지원 거절 시 댄서에게 거절 안내 메일 발송 (발신 = GMAIL_USER = dancers.bio.kr@gmail.com).
+// 지원 거절 시 댄서에게 거절 안내 메일 발송 (발신 = GMAIL_USER = contact@deetz.kr).
 // 수신 이메일이 없으면(미claim·이메일 없음) 조용히 skip. 비치명적.
 export async function sendApplicationRejectionEmail(params: {
   applicantId: string | null;
@@ -98,7 +98,7 @@ export async function sendApplicationRejectionEmail(params: {
     `다른 캐스팅 둘러보기: https://deetz.kr/feed`,
     ``,
     `deetz · 댄서 매거진 & 캐스팅 플랫폼`,
-    `deetz.kr · dancers.bio.kr@gmail.com`,
+    `deetz.kr · contact@deetz.kr`,
     `Instagram instagram.com/deetz_magazine · YouTube youtube.com/@deetzmagazine`,
   ].join("\n");
 
@@ -135,7 +135,7 @@ export async function sendApplicationRejectionEmail(params: {
     <td><a href="https://www.instagram.com/deetz_magazine/"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/instagram.png" width="30" height="30" alt="Instagram" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
   </tr></table>
   <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:14px;">
-    <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:dancers.bio.kr@gmail.com" style="color:#44474d;text-decoration:none;">dancers.bio.kr@gmail.com</a></div>
+    <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:contact@deetz.kr" style="color:#44474d;text-decoration:none;">contact@deetz.kr</a></div>
   <div style="font-size:11px;color:#a1a1aa;margin-top:12px;line-height:1.6;">© 2026 deetz. All rights reserved.<br>이 메일은 deetz에 지원하신 주소로 발송되었습니다.</div></td></tr>
 </table></td></tr></table></body></html>`;
 

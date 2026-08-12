@@ -35,7 +35,7 @@ export function buildScheduleRequestEmail(params: {
     `${url}`,
     ``,
     `deetz · 댄서 매거진 & 캐스팅 플랫폼`,
-    `deetz.kr · dancers.bio.kr@gmail.com`,
+    `deetz.kr · contact@deetz.kr`,
   ].join("\n");
 
   const rows = schedules
@@ -60,7 +60,7 @@ ${s.locationText ? `<div style="font-size:13px;color:#6b7280;margin-top:4px;"><i
 <p style="font-size:12px;color:#9ca3af;text-align:center;margin:10px 0 0;">로그인 없이 30초면 끝나요 (가능 / 시간 일부 / 불가)</p></td></tr>
 <tr><td style="padding:22px 32px 28px;border-top:1px solid #ececef;background:#fafafa;"><img src="https://www.deetz.kr/brand/deetz-logo-black.png" alt="deetz" width="41" height="20" style="display:block;height:20px;width:auto;border:0;"><div style="font-size:12px;color:#6b7280;margin:10px 0 14px;">댄서 매거진 &amp; 캐스팅 플랫폼</div>
 <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="padding-right:10px;"><a href="https://www.youtube.com/@deetzmagazine"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/youtube.png" width="30" height="30" alt="YouTube" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td><td><a href="https://www.instagram.com/deetz_magazine/"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/instagram.png" width="30" height="30" alt="Instagram" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td></tr></table>
-<div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:14px;"><a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:dancers.bio.kr@gmail.com" style="color:#44474d;text-decoration:none;">dancers.bio.kr@gmail.com</a></div>
+<div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:14px;"><a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:contact@deetz.kr" style="color:#44474d;text-decoration:none;">contact@deetz.kr</a></div>
 <div style="font-size:11px;color:#a1a1aa;margin-top:12px;line-height:1.6;">© 2026 deetz. All rights reserved.</div></td></tr>
 </table></td></tr></table></body></html>`;
 

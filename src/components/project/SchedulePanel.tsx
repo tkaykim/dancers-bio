@@ -194,7 +194,7 @@ export function SchedulePanel({
     }
     if (
       !confirm(
-        `전체 후보 일정(${schedules.length}개)의 참석 가능여부 요청 메일을 발송할까요?\n대상: 탈락 제외 지원자(대기+수락) ${targetCount}명 · 사람당 1통\n메일 버튼을 누르면 로그인 없이 전체 일정에 응답합니다.\n(발신 dancers.bio.kr@gmail.com)`,
+        `전체 후보 일정(${schedules.length}개)의 참석 가능여부 요청 메일을 발송할까요?\n대상: 탈락 제외 지원자(대기+수락) ${targetCount}명 · 사람당 1통\n메일 버튼을 누르면 로그인 없이 전체 일정에 응답합니다.\n(발신 contact@deetz.kr)`,
       )
     )
       return;

@@ -19,7 +19,7 @@ import { createClient } from "@supabase/supabase-js";
 const DEFAULT_OUTPUT_DIR = "C:\\Users\\tkay\\Documents\\Codex\\2026-07-28\\deetz\\outputs\\visa-stage2-mails";
 const FALLBACK_ENV = "C:\\Users\\tkay\\Desktop\\dev\\dancers-bio\\.env.local";
 const DEETZ_FROM_NAME = "deetz 에이전시 & 매거진";
-const REPLY_TO = "dancers.bio.kr@gmail.com";
+const REPLY_TO = "contact@deetz.kr";
 const TRACKING_CAMPAIGN = "visa_case_stage2_20260728";
 
 // 시험발송 수신자 (대표 확인용).
@@ -726,7 +726,24 @@ if (fs.existsSync(sentLogPath) && !force) {
     }
   }
 }
-const finalRows = rows.filter((row) => force || !sentKeys.has(`${row.set}:${row.applicationId}:${row.lang}`));
+// --only=a@b.com,c@d.com 로 수신자를 명시 지정한다.
+// 신규 지원자가 계속 유입되므로 세트 선택만으로는 의도치 않은 대상까지 잡힌다. 특정 인원만 보낼 때는 항상 이 필터를 쓴다.
+const onlyRaw = argValue("--only");
+const onlyKeys = onlyRaw
+  ? new Set(onlyRaw.split(",").map((v) => v.trim().toLowerCase()).filter(Boolean))
+  : null;
+if (onlyKeys) {
+  const missing = [...onlyKeys].filter(
+    (key) => !rows.some((row) => String(row.email).toLowerCase() === key || row.applicationId === key),
+  );
+  if (missing.length) {
+    throw new Error(`--only 대상이 후보에 없습니다: ${missing.join(", ")}`);
+  }
+}
+
+const finalRows = rows
+  .filter((row) => (onlyKeys ? onlyKeys.has(String(row.email).toLowerCase()) || onlyKeys.has(row.applicationId) : true))
+  .filter((row) => force || !sentKeys.has(`${row.set}:${row.applicationId}:${row.lang}`));
 
 const summary = finalRows.reduce((acc, row) => {
   acc[row.set] = acc[row.set] ?? {};

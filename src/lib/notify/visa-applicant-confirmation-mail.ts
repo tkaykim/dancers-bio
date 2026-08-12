@@ -92,9 +92,18 @@ export async function sendVisaApplicantConfirmationEmail(params: {
   name: string;
   lang: string | null;
   caseUrl: string;
-}): Promise<{ ok: boolean; error?: string }> {
-  if (!params.to) return { ok: false, error: "no_recipient" };
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  lang: Lang;
+  subject: string;
+  text: string;
+  html: string;
+}> {
   const lang: Lang = params.lang === "ja" || params.lang === "ko" ? params.lang : "en";
+  if (!params.to) {
+    return { ok: false, error: "no_recipient", lang, subject: "", text: "", html: "" };
+  }
   const c = COPY[lang];
   const name = params.name?.trim() || "dancer";
 
@@ -108,7 +117,7 @@ export async function sendVisaApplicantConfirmationEmail(params: {
     "",
     `${c.linkLabel}: ${params.caseUrl}`,
     "",
-    "deetz · deetz.kr · dancers.bio.kr@gmail.com",
+    "deetz · deetz.kr · contact@deetz.kr",
   ].join("\n");
 
   const html = `<html lang="${lang}"><body style="margin:0;padding:0;background:#f4f4f5;">
@@ -134,9 +143,12 @@ export async function sendVisaApplicantConfirmationEmail(params: {
     <td><a href="https://www.instagram.com/deetz_magazine/"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/instagram.png" width="30" height="30" alt="Instagram" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
   </tr></table>
   <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:14px;">
-    <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:dancers.bio.kr@gmail.com" style="color:#44474d;text-decoration:none;">dancers.bio.kr@gmail.com</a></div>
+    <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:contact@deetz.kr" style="color:#44474d;text-decoration:none;">contact@deetz.kr</a></div>
   <div style="font-size:11px;color:#a1a1aa;margin-top:12px;line-height:1.6;">© 2026 deetz. All rights reserved.<br>${esc(c.copyrightNote)}</div></td></tr>
 </table></td></tr></table></body></html>`;
 
-  return await sendGmailEmail({ to: params.to, subject: c.subject, text, html });
+  const sent = await sendGmailEmail({ to: params.to, subject: c.subject, text, html });
+  // 발송 성공·실패 모두 본문과 함께 돌려준다. 호출부가 visa_outbound_mails 에 이력을 남겨
+  // 어드민 "보낸 메일 전체"에서 접수 확인 메일까지 보이도록 하기 위함.
+  return { ...sent, lang, subject: c.subject, text, html };
 }
