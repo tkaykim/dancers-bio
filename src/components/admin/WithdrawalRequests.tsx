@@ -65,6 +65,15 @@ function normalizeSearch(value: string): string {
     .trim();
 }
 
+function dancerDisplayName(row: WithdrawalRow): string {
+  const nickname = row.dancerStageName?.trim();
+  const realName = row.dancerKoreanName?.trim();
+  if (nickname && realName && normalizeSearch(nickname) !== normalizeSearch(realName)) {
+    return `${nickname} (${realName})`;
+  }
+  return nickname || realName || row.dancerName || "(이름 없음)";
+}
+
 const STATUS_TONE: Record<SettlementStatus, string> = {
   pending: "bg-amber-100 text-amber-700",
   requested: "bg-blue-100 text-blue-700",
@@ -357,7 +366,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
       <Drawer
         open={selected !== null}
         onOpenChange={(o) => !o && setSelectedId(null)}
-        title={selected?.dancerName ?? "정산"}
+        title={selected ? dancerDisplayName(selected) : "정산"}
       >
         {selected ? (
           <SettlementDetail row={selected} onClose={() => setSelectedId(null)} />
@@ -444,7 +453,7 @@ function Row({
       >
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-semibold">{row.dancerName}</span>
+            <span className="truncate text-sm font-semibold">{dancerDisplayName(row)}</span>
             <span
               className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_TONE[row.status]}`}
             >
