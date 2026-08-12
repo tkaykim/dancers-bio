@@ -98,14 +98,19 @@ export function DirectoryClient({
       target: Tab,
       q: string,
       offset: number,
+      requestedLimit = PAGE_SIZE,
     ): Promise<{ dancers?: Dancer[]; teams?: Team[] }> => {
       const supabase = createClient();
       if (target === "dancers") {
+        const limit = !q
+          ? Math.min(requestedLimit, PUBLIC_BROWSE_CAP - offset)
+          : requestedLimit;
+        if (limit <= 0) return { dancers: [] };
         // 내부 경력점수 정렬 + 이름 검색을 RPC(SECURITY DEFINER)로 위임.
         // 점수는 노출하지 않고 정렬만 수행한다.
         const safe = q ? q.replace(/[%_,]/g, "") : "";
         const { data } = await supabase.rpc("list_directory_dancers", {
-          _limit: PAGE_SIZE,
+          _limit: limit,
           _offset: offset,
           _q: safe,
         });
@@ -159,7 +164,24 @@ export function DirectoryClient({
     setLoadingMore(true);
     try {
       const offset = tab === "dancers" ? dancers.length : teams.length;
-      const result = await fetchPage(tab, debouncedQ, offset);
+      if (
+        tab === "dancers" &&
+        !debouncedQ &&
+        offset >= PUBLIC_BROWSE_CAP
+      ) {
+        setDancerHasMore(false);
+        return;
+      }
+      const requestedLimit =
+        tab === "dancers" && !debouncedQ
+          ? Math.min(PAGE_SIZE, PUBLIC_BROWSE_CAP - offset)
+          : PAGE_SIZE;
+      const result = await fetchPage(
+        tab,
+        debouncedQ,
+        offset,
+        requestedLimit,
+      );
       if (tab === "dancers") {
         const next = result.dancers ?? [];
         setDancers((prev) => [...prev, ...next]);
