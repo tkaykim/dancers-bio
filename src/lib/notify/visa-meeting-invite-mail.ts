@@ -23,6 +23,7 @@ const COPY: Record<MeetingInviteLang, {
   dateLabel: string;
   linkLabel: string;
   cta: string;
+  pendingLink: string;
   copyright: string;
   intro: (name: string) => string[];
   outro: string[];
@@ -36,6 +37,7 @@ const COPY: Record<MeetingInviteLang, {
     dateLabel: "일시",
     linkLabel: "미팅 링크",
     cta: "미팅 링크 열기",
+    pendingLink: "확정 시 Google Meet 링크가 자동으로 생성됩니다.",
     copyright: "이 메일은 deetz 신청 주소로 발송되었습니다.",
     intro: (name) => [
       `안녕하세요, ${name}님.`,
@@ -59,6 +61,7 @@ const COPY: Record<MeetingInviteLang, {
     dateLabel: "Date and time",
     linkLabel: "Meeting link",
     cta: "Open the meeting link",
+    pendingLink: "A Google Meet link will be created when the meeting is confirmed.",
     copyright: "This email was sent to the address used for your deetz application.",
     intro: (name) => [
       `Hi ${name},`,
@@ -82,6 +85,7 @@ const COPY: Record<MeetingInviteLang, {
     dateLabel: "日時",
     linkLabel: "ミーティングリンク",
     cta: "ミーティングリンクを開く",
+    pendingLink: "確定時にGoogle Meetリンクが自動で作成されます。",
     copyright: "このメールはdeetz申込時の登録アドレスへ送信されました。",
     intro: (name) => [
       `${name}様`,
@@ -134,7 +138,7 @@ export function renderVisaMeetingInviteMail(params: {
   name: string;
   lang: MeetingInviteLang;
   meetingAtIso: string;
-  meetingUrl: string;
+  meetingUrl: string | null;
   /** 클릭 추적을 거치는 링크. 없으면 미팅 링크를 그대로 쓴다. */
   trackedUrl?: string | null;
   openPixelUrl?: string | null;
@@ -150,11 +154,11 @@ export function renderVisaMeetingInviteMail(params: {
     "",
     `[${c.boxTitle}]`,
     `${c.dateLabel}: ${atLabel}`,
-    `${c.linkLabel}: ${params.meetingUrl}`,
+    `${c.linkLabel}: ${params.meetingUrl || c.pendingLink}`,
     "",
     ...c.outro,
     "",
-    `${c.cta}: ${linkForButton}`,
+    ...(linkForButton ? [`${c.cta}: ${linkForButton}`] : []),
     "",
     "deetz · deetz.kr · contact@deetz.kr",
   ].join("\n");
@@ -169,6 +173,13 @@ export function renderVisaMeetingInviteMail(params: {
 
   const pixel = params.openPixelUrl
     ? `<img src="${esc(params.openPixelUrl)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;opacity:0;">`
+    : "";
+
+  const meetingLinkHtml = linkForButton
+    ? `<div style="font-size:13px;line-height:1.6;margin-top:2px;word-break:break-all;"><a href="${esc(linkForButton)}" style="color:#4f46e5;text-decoration:none;">${esc(params.meetingUrl || linkForButton)}</a></div>`
+    : `<div style="font-size:13px;line-height:1.6;margin-top:2px;color:#4f46e5;">${esc(c.pendingLink)}</div>`;
+  const ctaHtml = linkForButton
+    ? `<tr><td style="padding:6px 32px 28px;"><a href="${esc(linkForButton)}" style="display:block;background:#111111;color:#ffffff;text-decoration:none;text-align:center;font-size:15px;font-weight:700;padding:15px 0;border-radius:12px;">${esc(c.cta)}</a></td></tr>`
     : "";
 
   const html = `<html lang="${params.lang}"><body style="margin:0;padding:0;background:#f4f4f5;">
@@ -187,11 +198,10 @@ export function renderVisaMeetingInviteMail(params: {
     <div style="font-size:13px;color:#6b7280;">${esc(c.dateLabel)}</div>
     <div style="font-size:15px;font-weight:700;color:#111111;margin:2px 0 12px;">${esc(atLabel)}</div>
     <div style="font-size:13px;color:#6b7280;">${esc(c.linkLabel)}</div>
-    <div style="font-size:13px;line-height:1.6;margin-top:2px;word-break:break-all;"><a href="${esc(linkForButton)}" style="color:#4f46e5;text-decoration:none;">${esc(params.meetingUrl)}</a></div>
+    ${meetingLinkHtml}
   </div></td></tr>
 <tr><td style="padding:20px 32px 0;color:#111111;">${paragraphs(c.outro)}</td></tr>
-<tr><td style="padding:6px 32px 28px;">
-  <a href="${esc(linkForButton)}" style="display:block;background:#111111;color:#ffffff;text-decoration:none;text-align:center;font-size:15px;font-weight:700;padding:15px 0;border-radius:12px;">${esc(c.cta)}</a></td></tr>
+${ctaHtml}
 <tr><td style="padding:22px 32px 28px;border-top:1px solid #ececef;background:#fafafa;">
   <img src="https://www.deetz.kr/brand/deetz-logo-black.png" alt="deetz" width="41" height="20" style="display:block;height:20px;width:auto;border:0;">
   <div style="font-size:12px;color:#6b7280;margin:10px 0 14px;">${c.tagline}</div>

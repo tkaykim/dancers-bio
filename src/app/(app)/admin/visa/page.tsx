@@ -173,7 +173,7 @@ export default async function AdminVisaPage() {
 
     const { data: inviteRows } = await admin
       .from("visa_meeting_invites")
-      .select("id, application_id, meeting_at, meeting_url, lang, subject, body_html, status, error, sent_by_name, created_at")
+      .select("id, application_id, request_id, meeting_at, meeting_url, duration_minutes, source_slot_local, source_timezone, lang, subject, body_html, status, error, calendar_status, calendar_error, google_event_url, sent_by_name, created_at, mail_sent_at")
       .in("application_id", appIds)
       .order("created_at", { ascending: false })
       .limit(500);

@@ -11,6 +11,7 @@ interface SendGmailParams {
   text: string;
   html: string;
   replyTo?: string;
+  messageId?: string;
 }
 
 let _transporter: Transporter | null = null;
@@ -42,21 +43,23 @@ export async function sendGmailEmail({
   text,
   html,
   replyTo,
-}: SendGmailParams): Promise<{ ok: boolean; error?: string }> {
+  messageId,
+}: SendGmailParams): Promise<{ ok: boolean; error?: string; messageId?: string }> {
   const t = getTransporter();
   if (!t) return { ok: false, error: "transporter_unavailable" };
   const fromName = DEETZ_FROM_NAME;
   const fromEmail = senderAddress();
   try {
-    await t.sendMail({
+    const info = await t.sendMail({
       from: `"${fromName}" <${fromEmail}>`,
       to,
       subject,
       text,
       html,
       replyTo,
+      messageId,
     });
-    return { ok: true };
+    return { ok: true, messageId: info.messageId };
   } catch (err) {
     const msg = (err as Error).message ?? String(err);
     console.error("[gmail] sendMail failed:", msg);
