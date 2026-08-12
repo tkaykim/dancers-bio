@@ -22,4 +22,3 @@ export default async function CastingReviewPage({
 
   return <CastingBoardView board={board} reviewToken={token} />;
 }
-

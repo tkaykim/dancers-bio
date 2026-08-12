@@ -137,6 +137,7 @@ export async function submitCastingBoardReviewAction(
     ? await admin
         .from("applications")
         .select("id, status, confirmed_at")
+        .eq("project_id", board.project_id)
         .in("id", applicationIds)
         .is("archived_at", null)
     : { data: [] };
@@ -323,14 +324,17 @@ export async function applyCastingBoardReviewAction(
           rejection_reason: null,
         };
   const supabase = await createClient();
-  const { data: updatedData, error } = await supabase
+  let updateQuery = supabase
     .from("applications")
     .update(patch)
     .eq("project_id", projectId)
     .in("id", applicationIds)
-    .in("status", ["pending", "accepted"])
-    .is("archived_at", null)
-    .select("id");
+    .is("archived_at", null);
+  updateQuery =
+    applyAs === "confirmed"
+      ? updateQuery.in("status", ["pending", "accepted"]).is("confirmed_at", null)
+      : updateQuery.eq("status", "pending");
+  const { data: updatedData, error } = await updateQuery.select("id");
   if (error) return { ok: false, error: error.message };
   const updated = (updatedData ?? []) as Array<{ id: string }>;
 

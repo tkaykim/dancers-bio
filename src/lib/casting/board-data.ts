@@ -187,6 +187,7 @@ async function buildBoardView(
     ? await admin
         .from("applications")
         .select("id, status, confirmed_at")
+        .eq("project_id", board.project_id)
         .in("id", applicationIds)
         .is("archived_at", null)
     : { data: [] };

@@ -232,6 +232,7 @@ export default async function ApplicantsPage({
           ? await supabase
               .from("applications")
               .select("id, status, confirmed_at")
+              .eq("project_id", p.id)
               .in("id", applicationIds)
               .is("archived_at", null)
           : { data: [] };
