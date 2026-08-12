@@ -11,6 +11,10 @@ import { slugify } from "@/lib/utils/slug";
 import { sendVisaApplicationEmail } from "@/lib/notify/visa-application-mail";
 import { sendVisaApplicantConfirmationEmail } from "@/lib/notify/visa-applicant-confirmation-mail";
 import { makeVisaCaseToken } from "@/lib/quick-token";
+import {
+  makeVisaFollowupTrackingToken,
+  VISA_APPLICATION_CONFIRMATION_CAMPAIGN,
+} from "@/lib/visa/tracking";
 import type { ActionResult } from "./auth";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -181,6 +185,15 @@ export async function submitVisaApplicationAction(
     : `${SITE_URL}/d/${dancerId}`;
   const caseUrl = `${SITE_URL}/visa/case/${makeVisaCaseToken(appRow.id as string)}`;
 
+  // 확인 메일에도 추적을 붙인다. 예전에는 링크가 raw 케이스 URL이라
+  // 지원자가 메일을 열었는지·눌렀는지 확인할 방법이 아예 없었다.
+  const trackingToken = makeVisaFollowupTrackingToken(
+    appRow.id as string,
+    VISA_APPLICATION_CONFIRMATION_CAMPAIGN,
+  );
+  const trackedUrl = `${SITE_URL}/api/track/visa-case/click?t=${encodeURIComponent(trackingToken)}&lang=${encodeURIComponent(d.lang)}`;
+  const openPixelUrl = `${SITE_URL}/api/track/visa-case/open?t=${encodeURIComponent(trackingToken)}&lang=${encodeURIComponent(d.lang)}`;
+
   // 운영자 메일 (비치명적)
   try {
     await sendVisaApplicationEmail({
@@ -216,6 +229,8 @@ export async function submitVisaApplicationAction(
       name: stageName,
       lang: d.lang,
       caseUrl,
+      trackedUrl,
+      openPixelUrl,
     });
     if (!confirmation.ok) {
       console.error("[submitVisaApplication] applicant mail failed (non-fatal):", confirmation.error);
@@ -223,7 +238,7 @@ export async function submitVisaApplicationAction(
     await admin.from("visa_outbound_mails").insert({
       application_id: appRow.id as string,
       kind: "application_confirmation",
-      campaign: "visa_application_confirmation",
+      campaign: VISA_APPLICATION_CONFIRMATION_CAMPAIGN,
       lang: confirmation.lang,
       subject: confirmation.subject,
       body_text: confirmation.text,
