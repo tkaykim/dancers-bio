@@ -156,7 +156,7 @@ export function renderVisaMeetingInviteMail(params: {
     "",
     `${c.cta}: ${linkForButton}`,
     "",
-    "deetz · deetz.kr · dancers.bio.kr@gmail.com",
+    "deetz · deetz.kr · contact@deetz.kr",
   ].join("\n");
 
   const paragraphs = (lines: string[]) =>
@@ -200,7 +200,7 @@ export function renderVisaMeetingInviteMail(params: {
     <td><a href="https://www.instagram.com/deetz_magazine/"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/instagram.png" width="30" height="30" alt="Instagram" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
   </tr></table>
   <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:14px;">
-    <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:dancers.bio.kr@gmail.com" style="color:#44474d;text-decoration:none;">dancers.bio.kr@gmail.com</a></div>
+    <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:contact@deetz.kr" style="color:#44474d;text-decoration:none;">contact@deetz.kr</a></div>
   <div style="font-size:11px;color:#a1a1aa;margin-top:12px;line-height:1.6;">© 2026 deetz. All rights reserved.<br>${esc(c.copyright)}</div>
   ${pixel}</td></tr>
 </table></td></tr></table></body></html>`;

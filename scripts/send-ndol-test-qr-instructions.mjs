@@ -132,7 +132,7 @@ function buildMail() {
         <tr>
           <td style="padding:22px 30px 26px;border-top:1px solid #ececef;background:#fafafa;">
             <div style="font-size:15px;font-weight:900;color:#111;">dee&apos;tz</div>
-            <div style="font-size:12px;color:#71717a;margin-top:6px;line-height:1.7;">deetz.kr · dancers.bio.kr@gmail.com</div>
+            <div style="font-size:12px;color:#71717a;margin-top:6px;line-height:1.7;">deetz.kr · contact@deetz.kr</div>
           </td>
         </tr>
       </table>
@@ -177,7 +177,7 @@ async function main() {
   const info = await transporter.sendMail({
     from: `"${process.env.GMAIL_FROM_NAME || "deetz"}" <${requiredEnv("GMAIL_USER")}>`,
     to: RECIPIENTS,
-    replyTo: "dancers.bio.kr@gmail.com",
+    replyTo: "contact@deetz.kr",
     subject: mail.subject,
     text: mail.text,
     html: mail.html,

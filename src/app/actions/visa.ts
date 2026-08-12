@@ -208,15 +208,34 @@ export async function submitVisaApplicationAction(
   }
 
   // 신청자 접수 확인 메일 (제출 언어로, 정본 양식). 비치명적.
+  // 발송 결과는 실패까지 포함해 visa_outbound_mails 에 남긴다 —
+  // 예전에는 조용히 삼켜서 어드민에서 "무엇이 나갔는지" 확인할 방법이 없었다.
   try {
-    await sendVisaApplicantConfirmationEmail({
+    const confirmation = await sendVisaApplicantConfirmationEmail({
       to: d.email,
       name: stageName,
       lang: d.lang,
       caseUrl,
     });
+    if (!confirmation.ok) {
+      console.error("[submitVisaApplication] applicant mail failed (non-fatal):", confirmation.error);
+    }
+    await admin.from("visa_outbound_mails").insert({
+      application_id: appRow.id as string,
+      kind: "application_confirmation",
+      campaign: "visa_application_confirmation",
+      lang: confirmation.lang,
+      subject: confirmation.subject,
+      body_text: confirmation.text,
+      body_html: confirmation.html,
+      status: confirmation.ok ? "sent" : "failed",
+      source: "system",
+      sent_by_name: "자동 접수 확인",
+      error: confirmation.ok ? null : (confirmation.error ?? "unknown"),
+      metadata: { caseUrl },
+    });
   } catch (e) {
-    console.error("[submitVisaApplication] applicant mail failed (non-fatal):", e);
+    console.error("[submitVisaApplication] applicant mail/log failed (non-fatal):", e);
   }
 
   revalidatePath("/admin/visa");

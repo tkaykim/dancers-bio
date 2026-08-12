@@ -64,7 +64,7 @@ function buildEmail({ name, project, token }) {
     `수신거부: ${unsub}`,
     ``,
     `deetz · 댄서 매거진 & 캐스팅 플랫폼`,
-    `deetz.kr · dancers.bio.kr@gmail.com`,
+    `deetz.kr · contact@deetz.kr`,
   ].join("\n");
 
   const html = `<html lang="ko"><body style="margin:0;padding:0;background:#f4f4f5;">
@@ -97,7 +97,7 @@ function buildEmail({ name, project, token }) {
     <td><a href="https://www.instagram.com/deetz.kr/"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/instagram.png" width="30" height="30" alt="Instagram" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
   </tr></table>
   <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:14px;">
-    <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:dancers.bio.kr@gmail.com" style="color:#44474d;text-decoration:none;">dancers.bio.kr@gmail.com</a></div>
+    <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:contact@deetz.kr" style="color:#44474d;text-decoration:none;">contact@deetz.kr</a></div>
   <div style="font-size:11px;color:#a1a1aa;margin-top:12px;line-height:1.7;">© 2026 deetz. All rights reserved.<br>이 메일은 deetz에 가입하신 주소로 발송되었습니다.<br><a href="${unsub}" style="color:#6b7280;text-decoration:underline;">추천·소식 메일 수신거부</a></div></td></tr>
 </table></td></tr></table></body></html>`;
 

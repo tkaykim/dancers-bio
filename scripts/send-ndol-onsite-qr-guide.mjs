@@ -169,7 +169,7 @@ async function main() {
   const info = await transporter.sendMail({
     from: `"${process.env.GMAIL_FROM_NAME || "deetz"}" <${requiredEnv("GMAIL_USER")}>`,
     to: RECIPIENTS,
-    replyTo: "dancers.bio.kr@gmail.com",
+    replyTo: "contact@deetz.kr",
     subject: mail.subject,
     text: mail.text,
     html: mail.html,
