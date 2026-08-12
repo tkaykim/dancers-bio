@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.6 - 2026-08-12
+
+- Let clients review project candidates through a revocable, project-scoped magic link without creating an administrator account.
+- Keep client choices separate from application status, and require a manager to apply selected candidates as accepted or confirmed.
+- Reuse the existing casting board, hide direct-contact links, record review history, and support link expiry and reissuance.
+
 ## 0.1.5 - 2026-08-11
 
 - Search administrator settlements instantly by dancer name, nickname, or project without refreshing the page or sending a request for each keystroke.
