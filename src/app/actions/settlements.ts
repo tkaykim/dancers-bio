@@ -716,7 +716,10 @@ export async function buildTransferFileAction(
 
   const dancerIds = [...new Set(sRows.map((r) => r.dancer_id as string))];
   const [{ data: dRows }, { data: piRows }] = await Promise.all([
-    admin.from("dancers").select("id, stage_name").in("id", dancerIds),
+    admin
+      .from("dancers")
+      .select("id, stage_name, korean_name")
+      .in("id", dancerIds),
     admin
       .from("dancer_private_info")
       .select(
@@ -725,7 +728,12 @@ export async function buildTransferFileAction(
       .in("dancer_id", dancerIds),
   ]);
   const nameById = new Map(
-    (dRows ?? []).map((d) => [d.id as string, (d.stage_name as string) ?? ""]),
+    (dRows ?? []).map((d) => [
+      d.id as string,
+      (d.korean_name as string | null)?.trim() ||
+        (d.stage_name as string | null)?.trim() ||
+        "",
+    ]),
   );
   const acctById = new Map(
     (piRows ?? []).map((p) => [p.dancer_id as string, p]),
