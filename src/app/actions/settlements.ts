@@ -35,14 +35,14 @@ function strOrNull(fd: FormData, k: string): string | null {
   return v ? v : null;
 }
 
-// 보내는분 통장표시 메모: 우리 통장에 찍힐 식별 문구(프로젝트+댄서).
-// 통장표시는 길이 제한이 있어, 댄서명은 보존하고 프로젝트명은 남는 길이만큼만.
-function transferMemo(project: string, dancer: string): string {
+// 보내는분 통장표시 메모: 우리 통장에 찍힐 식별 문구(댄서+프로젝트).
+// 통장표시는 길이 제한이 있어, 댄서명을 먼저 보존하고 프로젝트명은 남는 길이만큼만.
+function transferMemo(dancer: string, project: string): string {
   const MAX = 14;
   const d = (dancer ?? "").replace(/\s/g, "");
   const p = (project ?? "").replace(/\s/g, "");
   const room = Math.max(0, MAX - d.length);
-  return (p.slice(0, room) + d).slice(0, MAX);
+  return (d.slice(0, MAX) + p.slice(0, room)).slice(0, MAX);
 }
 
 // 파일명 타임스탬프 (KST yyyyMMdd_HHmm).
@@ -762,7 +762,7 @@ export async function buildTransferFileAction(
       acct.bank_name as string, // A 입금은행
       accountNumber, // B 입금계좌번호 (숫자만, 문자열 — 앞 0 보존)
       net, // C 이체금액 = 실수령액(세전−3.3%)
-      transferMemo(projectTitle, dancerName), // D 보내는분 통장표시
+      transferMemo(dancerName, projectTitle), // D 보내는분 통장표시
       "", // E 받는분 통장표시
       "", // F 집금(CMS)번호
     ]);
