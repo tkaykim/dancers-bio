@@ -409,6 +409,7 @@ function VisaDetail({
       <VisaMeetingInvitePanel
         applicationId={row.id}
         preferredLang={row.preferred_lang}
+        consultationAnswers={row.follow_up_answers}
         invites={row.meeting_invites}
         tracking={row.meeting_tracking}
       />
