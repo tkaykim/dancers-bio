@@ -13,6 +13,10 @@ import {
   type ClientReviewSettings,
 } from "@/lib/casting/review";
 import type { ActionResult } from "./auth";
+import {
+  getCastingReviewProfileByToken,
+  type CastingReviewProfile,
+} from "@/lib/casting/board-data";
 
 type ReviewBoardRow = {
   id: string;
@@ -82,6 +86,19 @@ function parseDecisionInputs(raw: FormDataEntryValue | null): DecisionInput[] | 
   } catch {
     return null;
   }
+}
+
+export async function getCastingReviewProfileAction(
+  token: string,
+  memberId: string,
+): Promise<ActionResult<CastingReviewProfile>> {
+  if (!token || token.length > 2048 || !memberId) {
+    return { ok: false, error: "잘못된 프로필 요청입니다." };
+  }
+  const profile = await getCastingReviewProfileByToken(token, memberId);
+  return profile
+    ? { ok: true, data: profile }
+    : { ok: false, error: "프로필을 불러올 수 없습니다." };
 }
 
 // 비로그인 클라이언트가 서명 링크로 후보 선택 결과를 한 번에 제출한다.
