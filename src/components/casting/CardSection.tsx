@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { BoardView, BoardCard } from "@/lib/casting/board-data";
+import type { ClientDecision } from "@/lib/casting/review";
 
 function instaHandle(url: string | null): string | null {
   if (!url) return null;
@@ -13,8 +14,53 @@ function genderKo(g: string | null): string {
   return g === "female" ? "여" : g === "male" ? "남" : "-";
 }
 
-function Card({ c, fields }: { c: BoardCard; fields: BoardView["settings"]["fields"] }) {
+type ReviewControls = {
+  choices: Record<string, ClientDecision>;
+  onChange: (memberId: string, decision: ClientDecision) => void;
+  disabled?: boolean;
+};
+
+function applicationLabel(card: BoardCard): string | null {
+  if (card.confirmedAt) return "확정";
+  if (card.applicationStatus === "accepted") return "수락";
+  if (card.applicationStatus === "pending") return "대기";
+  return null;
+}
+
+const DECISION_OPTIONS: Array<{
+  value: Exclude<ClientDecision, "undecided">;
+  label: string;
+  activeClass: string;
+}> = [
+  {
+    value: "selected",
+    label: "선택",
+    activeClass: "border-emerald-600 bg-emerald-600 text-white",
+  },
+  {
+    value: "hold",
+    label: "보류",
+    activeClass: "border-amber-500 bg-amber-500 text-white",
+  },
+  {
+    value: "excluded",
+    label: "제외",
+    activeClass: "border-slate-700 bg-slate-700 text-white",
+  },
+];
+
+function Card({
+  c,
+  fields,
+  review,
+}: {
+  c: BoardCard;
+  fields: BoardView["settings"]["fields"];
+  review?: ReviewControls;
+}) {
   const handle = instaHandle(c.instagram);
+  const statusLabel = applicationLabel(c);
+  const selectedDecision = review?.choices[c.memberId] ?? "undecided";
   const sub = [genderKo(c.gender), c.height ? `${c.height}cm` : null]
     .filter(Boolean)
     .join(" · ");
@@ -31,7 +77,16 @@ function Card({ c, fields }: { c: BoardCard; fields: BoardView["settings"]["fiel
         )}
       </div>
       <div className="px-2.5 py-2">
-        <div className="truncate text-[13px] font-bold leading-tight">{c.name}</div>
+        <div className="flex items-center gap-1.5">
+          <div className="min-w-0 flex-1 truncate text-[13px] font-bold leading-tight">
+            {c.name}
+          </div>
+          {review && statusLabel ? (
+            <span className="shrink-0 rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-semibold text-ink-2">
+              {statusLabel}
+            </span>
+          ) : null}
+        </div>
         <div className="min-h-[14px] truncate text-[10.5px] text-ink-3">
           {c.koreanName ?? ""}
         </div>
@@ -52,7 +107,7 @@ function Card({ c, fields }: { c: BoardCard; fields: BoardView["settings"]["fiel
               {handle}
             </a>
           ) : null}
-          {c.slug ? (
+          {fields?.profile !== false && c.slug ? (
             <a
               href={`https://dancers.bio/${c.slug}`}
               target="_blank"
@@ -63,6 +118,35 @@ function Card({ c, fields }: { c: BoardCard; fields: BoardView["settings"]["fiel
             </a>
           ) : null}
         </div>
+        {review ? (
+          <div className="mt-2 border-t border-border pt-2">
+            <div className="grid grid-cols-3 gap-1">
+              {DECISION_OPTIONS.map((option) => {
+                const active = selectedDecision === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    disabled={review.disabled}
+                    onClick={() =>
+                      review.onChange(
+                        c.memberId,
+                        active ? "undecided" : option.value,
+                      )
+                    }
+                    className={`rounded-md border px-1 py-1.5 text-[10px] font-bold transition disabled:opacity-50 ${
+                      active
+                        ? option.activeClass
+                        : "border-border bg-background text-ink-2 hover:bg-secondary"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -77,10 +161,12 @@ export function CardSection({
   label,
   cards,
   fields,
+  review,
 }: {
   label: string;
   cards: BoardCard[];
   fields: BoardView["settings"]["fields"];
+  review?: ReviewControls;
 }) {
   const [cols, setCols] = useState(5);
   const [rows, setRows] = useState(INITIAL_ROWS);
@@ -110,7 +196,7 @@ export function CardSection({
       </h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {shown.map((c) => (
-          <Card key={c.dancerId} c={c} fields={fields} />
+          <Card key={c.memberId} c={c} fields={fields} review={review} />
         ))}
       </div>
       {remaining > 0 || canCollapse ? (

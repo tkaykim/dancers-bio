@@ -100,3 +100,51 @@ export function verifyVisaCaseToken(token: string): string | null {
     return null;
   }
 }
+
+// 클라이언트 캐스팅 검토 보드의 쓰기 권한 토큰.
+// payload = `cr:${boardId}:${version}`이며 version 증가로 기존 링크를 즉시 철회한다.
+export function makeCastingReviewToken(
+  boardId: string,
+  version: number,
+): string {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY 미설정");
+  if (!Number.isInteger(version) || version < 1) {
+    throw new Error("잘못된 캐스팅 검토 토큰 버전");
+  }
+  const payload = `cr:${boardId}:${version}`;
+  return `${Buffer.from(payload, "utf8").toString("base64url")}.${sign(payload, key)}`;
+}
+
+export function verifyCastingReviewToken(
+  token: string,
+): { boardId: string; version: number } | null {
+  try {
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!key || !token || token.length > 512) return null;
+    const dot = token.lastIndexOf(".");
+    if (dot < 1) return null;
+    const payload = Buffer.from(token.slice(0, dot), "base64url").toString("utf8");
+    const sig = token.slice(dot + 1);
+    const expected = sign(payload, key);
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+    const parts = payload.split(":");
+    if (parts.length !== 3 || parts[0] !== "cr") return null;
+    const boardId = parts[1];
+    const version = Number(parts[2]);
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        boardId,
+      ) ||
+      !Number.isInteger(version) ||
+      version < 1
+    ) {
+      return null;
+    }
+    return { boardId, version };
+  } catch {
+    return null;
+  }
+}
