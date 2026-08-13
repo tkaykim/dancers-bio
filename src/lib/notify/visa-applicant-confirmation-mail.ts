@@ -98,6 +98,7 @@ export async function sendVisaApplicantConfirmationEmail(params: {
 }): Promise<{
   ok: boolean;
   error?: string;
+  messageId?: string;
   lang: Lang;
   subject: string;
   text: string;

@@ -235,7 +235,7 @@ export async function submitVisaApplicationAction(
     if (!confirmation.ok) {
       console.error("[submitVisaApplication] applicant mail failed (non-fatal):", confirmation.error);
     }
-    await admin.from("visa_outbound_mails").insert({
+    const { error: confirmationLogError } = await admin.from("visa_outbound_mails").insert({
       application_id: appRow.id as string,
       kind: "application_confirmation",
       campaign: VISA_APPLICATION_CONFIRMATION_CAMPAIGN,
@@ -246,26 +246,13 @@ export async function submitVisaApplicationAction(
       status: confirmation.ok ? "sent" : "failed",
       source: "system",
       sent_by_name: "자동 접수 확인",
+      message_id: confirmation.messageId ?? null,
       error: confirmation.ok ? null : (confirmation.error ?? "unknown"),
       metadata: { caseUrl },
     });
-    if (!confirmation.ok) {
-      console.error("[submitVisaApplication] applicant mail failed (non-fatal):", confirmation.error);
+    if (confirmationLogError) {
+      console.error("[submitVisaApplication] applicant mail log failed (non-fatal):", confirmationLogError);
     }
-    await admin.from("visa_outbound_mails").insert({
-      application_id: appRow.id as string,
-      kind: "application_confirmation",
-      campaign: "visa_application_confirmation",
-      lang: confirmation.lang,
-      subject: confirmation.subject,
-      body_text: confirmation.text,
-      body_html: confirmation.html,
-      status: confirmation.ok ? "sent" : "failed",
-      source: "system",
-      sent_by_name: "자동 접수 확인",
-      error: confirmation.ok ? null : (confirmation.error ?? "unknown"),
-      metadata: { caseUrl },
-    });
   } catch (e) {
     console.error("[submitVisaApplication] applicant mail/log failed (non-fatal):", e);
   }
