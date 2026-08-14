@@ -297,7 +297,12 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
 
         <select
           value={sortKey}
-          onChange={(e) => setSortKey(e.target.value as SortKey)}
+          onChange={(e) => {
+            const next = e.target.value as SortKey;
+            setSortKey(next);
+            // 처리 우선순위는 뒤집으면 "지금 할 일"이 맨 아래로 가버린다 — 항상 정방향으로 되돌린다.
+            if (next === "default") setSortDir("asc");
+          }}
           aria-label="정렬 기준"
           className={SELECT_CLASS}
         >
@@ -310,9 +315,10 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
         <button
           type="button"
           onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
+          disabled={sortKey === "default"}
           aria-label={sortDir === "asc" ? "오름차순 (누르면 내림차순)" : "내림차순 (누르면 오름차순)"}
-          title={sortDir === "asc" ? "오름차순" : "내림차순"}
-          className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-border bg-background px-2.5 text-[13px] font-medium hover:bg-secondary"
+          title={sortKey === "default" ? "처리 우선순위는 방향을 바꾸지 않습니다" : sortDir === "asc" ? "오름차순" : "내림차순"}
+          className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-border bg-background px-2.5 text-[13px] font-medium hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
         >
           {sortDir === "asc" ? <ArrowUpAZ className="size-4" /> : <ArrowDownAZ className="size-4" />}
           {sortDir === "asc" ? "오름차순" : "내림차순"}
