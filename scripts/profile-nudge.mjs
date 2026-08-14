@@ -28,6 +28,13 @@ function loadEnv() {
 const ENV = loadEnv();
 
 const CAMPAIGN = "deetz-profile-nudge-2026-06";
+// 발신은 deetz 공식 도메인 메일함이 정본. 구 개인 Gmail 은 폴백일 뿐이다.
+// ⚠ 이 메일은 "답장 주시면 대신 등록해드린다"고 안내하므로,
+//   발신함이 반드시 사람이 읽는 메일함(contact@deetz.kr, IMAP 모니터링 중)이어야 한다.
+const MAIL_USER = () => ENV.DEETZ_GMAIL_USER || ENV.GMAIL_USER;
+const MAIL_PASS = () => ENV.DEETZ_GMAIL_APP_PASSWORD || ENV.GMAIL_APP_PASSWORD;
+const MAIL_FROM_NAME = "deetz 에이전시 & 매거진";
+const REPLY_TO = "contact@deetz.kr";
 const EDIT_URL = "https://deetz.kr/me/portfolio";
 
 function esc(s) {
@@ -79,6 +86,12 @@ export function buildEmail(d) {
     `- SNS 연결: ${d.hasSns ? "연결 완료" : "미연결"}`,
     ``,
     `2~3분이면 채울 수 있어요.`,
+    ``,
+    `직접 채우기가 번거로우시다면,`,
+    `가지고 계신 포트폴리오 페이지 주소나 이력을 적은 텍스트, PDF 파일 등 무엇이든`,
+    `이 메일에 그대로 답장해 주세요.`,
+    `저희가 대신 프로필로 정리해서 등록해 드리고 있습니다.`,
+    ``,
     `내 프로필 채우러 가기: ${EDIT_URL}`,
     ``,
     `deetz · 댄서 매거진 & 캐스팅 플랫폼`,
@@ -106,6 +119,14 @@ export function buildEmail(d) {
     </tbody></table></div></td></tr>
 <tr><td style="padding:14px 32px 6px;">
   <p style="font-size:14px;line-height:1.75;color:#44474d;margin:0;">2~3분이면 채울 수 있어요.<br>채워둔 프로필은 캐스팅·매칭에서 먼저 노출됩니다.</p></td></tr>
+<tr><td style="padding:6px 32px 0;">
+  <div style="background:#f0f7ff;border:1px solid #cfe3fb;border-radius:14px;padding:16px 18px;">
+    <div style="font-size:13px;font-weight:700;color:#1d4ed8;margin-bottom:6px;">직접 채우기가 번거로우시다면</div>
+    <div style="font-size:13px;line-height:1.75;color:#33363b;">
+      포트폴리오 페이지 주소, 이력을 적은 텍스트, PDF 파일 — <strong>무엇이든 이 메일에 그대로 답장</strong>해 주세요.<br>
+      저희가 대신 프로필로 정리해서 등록해 드리고 있습니다.
+    </div>
+  </div></td></tr>
 <tr><td style="padding:16px 32px 24px;">
   <a href="${EDIT_URL}" style="display:block;background:#111111;color:#ffffff;text-decoration:none;text-align:center;font-size:15px;font-weight:700;padding:15px 0;border-radius:12px;">내 프로필 채우러 가기 →</a></td></tr>
 <tr><td style="padding:22px 32px 28px;border-top:1px solid #ececef;background:#fafafa;">
@@ -147,7 +168,25 @@ function supa() {
 async function getRecipients() {
   const { data, error } = await supa().rpc("deetz_profile_nudge_recipients");
   if (error) throw new Error("rpc failed: " + error.message);
-  return data || [];
+  const rows = data || [];
+
+  // RPC 는 SNS 정보를 돌려주지 않는다. 여기서 안 채우면 체크리스트가 전원 "미연결"로 뜬다.
+  const ids = rows.map((r) => r.dancer_id).filter(Boolean);
+  const snsBy = new Map();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data: ds } = await supa()
+      .from("dancers")
+      .select("id, social_links")
+      .in("id", ids.slice(i, i + 200));
+    for (const d of ds ?? []) {
+      const n = Object.values(d.social_links ?? {}).filter(
+        (v) => typeof v === "string" && v.trim(),
+      ).length;
+      snsBy.set(d.id, n > 0);
+    }
+  }
+  for (const r of rows) r.has_sns = snsBy.get(r.dancer_id) ?? false;
+  return rows;
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -161,19 +200,20 @@ async function runSend(maxN) {
 
   const t = nodemailer.createTransport({
     service: "gmail",
-    auth: { user: ENV.GMAIL_USER, pass: ENV.GMAIL_APP_PASSWORD },
+    auth: { user: MAIL_USER(), pass: MAIL_PASS() },
   });
 
   let ok = 0, fail = 0;
   for (const r of batch) {
     const { subject, text, html } = buildEmail({
       name: r.name, email: r.email,
-      hasPhoto: r.has_photo, careerCount: r.career_count, hasBio: r.has_bio,
+      hasPhoto: r.has_photo, careerCount: r.career_count, hasBio: r.has_bio, hasSns: r.has_sns,
     });
     const ts = new Date().toISOString();
     try {
       const info = await t.sendMail({
-        from: `"${ENV.GMAIL_FROM_NAME || "deetz"}" <${ENV.GMAIL_USER}>`,
+        from: `"${MAIL_FROM_NAME}" <${MAIL_USER()}>`,
+        replyTo: REPLY_TO,
         to: r.email, subject, text, html,
       });
       ledger.sent[r.dancer_id] = { email: r.email, at: ts, score: r.score };
@@ -206,10 +246,11 @@ async function main() {
     const sample = { name: "홍길동", email: arg1, hasPhoto: true, careerCount: 1, hasBio: false };
     const { subject, text, html } = buildEmail(sample);
     const t = nodemailer.createTransport({
-      service: "gmail", auth: { user: ENV.GMAIL_USER, pass: ENV.GMAIL_APP_PASSWORD },
+      service: "gmail", auth: { user: MAIL_USER(), pass: MAIL_PASS() },
     });
     const info = await t.sendMail({
-      from: `"${ENV.GMAIL_FROM_NAME || "deetz"}" <${ENV.GMAIL_USER}>`,
+      from: `"${MAIL_FROM_NAME}" <${MAIL_USER()}>`,
+        replyTo: REPLY_TO,
       to: arg1, subject: `[테스트] ${subject}`, text, html,
     });
     console.log("sent:", info.messageId, "->", arg1);
