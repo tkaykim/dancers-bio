@@ -139,21 +139,26 @@ export async function POST(req: Request) {
     });
   }
 
-  // 승인은 기존 관리자 경로와 같은 RPC 를 쓴다 (creator 권한 발급 등 부수효과 동일 보장).
-  const reviewerId = process.env.DM_VERIFY_REVIEWER_PROFILE_ID ?? "";
+  // 승인은 system 전용 RPC 를 쓴다.
+  //
+  // ⚠️ 관리자용 approve_instagram_verification 을 쓰면 안 된다.
+  //    그 함수는 첫 줄에서 is_admin() 을 요구하는데, is_admin() 은
+  //    `select is_admin from profiles where id = auth.uid()` 이고,
+  //    이 라우트는 service-role 로 호출하므로 auth.uid() 가 null → 항상 'admin only' 예외였다.
+  //    즉 이 경로는 배포돼 있어도 100% 실패했다(2026-08-14 운영 DB에서 실증).
+  //
+  // system_approve_instagram_verification 은 service_role 에만 EXECUTE 가 있고,
+  // 부수효과(can_create_project 발급·핸들 기록·감사로그)는 관리자 경로와 동일하다.
+  // 사람이 아니라 시스템이 승인했음은 감사로그 사유에 남는다.
   let approved = false;
   let approveError: string | null = null;
 
-  if (reviewerId) {
-    const { error: rpcError } = await admin.rpc("approve_instagram_verification", {
-      p_verification_id: target.id,
-      p_reviewer_id: reviewerId,
-    });
-    if (!rpcError) approved = true;
-    else approveError = rpcError.message;
-  } else {
-    approveError = "DM_VERIFY_REVIEWER_PROFILE_ID 미설정";
-  }
+  const { error: rpcError } = await admin.rpc("system_approve_instagram_verification", {
+    p_verification_id: target.id,
+    p_reason: "instagram_dm_auto",
+  });
+  if (!rpcError) approved = true;
+  else approveError = rpcError.message;
 
   if (!approved) {
     return NextResponse.json({
