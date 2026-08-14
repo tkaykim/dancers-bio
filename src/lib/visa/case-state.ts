@@ -72,6 +72,8 @@ export type VisaCaseDerived = {
   sortBucket: number;
   /** 버킷 0은 오래 기다린 순, 1은 임박한 순, 그 외는 최신 순으로 쓰는 기준 시각(ms). */
   sortTime: number;
+  /** 이 케이스와 관련된 미팅 시각 — 예정 건은 다가오는 미팅, 끝난 건은 마지막 미팅. */
+  meetingAt: string | null;
   badges: string[];
   manualStatusChip: string | null;
   isTest: boolean;
@@ -204,7 +206,12 @@ function deriveState(input: VisaCaseStateInput, nowIso: string): VisaCaseDerived
     return null;
   })();
 
-  const base = { badges, manualStatusChip, isTest };
+  const base = {
+    badges,
+    manualStatusChip,
+    isTest,
+    meetingAt: upcoming?.invite.meeting_at ?? finished?.invite.meeting_at ?? null,
+  };
   const bucketOf = (bucket: number) => (isTest ? 4 : bucket);
 
   // 1. 지원자가 스스로 중단
