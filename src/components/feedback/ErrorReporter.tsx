@@ -2,6 +2,21 @@
 
 import { useEffect } from "react";
 
+// 오류 로그에 1회용 토큰이 그대로 박히지 않게 경로 세그먼트를 마스킹한다.
+// /submit/<token> 같은 주소는 그 자체가 업로드 자격증명이라, error_logs.page_url 에
+// 평문으로 쌓이면 로그 열람자가 남의 제출 슬롯에 접근할 수 있다.
+// (Codex 교차검토 2026-08-14 지적)
+const TOKEN_PATH = /^\/(submit|s|sr|sz|w|fit|cast|unsubscribe|visa\/case)\/[^/]+/;
+
+function maskUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    return u.origin + u.pathname.replace(TOKEN_PATH, "/$1/[token]") + u.search;
+  } catch {
+    return raw;
+  }
+}
+
 // Captures unhandled client errors + promise rejections and reports them to
 // /api/log-error. Uses sendBeacon when available so the report survives page
 // unloads. Never throws (would create infinite recursion with itself).
@@ -18,7 +33,7 @@ export function ErrorReporter() {
       try {
         const body = JSON.stringify({
           ...payload,
-          url: window.location.href,
+          url: maskUrl(window.location.href),
           userAgent: navigator.userAgent,
         });
         const blob = new Blob([body], { type: "application/json" });
