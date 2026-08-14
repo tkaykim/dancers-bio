@@ -107,13 +107,16 @@ export type VisaAdminRow = {
 const CASE_STAGE = VISA_CASE_STAGE_LABEL;
 const STATUS = VISA_STATUS_OPTIONS;
 
-/** 파생 상태 뱃지 색 — 액션 필요는 눈에 띄게, 정보성은 차분하게. */
-const DERIVED_TONE: Record<VisaCaseTone, string> = {
-  action: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-  danger: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-  meeting: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  neutral: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  muted: "bg-secondary text-ink-3",
+// 파생 상태 뱃지 — 배경은 옅은 회색 하나로 통일하고 왼쪽 점 색으로만 구분한다.
+// 색 면적을 넓게 쓰면 40행이 전부 형광색으로 보여 오히려 안 읽힌다.
+const DERIVED_TONE = "bg-secondary text-foreground";
+
+const TONE_DOT: Record<VisaCaseTone, string> = {
+  action: "bg-amber-500",
+  danger: "bg-rose-500",
+  meeting: "bg-emerald-500",
+  neutral: "bg-ink-4",
+  muted: "bg-ink-4/50",
 };
 
 const QUEUES: { key: VisaCaseQueue; label: string; tone: VisaCaseTone }[] = [
@@ -126,9 +129,9 @@ const QUEUES: { key: VisaCaseQueue; label: string; tone: VisaCaseTone }[] = [
 type SortKey = "default" | "name" | "created" | "meeting";
 
 const SORTS: { v: SortKey; l: string }[] = [
+  { v: "created", l: "신청일" },
   { v: "default", l: "처리 우선순위" },
   { v: "name", l: "이름" },
-  { v: "created", l: "신청일" },
   { v: "meeting", l: "미팅일" },
 ];
 
@@ -209,8 +212,9 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [queue, setQueue] = useState<VisaCaseQueue | null>(null);
   const [q, setQ] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("default");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  // 기본은 최신 신청 순 — 운영자가 목록을 접수 순서로 훑는 습관에 맞춘다.
+  const [sortKey, setSortKey] = useState<SortKey>("created");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [source, setSource] = useState("all");
   const [lang, setLang] = useState("all");
   const [hideParked, setHideParked] = useState(false);
@@ -271,11 +275,15 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
               queue !== q.key && q.count === 0 && "opacity-50",
             )}
           >
+            <span
+              aria-hidden
+              className={cn("size-1.5 rounded-full", TONE_DOT[q.tone], queue === q.key && "bg-background")}
+            />
             {q.label}
             <span
               className={cn(
-                "rounded-full px-1.5 text-[11px] font-semibold",
-                queue === q.key ? "bg-background/20" : DERIVED_TONE[q.tone],
+                "rounded-full px-1.5 text-[11px] font-semibold tabular-nums",
+                queue === q.key ? "bg-background/20" : "bg-secondary text-ink-2",
               )}
             >
               {q.count}
@@ -426,7 +434,7 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
                   {r.derived.badges.map((badge) => (
                     <span
                       key={badge}
-                      className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400"
+                      className="rounded border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400"
                     >
                       {badge}
                     </span>
@@ -444,10 +452,11 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
               </div>
               <span
                 className={cn(
-                  "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                  DERIVED_TONE[r.derived.tone],
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                  DERIVED_TONE,
                 )}
               >
+                <span aria-hidden className={cn("size-1.5 rounded-full", TONE_DOT[r.derived.tone])} />
                 {r.derived.label}
               </span>
               <ChevronRight className="size-4 shrink-0 text-ink-4" />
@@ -540,10 +549,11 @@ function VisaDetail({
         <div className="flex flex-wrap items-center gap-1.5">
           <span
             className={cn(
-              "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-              DERIVED_TONE[row.derived.tone],
+              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+              DERIVED_TONE,
             )}
           >
+            <span aria-hidden className={cn("size-1.5 rounded-full", TONE_DOT[row.derived.tone])} />
             {row.derived.label}
           </span>
           {row.derived.manualStatusChip ? (
