@@ -1,16 +1,16 @@
 import Script from "next/script";
 
 /**
- * 토큰이 담긴 경로를 GA 로 보내지 않는다.
+ * `/submit/<token>` 만 GA 에서 마스킹한다.
  *
- * gtag('config') 는 page_location 기본값이 document.location 이라, 그냥 두면
- * /submit/<token> · /s/<token> 같은 1회용 자격증명이 그대로 Google Analytics 에 적재된다.
- * 업로드 토큰은 bearer credential 이므로 세그먼트를 마스킹해서 보낸다.
- * (Codex 교차검토 2026-08-14 지적)
+ * 이 경로는 로그인이 없는 대신 URL 자체가 업로드 자격증명이라 예외를 뒀다.
+ * 나머지 코드 경로(s·cast·w 등)는 마스킹하지 않는다 — 그쪽까지 뭉개면
+ * 정산·캐스팅보드 유입 통계가 한 덩어리가 돼서, 막는 위험보다 잃는 게 크다.
+ * (2026-08-14 대표 지시: 과도한 보안으로 기존 동작을 해치지 말 것)
  */
 const MASK_FN = `
 function __deetzMaskPath(p){
-  return String(p||'').replace(/^\\/(submit|s|sr|sz|w|fit|cast|unsubscribe|visa\\/case)\\/[^/]+/, '/$1/[token]');
+  return String(p||'').replace(/^\\/submit\\/[^/]+/, '/submit/[token]');
 }
 function __deetzMaskUrl(u){
   try { var x = new URL(u); return x.origin + __deetzMaskPath(x.pathname); } catch(e){ return u; }
