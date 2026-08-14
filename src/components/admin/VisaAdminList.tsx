@@ -15,6 +15,14 @@ import {
   type MeetingTracking,
 } from "@/components/admin/VisaMeetingInvitePanel";
 import { VisaOutboundMailsPanel, type OutboundMail } from "@/components/admin/VisaOutboundMailsPanel";
+import {
+  VISA_CASE_STAGE_LABEL,
+  VISA_DECLINE_REASON,
+  VISA_STATUS_OPTIONS,
+  type VisaCaseDerived,
+  type VisaCaseQueue,
+  type VisaCaseTone,
+} from "@/lib/visa/case-state";
 import { cn } from "@/lib/utils";
 
 export type VisaAdminRow = {
@@ -38,6 +46,7 @@ export type VisaAdminRow = {
   korean_name: string | null;
   slug: string | null;
   nationality: string | null;
+  is_korean_national: boolean | null;
   has_visa: boolean | null;
   visa_label: string | null;
   case_url: string;
@@ -83,42 +92,27 @@ export type VisaAdminRow = {
     clickCount: number;
     visitCount: number;
   } | null;
+  derived: VisaCaseDerived;
 };
 
-const CASE_STAGE: Record<string, string> = {
-  application_received: "지원서 접수",
-  triage_submitted: "추가정보 검토",
-  audition_scheduled: "오디션 예정",
-  audition_complete: "오디션 완료",
-  training: "전문 트레이닝",
-  monthly_evaluation: "월말평가",
-  visa_documents: "비자 서류 준비",
-  visa_submitted: "비자 신청 접수",
-  complete: "완료",
-  on_hold: "보류",
+const CASE_STAGE = VISA_CASE_STAGE_LABEL;
+const STATUS = VISA_STATUS_OPTIONS;
+
+/** 파생 상태 뱃지 색 — 액션 필요는 눈에 띄게, 정보성은 차분하게. */
+const DERIVED_TONE: Record<VisaCaseTone, string> = {
+  action: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+  danger: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
+  meeting: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  neutral: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  muted: "bg-secondary text-ink-3",
 };
 
-const STATUS: { v: string; l: string }[] = [
-  { v: "new", l: "신규" },
-  { v: "reviewing", l: "검토중" },
-  { v: "education", l: "교육중" },
-  { v: "documents", l: "서류준비" },
-  { v: "submitted", l: "신청접수" },
-  { v: "approved", l: "발급완료" },
-  { v: "on_hold", l: "보류" },
-  { v: "rejected", l: "반려" },
+const QUEUES: { key: VisaCaseQueue; label: string; tone: VisaCaseTone }[] = [
+  { key: "schedule", label: "일정 확정 필요", tone: "action" },
+  { key: "verdict", label: "판정 입력 필요", tone: "action" },
+  { key: "no_response", label: "무응답 7일+", tone: "action" },
+  { key: "meeting", label: "미팅 예정", tone: "meeting" },
 ];
-
-const STATUS_TONE: Record<string, string> = {
-  new: "bg-primary/10 text-primary",
-  reviewing: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  education: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  documents: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  submitted: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-  approved: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  on_hold: "bg-secondary text-ink-2",
-  rejected: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-};
 
 const SKILL: Record<number, string> = {
   1: "트레이닝 필요",
@@ -132,10 +126,6 @@ const KOREAN: Record<string, string> = {
   some: "어느 정도",
   fluent: "유창",
 };
-
-function statusLabel(v: string) {
-  return STATUS.find((s) => s.v === v)?.l ?? v;
-}
 
 function displayName(r: VisaAdminRow) {
   return r.stage_name || r.korean_name || "(이름 없음)";
@@ -152,19 +142,7 @@ function formatKstShort(value: string | null) {
   });
 }
 
-const DECLINE_REASON: Record<string, string> = {
-  other_agency: "다른 에이전시·경로",
-  price: "비용 부담",
-  schedule: "일정 불가",
-  not_ready: "결정 보류",
-  other: "기타",
-};
-
-function declineLabel(row: VisaAdminRow) {
-  if (!row.declined_at) return null;
-  const reason = row.decline_reason ? DECLINE_REASON[row.decline_reason] ?? row.decline_reason : "사유 미기재";
-  return `진행 안 함 · ${reason}`;
-}
+const DECLINE_REASON = VISA_DECLINE_REASON;
 
 function trackingState(row: VisaAdminRow) {
   const t = row.tracking;
@@ -178,6 +156,7 @@ function trackingState(row: VisaAdminRow) {
 
 export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [queue, setQueue] = useState<VisaCaseQueue | null>(null);
   const selected = rows.find((r) => r.id === selectedId) ?? null;
 
   if (rows.length === 0) {
@@ -188,10 +167,59 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
     );
   }
 
+  const counts = QUEUES.map((q) => ({
+    ...q,
+    count: rows.filter((r) => r.derived.queue === q.key).length,
+  }));
+  const visible = queue ? rows.filter((r) => r.derived.queue === queue) : rows;
+
   return (
     <>
+      <div className="flex flex-wrap gap-2">
+        {counts.map((q) => (
+          <button
+            key={q.key}
+            type="button"
+            onClick={() => setQueue(queue === q.key ? null : q.key)}
+            aria-pressed={queue === q.key}
+            className={cn(
+              "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors",
+              queue === q.key
+                ? "border-foreground bg-foreground text-background"
+                : "border-hairline-2 bg-card hover:bg-secondary",
+              queue !== q.key && q.count === 0 && "opacity-50",
+            )}
+          >
+            {q.label}
+            <span
+              className={cn(
+                "rounded-full px-1.5 text-[11px] font-semibold",
+                queue === q.key ? "bg-background/20" : DERIVED_TONE[q.tone],
+              )}
+            >
+              {q.count}
+            </span>
+          </button>
+        ))}
+        {queue ? (
+          <button
+            type="button"
+            onClick={() => setQueue(null)}
+            className="min-h-9 px-2 text-[13px] text-ink-3 hover:text-foreground"
+          >
+            전체 보기
+          </button>
+        ) : null}
+      </div>
+
+      {visible.length === 0 ? (
+        <p className="rounded-xl border border-border bg-card p-8 text-center text-sm text-ink-3">
+          이 항목에 해당하는 신청이 없습니다.
+        </p>
+      ) : null}
+
       <ul className="divide-y divide-hairline-2 overflow-hidden rounded-xl border border-border bg-card">
-        {rows.map((r) => (
+        {visible.map((r) => (
           <li key={r.id}>
             <button
               type="button"
@@ -218,15 +246,26 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
                     day: "2-digit",
                   })}
                 </p>
-                <p className="mt-1 text-[11px] font-medium text-ink-2">
-                  {CASE_STAGE[r.case_stage] ?? r.case_stage}
-                  {r.follow_up_submitted_at ? " · 질문지 완료" : ""}
-                </p>
-                {declineLabel(r) ? (
-                  <p className="mt-1 text-[11px] font-medium text-amber-600">
-                    {declineLabel(r)}
-                    {r.declined_at ? ` · ${formatKstShort(r.declined_at)}` : ""}
-                  </p>
+                <div className="mt-1 flex flex-wrap items-center gap-1">
+                  <span className="text-[11px] font-medium text-ink-2">
+                    {CASE_STAGE[r.case_stage] ?? r.case_stage}
+                  </span>
+                  {r.derived.manualStatusChip ? (
+                    <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-ink-2">
+                      {r.derived.manualStatusChip}
+                    </span>
+                  ) : null}
+                  {r.derived.badges.map((badge) => (
+                    <span
+                      key={badge}
+                      className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400"
+                    >
+                      {badge}
+                    </span>
+                  ))}
+                </div>
+                {r.next_action ? (
+                  <p className="mt-1 truncate text-[11px] text-ink-3">다음: {r.next_action}</p>
                 ) : null}
                 {trackingState(r) ? (
                   <p className="mt-1 text-[11px] font-medium text-primary">
@@ -237,11 +276,11 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
               </div>
               <span
                 className={cn(
-                  "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium",
-                  STATUS_TONE[r.status] ?? "bg-secondary text-ink-2",
+                  "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                  DERIVED_TONE[r.derived.tone],
                 )}
               >
-                {statusLabel(r.status)}
+                {r.derived.label}
               </span>
               <ChevronRight className="size-4 shrink-0 text-ink-4" />
             </button>
@@ -328,6 +367,29 @@ function VisaDetail({
               프로그램
             </span>
           ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+              DERIVED_TONE[row.derived.tone],
+            )}
+          >
+            {row.derived.label}
+          </span>
+          {row.derived.manualStatusChip ? (
+            <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-ink-2">
+              {row.derived.manualStatusChip}
+            </span>
+          ) : null}
+          {row.derived.badges.map((badge) => (
+            <span
+              key={badge}
+              className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400"
+            >
+              {badge}
+            </span>
+          ))}
         </div>
         <p className="text-xs text-ink-3">
           {row.korean_name && row.stage_name ? `${row.korean_name} · ` : ""}

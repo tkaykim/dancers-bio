@@ -7,6 +7,7 @@ import type { MeetingInvite, MeetingTracking } from "@/components/admin/VisaMeet
 import type { OutboundMail } from "@/components/admin/VisaOutboundMailsPanel";
 import { VISA_MEETING_CAMPAIGN } from "@/lib/visa/tracking";
 import { makeVisaCaseToken } from "@/lib/quick-token";
+import { compareVisaCaseDerived, deriveVisaCaseState } from "@/lib/visa/case-state";
 
 export const metadata = { title: "비자 신청 관리 | deetz admin" };
 
@@ -118,7 +119,15 @@ export default async function AdminVisaPage() {
   const appIds = apps.map((a) => a.id);
 
   const dancerMap = new Map<string, { stage_name: string | null; korean_name: string | null; slug: string | null }>();
-  const privMap = new Map<string, { nationality: string | null; has_visa: boolean | null; visa_type: string | null }>();
+  const privMap = new Map<
+    string,
+    {
+      nationality: string | null;
+      has_visa: boolean | null;
+      visa_type: string | null;
+      is_korean_national: boolean | null;
+    }
+  >();
   const trackingMap = new Map<string, ReturnType<typeof summarizeTracking>>();
   const meetingTrackingMap = new Map<string, MeetingTracking>();
   const invitesMap = new Map<string, MeetingInvite[]>();
@@ -129,7 +138,7 @@ export default async function AdminVisaPage() {
       admin.from("dancers").select("id, stage_name, korean_name, slug").in("id", dancerIds),
       admin
         .from("dancer_private_info")
-        .select("dancer_id, nationality, has_visa, visa_type")
+        .select("dancer_id, nationality, has_visa, visa_type, nationality_code, is_korean_national")
         .in("dancer_id", dancerIds),
     ]);
     for (const d of (dancers ?? []) as unknown as Array<{
@@ -145,11 +154,16 @@ export default async function AdminVisaPage() {
       nationality: string | null;
       has_visa: boolean | null;
       visa_type: string | null;
+      nationality_code: string | null;
+      is_korean_national: boolean | null;
     }>) {
       privMap.set(p.dancer_id, {
         nationality: p.nationality,
         has_visa: p.has_visa,
         visa_type: p.visa_type,
+        // 한국 국적은 표시 문자열이 아니라 구조화 신호로 판정한다 (/visa/apply 차단 조건과 동일).
+        is_korean_national:
+          p.is_korean_national ?? (p.nationality_code ? p.nationality_code.toUpperCase() === "KR" : null),
       });
     }
   }
@@ -195,7 +209,7 @@ export default async function AdminVisaPage() {
     }
   }
 
-  const rows: VisaAdminRow[] = apps.map((a) => {
+  const baseRows: Omit<VisaAdminRow, "derived">[] = apps.map((a) => {
     const d = a.dancer_id ? dancerMap.get(a.dancer_id) : undefined;
     const p = a.dancer_id ? privMap.get(a.dancer_id) : undefined;
     return {
@@ -219,6 +233,7 @@ export default async function AdminVisaPage() {
       korean_name: d?.korean_name ?? null,
       slug: d?.slug ?? null,
       nationality: p?.nationality ?? null,
+      is_korean_national: p?.is_korean_national ?? null,
       has_visa: p?.has_visa ?? null,
       visa_label: p?.visa_type ? visaLabel(p.visa_type) : null,
       case_url: `${SITE_URL}/visa/case/${makeVisaCaseToken(a.id)}`,
@@ -253,7 +268,13 @@ export default async function AdminVisaPage() {
     };
   });
 
-  const newCount = rows.filter((r) => r.status === "new").length;
+  // 파생 상태·정렬은 서버에서 고정 시각으로 계산한다 (클라이언트 Date.now()는 hydration이 흔들린다).
+  const nowIso = new Date().toISOString();
+  const rows: VisaAdminRow[] = baseRows
+    .map((row) => ({ ...row, derived: deriveVisaCaseState(row, nowIso) }))
+    .sort((a, b) => compareVisaCaseDerived(a.derived, b.derived));
+
+  const actionCount = rows.filter((r) => r.derived.sortBucket === 0).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -262,7 +283,7 @@ export default async function AdminVisaPage() {
         <h1 className="text-2xl font-bold leading-tight tracking-tight">E-6-1 비자 신청</h1>
         <p className="text-sm text-ink-2">
           /visa 온보딩으로 들어온 해외 댄서 신청. 총 {rows.length}건
-          {newCount > 0 ? ` · 신규 ${newCount}건` : ""}.
+          {actionCount > 0 ? ` · 지금 처리할 것 ${actionCount}건` : ""}.
         </p>
       </header>
 
