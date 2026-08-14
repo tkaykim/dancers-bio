@@ -65,7 +65,12 @@ function checkRow(label, done, hint) {
     </td></tr>`;
 }
 
-// d = { name, email, hasPhoto, careerCount, hasBio, hasSns }
+function unsubRow(d) {
+  if (!d.unsubscribeToken) return "";
+  return `<br><a href="https://www.deetz.kr/unsubscribe/${d.unsubscribeToken}" style="color:#a1a1aa;text-decoration:underline;">수신거부</a>`;
+}
+
+// d = { name, email, hasPhoto, careerCount, hasBio, hasSns, unsubscribeToken }
 // ⚠ hasSns 미전달 시 전원 "미연결"로 표시된다. 호출부(대상 조회)에서 social_links 를 함께 읽을 것.
 export function buildEmail(d) {
   const name = d.name || "댄서";
@@ -96,6 +101,9 @@ export function buildEmail(d) {
     ``,
     `deetz · 댄서 매거진 & 캐스팅 플랫폼`,
     `deetz.kr · contact@deetz.kr`,
+    ...(d.unsubscribeToken
+      ? [``, `수신거부: https://www.deetz.kr/unsubscribe/${d.unsubscribeToken}`]
+      : []),
   ].join("\n");
 
   const html = `<html lang="ko"><body style="margin:0;padding:0;background:#f4f4f5;">
@@ -132,13 +140,12 @@ export function buildEmail(d) {
 <tr><td style="padding:22px 32px 28px;border-top:1px solid #ececef;background:#fafafa;">
   <img src="https://www.deetz.kr/brand/deetz-logo-black.png" alt="deetz" width="41" height="20" style="display:block;height:20px;width:auto;border:0;">
   <div style="font-size:12px;color:#6b7280;margin:6px 0 14px;">댄서 매거진 &amp; 캐스팅 플랫폼</div>
-  <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-    <td style="padding-right:10px;"><a href="https://www.youtube.com/@deetzmagazine"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/youtube.png" width="30" height="30" alt="YouTube" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
-    <td><a href="https://www.instagram.com/deetz.kr/"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/instagram.png" width="30" height="30" alt="Instagram" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
-  </tr></table>
-  <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:14px;">
-    <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:contact@deetz.kr" style="color:#44474d;text-decoration:none;">contact@deetz.kr</a></div>
-  <div style="font-size:11px;color:#a1a1aa;margin-top:12px;line-height:1.6;">© 2026 deetz. All rights reserved.<br>이 메일은 deetz에 등록된 주소로 발송되었습니다.</div></td></tr>
+  <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:6px;">
+    <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp;
+    <a href="mailto:contact@deetz.kr" style="color:#44474d;text-decoration:none;">contact@deetz.kr</a> &nbsp;·&nbsp;
+    <a href="https://www.instagram.com/deetz.kr/" style="color:#44474d;text-decoration:none;">Instagram</a> &nbsp;·&nbsp;
+    <a href="https://www.youtube.com/@deetzmagazine" style="color:#44474d;text-decoration:none;">YouTube</a></div>
+  <div style="font-size:11px;color:#a1a1aa;margin-top:12px;line-height:1.6;">© 2026 deetz. All rights reserved.<br>이 메일은 deetz에 등록된 주소로 발송되었습니다.${unsubRow(d)}</div></td></tr>
 </table></td></tr></table>
 ${trackingPixel(d.email)}
 </body></html>`;
@@ -186,7 +193,67 @@ async function getRecipients() {
     }
   }
   for (const r of rows) r.has_sns = snsBy.get(r.dancer_id) ?? false;
-  return rows;
+
+  // 수신거부 토큰 확보 + 전체 수신거부자 제외.
+  // dancer -> profile 매핑이 필요하므로 dancers 에서 함께 읽는다.
+  const ownerBy = new Map();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data: ds } = await supa()
+      .from("dancers").select("id, profile_id").in("id", ids.slice(i, i + 200));
+    for (const d of ds ?? []) if (d.profile_id) ownerBy.set(d.id, d.profile_id);
+  }
+  const owners = [...new Set([...ownerBy.values()])];
+  const prefBy = new Map();
+  for (let i = 0; i < owners.length; i += 200) {
+    const { data: ps } = await supa()
+      .from("notification_preferences")
+      .select("user_id, email_unsubscribed_all, unsubscribe_token")
+      .in("user_id", owners.slice(i, i + 200));
+    for (const p of ps ?? []) prefBy.set(p.user_id, p);
+  }
+  // RPC 는 approval_status / is_active 를 필터하지 않는다.
+  // 실측(2026-08-14): 649명 안에 approved 136 · rejected 1 · inactive 4 가 섞여 있었다.
+  // 승인된 사람에게 "프로필이 거의 비어 있어요" 를 보내면 안 되고,
+  // 거절·비활성 프로필은 애초에 발송 대상이 아니다.
+  const stateBy = new Map();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data: ds } = await supa()
+      .from("dancers")
+      .select("id, approval_status, is_active")
+      .in("id", ids.slice(i, i + 200));
+    for (const d of ds ?? []) stateBy.set(d.id, d);
+  }
+
+  // 원장 파일이 유실돼도 같은 사람에게 두 번 보내지 않도록,
+  // 열람 기록(email_opens)에 남은 주소는 무조건 억제한다.
+  // ⚠ 열람자는 실제 수신자의 부분집합일 뿐이라 이것만으로는 부족하다 —
+  //    정확한 복원은 Gmail 보낸편지함(IMAP) 조회가 필요하다.
+  const suppressed = new Set();
+  {
+    const { data: opens } = await supa()
+      .from("email_opens")
+      .select("recipient_email")
+      .eq("campaign", CAMPAIGN);
+    for (const e of opens ?? []) {
+      if (e.recipient_email) suppressed.add(e.recipient_email.toLowerCase());
+    }
+  }
+
+  const kept = [];
+  const drop = { 수신거부: 0, 승인됨: 0, 비활성: 0, 거절됨: 0, 기발송추정: 0 };
+  for (const r of rows) {
+    const st = stateBy.get(r.dancer_id);
+    if (st?.is_active === false) { drop.비활성 += 1; continue; }
+    if (st?.approval_status === "rejected") { drop.거절됨 += 1; continue; }
+    if (st?.approval_status === "approved") { drop.승인됨 += 1; continue; }
+    if (suppressed.has((r.email ?? "").toLowerCase())) { drop.기발송추정 += 1; continue; }
+    const pref = prefBy.get(ownerBy.get(r.dancer_id));
+    if (pref?.email_unsubscribed_all) { drop.수신거부 += 1; continue; }
+    r.unsubscribeToken = pref?.unsubscribe_token ?? null;
+    kept.push(r);
+  }
+  console.log(`  제외 — ${Object.entries(drop).map(([k, v]) => `${k} ${v}`).join(" · ")}`);
+  return kept;
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -198,16 +265,21 @@ async function runSend(maxN) {
   console.log(`recipients=${all.length} pending=${pending.length} sending=${batch.length}`);
   if (batch.length === 0) { console.log("nothing to send."); return; }
 
+  // pool 연결 — 메일마다 SMTP 로그인을 새로 열면 Gmail 454-4.7.0 Too many login attempts 에 걸린다.
+  // 2026-08-05 에 실제로 발생했고, 이 스크립트에 pool 이 없던 것이 유력한 원인이다.
   const t = nodemailer.createTransport({
     service: "gmail",
     auth: { user: MAIL_USER(), pass: MAIL_PASS() },
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 100,
   });
 
   let ok = 0, fail = 0;
   for (const r of batch) {
     const { subject, text, html } = buildEmail({
       name: r.name, email: r.email,
-      hasPhoto: r.has_photo, careerCount: r.career_count, hasBio: r.has_bio, hasSns: r.has_sns,
+      hasPhoto: r.has_photo, careerCount: r.career_count, hasBio: r.has_bio, hasSns: r.has_sns, unsubscribeToken: r.unsubscribeToken,
     });
     const ts = new Date().toISOString();
     try {
