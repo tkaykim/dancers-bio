@@ -53,3 +53,13 @@ _probe.cjs
 _authgen.cjs
 _full_email.html
 .gstack/
+
+# 로컬 도구·에이전트 산출물
+.gstack/
+.claude/
+supabase/.temp/
+
+# 메일 발송 산출물·로그 (수신자 이메일 포함 — public 레포에 올리지 않는다)
+scripts/out/
+scripts/profile-nudge-log.csv
+scripts/.profile-nudge-sent.json

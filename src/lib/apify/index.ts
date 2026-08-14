@@ -13,11 +13,12 @@ import { ApifyClient } from "apify-client";
 let _client: ApifyClient | null = null;
 
 export function apifyConfigured(): boolean {
-  return Boolean(process.env.APIFY_TOKEN);
+  return process.env.APIFY_ENABLED !== "false" && Boolean(process.env.APIFY_TOKEN);
 }
 
 function client(): ApifyClient {
   if (_client) return _client;
+  if (process.env.APIFY_ENABLED === "false") throw new Error("Apify emergency stop active");
   const token = process.env.APIFY_TOKEN;
   if (!token) throw new Error("APIFY_TOKEN 환경변수가 필요합니다.");
   _client = new ApifyClient({ token });
