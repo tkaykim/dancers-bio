@@ -661,7 +661,7 @@ export default function ReportPage() {
                       </p>
                       <input
                         className={inputCls}
-                        placeholder="예: deetz_magazine"
+                        placeholder="예: deetz.kr"
                         value={reporterInstagram}
                         onChange={(e) => setReporterInstagram(e.target.value)}
                         maxLength={100}
