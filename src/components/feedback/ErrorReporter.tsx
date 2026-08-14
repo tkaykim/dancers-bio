@@ -2,16 +2,17 @@
 
 import { useEffect } from "react";
 
-// 오류 로그에 1회용 토큰이 그대로 박히지 않게 경로 세그먼트를 마스킹한다.
-// /submit/<token> 같은 주소는 그 자체가 업로드 자격증명이라, error_logs.page_url 에
-// 평문으로 쌓이면 로그 열람자가 남의 제출 슬롯에 접근할 수 있다.
-// (Codex 교차검토 2026-08-14 지적)
-const TOKEN_PATH = /^\/(submit|s|sr|sz|w|fit|cast|unsubscribe|visa\/case)\/[^/]+/;
+// `/submit/<token>` 만 오류 로그에서 마스킹한다.
+// 이 경로는 로그인이 없는 대신 URL 자체가 업로드 자격증명이라 예외를 뒀다.
+// 다른 코드 경로는 건드리지 않는다 — 디버깅 때 실제 주소가 안 남으면 오히려 손해다.
+// (2026-08-14 대표 지시: 과도한 보안으로 기존 동작을 해치지 말 것)
+const SUBMIT_PATH = /^\/submit\/[^/]+/;
 
 function maskUrl(raw: string): string {
   try {
     const u = new URL(raw);
-    return u.origin + u.pathname.replace(TOKEN_PATH, "/$1/[token]") + u.search;
+    if (!SUBMIT_PATH.test(u.pathname)) return raw;
+    return u.origin + u.pathname.replace(SUBMIT_PATH, "/submit/[token]") + u.search;
   } catch {
     return raw;
   }
