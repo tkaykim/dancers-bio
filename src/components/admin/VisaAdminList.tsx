@@ -2,7 +2,16 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, ChevronRight, ExternalLink, Loader2, Trash2 } from "lucide-react";
+import {
+  ArrowDownAZ,
+  ArrowUpAZ,
+  Check,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+  Search,
+  Trash2,
+} from "lucide-react";
 import {
   deleteVisaApplicationAction,
   updateVisaApplicationAction,
@@ -114,6 +123,48 @@ const QUEUES: { key: VisaCaseQueue; label: string; tone: VisaCaseTone }[] = [
   { key: "meeting", label: "미팅 예정", tone: "meeting" },
 ];
 
+type SortKey = "default" | "name" | "created" | "meeting";
+
+const SORTS: { v: SortKey; l: string }[] = [
+  { v: "default", l: "처리 우선순위" },
+  { v: "name", l: "이름" },
+  { v: "created", l: "신청일" },
+  { v: "meeting", l: "미팅일" },
+];
+
+const SOURCES: { v: string; l: string }[] = [
+  { v: "all", l: "전체 경로" },
+  { v: "program", l: "프로그램" },
+  { v: "visa", l: "비자 직접" },
+];
+
+const LANGS: { v: string; l: string }[] = [
+  { v: "all", l: "전체 언어" },
+  { v: "ko", l: "한국어" },
+  { v: "en", l: "English" },
+  { v: "ja", l: "日本語" },
+];
+
+const SELECT_CLASS =
+  "min-h-9 rounded-xl border border-border bg-background px-2.5 text-[13px] text-foreground focus:border-primary focus:outline-none";
+
+function searchHaystack(r: VisaAdminRow) {
+  return [r.stage_name, r.korean_name, r.email, r.nationality, r.next_action]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+/** 미팅이 없는 행은 방향과 무관하게 항상 뒤로 보낸다. */
+function compareMeeting(a: VisaAdminRow, b: VisaAdminRow, dir: 1 | -1) {
+  const at = a.derived.meetingAt ? new Date(a.derived.meetingAt).getTime() : null;
+  const bt = b.derived.meetingAt ? new Date(b.derived.meetingAt).getTime() : null;
+  if (at == null && bt == null) return 0;
+  if (at == null) return 1;
+  if (bt == null) return -1;
+  return (at - bt) * dir;
+}
+
 const SKILL: Record<number, string> = {
   1: "트레이닝 필요",
   2: "어느 정도",
@@ -157,6 +208,12 @@ function trackingState(row: VisaAdminRow) {
 export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [queue, setQueue] = useState<VisaCaseQueue | null>(null);
+  const [q, setQ] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("default");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [source, setSource] = useState("all");
+  const [lang, setLang] = useState("all");
+  const [hideParked, setHideParked] = useState(false);
   const selected = rows.find((r) => r.id === selectedId) ?? null;
 
   if (rows.length === 0) {
@@ -171,7 +228,31 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
     ...q,
     count: rows.filter((r) => r.derived.queue === q.key).length,
   }));
-  const visible = queue ? rows.filter((r) => r.derived.queue === queue) : rows;
+  const visible = (() => {
+    const needle = q.trim().toLowerCase();
+    const dir: 1 | -1 = sortDir === "asc" ? 1 : -1;
+    const filtered = rows.filter((r) => {
+      if (queue && r.derived.queue !== queue) return false;
+      if (hideParked && r.derived.sortBucket === 4) return false;
+      if (source !== "all" && r.source !== source) return false;
+      if (lang !== "all" && r.preferred_lang !== lang) return false;
+      if (needle && !searchHaystack(r).includes(needle)) return false;
+      return true;
+    });
+    if (sortKey === "default") {
+      return dir === 1 ? filtered : [...filtered].reverse();
+    }
+    return [...filtered].sort((a, b) => {
+      if (sortKey === "name") return displayName(a).localeCompare(displayName(b), "ko") * dir;
+      if (sortKey === "created") {
+        return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
+      }
+      return compareMeeting(a, b, dir);
+    });
+  })();
+
+  const narrowed = visible.length !== rows.length;
+  const filterActive = Boolean(queue) || hideParked || source !== "all" || lang !== "all" || q.trim() !== "";
 
   return (
     <>
@@ -201,23 +282,104 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
             </span>
           </button>
         ))}
-        {queue ? (
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-[200px] flex-1 items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
+          <Search size={15} className="shrink-0 text-ink-3" aria-hidden />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="이름·이메일·국적 검색"
+            className="w-full bg-transparent text-sm outline-none placeholder:text-ink-3"
+          />
+        </div>
+
+        <select
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value as SortKey)}
+          aria-label="정렬 기준"
+          className={SELECT_CLASS}
+        >
+          {SORTS.map((s) => (
+            <option key={s.v} value={s.v}>
+              {s.l}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
+          aria-label={sortDir === "asc" ? "오름차순 (누르면 내림차순)" : "내림차순 (누르면 오름차순)"}
+          title={sortDir === "asc" ? "오름차순" : "내림차순"}
+          className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-border bg-background px-2.5 text-[13px] font-medium hover:bg-secondary"
+        >
+          {sortDir === "asc" ? <ArrowUpAZ className="size-4" /> : <ArrowDownAZ className="size-4" />}
+          {sortDir === "asc" ? "오름차순" : "내림차순"}
+        </button>
+
+        <select
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
+          aria-label="신청 경로"
+          className={SELECT_CLASS}
+        >
+          {SOURCES.map((s) => (
+            <option key={s.v} value={s.v}>
+              {s.l}
+            </option>
+          ))}
+        </select>
+        <select
+          value={lang}
+          onChange={(e) => setLang(e.target.value)}
+          aria-label="지원자 언어"
+          className={SELECT_CLASS}
+        >
+          {LANGS.map((s) => (
+            <option key={s.v} value={s.v}>
+              {s.l}
+            </option>
+          ))}
+        </select>
+
+        <label className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-[13px] text-ink-2 hover:bg-secondary">
+          <input
+            type="checkbox"
+            checked={hideParked}
+            onChange={(e) => setHideParked(e.target.checked)}
+            className="size-3.5 accent-current"
+          />
+          테스트·대상 아님 숨기기
+        </label>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-[13px] text-ink-3">
+        <span>
+          {narrowed ? `${visible.length}건 표시 (전체 ${rows.length}건)` : `${rows.length}건`}
+        </span>
+        {filterActive ? (
           <button
             type="button"
-            onClick={() => setQueue(null)}
-            className="min-h-9 px-2 text-[13px] text-ink-3 hover:text-foreground"
+            onClick={() => {
+              setQueue(null);
+              setQ("");
+              setSource("all");
+              setLang("all");
+              setHideParked(false);
+            }}
+            className="font-medium text-foreground underline underline-offset-2"
           >
-            전체 보기
+            필터 초기화
           </button>
         ) : null}
       </div>
 
       {visible.length === 0 ? (
         <p className="rounded-xl border border-border bg-card p-8 text-center text-sm text-ink-3">
-          이 항목에 해당하는 신청이 없습니다.
+          조건에 맞는 신청이 없습니다.
         </p>
-      ) : null}
-
+      ) : (
       <ul className="divide-y divide-hairline-2 overflow-hidden rounded-xl border border-border bg-card">
         {visible.map((r) => (
           <li key={r.id}>
@@ -287,6 +449,7 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
           </li>
         ))}
       </ul>
+      )}
 
       <Drawer
         open={selected != null}
