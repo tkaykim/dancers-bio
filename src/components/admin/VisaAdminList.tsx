@@ -111,13 +111,18 @@ const STATUS = VISA_STATUS_OPTIONS;
 // 색 면적을 넓게 쓰면 40행이 전부 형광색으로 보여 오히려 안 읽힌다.
 const DERIVED_TONE = "bg-secondary text-foreground";
 
-const TONE_DOT: Record<VisaCaseTone, string> = {
-  action: "bg-amber-500",
-  danger: "bg-rose-500",
-  meeting: "bg-emerald-500",
-  neutral: "bg-ink-4",
-  muted: "bg-ink-4/50",
+// 상태 LED — 색 면적은 점 하나로 두되, 옅은 발광(halo)을 줘서 켜져 있는 표시등처럼 읽히게 한다.
+const TONE_LED: Record<VisaCaseTone, string> = {
+  action: "bg-amber-400 shadow-[0_0_0_2px_rgba(245,158,11,0.16),0_0_5px_1px_rgba(245,158,11,0.7)]",
+  danger: "bg-rose-400 shadow-[0_0_0_2px_rgba(244,63,94,0.16),0_0_5px_1px_rgba(244,63,94,0.7)]",
+  meeting: "bg-emerald-400 shadow-[0_0_0_2px_rgba(16,185,129,0.16),0_0_5px_1px_rgba(16,185,129,0.65)]",
+  neutral: "bg-ink-4 shadow-[0_0_0_2px_rgba(20,18,12,0.06)]",
+  muted: "bg-ink-4/40",
 };
+
+function StatusLed({ tone, className }: { tone: VisaCaseTone; className?: string }) {
+  return <span aria-hidden className={cn("size-2 shrink-0 rounded-full", TONE_LED[tone], className)} />;
+}
 
 const QUEUES: { key: VisaCaseQueue; label: string; tone: VisaCaseTone }[] = [
   { key: "schedule", label: "일정 확정 필요", tone: "action" },
@@ -275,10 +280,7 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
               queue !== q.key && q.count === 0 && "opacity-50",
             )}
           >
-            <span
-              aria-hidden
-              className={cn("size-1.5 rounded-full", TONE_DOT[q.tone], queue === q.key && "bg-background")}
-            />
+            <StatusLed tone={q.tone} className={queue === q.key ? "bg-background shadow-none" : undefined} />
             {q.label}
             <span
               className={cn(
@@ -456,7 +458,7 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
                   DERIVED_TONE,
                 )}
               >
-                <span aria-hidden className={cn("size-1.5 rounded-full", TONE_DOT[r.derived.tone])} />
+                <StatusLed tone={r.derived.tone} />
                 {r.derived.label}
               </span>
               <ChevronRight className="size-4 shrink-0 text-ink-4" />
@@ -553,7 +555,7 @@ function VisaDetail({
               DERIVED_TONE,
             )}
           >
-            <span aria-hidden className={cn("size-1.5 rounded-full", TONE_DOT[row.derived.tone])} />
+            <StatusLed tone={row.derived.tone} />
             {row.derived.label}
           </span>
           {row.derived.manualStatusChip ? (
