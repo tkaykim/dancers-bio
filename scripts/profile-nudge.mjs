@@ -58,7 +58,8 @@ function checkRow(label, done, hint) {
     </td></tr>`;
 }
 
-// d = { name, email, hasPhoto, careerCount, hasBio }
+// d = { name, email, hasPhoto, careerCount, hasBio, hasSns }
+// ⚠ hasSns 미전달 시 전원 "미연결"로 표시된다. 호출부(대상 조회)에서 social_links 를 함께 읽을 것.
 export function buildEmail(d) {
   const name = d.name || "댄서";
   const safeName = esc(name);
@@ -75,19 +76,20 @@ export function buildEmail(d) {
     `- 프로필 사진: ${d.hasPhoto ? "작성 완료" : "미작성"}`,
     `- 경력(작품/활동): ${careerDone ? "작성 완료" : "미작성 또는 부족"}`,
     `- 소개글: ${d.hasBio ? "작성 완료" : "미작성"}`,
+    `- SNS 연결: ${d.hasSns ? "연결 완료" : "미연결"}`,
     ``,
     `2~3분이면 채울 수 있어요.`,
     `내 프로필 채우러 가기: ${EDIT_URL}`,
     ``,
     `deetz · 댄서 매거진 & 캐스팅 플랫폼`,
-    `deetz.kr · dancers.bio.kr@gmail.com`,
+    `deetz.kr · contact@deetz.kr`,
   ].join("\n");
 
   const html = `<html lang="ko"><body style="margin:0;padding:0;background:#f4f4f5;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 12px;"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #ececef;border-radius:18px;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun Gothic',Helvetica,Arial,sans-serif;">
 <tr><td style="padding:28px 32px 18px;border-bottom:1px solid #ececef;">
-  <div style="font-size:26px;font-weight:800;letter-spacing:-1px;color:#111111;line-height:1;">deetz<span style="color:#d4d4d8;">.</span></div>
+  <img src="https://www.deetz.kr/brand/deetz-logo-black.png" alt="deetz" width="58" height="28" style="display:block;height:28px;width:auto;border:0;">
   <div style="font-size:12px;color:#6b7280;margin-top:6px;">댄서 매거진 &amp; 캐스팅 플랫폼</div></td></tr>
 <tr><td style="padding:30px 32px 8px;color:#111111;">
   <span style="display:inline-block;background:#f1f1f3;color:#6b7280;font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;">프로필 채우기 안내</span>
@@ -100,20 +102,21 @@ export function buildEmail(d) {
     ${checkRow("프로필 사진", d.hasPhoto, "얼굴이 잘 보이는 대표 사진 1장이면 충분해요.")}
     ${checkRow("경력 (작품·활동)", careerDone, "참여한 안무·영상·공연·대회를 추가해 주세요. 영상 링크도 좋아요.")}
     ${checkRow("소개글", d.hasBio, "어떤 장르·스타일의 댄서인지 2~3줄이면 됩니다.")}
+    ${checkRow("SNS 연결", d.hasSns, "인스타그램 등 활동 계정을 연결해 주세요. 캐스팅 담당자가 실제 영상을 확인합니다.")}
     </tbody></table></div></td></tr>
 <tr><td style="padding:14px 32px 6px;">
   <p style="font-size:14px;line-height:1.75;color:#44474d;margin:0;">2~3분이면 채울 수 있어요.<br>채워둔 프로필은 캐스팅·매칭에서 먼저 노출됩니다.</p></td></tr>
 <tr><td style="padding:16px 32px 24px;">
   <a href="${EDIT_URL}" style="display:block;background:#111111;color:#ffffff;text-decoration:none;text-align:center;font-size:15px;font-weight:700;padding:15px 0;border-radius:12px;">내 프로필 채우러 가기 →</a></td></tr>
 <tr><td style="padding:22px 32px 28px;border-top:1px solid #ececef;background:#fafafa;">
-  <div style="font-size:16px;font-weight:800;letter-spacing:-0.5px;color:#111111;">deetz<span style="color:#d4d4d8;">.</span></div>
+  <img src="https://www.deetz.kr/brand/deetz-logo-black.png" alt="deetz" width="41" height="20" style="display:block;height:20px;width:auto;border:0;">
   <div style="font-size:12px;color:#6b7280;margin:6px 0 14px;">댄서 매거진 &amp; 캐스팅 플랫폼</div>
   <table role="presentation" cellpadding="0" cellspacing="0"><tr>
     <td style="padding-right:10px;"><a href="https://www.youtube.com/@deetzmagazine"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/youtube.png" width="30" height="30" alt="YouTube" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
     <td><a href="https://www.instagram.com/deetz.kr/"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/instagram.png" width="30" height="30" alt="Instagram" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
   </tr></table>
   <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:14px;">
-    <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:dancers.bio.kr@gmail.com" style="color:#44474d;text-decoration:none;">dancers.bio.kr@gmail.com</a></div>
+    <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:contact@deetz.kr" style="color:#44474d;text-decoration:none;">contact@deetz.kr</a></div>
   <div style="font-size:11px;color:#a1a1aa;margin-top:12px;line-height:1.6;">© 2026 deetz. All rights reserved.<br>이 메일은 deetz에 등록된 주소로 발송되었습니다.</div></td></tr>
 </table></td></tr></table>
 ${trackingPixel(d.email)}
