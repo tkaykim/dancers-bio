@@ -99,7 +99,7 @@ export async function sendApplicationRejectionEmail(params: {
     ``,
     `deetz · 댄서 매거진 & 캐스팅 플랫폼`,
     `deetz.kr · contact@deetz.kr`,
-    `Instagram instagram.com/deetz_magazine · YouTube youtube.com/@deetzmagazine`,
+    `Instagram instagram.com/deetz.kr · YouTube youtube.com/@deetzmagazine`,
   ].join("\n");
 
   // 실제 발송 중인 deetz "프로필 승인" 메일과 동일 양식(560px 카드 + SNS 아이콘 푸터).
@@ -132,7 +132,7 @@ export async function sendApplicationRejectionEmail(params: {
   <div style="font-size:12px;color:#6b7280;margin:10px 0 14px;">댄서 매거진 &amp; 캐스팅 플랫폼</div>
   <table role="presentation" cellpadding="0" cellspacing="0"><tr>
     <td style="padding-right:10px;"><a href="https://www.youtube.com/@deetzmagazine"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/youtube.png" width="30" height="30" alt="YouTube" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
-    <td><a href="https://www.instagram.com/deetz_magazine/"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/instagram.png" width="30" height="30" alt="Instagram" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
+    <td><a href="https://www.instagram.com/deetz.kr/"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/instagram.png" width="30" height="30" alt="Instagram" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
   </tr></table>
   <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:14px;">
     <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:contact@deetz.kr" style="color:#44474d;text-decoration:none;">contact@deetz.kr</a></div>

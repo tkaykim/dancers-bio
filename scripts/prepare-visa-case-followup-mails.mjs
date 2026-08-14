@@ -187,7 +187,7 @@ function renderMail({ lang, name, trackingUrl, openPixelUrl }) {
   <div style="font-size:12px;color:#6b7280;margin:10px 0 14px;">${c.tagline}</div>
   <table role="presentation" cellpadding="0" cellspacing="0"><tr>
     <td style="padding-right:10px;"><a href="https://www.youtube.com/@deetzmagazine"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/youtube.png" width="30" height="30" alt="YouTube" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
-    <td><a href="https://www.instagram.com/deetz_magazine/"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/instagram.png" width="30" height="30" alt="Instagram" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
+    <td><a href="https://www.instagram.com/deetz.kr/"><img src="https://wvfmqiajdvbsevlhlgtl.supabase.co/storage/v1/object/public/profile-photos/assets/email/instagram.png" width="30" height="30" alt="Instagram" style="display:block;border-radius:8px;border:1px solid #ececef;"></a></td>
   </tr></table>
   <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:14px;">
     <a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:${REPLY_TO}" style="color:#44474d;text-decoration:none;">${REPLY_TO}</a></div>
