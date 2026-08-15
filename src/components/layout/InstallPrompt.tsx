@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Download, Share, Plus, X } from "lucide-react";
+import { getBrandFromHost } from "@/lib/brand";
 
 // 설치 유도 배너 — 전역 마운트(루트 레이아웃).
 // - Android/데스크톱 Chrome·Edge: beforeinstallprompt 포착 → "앱 설치" 버튼 → prompt()
@@ -123,6 +124,12 @@ export function InstallPrompt() {
 
   // 비자 온보딩 퍼널(/visa, /visa/apply)에서는 집중도를 위해 설치 배너 숨김.
   if (pathname?.startsWith("/visa")) return null;
+  // GRIGO 화이트라벨 호스트에서는 deetz 앱 설치 유도를 노출하지 않는다.
+  if (
+    typeof window !== "undefined" &&
+    getBrandFromHost(window.location.host) === "grigo"
+  )
+    return null;
   if (!mode) return null;
 
   return (

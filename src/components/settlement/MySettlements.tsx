@@ -62,6 +62,8 @@ export function MySettlements({
   residentNumberRegistered,
   docs,
   dancerNames,
+  // 화이트라벨(/w GRIGO 호스트)에서 원천징수 주체 표기를 브랜드에 맞추기 위한 표시명.
+  brandName = "deetz",
 }: {
   settlements: MySettlementRow[];
   accounts: Record<string, PayoutAccount | null>;
@@ -69,6 +71,7 @@ export function MySettlements({
   residentNumberRegistered: Record<string, boolean>;
   docs: Record<string, DancerDocsState>;
   dancerNames: Record<string, string>;
+  brandName?: string;
 }) {
   const router = useRouter();
   const [confirm, setConfirm] = useState<MySettlementRow | null>(null);
@@ -299,6 +302,7 @@ export function MySettlements({
         <WithdrawDialog
           row={confirm}
           account={accounts[confirm.dancerId] ?? null}
+          brandName={brandName}
           onClose={() => setConfirm(null)}
           onDone={() => {
             setConfirm(null);
@@ -604,11 +608,13 @@ function AccountCard({
 function WithdrawDialog({
   row,
   account,
+  brandName,
   onClose,
   onDone,
 }: {
   row: MySettlementRow;
   account: PayoutAccount | null;
+  brandName: string;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -660,7 +666,7 @@ function WithdrawDialog({
             국세청에 납부되는 세금이에요 (소득세 3% + 지방소득세 0.3%).
           </p>
           <p className="mt-1 text-blue-700">
-            deetz가 댄서님 대신 원천징수·신고하고, 매년 5월 종합소득세 신고 때
+            {brandName}가 댄서님 대신 원천징수·신고하고, 매년 5월 종합소득세 신고 때
             환급받으실 수도 있어요.
           </p>
         </div>

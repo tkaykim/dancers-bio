@@ -40,6 +40,7 @@ import {
 } from "@/components/casting/CastingBoardPanel";
 import { formatWhen } from "@/lib/format-when";
 import { classifyProjectIdentifier } from "@/lib/projectId";
+import { GRIGO_SETTLE_ORIGIN } from "@/lib/brand";
 
 type Application = {
   id: string;
@@ -816,6 +817,7 @@ export default async function ApplicantsPage({
 
           <WithdrawalLinkPanel
             url={`https://deetz.kr/w/${p.settlement_share_code}`}
+            grigoUrl={`${GRIGO_SETTLE_ORIGIN}/w/${p.settlement_share_code}`}
           />
 
           <Link

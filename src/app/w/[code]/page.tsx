@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { type ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { DeetzLogo } from "@/components/brand/DeetzLogo";
+import type { Metadata } from "next";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { BRAND_META, type Brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand-server";
 import { getUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveDancerIdForUserInProject } from "@/lib/schedule/resolve";
@@ -20,16 +23,18 @@ import {
 } from "@/lib/payout-validation";
 
 function Shell({
+  brand,
   projectTitle,
   children,
 }: {
+  brand: Brand;
   projectTitle: string;
   children: ReactNode;
 }) {
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-6 py-10">
       <div className="flex flex-col gap-2">
-        <DeetzLogo className="h-8 w-auto" priority />
+        <BrandLogo brand={brand} className="h-8 w-auto" priority />
         <h1 className="text-xl font-bold leading-tight">정산 · 출금 신청</h1>
         <p className="text-sm text-ink-2">{projectTitle}</p>
       </div>
@@ -40,6 +45,18 @@ function Shell({
 
 // 단톡방 공유용 출금신청 링크. /w/<settlement_share_code> (프로젝트 단위)
 // 신원확인 = 로그인 세션 → 본인 댄서 해석 → 자기 정산건 출금 신청.
+// GRIGO 화이트라벨 호스트: 탭 제목 브랜드 정합 + 검색 비노출.
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getBrand();
+  if (brand === "grigo") {
+    return {
+      title: { absolute: "GRIGO ENT 정산 · 출금" },
+      robots: { index: false, follow: false },
+    };
+  }
+  return {};
+}
+
 export default async function WithdrawSharePage({
   params,
 }: {
@@ -61,13 +78,17 @@ export default async function WithdrawSharePage({
 
   const loginHref = `/login?next=${encodeURIComponent(`/w/${code}`)}`;
 
+  const brand = await getBrand();
+
   const user = await getUser();
   if (!user) {
     return (
-      <Shell projectTitle={projectTitle}>
+      <Shell brand={brand} projectTitle={projectTitle}>
         <div className="flex flex-col gap-3">
           <p className="text-sm text-ink-2">
-            출금 신청을 하려면 deetz 로그인이 필요합니다.
+            {brand === "grigo"
+              ? "출금 신청을 하려면 그리고엔터테인먼트 정산 시스템 로그인이 필요합니다."
+              : "출금 신청을 하려면 deetz 로그인이 필요합니다."}
             <br />
             지원하신 계정으로 로그인하시면 자동으로 본인 확인됩니다.
           </p>
@@ -85,7 +106,7 @@ export default async function WithdrawSharePage({
   const dancerId = await resolveDancerIdForUserInProject(projectId, user.id);
   if (!dancerId) {
     return (
-      <Shell projectTitle={projectTitle}>
+      <Shell brand={brand} projectTitle={projectTitle}>
         <div className="flex flex-col gap-3 rounded-2xl border border-warn/30 bg-warn/10 p-5 text-center">
           <p className="text-sm font-semibold">
             이 프로젝트에 지원/참여한 기록이 없어요.
@@ -118,7 +139,7 @@ export default async function WithdrawSharePage({
 
   if (!s) {
     return (
-      <Shell projectTitle={projectTitle}>
+      <Shell brand={brand} projectTitle={projectTitle}>
         <div className="rounded-2xl border border-border bg-card p-5 text-center text-sm text-ink-2">
           아직 정산 금액이 등록되지 않았어요.
           <br />
@@ -166,7 +187,7 @@ export default async function WithdrawSharePage({
   };
 
   return (
-    <Shell projectTitle={projectTitle}>
+    <Shell brand={brand} projectTitle={projectTitle}>
       <MySettlements
         settlements={settlements}
         accounts={accounts}
@@ -178,6 +199,7 @@ export default async function WithdrawSharePage({
         }}
         docs={docs}
         dancerNames={{ [dancerId]: dancerName }}
+        brandName={BRAND_META[brand].orgName}
       />
     </Shell>
   );

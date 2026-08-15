@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MapPin } from "lucide-react";
-import { DeetzLogo } from "@/components/brand/DeetzLogo";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { getBrand } from "@/lib/brand-server";
 import { getUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveDancerIdForUserInProject } from "@/lib/schedule/resolve";
@@ -22,6 +23,8 @@ export default async function ScheduleSurveyPage({
 }) {
   const { code } = await params;
   if (!code) notFound();
+
+  const brand = await getBrand();
 
   const admin = createAdminClient();
   const { data: project } = await admin
@@ -108,7 +111,7 @@ export default async function ScheduleSurveyPage({
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-6 py-10">
       <div className="flex flex-col gap-2">
-        <DeetzLogo className="h-8 w-auto" priority />
+        <BrandLogo brand={brand} className="h-8 w-auto" priority />
         <h1 className="text-xl font-bold leading-tight">
           일정 참석 가능 여부를 알려주세요
         </h1>
