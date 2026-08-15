@@ -71,6 +71,10 @@ type Copy = {
   disclaimer: string;
   sheetCredits: string;
   sheetProfile: string;
+  villageBadge: string;
+  villageTitle: string;
+  villageBody: string;
+  villageCta: string;
 };
 
 // GRIGO 소속 댄서 로스터 — deetz DB 실데이터 (프로필 사진=deetz 공개 스토리지)
@@ -302,6 +306,11 @@ const T: Record<Lang, Copy> = {
     disclaimer: "Visa approval is decided by Korea Immigration, and casting is decided by each project. deetz provides preparation, application support, and project opportunities, but does not guarantee a visa or work.",
     sheetCredits: "Selected work",
     sheetProfile: "View deetz profile",
+    villageBadge: "Coming soon",
+    villageTitle: "deetz Village — housing without key money",
+    villageBody:
+      "Renting in Seoul normally means a 10–20 million KRW deposit before your first month's rent. We are preparing a dancer house where you can start without it. It is not open yet — we are checking demand first.",
+    villageCta: "See deetz Village",
   },
   ja: {
     eyebrow: "K-DEBUT · deetz × GRIGO Entertainment",
@@ -358,6 +367,11 @@ const T: Record<Lang, Copy> = {
     disclaimer: "ビザ発給は韓国の出入国当局が、キャスティングは各プロジェクトが判断します。deetzは準備・申請支援と案件機会を提供しますが、ビザや仕事を保証しません。",
     sheetCredits: "主な活動",
     sheetProfile: "deetzプロフィールを見る",
+    villageBadge: "準備中",
+    villageTitle: "deetz Village — 保証金なしの住まい",
+    villageBody:
+      "ソウルで部屋を借りるには、家賃の前に1,000万〜2,000万ウォンの保証金が必要です。それがなくても始められるダンサーハウスを準備しています。まだオープン前で、いまは需要を確認している段階です。",
+    villageCta: "deetz Villageを見る",
   },
   ko: {
     eyebrow: "K-DEBUT · deetz × 그리고엔터테인먼트",
@@ -414,6 +428,11 @@ const T: Record<Lang, Copy> = {
     disclaimer: "비자 발급은 한국 출입국 당국이, 캐스팅은 각 프로젝트가 결정합니다. deetz는 준비·신청 지원과 프로젝트 기회를 제공하지만 비자나 일거리를 보장하지 않습니다.",
     sheetCredits: "주요 활동",
     sheetProfile: "deetz 프로필 보기",
+    villageBadge: "오픈 준비 중",
+    villageTitle: "deetz Village — 보증금 없는 숙소",
+    villageBody:
+      "서울에서 방을 구하려면 첫 월세보다 먼저 보증금 1,000만~2,000만원이 필요합니다. 그 장벽 없이 시작할 수 있는 댄서 하우스를 준비하고 있습니다. 아직 오픈 전이고, 지금은 수요를 확인하는 단계입니다.",
+    villageCta: "deetz Village 보기",
   },
 };
 
@@ -613,6 +632,27 @@ export function ProgramLanding({
         })}
       </div>
       <p className="mt-4 text-sm font-semibold leading-relaxed text-foreground">{c.painClose}</p>
+
+      {/* deetz Village 예고 — 주거 장벽(보증금)에 대한 답이라 pain point 바로 뒤에 둔다. */}
+      <Link
+        href={`/village?lang=${lang}`}
+        className="mt-5 flex items-start gap-3 rounded-xl border-2 border-primary/30 bg-primary/5 p-4 transition-colors hover:border-primary/50 md:p-5"
+      >
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <Home className="size-5 text-primary" />
+        </div>
+        <div className="min-w-0">
+          <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+            {c.villageBadge}
+          </span>
+          <p className="mt-1.5 text-sm font-bold text-foreground">{c.villageTitle}</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{c.villageBody}</p>
+          <span className="mt-2 inline-flex items-center gap-1 text-[13px] font-semibold text-primary">
+            {c.villageCta}
+            <ArrowRight className="size-3.5" />
+          </span>
+        </div>
+      </Link>
 
       {/* Pillars */}
       <SectionTitle>{c.pillarsTitle}</SectionTitle>

@@ -18,6 +18,7 @@ import {
   TrendingUp,
   Wallet,
   Receipt,
+  Home,
 } from "lucide-react";
 
 type Item = {
@@ -51,6 +52,10 @@ const GROUPS: Group[] = [
       { href: "/admin/projects", label: "공고 관리", Icon: Megaphone, exact: true },
       { href: "/admin/projects/import", label: "공고 수집", Icon: Download },
     ],
+  },
+  {
+    title: "프로그램",
+    items: [{ href: "/admin/village", label: "Village 수요조사", Icon: Home, exact: true }],
   },
   {
     title: "수집 파이프",
