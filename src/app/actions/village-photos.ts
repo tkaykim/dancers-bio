@@ -23,7 +23,7 @@ const BUCKET = VILLAGE_PHOTO_BUCKET;
 const MAX_PER_OPTION = 40;
 const MAX_TOTAL = 120;
 
-const ALLOWED_MIME = ["image/jpeg", "image/pjpeg", "image/png", "image/webp", "image/gif"];
+const ALLOWED_MIME = ["image/jpeg", "image/pjpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 const ALLOWED_EXT = ["jpg", "jpeg", "png", "webp", "gif"];
 
 const OPTION_KEYS = ["a", "b", "common"] as const;
@@ -161,11 +161,42 @@ export async function registerVillagePhotoAction(
     return { ok: false, error: "서버 설정 오류로 업로드에 실패했습니다." };
   }
 
+  // 파일명은 이 액션이 발급한 UUID 형태만 인정한다 — 같은 폴더의 임의 오브젝트를 등록시키지 못하게.
   const folder = path.slice(0, path.lastIndexOf("/"));
   const name = path.slice(path.lastIndexOf("/") + 1);
-  const { data: found } = await admin.storage.from(BUCKET).list(folder, { search: name, limit: 1 });
-  if (!found || found.length === 0) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[a-z0-9]{2,5}$/i.test(name)) {
+    return { ok: false, error: "잘못된 업로드 경로입니다." };
+  }
+
+  // list(search) 는 부분일치 검색이라 이름이 정확히 같은 항목을 직접 골라낸다.
+  const { data: found } = await admin.storage.from(BUCKET).list(folder, { search: name, limit: 100 });
+  const object = found?.find((item) => item.name === name);
+  if (!object) {
     return { ok: false, error: "업로드된 사진을 찾지 못했습니다. 다시 시도해 주세요." };
+  }
+
+  // signed URL 발급 때 받은 값은 신고값일 뿐이다. 실제로 올라온 파일을 다시 본다.
+  const meta = (object.metadata ?? {}) as { size?: number; mimetype?: string };
+  const actualSize = typeof meta.size === "number" ? meta.size : 0;
+  const actualMime = (meta.mimetype ?? "").toLowerCase();
+  if (actualSize > VILLAGE_PHOTO_MAX_BYTES || (actualMime && !ALLOWED_MIME.includes(actualMime))) {
+    await admin.storage.from(BUCKET).remove([path]);
+    return { ok: false, error: "올린 파일이 허용되지 않는 형식이거나 너무 큽니다." };
+  }
+
+  // 동시 업로드로 상한이 넘어가지 않게 등록 직전에 한 번 더 센다.
+  const { count: liveTotal } = await admin
+    .from("village_photos")
+    .select("id", { count: "exact", head: true })
+    .eq("hidden", false);
+  const { count: livePerOption } = await admin
+    .from("village_photos")
+    .select("id", { count: "exact", head: true })
+    .eq("hidden", false)
+    .eq("option_key", optionKey);
+  if ((liveTotal ?? 0) >= MAX_TOTAL || (livePerOption ?? 0) >= MAX_PER_OPTION) {
+    await admin.storage.from(BUCKET).remove([path]);
+    return { ok: false, error: `사진 수 상한(옵션당 ${MAX_PER_OPTION}장·전체 ${MAX_TOTAL}장)에 도달했습니다.` };
   }
 
   const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
@@ -180,6 +211,17 @@ export async function registerVillagePhotoAction(
     .select("id, option_key, public_url, caption, created_at")
     .single();
   if (error || !row) {
+    // 재시도·중복 호출로 같은 path 를 다시 등록하면 storage_path UNIQUE 위반이 난다.
+    // 그때 파일을 지우면 이미 등록된 정상 사진이 깨진다 — 기존 행을 그대로 돌려준다.
+    if (error?.code === "23505") {
+      const { data: existing } = await admin
+        .from("village_photos")
+        .select("id, option_key, public_url, caption, created_at")
+        .eq("storage_path", path)
+        .single();
+      if (existing) return { ok: true, data: existing as VillagePhotoRow };
+      return { ok: false, error: "사진 정보 저장에 실패했습니다." };
+    }
     await admin.storage.from(BUCKET).remove([path]);
     return { ok: false, error: "사진 정보 저장에 실패했습니다." };
   }

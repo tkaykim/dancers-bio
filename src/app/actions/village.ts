@@ -77,10 +77,10 @@ export async function submitVillageWaitlistAction(
 
   const parsed = submitSchema.safeParse(input);
   if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    const message =
-      issue?.message === "REQUIRED_FIELDS" ? REQUIRED_MESSAGE[lang] : (issue?.message ?? GENERIC_MESSAGE[lang]);
-    return { ok: false, error: message };
+    // zod 기본 메시지는 영어라 ja/ko 사용자에게 그대로 나가면 안 된다.
+    // 우리가 직접 붙인 REQUIRED_FIELDS 만 필수항목 안내로 바꾸고, 나머지는 언어별 일반 메시지로 통일한다.
+    const required = parsed.error.issues.some((i) => i.message === "REQUIRED_FIELDS");
+    return { ok: false, error: required ? REQUIRED_MESSAGE[lang] : GENERIC_MESSAGE[lang] };
   }
   const d = parsed.data;
 
