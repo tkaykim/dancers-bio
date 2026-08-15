@@ -6,6 +6,23 @@
 
 export type Lang = "en" | "ja" | "ko";
 
+/** 정식 명칭 — 페이지·메타·메일 어디서든 이 상수를 쓴다. */
+export const VILLAGE_FULL_NAME = "deetz Village by GRIGO Entertainment";
+
+/**
+ * 한 문장이 끝나면 줄을 바꾼다(대표 지시, 전 BU 공통 규칙).
+ * 마침표·물음표·느낌표 뒤에서 끊고, 일본어 `。`는 뒤에 공백이 없어도 끊는다.
+ * ⚠ 카피에 `approx.` 같은 약어 마침표를 쓰면 그 자리에서도 끊기므로 약어를 쓰지 않는다.
+ */
+export function splitSentences(text: string): string[] {
+  return text
+    .replace(/([。！？])\s*/g, "$1\n")
+    .replace(/([.!?])\s+/g, "$1\n")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export const LANGS: { code: Lang; label: string }[] = [
   { code: "en", label: "EN" },
   { code: "ja", label: "日本語" },
@@ -112,7 +129,7 @@ export type Copy = {
   photosTitle: string;
   photosBody: string;
   photoPlaceholder: string;
-  photoCaptions: string[];
+  photoCommonLabel: string;
 
   // 가격
   priceTitle: string;
@@ -237,7 +254,7 @@ export const T: Record<Lang, Copy> = {
     photosTitle: "Photos",
     photosBody: "Real photos of the building and rooms are being prepared and will be added here.",
     photoPlaceholder: "Photo coming soon",
-    photoCaptions: ["Shared space with mirrors", "Room", "Kitchen & dining", "Building entrance"],
+    photoCommonLabel: "Shared space",
 
     priceTitle: "Planned pricing",
     priceBody:
@@ -247,7 +264,7 @@ export const T: Record<Lang, Copy> = {
       a: "Gangseo-gu, 2nd floor",
       b: "Gangseo-gu, 4th floor (with elevator)",
     },
-    planUpfront: "Prepaid (approx. 3 months of rent)",
+    planUpfront: "Prepaid (about 3 months of rent)",
     planFirstMonth: "First payment",
     planMonthly: "From the second month",
     planFirstMonthNote: "Prepaid amount + first month's rent",
@@ -401,7 +418,7 @@ export const T: Record<Lang, Copy> = {
     photosTitle: "写真",
     photosBody: "建物と部屋の実際の写真は準備中で、ここに追加されます。",
     photoPlaceholder: "写真は準備中です",
-    photoCaptions: ["鏡のある共用スペース", "部屋", "キッチン・ダイニング", "建物の入口"],
+    photoCommonLabel: "共用スペース",
 
     priceTitle: "予定料金",
     priceBody:
@@ -565,7 +582,7 @@ export const T: Record<Lang, Copy> = {
     photosTitle: "사진",
     photosBody: "건물과 방의 실제 사진은 준비 중이며, 확정되는 대로 이곳에 올라갑니다.",
     photoPlaceholder: "사진 준비 중",
-    photoCaptions: ["거울 있는 공용 공간", "객실", "주방·다이닝", "건물 입구"],
+    photoCommonLabel: "공용 공간",
 
     priceTitle: "예정 요금",
     priceBody:

@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
+import { splitSentences } from "@/components/village/copy";
 import { cn } from "@/lib/utils";
 
 type Lang = "en" | "ja" | "ko";
@@ -307,7 +308,7 @@ const T: Record<Lang, Copy> = {
     sheetCredits: "Selected work",
     sheetProfile: "View deetz profile",
     villageBadge: "Coming soon",
-    villageTitle: "deetz Village — housing without key money",
+    villageTitle: "deetz Village by GRIGO Entertainment",
     villageBody:
       "Renting in Seoul normally means a 10–20 million KRW deposit before your first month's rent. We are preparing a dancer house where you can start without it. It is not open yet — we are checking demand first.",
     villageCta: "See deetz Village",
@@ -368,7 +369,7 @@ const T: Record<Lang, Copy> = {
     sheetCredits: "主な活動",
     sheetProfile: "deetzプロフィールを見る",
     villageBadge: "準備中",
-    villageTitle: "deetz Village — 保証金なしの住まい",
+    villageTitle: "deetz Village by GRIGO Entertainment",
     villageBody:
       "ソウルで部屋を借りるには、家賃の前に1,000万〜2,000万ウォンの保証金が必要です。それがなくても始められるダンサーハウスを準備しています。まだオープン前で、いまは需要を確認している段階です。",
     villageCta: "deetz Villageを見る",
@@ -429,7 +430,7 @@ const T: Record<Lang, Copy> = {
     sheetCredits: "주요 활동",
     sheetProfile: "deetz 프로필 보기",
     villageBadge: "오픈 준비 중",
-    villageTitle: "deetz Village — 보증금 없는 숙소",
+    villageTitle: "deetz Village by GRIGO Entertainment",
     villageBody:
       "서울에서 방을 구하려면 첫 월세보다 먼저 보증금 1,000만~2,000만원이 필요합니다. 그 장벽 없이 시작할 수 있는 댄서 하우스를 준비하고 있습니다. 아직 오픈 전이고, 지금은 수요를 확인하는 단계입니다.",
     villageCta: "deetz Village 보기",
@@ -646,7 +647,13 @@ export function ProgramLanding({
             {c.villageBadge}
           </span>
           <p className="mt-1.5 text-sm font-bold text-foreground">{c.villageTitle}</p>
-          <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{c.villageBody}</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-ink-2">
+            {splitSentences(c.villageBody).map((line, li) => (
+              <span key={li} className="block">
+                {line}
+              </span>
+            ))}
+          </p>
           <span className="mt-2 inline-flex items-center gap-1 text-[13px] font-semibold text-primary">
             {c.villageCta}
             <ArrowRight className="size-3.5" />

@@ -25,17 +25,16 @@ import {
   MARKET,
   PLANS,
   T,
+  VILLAGE_FULL_NAME,
+  splitSentences,
   type Lang,
   type PlanKey,
 } from "./copy";
 
-// 실제 사진이 나오면 src만 채우면 된다 — 그때까지는 placeholder 타일로 렌더한다.
-const PHOTOS: { key: string; src?: string }[] = [
-  { key: "common" },
-  { key: "room" },
-  { key: "kitchen" },
-  { key: "entrance" },
-];
+/** 옵션별 실제 사진 — `/village/upload` 에서 올린다. 비어 있으면 placeholder 타일. */
+export type VillagePhoto = { id: string; optionKey: "a" | "b" | "common"; url: string; caption: string | null };
+
+const PHOTO_GROUPS = ["a", "b", "common"] as const;
 
 const FEATURE_ICONS = [Sparkles, BedDouble, UtensilsCrossed, Shirt, Sprout, UsersRound];
 
@@ -57,9 +56,11 @@ function wonRange(min: number, max: number, lang: Lang): string {
 export function VillageLanding({
   initialLang = "en",
   lockLang = false,
+  photos = [],
 }: {
   initialLang?: Lang;
   lockLang?: boolean;
+  photos?: VillagePhoto[];
 }) {
   const [lang, setLang] = useState<Lang>(initialLang);
 
@@ -133,27 +134,29 @@ export function VillageLanding({
         <span className="size-1.5 rounded-full bg-primary" aria-hidden />
         {c.badge}
       </span>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink-3">
-        deetz Village · by deetz × GRIGO Entertainment
-      </p>
+      {/* 정식 명칭은 대소문자 그대로 — uppercase 를 걸면 "deetz"가 "DEETZ"로 바뀐다. */}
+      <p className="mb-2 text-xs font-semibold tracking-[0.12em] text-ink-3">{VILLAGE_FULL_NAME}</p>
       <h1 className="text-[28px] font-bold leading-tight tracking-tight md:text-5xl">
         {c.title1}
         <br />
         {c.title2}
       </h1>
-      <p className="mt-4 text-[15px] leading-relaxed text-ink-2 md:mt-5 md:max-w-2xl md:text-base">{c.sub}</p>
+      <Lines
+        text={c.sub}
+        className="mt-4 text-[15px] leading-relaxed text-ink-2 md:mt-5 md:max-w-2xl md:text-base"
+      />
 
       <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-hairline-2 bg-secondary/40 px-4 py-3 md:max-w-2xl">
         <MapPin className="mt-0.5 size-4 shrink-0 text-ink-3" />
-        <p className="text-[13px] leading-relaxed text-ink-2">{c.heroNote}</p>
+        <Lines text={c.heroNote} className="text-[13px] leading-relaxed text-ink-2" />
       </div>
 
       <CtaButton label={c.cta} className="mt-7 md:mt-8 md:self-start md:px-12" />
-      <p className="mt-2 text-center text-xs text-ink-4 md:text-left">{c.ctaSub}</p>
+      <Lines text={c.ctaSub} className="mt-2 text-center text-xs text-ink-4 md:text-left" />
 
       {/* 문제 — 보증금 비교 */}
       <SectionTitle>{c.problemTitle}</SectionTitle>
-      <p className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl">{c.problemBody}</p>
+      <Lines text={c.problemBody} className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl" />
       <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded-xl border border-hairline-2 bg-card p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-ink-4">{c.marketLabel}</p>
@@ -169,9 +172,10 @@ export function VillageLanding({
               {wonRange(MARKET.rentMin, MARKET.rentMax, lang)}
             </span>
           </div>
-          <p className="mt-3 border-t border-hairline-2 pt-3 text-xs leading-relaxed text-ink-4">
-            {c.marketNote}
-          </p>
+          <Lines
+            text={c.marketNote}
+            className="mt-3 border-t border-hairline-2 pt-3 text-xs leading-relaxed text-ink-4"
+          />
         </div>
 
         <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-5">
@@ -186,15 +190,16 @@ export function VillageLanding({
               {won(PLANS[0].monthly, lang)} ~ {won(PLANS[1].monthly, lang)}
             </span>
           </div>
-          <p className="mt-3 border-t border-primary/20 pt-3 text-xs leading-relaxed text-ink-3">
-            {c.villageNote}
-          </p>
+          <Lines
+            text={c.villageNote}
+            className="mt-3 border-t border-primary/20 pt-3 text-xs leading-relaxed text-ink-3"
+          />
         </div>
       </div>
 
       {/* 공간 구성 */}
       <SectionTitle>{c.spaceTitle}</SectionTitle>
-      <p className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl">{c.spaceBody}</p>
+      <Lines text={c.spaceBody} className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl" />
       <div className="flex flex-col gap-2.5 md:grid md:grid-cols-2 md:gap-3">
         {c.features.map((f, i) => {
           const Icon = FEATURE_ICONS[i] ?? Sparkles;
@@ -205,7 +210,7 @@ export function VillageLanding({
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">{f.title}</p>
-                <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{f.body}</p>
+                <Lines text={f.body} className="mt-0.5 text-[13px] leading-relaxed text-ink-2" />
               </div>
             </div>
           );
@@ -214,42 +219,68 @@ export function VillageLanding({
 
       {/* 방 구성 */}
       <SectionTitle>{c.roomsTitle}</SectionTitle>
-      <p className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl">{c.roomsBody}</p>
+      <Lines text={c.roomsBody} className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl" />
       <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4 md:gap-3">
         {c.rooms.map((r, i) => (
           <div key={i} className="rounded-xl border border-hairline-2 bg-card p-4">
             <BedDouble className="size-5 text-ink-3" />
             <p className="mt-2.5 text-sm font-bold text-foreground">{r.title}</p>
-            <p className="mt-0.5 text-[12px] leading-relaxed text-ink-3">{r.body}</p>
+            <Lines text={r.body} className="mt-0.5 text-[12px] leading-relaxed text-ink-3" />
           </div>
         ))}
       </div>
 
       {/* 사진 (placeholder) */}
       <SectionTitle>{c.photosTitle}</SectionTitle>
-      <p className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl">{c.photosBody}</p>
-      <div className="grid grid-cols-2 gap-2.5 md:gap-3">
-        {PHOTOS.map((p, i) => (
-          <figure key={p.key} className="overflow-hidden rounded-xl border border-hairline-2 bg-card">
-            {p.src ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={p.src} alt={c.photoCaptions[i] ?? ""} loading="lazy" className="aspect-[4/3] w-full object-cover" />
+      <Lines text={c.photosBody} className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl" />
+      {PHOTO_GROUPS.map((group) => {
+        const shots = photos.filter((p) => p.optionKey === group);
+        // 공용 사진은 올라온 게 있을 때만 섹션을 만든다.
+        if (group === "common" && shots.length === 0) return null;
+        const label =
+          group === "common" ? c.photoCommonLabel : `${c.planNames[group]} · ${c.planDescs[group]}`;
+        return (
+          <div key={group} className="mb-5 last:mb-0">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-4">{label}</p>
+            {shots.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3">
+                {shots.map((p) => (
+                  <figure key={p.id} className="overflow-hidden rounded-xl border border-hairline-2 bg-card">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p.url}
+                      alt={p.caption ?? label}
+                      loading="lazy"
+                      className="aspect-[4/3] w-full object-cover"
+                    />
+                    {p.caption ? (
+                      <figcaption className="px-3 py-2.5 text-[12px] text-ink-3">{p.caption}</figcaption>
+                    ) : null}
+                  </figure>
+                ))}
+              </div>
             ) : (
-              <div className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-1.5 border-b border-dashed border-hairline-2 bg-secondary/40">
-                <ImageIcon className="size-6 text-ink-4" />
-                <span className="px-3 text-center text-[11px] leading-snug text-ink-4">
-                  {c.photoPlaceholder}
-                </span>
+              <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3">
+                {[0, 1].map((i) => (
+                  <div
+                    key={i}
+                    className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-hairline-2 bg-secondary/40"
+                  >
+                    <ImageIcon className="size-6 text-ink-4" />
+                    <span className="px-3 text-center text-[11px] leading-snug text-ink-4">
+                      {c.photoPlaceholder}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
-            <figcaption className="px-3 py-2.5 text-[12px] text-ink-3">{c.photoCaptions[i]}</figcaption>
-          </figure>
-        ))}
-      </div>
+          </div>
+        );
+      })}
 
       {/* 요금 */}
       <SectionTitle>{c.priceTitle}</SectionTitle>
-      <p className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl">{c.priceBody}</p>
+      <Lines text={c.priceBody} className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl" />
       <div className="grid gap-3 md:grid-cols-2">
         {PLANS.map((plan) => (
           <PlanCard key={plan.key} planKey={plan.key} lang={lang} />
@@ -278,7 +309,7 @@ export function VillageLanding({
           </ul>
         </div>
       </div>
-      <p className="mt-3 text-xs leading-relaxed text-ink-4 md:max-w-2xl">{c.priceCaution}</p>
+      <Lines text={c.priceCaution} className="mt-3 text-xs leading-relaxed text-ink-4 md:max-w-2xl" />
 
       {/* 진행 단계 */}
       <SectionTitle>{c.stepsTitle}</SectionTitle>
@@ -295,7 +326,7 @@ export function VillageLanding({
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">{s.title}</p>
-              <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{s.body}</p>
+              <Lines text={s.body} className="mt-0.5 text-[13px] leading-relaxed text-ink-2" />
             </div>
           </div>
         ))}
@@ -310,7 +341,7 @@ export function VillageLanding({
               {f.q}
               <ChevronDown className="size-4 shrink-0 text-ink-3 transition-transform group-open:rotate-180" />
             </summary>
-            <p className="mt-2.5 text-[13px] leading-relaxed text-ink-2">{f.a}</p>
+            <Lines text={f.a} className="mt-2.5 text-[13px] leading-relaxed text-ink-2" />
           </details>
         ))}
       </div>
@@ -320,9 +351,10 @@ export function VillageLanding({
         <VillageWaitlistForm lang={lang} />
       </div>
 
-      <p className="mt-6 text-center text-xs leading-relaxed text-ink-4 md:max-w-2xl md:text-left">
-        {c.disclaimer}
-      </p>
+      <Lines
+        text={c.disclaimer}
+        className="mt-6 text-center text-xs leading-relaxed text-ink-4 md:max-w-2xl md:text-left"
+      />
     </div>
   );
 }
@@ -364,8 +396,25 @@ function PlanCard({ planKey, lang }: { planKey: PlanKey; lang: Lang }) {
           <dd className="text-sm font-semibold text-ink-2">{won(sixMonthTotal, lang)}</dd>
         </div>
       </dl>
-      <p className="mt-2 text-[11px] leading-snug text-ink-4">{c.sixMonthNote}</p>
+      <Lines text={c.sixMonthNote} className="mt-2 text-[11px] leading-snug text-ink-4" />
     </div>
+  );
+}
+
+/**
+ * 한 문장 = 한 줄.
+ * 마침표에서 끊어 각 문장을 별도 줄로 렌더한다 (대표 지시 — 문장이 이어 붙으면 줄바꿈이 이상해 보인다).
+ */
+function Lines({ text, className }: { text: string; className?: string }) {
+  const sentences = splitSentences(text);
+  return (
+    <p className={className}>
+      {sentences.map((s, i) => (
+        <span key={i} className="block">
+          {s}
+        </span>
+      ))}
+    </p>
   );
 }
 

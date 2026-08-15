@@ -13,6 +13,7 @@ import {
   DECLINE_REASONS,
   ROOM_PREFERENCES,
   T,
+  splitSentences,
   type DeclineReason,
   type Lang,
   type PreferredOption,
@@ -115,9 +116,10 @@ export function VillageWaitlistForm({ lang }: { lang: Lang }) {
           )}
         </div>
         <p className="text-lg font-bold text-foreground">{ok ? c.doneTitle : c.doneDeclineTitle}</p>
-        <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-ink-2">
-          {ok ? c.doneBody : c.doneDeclineBody}
-        </p>
+        <Lines
+          text={ok ? c.doneBody : c.doneDeclineBody}
+          className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-ink-2"
+        />
         <Link
           href={`/program?lang=${lang}`}
           className="mt-5 inline-flex items-center justify-center rounded-lg border border-hairline-2 px-5 py-3 text-sm font-semibold text-foreground hover:bg-secondary"
@@ -131,7 +133,7 @@ export function VillageWaitlistForm({ lang }: { lang: Lang }) {
   return (
     <div id="waitlist" className="scroll-mt-20 rounded-2xl border border-hairline-2 bg-card p-5 md:p-7">
       <p className="text-lg font-bold tracking-tight text-foreground md:text-xl">{c.formTitle}</p>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">{c.formBody}</p>
+      <Lines text={c.formBody} className="mt-1.5 text-[13px] leading-relaxed text-ink-2" />
 
       <p className="mb-2.5 mt-5 text-sm font-semibold text-foreground">{c.formQuestion}</p>
       <div className="grid gap-2.5 sm:grid-cols-2">
@@ -317,6 +319,19 @@ export function VillageWaitlistForm({ lang }: { lang: Lang }) {
         </button>
       ) : null}
     </div>
+  );
+}
+
+/** 한 문장 = 한 줄. copy.ts 의 splitSentences 규칙을 그대로 쓴다. */
+function Lines({ text, className }: { text: string; className?: string }) {
+  return (
+    <p className={className}>
+      {splitSentences(text).map((s, i) => (
+        <span key={i} className="block">
+          {s}
+        </span>
+      ))}
+    </p>
   );
 }
 
