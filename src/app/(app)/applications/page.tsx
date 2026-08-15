@@ -170,7 +170,8 @@ export default async function ApplicationsPage() {
                           <p className="rounded-md bg-amber-500/10 px-2 py-1.5 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
                             {notFinalCaveat(r, r.project)}
                             <br />
-                            참여가 어려우시면 지금 <b>참여 포기</b>를 눌러 알려주세요.
+                            일정에 변동이 있으시다면 <b>참여 포기</b>로 미리 반영
+                            부탁드립니다.
                           </p>
                         ) : null}
 
