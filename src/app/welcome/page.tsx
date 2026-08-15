@@ -1,8 +1,9 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import Image from "next/image";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { BRAND_META } from "@/lib/brand";
-import { getBrand } from "@/lib/brand-server";
+import { brandMetadata, getBrand } from "@/lib/brand-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OnboardingLoginModal } from "@/components/auth/OnboardingLoginModal";
 
@@ -16,6 +17,11 @@ type DancerRow = {
   slug: string | null;
   bio: string | null;
 };
+
+// GRIGO 화이트라벨 호스트에서만 탭 제목을 덮어 deetz 표기가 새지 않게 한다.
+export async function generateMetadata(): Promise<Metadata> {
+  return brandMetadata("GRIGO ENT 정산");
+}
 
 export default async function WelcomePage({
   searchParams,

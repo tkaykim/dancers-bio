@@ -1,12 +1,18 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { BrandLogo } from "@/components/brand/BrandLogo";
-import { getBrand } from "@/lib/brand-server";
+import { brandMetadata, getBrand } from "@/lib/brand-server";
 import { createClient } from "@/lib/supabase/server";
 import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
 
 // Supabase는 비밀번호 재설정 이메일에 ?code=... 를 포함(PKCE). 이 페이지에서
 // exchangeCodeForSession 으로 임시 session을 만든 뒤에 폼을 노출.
 // 코드가 없거나 교환 실패 시 안내 화면.
+// GRIGO 화이트라벨 호스트에서만 탭 제목을 덮어 deetz 표기가 새지 않게 한다.
+export async function generateMetadata(): Promise<Metadata> {
+  return brandMetadata("GRIGO ENT 정산 · 비밀번호 재설정");
+}
+
 export default async function ResetPasswordPage({
   searchParams,
 }: {

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { BRAND_META } from "@/lib/brand";
-import { getBrand } from "@/lib/brand-server";
+import { brandMetadata, getBrand } from "@/lib/brand-server";
 import { getUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -14,14 +14,7 @@ import {
 // GRIGO 화이트라벨 호스트에서는 정산서 성격의 페이지라 검색 노출을 막고
 // 탭 제목도 브랜드에 맞춘다 (루트 metadata는 deetz 고정이므로 여기서 덮음).
 export async function generateMetadata(): Promise<Metadata> {
-  const brand = await getBrand();
-  if (brand === "grigo") {
-    return {
-      title: { absolute: "GRIGO ENT 정산" },
-      robots: { index: false, follow: false },
-    };
-  }
-  return {};
+  return brandMetadata("GRIGO ENT 정산");
 }
 
 // 댄서 지급정보 셀프 수집. /settle/<settlement_collect_code> (프로젝트 단위)

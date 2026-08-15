@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { brandMetadata } from "@/lib/brand-server";
 import Image from "next/image";
 import { ChevronRight, Crown, Plus } from "lucide-react";
 import { requireUser } from "@/lib/auth/guard";
@@ -15,6 +17,11 @@ type DancerRow = {
 
 // Lite: 1계정 = 1댄서. own dancer 만 노출. multi-dancer 데이터가 있더라도 모두 표시
 // (사용자가 정리할 수 있도록), manager 섹션은 제거.
+// GRIGO 화이트라벨 호스트에서만 탭 제목을 덮어 deetz 표기가 새지 않게 한다.
+export async function generateMetadata(): Promise<Metadata> {
+  return brandMetadata("GRIGO ENT 정산 · 내 프로필");
+}
+
 export default async function MyPortfolioListPage() {
   const user = await requireUser();
   const supabase = await createClient();

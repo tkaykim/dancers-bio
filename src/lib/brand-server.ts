@@ -1,4 +1,5 @@
 import "server-only";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getBrandFromHost, type Brand } from "@/lib/brand";
 
@@ -8,4 +9,16 @@ import { getBrandFromHost, type Brand } from "@/lib/brand";
 export async function getBrand(): Promise<Brand> {
   const h = await headers();
   return getBrandFromHost(h.get("host"));
+}
+
+// GRIGO 호스트에서만 탭 제목을 덮고 검색 노출을 막는다.
+// 루트 layout의 title template("… | deetz")이 새는 것을 막으려면 absolute가 필요하다.
+// deetz 호스트에서는 빈 객체를 반환해 기존 메타데이터를 그대로 상속한다.
+export async function brandMetadata(grigoTitle: string): Promise<Metadata> {
+  const brand = await getBrand();
+  if (brand !== "grigo") return {};
+  return {
+    title: { absolute: grigoTitle },
+    robots: { index: false, follow: false },
+  };
 }

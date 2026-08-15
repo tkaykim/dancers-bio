@@ -1,7 +1,8 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { BRAND_META } from "@/lib/brand";
-import { getBrand } from "@/lib/brand-server";
+import { brandMetadata, getBrand } from "@/lib/brand-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ClaimForm } from "@/components/auth/ClaimForm";
 
@@ -27,6 +28,11 @@ async function fetchDancerPreview(slug: string | undefined) {
     .select("id", { count: "exact", head: true })
     .eq("dancer_id", data.id);
   return { ...data, career_count: count ?? 0 };
+}
+
+// GRIGO 화이트라벨 호스트에서만 탭 제목을 덮어 deetz 표기가 새지 않게 한다.
+export async function generateMetadata(): Promise<Metadata> {
+  return brandMetadata("GRIGO ENT 정산 · 계정 연결");
 }
 
 export default async function ClaimPage({

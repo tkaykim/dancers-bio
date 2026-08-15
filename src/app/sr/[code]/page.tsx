@@ -1,8 +1,9 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MapPin } from "lucide-react";
 import { BrandLogo } from "@/components/brand/BrandLogo";
-import { getBrand } from "@/lib/brand-server";
+import { brandMetadata, getBrand } from "@/lib/brand-server";
 import { getUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveDancerIdForUserInProject } from "@/lib/schedule/resolve";
@@ -16,6 +17,11 @@ type Slot = { start: string; end: string; kind: "available" | "unavailable" };
 
 // 단톡방 공유용 일정 가능여부 설문. /sr/<schedule_survey_code> (프로젝트 단위)
 // 신원확인 = 로그인 세션. 코드는 "어느 프로젝트 설문인지"만 지정.
+// GRIGO 화이트라벨 호스트에서만 탭 제목을 덮어 deetz 표기가 새지 않게 한다.
+export async function generateMetadata(): Promise<Metadata> {
+  return brandMetadata("GRIGO ENT · 일정 조사");
+}
+
 export default async function ScheduleSurveyPage({
   params,
 }: {

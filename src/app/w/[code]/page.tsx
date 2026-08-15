@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { BRAND_META, type Brand } from "@/lib/brand";
-import { getBrand } from "@/lib/brand-server";
+import { brandMetadata, getBrand } from "@/lib/brand-server";
 import { getUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveDancerIdForUserInProject } from "@/lib/schedule/resolve";
@@ -47,14 +47,7 @@ function Shell({
 // 신원확인 = 로그인 세션 → 본인 댄서 해석 → 자기 정산건 출금 신청.
 // GRIGO 화이트라벨 호스트: 탭 제목 브랜드 정합 + 검색 비노출.
 export async function generateMetadata(): Promise<Metadata> {
-  const brand = await getBrand();
-  if (brand === "grigo") {
-    return {
-      title: { absolute: "GRIGO ENT 정산 · 출금" },
-      robots: { index: false, follow: false },
-    };
-  }
-  return {};
+  return brandMetadata("GRIGO ENT 정산 · 출금");
 }
 
 export default async function WithdrawSharePage({
