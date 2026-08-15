@@ -50,12 +50,19 @@ export default async function VisaCasePage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ lang?: string | string[]; decline?: string | string[] }>;
+  searchParams: Promise<{
+    lang?: string | string[];
+    decline?: string | string[];
+    edit?: string | string[];
+  }>;
 }) {
   const { token } = await params;
   const query = await searchParams;
   const declineRequested =
     (Array.isArray(query.decline) ? query.decline[0] : query.decline) === "1";
+  // 재조율 메일처럼 "다시 제출해 달라"는 링크는 제출 완료 화면이 아니라 입력 폼으로 바로 착지시킨다.
+  const editParam = Array.isArray(query.edit) ? query.edit[0] : query.edit;
+  const editRequested = editParam === "slots" ? "slots" : editParam === "1" ? "form" : null;
   const applicationId = verifyVisaCaseToken(token);
   if (!applicationId) notFound();
 
@@ -116,5 +123,12 @@ export default async function VisaCasePage({
     declineReasonDetail: row.decline_reason_detail ?? null,
   };
 
-  return <VisaCasePortal token={token} initial={initial} declineRequested={declineRequested} />;
+  return (
+    <VisaCasePortal
+      token={token}
+      initial={initial}
+      declineRequested={declineRequested}
+      editRequested={editRequested}
+    />
+  );
 }
