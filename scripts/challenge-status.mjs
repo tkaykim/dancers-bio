@@ -39,7 +39,7 @@ const db = createClient(
 
 const { data: subs } = await db
   .from("project_submissions")
-  .select("application_id, dancer_id, instagram_handle, display_name, uploaded_at, drive_file_name, drive_web_link")
+  .select("application_id, dancer_id, instagram_handle, display_name, uploaded_at, drive_file_name, drive_web_link, collaborator_handles")
   .eq("project_id", PROJECT_ID);
 
 if (!subs?.length) {
@@ -96,6 +96,8 @@ const rows = subs
       열람: open ? `${kst(open.first)} (${open.count}회)` : "-",
       제출: s.uploaded_at ? kst(s.uploaded_at) : "-",
       파일: s.drive_file_name ?? "-",
+      // 제출자가 남긴 메모다. 정산 인원 산정 근거가 아니다.
+      공동작업자: (s.collaborator_handles ?? []).map((h) => `@${h}`).join(", ") || "-",
     };
   })
   .sort((a, b) => String(a.발송).localeCompare(String(b.발송)));

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { HandleField } from "./HandleField";
 import { SubmitUploader } from "./SubmitUploader";
+import { CollaboratorField } from "./CollaboratorField";
 
 /**
  * 제출 화면의 상호작용 부분.
@@ -13,11 +14,13 @@ export function SubmitPanel({
   initialHandle,
   displayName,
   alreadyUploadedName,
+  initialCollaborators,
 }: {
   token: string;
   initialHandle: string;
   displayName: string | null;
   alreadyUploadedName: string | null;
+  initialCollaborators: string[];
 }) {
   const [handle, setHandle] = useState(initialHandle);
 
@@ -42,11 +45,7 @@ export function SubmitPanel({
         alreadyUploadedName={alreadyUploadedName}
       />
 
-      <div className="text-xs leading-relaxed text-muted-foreground">
-        <p className="font-semibold text-foreground">함께 촬영한 분이 있으신가요?</p>
-        <p>영상에 다른 댄서가 함께 나오거나 인스타그램 공동 작업자로 올리실 예정이면</p>
-        <p>contact@deetz.kr 로 알려주세요. 확인 후 안내드리겠습니다.</p>
-      </div>
+      <CollaboratorField token={token} initial={initialCollaborators} />
     </div>
   );
 }
