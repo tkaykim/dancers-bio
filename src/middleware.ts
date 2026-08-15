@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getBrandFromHost } from "@/lib/brand";
 
 // dancers.bio is the clean "link-in-bio" domain dancers paste into their IG
 // profile. It is served by THIS same deployment (alongside deetz.kr), so we do
@@ -26,6 +27,24 @@ const RESERVED_FIRST_SEGMENTS = new Set([
 
 export async function middleware(request: NextRequest) {
   const host = (request.headers.get("host") ?? "").toLowerCase();
+
+  // GRIGO 화이트라벨 정산 호스트: 같은 배포를 GRIGO 브랜딩으로 서빙한다.
+  // 루트만 회사 홈페이지로 보내고, 나머지 경로는 아래 Supabase 세션 갱신 흐름을
+  // 그대로 태운 뒤(early return 금지) 마지막에 noindex 헤더만 붙인다.
+  const isGrigoHost = getBrandFromHost(host) === "grigo";
+  if (isGrigoHost) {
+    const { pathname } = request.nextUrl;
+    if (pathname === "/" || pathname === "") {
+      return NextResponse.redirect("https://grigoent.co.kr", 307);
+    }
+    // PWA manifest는 GRIGO 명의로 교체(설치명·시작 URL이 deetz로 노출되는 것 방지).
+    if (pathname === "/manifest.json") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/manifest-grigo.json";
+      return NextResponse.rewrite(url);
+    }
+  }
+
   if (VANITY_HOSTS.has(host)) {
     const { pathname } = request.nextUrl;
     // Bare root has no profile → send to the deetz brand site.
@@ -113,6 +132,12 @@ export async function middleware(request: NextRequest) {
         sameSite: "lax",
       });
     }
+  }
+
+  // Supabase setAll 콜백이 response 객체를 갈아끼우므로, noindex 헤더는
+  // 반드시 최종 response에 마지막으로 붙인다 (검색 중복 노출 방지).
+  if (isGrigoHost) {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
   }
 
   return response;

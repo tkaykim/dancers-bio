@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { DeetzLogo } from "@/components/brand/DeetzLogo";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { BRAND_META } from "@/lib/brand";
+import { getBrand } from "@/lib/brand-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ClaimForm } from "@/components/auth/ClaimForm";
 
@@ -34,16 +36,25 @@ export default async function ClaimPage({
 }) {
   const { email = "", dancer } = await searchParams;
   const dancerPreview = await fetchDancerPreview(dancer);
+  const brand = await getBrand();
+  // GRIGO 호스트에서는 co-branding(× deetz) 없이 GRIGO 단독 안내로 보인다.
+  const isGrigo = brand === "grigo";
+  const brandName = BRAND_META[brand].name;
 
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col lg:justify-center gap-6 px-6 pb-12 pt-10">
-      <Link href="/" className="inline-flex self-start">
-        <DeetzLogo className="h-8 w-auto" priority />
-      </Link>
+      {/* GRIGO 호스트의 루트는 외부 리다이렉트라 로고를 링크로 감싸지 않는다. */}
+      {isGrigo ? (
+        <BrandLogo brand={brand} className="h-8 w-auto" priority />
+      ) : (
+        <Link href="/" className="inline-flex self-start">
+          <BrandLogo brand={brand} className="h-8 w-auto" priority />
+        </Link>
+      )}
 
       <div className="flex flex-col gap-2.5">
         <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-          그리고엔터테인먼트 × deetz
+          {isGrigo ? BRAND_META.grigo.orgName : "그리고엔터테인먼트 × deetz"}
         </p>
         <h1 className="text-[28px] font-extrabold tracking-tight leading-[1.2]">
           {dancerPreview?.stage_name ? (
@@ -57,7 +68,9 @@ export default async function ClaimPage({
         </h1>
         <p className="text-sm text-ink-2 leading-relaxed">
           그리고엔터 에이전시 풀에 지원해주신 정보로<br />
-          deetz 댄서 프로필을 미리 만들어두었습니다.
+          {isGrigo
+            ? "댄서 프로필을 미리 만들어두었습니다."
+            : "deetz 댄서 프로필을 미리 만들어두었습니다."}
         </p>
       </div>
 
@@ -92,12 +105,11 @@ export default async function ClaimPage({
         </Link>
       ) : null}
 
-      <ClaimForm initialEmail={email} dancerSlug={dancer} />
+      <ClaimForm initialEmail={email} dancerSlug={dancer} brandName={brandName} />
 
       <div className="rounded-xl bg-muted/50 p-4 text-xs leading-relaxed text-ink-2">
         <p className="font-semibold text-ink-2 mb-1.5">이 페이지가 보이는 이유</p>
-        지원하실 때 입력하신 이메일로 deetz 계정을 미리 만들어두었습니다.
-        비밀번호만 새로 설정하시면 바로 로그인할 수 있고, 본인 프로필이 자동으로 연결됩니다.
+        {`지원하실 때 입력하신 이메일로 ${brandName} 계정을 미리 만들어두었습니다. 비밀번호만 새로 설정하시면 바로 로그인할 수 있고, 본인 프로필이 자동으로 연결됩니다.`}
       </div>
 
       <p className="text-center text-xs text-ink-3">

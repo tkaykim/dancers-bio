@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 interface ClaimFormProps {
   initialEmail: string;
   dancerSlug?: string;
+  /** 화이트라벨 호스트에서 안내 문구에 쓰는 브랜드 표기. 기본은 deetz. */
+  brandName?: string;
 }
 
 // 비밀번호 설정(=프로필 클레임)도 비번찾기와 동일한 OTP 코드 방식.
@@ -29,7 +31,11 @@ function toKoreanErr(msg: string): string {
   return "처리에 실패했습니다. 다시 시도해 주세요.";
 }
 
-export function ClaimForm({ initialEmail, dancerSlug }: ClaimFormProps) {
+export function ClaimForm({
+  initialEmail,
+  dancerSlug,
+  brandName = "deetz",
+}: ClaimFormProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState(initialEmail);
@@ -187,7 +193,7 @@ export function ClaimForm({ initialEmail, dancerSlug }: ClaimFormProps) {
           ) : null}
           <div className="rounded-xl bg-background p-3.5 text-xs leading-relaxed text-ink-2">
             <p className="mb-1.5 font-semibold text-foreground">다음 단계</p>
-            1. 받은편지함(또는 스팸함)에서 deetz 메일 열기
+            {`1. 받은편지함(또는 스팸함)에서 ${brandName} 메일 열기`}
             <br />
             2. 메일 속 <b>숫자 인증코드</b>를 아래에 입력
             <br />

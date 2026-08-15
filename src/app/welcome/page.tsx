@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
-import { DeetzLogo } from "@/components/brand/DeetzLogo";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { BRAND_META } from "@/lib/brand";
+import { getBrand } from "@/lib/brand-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OnboardingLoginModal } from "@/components/auth/OnboardingLoginModal";
 
@@ -26,6 +28,10 @@ export default async function WelcomePage({
     next && next.startsWith("/") && !next.startsWith("//") ? next : "/me/portfolio";
   // 초대 랜딩(비로그인) — 미승인 큐레이션 프로필도 보여줘야 하므로 admin read-only.
   const admin = createAdminClient();
+  const brand = await getBrand();
+  // GRIGO 호스트에서는 co-branding(× deetz) 없이 GRIGO 단독 안내로 보인다.
+  const isGrigo = brand === "grigo";
+  const brandName = BRAND_META[brand].name;
 
   let dancer: DancerRow | null = null;
   let careerCount = 0;
@@ -62,12 +68,17 @@ export default async function WelcomePage({
 
   return (
     <div className="mx-auto w-full max-w-md px-6 pb-28 pt-12">
-      <Link href="/" className="mb-7 inline-flex">
-        <DeetzLogo className="h-8 w-auto" priority />
-      </Link>
+      {/* GRIGO 호스트의 루트는 외부 리다이렉트라 로고를 링크로 감싸지 않는다. */}
+      {isGrigo ? (
+        <BrandLogo brand={brand} className="mb-7 h-8 w-auto" priority />
+      ) : (
+        <Link href="/" className="mb-7 inline-flex">
+          <BrandLogo brand={brand} className="h-8 w-auto" priority />
+        </Link>
+      )}
 
       <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-        그리고엔터테인먼트 × deetz
+        {isGrigo ? BRAND_META.grigo.orgName : "그리고엔터테인먼트 × deetz"}
       </p>
       <h1 className="mt-2 text-[28px] font-extrabold leading-[1.2] tracking-tight">
         {dancer ? (
@@ -81,8 +92,7 @@ export default async function WelcomePage({
         )}
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-ink-2">
-        에이전시 풀에 제출해주신 정보로 deetz 프로필을 미리 만들어 두었습니다.
-        아래 프로필이 회원님 본인이 맞다면, 로그인하고 직접 관리해 보세요.
+        {`에이전시 풀에 제출해주신 정보로 ${brandName} 프로필을 미리 만들어 두었습니다. 아래 프로필이 회원님 본인이 맞다면, 로그인하고 직접 관리해 보세요.`}
       </p>
 
       {/* 프로필 미리보기 */}

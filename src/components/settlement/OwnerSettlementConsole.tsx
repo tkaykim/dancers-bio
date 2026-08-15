@@ -34,6 +34,8 @@ export function OwnerSettlementConsole({
   collectCode,
   collectionOpen,
   collectUrlBase,
+  // GRIGO 화이트라벨 수집 링크 base. 넘기면 GRIGO 도메인 링크 복사 행이 추가된다.
+  grigoUrlBase,
   clientRevenue,
   expenseAmount,
   rows,
@@ -42,6 +44,7 @@ export function OwnerSettlementConsole({
   collectCode: string | null;
   collectionOpen: boolean;
   collectUrlBase: string;
+  grigoUrlBase?: string;
   clientRevenue: number | null;
   expenseAmount: number | null;
   rows: OwnerSettlementRow[];
@@ -49,6 +52,7 @@ export function OwnerSettlementConsole({
   const router = useRouter();
   const [busy, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
+  const [copiedGrigo, setCopiedGrigo] = useState(false);
 
   const totalGross = rows.reduce((sum, r) => sum + (r.grossAmount ?? 0), 0);
   const margin =
@@ -56,6 +60,8 @@ export function OwnerSettlementConsole({
       ? clientRevenue - totalGross - (expenseAmount ?? 0)
       : null;
   const collectUrl = collectCode ? `${collectUrlBase}${collectCode}` : null;
+  const grigoUrl =
+    collectCode && grigoUrlBase ? `${grigoUrlBase}${collectCode}` : null;
 
   function toggleCollection(open: boolean) {
     const fd = new FormData();
@@ -79,6 +85,18 @@ export function OwnerSettlementConsole({
         setCopied(true);
         toast.success("수집 링크를 복사했어요.");
         setTimeout(() => setCopied(false), 1500);
+      },
+      () => toast.error("복사에 실패했어요."),
+    );
+  }
+
+  function copyGrigoLink() {
+    if (!grigoUrl) return;
+    navigator.clipboard.writeText(grigoUrl).then(
+      () => {
+        setCopiedGrigo(true);
+        toast.success("GRIGO 수집 링크를 복사했어요.");
+        setTimeout(() => setCopiedGrigo(false), 1500);
       },
       () => toast.error("복사에 실패했어요."),
     );
@@ -126,6 +144,30 @@ export function OwnerSettlementConsole({
                 )}
               </button>
             </div>
+            {grigoUrl ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] font-semibold text-ink-3">
+                  GRIGO 명의 링크 (그리고엔터 소속 프로젝트용 — 같은 폼, 회사 도메인)
+                </span>
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
+                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                    {grigoUrl}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={copyGrigoLink}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border text-ink-2 active:bg-secondary"
+                    aria-label="GRIGO 링크 복사"
+                  >
+                    {copiedGrigo ? (
+                      <Check size={15} className="text-primary" aria-hidden />
+                    ) : (
+                      <Copy size={15} aria-hidden />
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={() => toggleCollection(!collectionOpen)}

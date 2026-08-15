@@ -7,6 +7,7 @@ import {
   type OwnerSettlementRow,
 } from "@/components/settlement/OwnerSettlementConsole";
 import type { SettlementStatus } from "@/lib/settlement";
+import { GRIGO_SETTLE_ORIGIN } from "@/lib/brand";
 
 const SITE = "https://deetz.kr";
 
@@ -114,6 +115,7 @@ export default async function ProjectSettlementsPage({
         collectCode={(project.settlement_collect_code as string | null) ?? null}
         collectionOpen={project.settlement_collection_open === true}
         collectUrlBase={`${SITE}/settle/`}
+        grigoUrlBase={`${GRIGO_SETTLE_ORIGIN}/settle/`}
         clientRevenue={(project.client_revenue as number | null) ?? null}
         expenseAmount={(project.expense_amount as number | null) ?? null}
         rows={rows}

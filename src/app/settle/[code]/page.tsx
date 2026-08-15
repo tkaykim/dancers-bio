@@ -1,12 +1,28 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DeetzLogo } from "@/components/brand/DeetzLogo";
+import type { Metadata } from "next";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { BRAND_META } from "@/lib/brand";
+import { getBrand } from "@/lib/brand-server";
 import { getUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   SettlementCollectForm,
   type CollectDancer,
 } from "@/components/settlement/SettlementCollectForm";
+
+// GRIGO 화이트라벨 호스트에서는 정산서 성격의 페이지라 검색 노출을 막고
+// 탭 제목도 브랜드에 맞춘다 (루트 metadata는 deetz 고정이므로 여기서 덮음).
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getBrand();
+  if (brand === "grigo") {
+    return {
+      title: { absolute: "GRIGO ENT 정산" },
+      robots: { index: false, follow: false },
+    };
+  }
+  return {};
+}
 
 // 댄서 지급정보 셀프 수집. /settle/<settlement_collect_code> (프로젝트 단위)
 // 신원확인 = 로그인 세션. 안무가/팀이 단톡방·DM으로 이 링크를 배포한다.
@@ -28,6 +44,9 @@ export default async function SettlementCollectPage({
   if (!project) notFound();
   const open = project.settlement_collection_open === true;
   const title = (project.title as string) ?? "프로젝트";
+
+  const brand = await getBrand();
+  const brandMeta = BRAND_META[brand];
 
   const user = await getUser();
 
@@ -78,7 +97,7 @@ export default async function SettlementCollectPage({
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-6 py-10">
       <div className="flex flex-col gap-2">
-        <DeetzLogo className="h-8 w-auto" priority />
+        <BrandLogo brand={brand} className="h-8 w-auto" priority />
         <h1 className="text-xl font-bold leading-tight">
           정산 정보를 입력해 주세요
         </h1>
@@ -94,7 +113,9 @@ export default async function SettlementCollectPage({
       ) : !user ? (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-ink-2">
-            정산 정보를 제출하려면 deetz 로그인이 필요해요.
+            {brand === "grigo"
+              ? "정산 정보를 제출하려면 그리고엔터테인먼트 정산 시스템 로그인이 필요해요."
+              : "정산 정보를 제출하려면 deetz 로그인이 필요해요."}
             <br />
             계좌·정산정보는 정산 담당자만 확인할 수 있게 안전하게 보관됩니다.
           </p>
@@ -129,7 +150,7 @@ export default async function SettlementCollectPage({
       )}
 
       <p className="text-center text-[11px] text-ink-3">
-        deetz 정산 · 원천징수 3.3% 공제 후 입금
+        {brandMeta.name} 정산 · 원천징수 3.3% 공제 후 입금
       </p>
     </div>
   );
