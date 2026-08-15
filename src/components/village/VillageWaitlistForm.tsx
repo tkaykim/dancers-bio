@@ -167,6 +167,7 @@ export function VillageWaitlistForm({ lang }: { lang: Lang }) {
               placeholder={c.namePlaceholder}
               className={inputClass}
               autoComplete="name"
+              maxLength={120}
             />
           </Field>
 
@@ -200,6 +201,7 @@ export function VillageWaitlistForm({ lang }: { lang: Lang }) {
                 onChange={(e) => setContact(e.target.value)}
                 placeholder={c.contactPlaceholder}
                 className={inputClass}
+                maxLength={200}
               />
             </div>
           </Field>
@@ -249,6 +251,7 @@ export function VillageWaitlistForm({ lang }: { lang: Lang }) {
               onChange={(e) => setMessage(e.target.value)}
               placeholder={c.messagePlaceholder}
               rows={3}
+              maxLength={2000}
               className={cn(inputClass, "resize-y")}
             />
           </Field>
@@ -285,6 +288,7 @@ export function VillageWaitlistForm({ lang }: { lang: Lang }) {
               onChange={(e) => setDeclineDetail(e.target.value)}
               placeholder={c.declineDetailPlaceholder}
               rows={3}
+              maxLength={2000}
               className={cn(inputClass, "resize-y")}
             />
           </Field>
@@ -295,6 +299,7 @@ export function VillageWaitlistForm({ lang }: { lang: Lang }) {
               onChange={(e) => setName(e.target.value)}
               placeholder={c.namePlaceholder}
               className={inputClass}
+              maxLength={120}
             />
           </Field>
         </div>

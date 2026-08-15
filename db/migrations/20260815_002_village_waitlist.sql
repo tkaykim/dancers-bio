@@ -48,3 +48,7 @@ alter table public.village_waitlist enable row level security;
 
 comment on table public.village_waitlist is
   'deetz Village 사전 수요조사 접수. interested=true는 대기자 등록, false는 미진행 사유 설문. RLS default-deny(service-role 전용).';
+
+-- 2026-08-15 추가: service-role 전용 경계를 GRANT 레벨에서도 잠근다.
+-- (RLS on + 정책 0개로 이미 막히지만, 레포의 다른 service-role 전용 테이블과 동일하게 맞춤)
+revoke all on table public.village_waitlist from anon, authenticated;

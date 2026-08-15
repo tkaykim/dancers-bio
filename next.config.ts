@@ -12,11 +12,6 @@ const supabaseHost = (() => {
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["172.30.1.58", "localhost", "127.0.0.1"],
-  experimental: {
-    // /village/upload 이 사진 파일을 서버 액션으로 그대로 보낸다(브라우저에서 1920px로 줄인 뒤).
-    // 기본 1MB로는 고화질 사진 1장이 그대로 막힌다.
-    serverActions: { bodySizeLimit: "10mb" },
-  },
   images: {
     // Disable Next.js / Vercel Image Optimization globally so we don't hit
     // Vercel's per-deployment optimized-image quota (which was breaking

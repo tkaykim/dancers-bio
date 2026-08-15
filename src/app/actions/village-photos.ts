@@ -1,19 +1,30 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { VILLAGE_PHOTO_BUCKET, VILLAGE_PHOTO_MAX_BYTES } from "@/lib/village/photos";
 import type { ActionResult } from "./auth";
 
 // deetz Village 건물 사진 업로드.
 //
 // ⚠ 인증 없음 — 대표 지시로 "링크를 아는 사람은 누구나 올릴 수 있게" 열어둔 공개 창구다(/village/upload).
-//    그래서 여기서 하는 일은 사진 추가·삭제뿐이고, 다른 데이터는 건드리지 않는다.
-//    사진은 랜딩(/village)에 바로 노출되므로 링크는 필요한 사람에게만 전달한다.
+//    그래서 여기서 하는 일은 사진 추가·숨김뿐이고, 다른 데이터는 건드리지 않는다.
+//
+// ⚠ 파일 본문은 이 서버 액션을 통과하지 않는다.
+//    Vercel Functions 요청 본문 한도가 4.5MB라 서버 액션으로 사진을 프록시하면
+//    4.5MB를 넘는 사진이 next.config 의 bodySizeLimit 에 닿기도 전에 413 으로 죽는다.
+//    그래서 ① 여기서 signed upload URL 만 발급하고 ② 브라우저가 Supabase Storage 로 직접 올린 뒤
+//    ③ 업로드된 오브젝트를 확인하고 DB 행을 만든다. (Codex 교차검토 2026-08-15 지적 반영)
 
-const BUCKET = "village-photos";
-const MAX_BYTES = 8 * 1024 * 1024;
-const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"];
+const BUCKET = VILLAGE_PHOTO_BUCKET;
+/** 옵션당·전체 상한 — 인증이 없으므로 무한 적재만 막는다. */
+const MAX_PER_OPTION = 40;
+const MAX_TOTAL = 120;
+
+const ALLOWED_MIME = ["image/jpeg", "image/pjpeg", "image/png", "image/webp", "image/gif"];
+const ALLOWED_EXT = ["jpg", "jpeg", "png", "webp", "gif"];
 
 const OPTION_KEYS = ["a", "b", "common"] as const;
 export type VillagePhotoOption = (typeof OPTION_KEYS)[number];
@@ -26,47 +37,67 @@ export type VillagePhotoRow = {
   created_at: string;
 };
 
-/** 업로드 화면·랜딩이 함께 쓰는 조회. hidden 은 랜딩에서만 제외한다. */
-export async function listVillagePhotos(includeHidden = false): Promise<VillagePhotoRow[]> {
+/** 업로드 화면·랜딩이 함께 쓰는 조회. 숨김 처리한 사진은 어느 쪽에도 안 보인다. */
+export async function listVillagePhotos(): Promise<VillagePhotoRow[]> {
   let admin: ReturnType<typeof createAdminClient>;
   try {
     admin = createAdminClient();
   } catch {
     return [];
   }
-  let q = admin
+  const { data } = await admin
     .from("village_photos")
     .select("id, option_key, public_url, caption, created_at")
+    .eq("hidden", false)
     .order("option_key", { ascending: true })
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true })
-    .limit(200);
-  if (!includeHidden) q = q.eq("hidden", false);
-  const { data } = await q;
+    .limit(MAX_TOTAL + 60);
   return (data ?? []) as VillagePhotoRow[];
 }
 
-const uploadSchema = z.object({
+function extensionOf(filename: string): string {
+  const raw = filename.includes(".") ? filename.split(".").pop() ?? "" : "";
+  return raw.replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
+const signSchema = z.object({
   optionKey: z.enum(OPTION_KEYS),
-  caption: z.string().trim().max(200).optional().nullable(),
+  filename: z.string().trim().min(1).max(300),
+  contentType: z.string().trim().max(120).optional().nullable(),
+  size: z.number().int().min(1).max(VILLAGE_PHOTO_MAX_BYTES),
 });
 
 /**
- * 사진 1장 업로드. 여러 장은 클라이언트가 파일마다 순차 호출한다.
- * (한 요청에 몰아넣으면 서버 액션 body 한도에 먼저 걸린다.)
+ * 1단계: 업로드 자리를 잡고 signed upload URL 을 발급한다.
+ * 확장자와 MIME 을 함께 본다 — 아이폰 HEIC 는 브라우저가 `type` 을 빈 문자열로 주는 경우가 있어
+ * MIME 만 보면 그대로 통과해버리고, 저장은 되지만 화면에서는 깨져 보인다.
  */
-export async function uploadVillagePhotoAction(form: FormData): Promise<ActionResult<VillagePhotoRow>> {
-  const parsed = uploadSchema.safeParse({
-    optionKey: form.get("optionKey"),
-    caption: form.get("caption"),
-  });
-  if (!parsed.success) return { ok: false, error: "옵션을 선택해 주세요." };
+export async function createVillagePhotoUploadUrlAction(
+  input: z.input<typeof signSchema>,
+): Promise<ActionResult<{ path: string; token: string }>> {
+  const parsed = signSchema.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    if (issue?.path[0] === "size") return { ok: false, error: "사진 1장은 20MB까지 올릴 수 있습니다." };
+    return { ok: false, error: "사진 정보를 확인하지 못했습니다." };
+  }
+  const { optionKey, filename, contentType, size } = parsed.data;
 
-  const file = form.get("file");
-  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "사진 파일이 없습니다." };
-  if (file.size > MAX_BYTES) return { ok: false, error: "사진 1장은 8MB까지 올릴 수 있습니다." };
-  if (file.type && !ALLOWED.includes(file.type.toLowerCase())) {
-    return { ok: false, error: "이미지 파일만 올릴 수 있습니다." };
+  const ext = extensionOf(filename);
+  const mime = (contentType ?? "").toLowerCase();
+  if (/hei[cf]/.test(mime) || ["heic", "heif"].includes(ext)) {
+    return { ok: false, error: "아이폰 HEIC 사진은 그대로 올리면 화면에서 깨집니다. 사진 앱에서 JPEG로 저장한 뒤 올려 주세요." };
+  }
+  if (mime && !ALLOWED_MIME.includes(mime)) {
+    return { ok: false, error: "JPG·PNG·WEBP·GIF 이미지만 올릴 수 있습니다." };
+  }
+  // 일부 안드로이드·구형 브라우저는 type 을 빈 문자열로 준다. 그때는 확장자로만 판정한다.
+  if (!mime && !ALLOWED_EXT.includes(ext)) {
+    return { ok: false, error: "JPG·PNG·WEBP·GIF 이미지만 올릴 수 있습니다." };
+  }
+  if (size > VILLAGE_PHOTO_MAX_BYTES) {
+    return { ok: false, error: "사진 1장은 20MB까지 올릴 수 있습니다." };
   }
 
   let admin: ReturnType<typeof createAdminClient>;
@@ -76,29 +107,79 @@ export async function uploadVillagePhotoAction(form: FormData): Promise<ActionRe
     return { ok: false, error: "서버 설정 오류로 업로드에 실패했습니다." };
   }
 
-  const ext = (file.name.split(".").pop() ?? "jpg").replace(/[^a-z0-9]/gi, "").toLowerCase() || "jpg";
-  const path = `${parsed.data.optionKey}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { count: total } = await admin
+    .from("village_photos")
+    .select("id", { count: "exact", head: true })
+    .eq("hidden", false);
+  if ((total ?? 0) >= MAX_TOTAL) {
+    return { ok: false, error: `사진은 전체 ${MAX_TOTAL}장까지 올릴 수 있습니다. 필요 없는 사진을 지운 뒤 다시 시도해 주세요.` };
+  }
+  const { count: perOption } = await admin
+    .from("village_photos")
+    .select("id", { count: "exact", head: true })
+    .eq("hidden", false)
+    .eq("option_key", optionKey);
+  if ((perOption ?? 0) >= MAX_PER_OPTION) {
+    return { ok: false, error: `한 옵션에는 사진을 ${MAX_PER_OPTION}장까지 올릴 수 있습니다.` };
+  }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const { error: upErr } = await admin.storage.from(BUCKET).upload(path, buffer, {
-    contentType: file.type || "image/jpeg",
-    upsert: false,
-  });
-  if (upErr) return { ok: false, error: `업로드 실패: ${upErr.message}` };
+  // 경로는 UUID 로 만든다 — 타임스탬프+랜덤6자리는 같은 밀리초에 충돌할 여지가 있었다.
+  const path = `${optionKey}/${randomUUID()}.${ALLOWED_EXT.includes(ext) ? ext : "jpg"}`;
+  const { data, error } = await admin.storage.from(BUCKET).createSignedUploadUrl(path);
+  if (error || !data) {
+    return { ok: false, error: `업로드 준비에 실패했습니다: ${error?.message ?? "unknown"}` };
+  }
+  return { ok: true, data: { path: data.path, token: data.token } };
+}
+
+const registerSchema = z.object({
+  optionKey: z.enum(OPTION_KEYS),
+  path: z.string().trim().min(1).max(400),
+  caption: z.string().trim().max(200).optional().nullable(),
+});
+
+/**
+ * 2단계: 브라우저가 Storage 에 올린 파일을 확인하고 DB 행을 만든다.
+ * 실제로 존재하는 오브젝트만 등록해 "행은 있는데 파일이 없는" 깨진 사진을 만들지 않는다.
+ */
+export async function registerVillagePhotoAction(
+  input: z.input<typeof registerSchema>,
+): Promise<ActionResult<VillagePhotoRow>> {
+  const parsed = registerSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "사진 정보를 확인하지 못했습니다." };
+  const { optionKey, path, caption } = parsed.data;
+
+  // 경로 위조로 다른 버킷·폴더를 가리키지 못하게 막는다.
+  if (!path.startsWith(`${optionKey}/`) || path.includes("..")) {
+    return { ok: false, error: "잘못된 업로드 경로입니다." };
+  }
+
+  let admin: ReturnType<typeof createAdminClient>;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { ok: false, error: "서버 설정 오류로 업로드에 실패했습니다." };
+  }
+
+  const folder = path.slice(0, path.lastIndexOf("/"));
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  const { data: found } = await admin.storage.from(BUCKET).list(folder, { search: name, limit: 1 });
+  if (!found || found.length === 0) {
+    return { ok: false, error: "업로드된 사진을 찾지 못했습니다. 다시 시도해 주세요." };
+  }
 
   const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
-
-  const { data: row, error: insErr } = await admin
+  const { data: row, error } = await admin
     .from("village_photos")
     .insert({
-      option_key: parsed.data.optionKey,
+      option_key: optionKey,
       storage_path: path,
       public_url: pub.publicUrl,
-      caption: parsed.data.caption?.trim() || null,
+      caption: caption?.trim() || null,
     })
     .select("id, option_key, public_url, caption, created_at")
     .single();
-  if (insErr || !row) {
+  if (error || !row) {
     await admin.storage.from(BUCKET).remove([path]);
     return { ok: false, error: "사진 정보 저장에 실패했습니다." };
   }
@@ -108,13 +189,18 @@ export async function uploadVillagePhotoAction(form: FormData): Promise<ActionRe
   return { ok: true, data: row as VillagePhotoRow };
 }
 
-const deleteSchema = z.object({ id: z.string().uuid() });
+const hideSchema = z.object({ id: z.string().uuid() });
 
-/** 잘못 올린 사진 되돌리기. 업로드와 같은 공개 화면에서 쓰므로 인증을 요구하지 않는다. */
-export async function deleteVillagePhotoAction(
-  input: z.input<typeof deleteSchema>,
+/**
+ * 잘못 올린 사진 내리기.
+ * 인증 없는 공개 화면이라 **파일을 지우지 않고 숨김 처리만** 한다 —
+ * 링크가 도는 상황에서 hard delete 를 열어두면 올린 사진 전부가 복구 불가로 날아간다.
+ * (Codex 교차검토 2026-08-15 지적 반영. 실제 파일 정리는 관리자가 따로 한다.)
+ */
+export async function hideVillagePhotoAction(
+  input: z.input<typeof hideSchema>,
 ): Promise<ActionResult> {
-  const parsed = deleteSchema.safeParse(input);
+  const parsed = hideSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "잘못된 요청입니다." };
 
   let admin: ReturnType<typeof createAdminClient>;
@@ -124,16 +210,11 @@ export async function deleteVillagePhotoAction(
     return { ok: false, error: "서버 설정 오류입니다." };
   }
 
-  const { data: row } = await admin
+  const { error } = await admin
     .from("village_photos")
-    .select("id, storage_path")
-    .eq("id", parsed.data.id)
-    .single();
-  if (!row) return { ok: false, error: "사진을 찾을 수 없습니다." };
-
-  const { error } = await admin.from("village_photos").delete().eq("id", parsed.data.id);
+    .update({ hidden: true })
+    .eq("id", parsed.data.id);
   if (error) return { ok: false, error: error.message };
-  await admin.storage.from(BUCKET).remove([row.storage_path as string]);
 
   revalidatePath("/village");
   revalidatePath("/village/upload");
