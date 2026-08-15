@@ -1,7 +1,13 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { BrandLogo } from "@/components/brand/BrandLogo";
-import { getBrand } from "@/lib/brand-server";
+import { brandMetadata, getBrand } from "@/lib/brand-server";
 import { SignupForm } from "@/components/auth/SignupForm";
+
+// GRIGO 화이트라벨 호스트에서만 탭 제목을 덮어 deetz 표기가 새지 않게 한다.
+export async function generateMetadata(): Promise<Metadata> {
+  return brandMetadata("GRIGO ENT 정산 · 회원가입");
+}
 
 export default async function SignupPage() {
   const brand = await getBrand();
