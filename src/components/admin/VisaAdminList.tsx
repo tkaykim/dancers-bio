@@ -18,6 +18,7 @@ import {
 } from "@/app/actions/visa";
 import { Drawer } from "@/components/ui/drawer";
 import { VisaCaseOpsEditor } from "@/components/admin/VisaCaseOpsEditor";
+import { VisaPaymentPanel } from "@/components/admin/VisaPaymentPanel";
 import {
   VisaMeetingInvitePanel,
   type MeetingInvite,
@@ -83,6 +84,14 @@ export type VisaAdminRow = {
   declined_at: string | null;
   decline_reason: string | null;
   decline_reason_detail: string | null;
+  // 결제 정본은 grigoent 쪽이고, 여기 값은 결제 콜백으로 미러링된 사본이다.
+  payment_status: string;
+  payment_link_sent_at: string | null;
+  payment_order_no: string | null;
+  payment_provider: string | null;
+  payment_amount_krw: number | null;
+  paid_at: string | null;
+  payment_refunded_at: string | null;
   meeting_tracking: MeetingTracking | null;
   meeting_invites: MeetingInvite[];
   outbound_mails: OutboundMail[];
@@ -658,6 +667,19 @@ function VisaDetail({
       />
 
       <VisaOutboundMailsPanel mails={row.outbound_mails} />
+
+      <VisaPaymentPanel
+        state={{
+          applicationId: row.id,
+          paymentStatus: row.payment_status,
+          paymentLinkSentAt: row.payment_link_sent_at,
+          paymentOrderNo: row.payment_order_no,
+          paymentProvider: row.payment_provider,
+          paymentAmountKrw: row.payment_amount_krw,
+          paidAt: row.paid_at,
+          paymentRefundedAt: row.payment_refunded_at,
+        }}
+      />
 
       <VisaCaseOpsEditor row={row} />
 

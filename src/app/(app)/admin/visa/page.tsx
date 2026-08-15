@@ -52,6 +52,13 @@ type AppRow = {
   declined_at?: string | null;
   decline_reason?: string | null;
   decline_reason_detail?: string | null;
+  payment_status?: string | null;
+  payment_link_sent_at?: string | null;
+  payment_order_no?: string | null;
+  payment_provider?: string | null;
+  payment_amount_krw?: number | null;
+  paid_at?: string | null;
+  payment_refunded_at?: string | null;
 };
 
 type TrackingEventRow = {
@@ -261,6 +268,13 @@ export default async function AdminVisaPage() {
       declined_at: a.declined_at ?? null,
       decline_reason: a.decline_reason ?? null,
       decline_reason_detail: a.decline_reason_detail ?? null,
+      payment_status: a.payment_status ?? "unpaid",
+      payment_link_sent_at: a.payment_link_sent_at ?? null,
+      payment_order_no: a.payment_order_no ?? null,
+      payment_provider: a.payment_provider ?? null,
+      payment_amount_krw: a.payment_amount_krw ?? null,
+      paid_at: a.paid_at ?? null,
+      payment_refunded_at: a.payment_refunded_at ?? null,
       tracking: trackingMap.get(a.id) ?? null,
       meeting_tracking: meetingTrackingMap.get(a.id) ?? null,
       meeting_invites: invitesMap.get(a.id) ?? [],
