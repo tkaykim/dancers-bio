@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadSubmissionByToken } from "@/lib/submissions/lookup";
-import { SubmitUploader } from "@/components/submissions/SubmitUploader";
+import { SubmitPanel } from "@/components/submissions/SubmitPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -30,23 +30,11 @@ export default async function SubmitPage({
         <p className="text-sm text-muted-foreground">{sub.projectTitle}</p>
       </header>
 
-      <section className="rounded-xl border border-border p-4 text-sm">
-        <dl className="flex flex-col gap-2">
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">제출자</dt>
-            <dd className="font-medium">{sub.displayName ?? sub.instagramHandle}</dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">인스타그램</dt>
-            <dd className="font-medium">{sub.instagramHandle}</dd>
-          </div>
-        </dl>
-      </section>
-
       {sub.open ? (
-        <SubmitUploader
+        <SubmitPanel
           token={sub.token}
-          instagramHandle={sub.instagramHandle}
+          initialHandle={sub.instagramHandle}
+          displayName={sub.displayName}
           alreadyUploadedName={sub.driveFileName}
         />
       ) : (
