@@ -299,6 +299,19 @@ function deriveState(input: VisaCaseStateInput, nowIso: string): VisaCaseDerived
     const candidates = consultationCandidatesFromAnswers(input.follow_up_answers).filter(
       (candidate) => candidate.sourceLocal,
     );
+    // 질문지는 냈는데 후보 일정이 하나도 없으면 지원자 재제출을 기다리는 상태다.
+    // (지난 후보를 비우고 재요청한 경우가 여기 해당 — 큐에서 사라지면 잊힌다.)
+    if (candidates.length === 0 && input.follow_up_submitted_at) {
+      return {
+        ...base,
+        key: "slots_awaiting_applicant",
+        label: "일정 재제출 대기",
+        tone: "action",
+        queue: "schedule",
+        sortBucket: bucketOf(0),
+        sortTime: ms(input.follow_up_submitted_at) ?? createdAt,
+      };
+    }
     if (candidates.length > 0) {
       const converted = candidates.map((candidate) =>
         candidate.kstLocal ? kstLocalToMs(candidate.kstLocal) : null,

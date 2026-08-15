@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
   const requestedKey = request.nextUrl.searchParams.get("k");
   const eventKey = requestedKey && EVENT_KEYS.has(requestedKey) ? requestedKey : "email_cta";
   const decline = request.nextUrl.searchParams.get("decline") === "1";
+  const editParam = request.nextUrl.searchParams.get("edit");
+  const edit = editParam === "slots" || editParam === "1" ? editParam : null;
   const tracking = verifyVisaFollowupTrackingToken(trackingToken);
   if (!tracking || !trackingToken) {
     return NextResponse.redirect(new URL("/program", SITE_URL));
@@ -37,5 +39,6 @@ export async function GET(request: NextRequest) {
   url.searchParams.set("utm_campaign", tracking.campaign);
   if (lang) url.searchParams.set("lang", lang);
   if (decline) url.searchParams.set("decline", "1");
+  if (edit) url.searchParams.set("edit", edit);
   return NextResponse.redirect(url);
 }

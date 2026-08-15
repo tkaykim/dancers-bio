@@ -547,10 +547,13 @@ export function VisaCasePortal({
   token,
   initial,
   declineRequested = false,
+  editRequested = null,
 }: {
   token: string;
   initial: VisaCaseInitial;
   declineRequested?: boolean;
+  /** 메일에서 "다시 제출" 링크로 들어온 경우 — "slots"면 일정 입력 단계로 바로 연다. */
+  editRequested?: "form" | "slots" | null;
 }) {
   const router = useRouter();
   const initialLang: Lang = initial.preferredLang === "ja" || initial.preferredLang === "ko" ? initial.preferredLang : "en";
@@ -559,8 +562,8 @@ export function VisaCasePortal({
     if (typeof window === "undefined") return null;
     return new URLSearchParams(window.location.search).get("vt");
   }, []);
-  const [step, setStep] = useState(0);
-  const [editing, setEditing] = useState(!initial.followUpSubmittedAt);
+  const [step, setStep] = useState(editRequested === "slots" ? 2 : 0);
+  const [editing, setEditing] = useState(Boolean(editRequested) || !initial.followUpSubmittedAt);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
