@@ -63,6 +63,7 @@ type Application = {
   backup_dancer_history: string | null;
   personal_profile_url: string | null;
   confirmed_at: string | null;
+  passed_round: number | null;
   applicant: { id: string; display_name: string; avatar_url: string | null } | null;
   dancer:
     | {
@@ -85,6 +86,8 @@ type Project = {
   owner_id: string;
   title: string;
   recruitment_count: number;
+  selection_rounds: number | null;
+  round_labels: string[] | null;
   schedule_survey_code: string;
   settlement_share_code: string;
   size_share_code: string | null;
@@ -172,7 +175,7 @@ export default async function ApplicantsPage({
   const projectQuery = supabase
     .from("projects")
     .select(
-      "id, short_code, owner_id, title, recruitment_count, schedule_survey_code, settlement_share_code, size_share_code",
+      "id, short_code, owner_id, title, recruitment_count, selection_rounds, round_labels, schedule_survey_code, settlement_share_code, size_share_code",
     )
     .is("deleted_at", null);
 
@@ -396,7 +399,7 @@ export default async function ApplicantsPage({
     .from("applications")
     .select(
       `id, status, source, cover_message, created_at, rejection_reason, recruitment_channel_id, dancer_id,
-       proposed_fee, proposed_fee_currency, proposed_fee_unit, fee_status, confirmed_at,
+       proposed_fee, proposed_fee_currency, proposed_fee_unit, fee_status, confirmed_at, passed_round,
        applicant_name, birth_year, height_cm, primary_genre, dance_video_url,
        backup_dancer_history, personal_profile_url,
        applicant:profiles!applications_applicant_id_fkey ( id, display_name, avatar_url ),
@@ -516,6 +519,19 @@ export default async function ApplicantsPage({
     channelStats.set(app.recruitment_channel_id, stats);
   }
 
+  // 단계 안내 발송 이력 — 캐스팅보드 벌크 반영처럼 메일 없이 상태만 바뀐 경우를
+  // 콘솔에서 "미발송"으로 드러내기 위한 조회. 채널 = stage_r{n}.
+  const { data: stageNoticeRows } = await createAdminClient()
+    .from("project_notification_log")
+    .select("recipient_id, channel")
+    .eq("project_id", p.id)
+    .like("channel", "stage_r%");
+  const stageNoticeSet = new Set(
+    ((stageNoticeRows ?? []) as Array<{ recipient_id: string; channel: string }>).map(
+      (r) => `${r.recipient_id}|${r.channel}`,
+    ),
+  );
+
   const applicants: ConsoleApplicant[] = list.map((a) => {
     const isTeam = !!a.team;
     // RLS 임베드(a.dancer)는 미승인 댄서를 공동관리자에게 숨기므로, service-role로 읽은
@@ -572,6 +588,13 @@ export default async function ApplicantsPage({
         personal_profile_url: a.personal_profile_url ?? null,
       },
       confirmedAt: a.confirmed_at ?? null,
+      passedRound: a.passed_round ?? 0,
+      noticeSent:
+        a.status !== "accepted" ||
+        !a.applicant?.id ||
+        stageNoticeSet.has(
+          `${a.applicant.id}|stage_r${Math.max(a.passed_round ?? 0, 1)}`,
+        ),
       evalCount: evalAgg.get(a.id)?.count ?? 0,
       avgScore:
         (evalAgg.get(a.id)?.count ?? 0) > 0
@@ -775,6 +798,8 @@ export default async function ApplicantsPage({
           <ApplicantsConsole
             projectId={p.id}
             recruitmentCount={p.recruitment_count}
+            selectionRounds={p.selection_rounds ?? 2}
+            roundLabels={p.round_labels ?? null}
             initial={applicants}
             channels={recruitmentChannels.map((channel) => ({
               id: channel.id,

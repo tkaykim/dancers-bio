@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { humanizeDbError } from "@/lib/db-errors";
+import { normalizeRounds } from "@/lib/application-stage";
 import type { ActionResult } from "./auth";
 
 const STAGE = "prescreen";
@@ -135,8 +136,8 @@ export async function deleteApplicationEvaluationAction(
   return { ok: true };
 }
 
-// 확정 토글 — 수락된 지원자만 확정 가능(거절·대기는 불가). 확정 해제는 항상 허용.
-// status는 그대로 두고 confirmed_at 플래그만 set/unset (기존 accepted 쿼리 보존).
+// 최종 합격 토글 — 마지막 선발 단계로 올리거나(확정) 직전 단계로 내린다(해제).
+// status는 accepted 그대로 두고 passed_round + confirmed_at 만 움직인다(기존 accepted 쿼리 보존).
 export async function setApplicationConfirmedAction(
   formData: FormData,
 ): Promise<ActionResult> {
@@ -148,7 +149,7 @@ export async function setApplicationConfirmedAction(
   const supabase = await createClient();
   const { data: app, error: fetchErr } = await supabase
     .from("applications")
-    .select("project_id, status, confirmed_at")
+    .select("project_id, status, confirmed_at, applicant_id, dancer_id")
     .eq("id", applicationId)
     .maybeSingle();
   if (fetchErr || !app) return { ok: false, error: "지원 정보를 찾을 수 없습니다." };
@@ -158,17 +159,53 @@ export async function setApplicationConfirmedAction(
     return { ok: false, error: "확정할 권한이 없습니다." };
   }
   if (confirmed && app.status !== "accepted") {
-    return { ok: false, error: "수락한 지원자만 확정할 수 있습니다." };
+    return { ok: false, error: "합격 처리된 지원자만 최종 합격할 수 있습니다." };
   }
 
+  const { data: project } = await supabase
+    .from("projects")
+    .select("selection_rounds, round_labels")
+    .eq("id", app.project_id as string)
+    .maybeSingle();
+  const total = normalizeRounds(
+    (project?.selection_rounds as number | null) ?? null,
+  );
+
+  // 확정 = 마지막 단계 통과. 해제 = 직전 단계로 되돌림(1단계 공고는 1차에 머문다).
   const update = confirmed
-    ? { confirmed_at: new Date().toISOString(), confirmed_by: user.id }
-    : { confirmed_at: null, confirmed_by: null };
+    ? {
+        passed_round: total,
+        confirmed_at: new Date().toISOString(),
+        confirmed_by: user.id,
+      }
+    : {
+        passed_round: Math.max(total - 1, 1),
+        confirmed_at: null,
+        confirmed_by: null,
+      };
   const { error } = await supabase
     .from("applications")
     .update(update)
     .eq("id", applicationId);
   if (error) return { ok: false, error: humanizeDbError(error.message) };
+
+  // 최종 합격 시 본인에게 안내 발송 — 이 시점부터 직접 포기가 막히므로 반드시 알린다.
+  // 해제 후 재확정해도 중복 발송되지 않는다(project_notification_log 멱등).
+  if (confirmed && app.applicant_id && app.project_id) {
+    try {
+      const { sendStageEmail } = await import("@/lib/notify/stage-mail");
+      await sendStageEmail({
+        applicantId: app.applicant_id as string,
+        dancerId: (app.dancer_id as string | null) ?? null,
+        projectId: app.project_id as string,
+        round: total,
+        totalRounds: total,
+        roundLabels: (project?.round_labels as string[] | null) ?? null,
+      });
+    } catch (e) {
+      console.error("[stage-mail] 발송 실패:", e);
+    }
+  }
 
   revalidatePath(`/projects/${app.project_id as string}/applicants`);
   revalidatePath(`/projects/${app.project_id as string}`);

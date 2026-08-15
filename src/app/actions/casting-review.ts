@@ -5,6 +5,7 @@ import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyCastingReviewToken } from "@/lib/quick-token";
+import { normalizeRounds } from "@/lib/application-stage";
 import {
   applicationMatchesCandidateStatuses,
   normalizeCandidateStatuses,
@@ -325,6 +326,20 @@ export async function applyCastingBoardReviewAction(
     };
   }
 
+  const supabase = await createClient();
+
+  // 선발 단계 모델과 정합을 맞춘다.
+  //   수락으로 반영 → 1차 통과
+  //   확정으로 반영 → 마지막 단계 통과 + 최종 합격 잠금
+  const { data: roundProject } = await supabase
+    .from("projects")
+    .select("selection_rounds")
+    .eq("id", projectId)
+    .maybeSingle();
+  const totalRounds = normalizeRounds(
+    (roundProject?.selection_rounds as number | null) ?? null,
+  );
+
   const now = new Date().toISOString();
   const patch =
     applyAs === "confirmed"
@@ -332,6 +347,7 @@ export async function applyCastingBoardReviewAction(
           status: "accepted" as const,
           responded_at: now,
           rejection_reason: null,
+          passed_round: totalRounds,
           confirmed_at: now,
           confirmed_by: user.id,
         }
@@ -339,8 +355,8 @@ export async function applyCastingBoardReviewAction(
           status: "accepted" as const,
           responded_at: now,
           rejection_reason: null,
+          passed_round: 1,
         };
-  const supabase = await createClient();
   let updateQuery = supabase
     .from("applications")
     .update(patch)

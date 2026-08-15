@@ -7,9 +7,17 @@ import { toast } from "sonner";
 import {
   decideApplicationAction,
   bulkDecideApplicationsAction,
+  setApplicationRoundAction,
+  sendPendingStageNoticesAction,
 } from "@/app/actions/applications";
 import { closeProjectAction } from "@/app/actions/projects";
-import { APPLICATION_STATUS_LABELS } from "@/lib/validation/projects";
+import {
+  getPassedRound,
+  normalizeRounds,
+  roundLabel,
+  roundSteps,
+  stageLabel,
+} from "@/lib/application-stage";
 import {
   ApplicantPortfolioSheet,
   type SheetApplicant,
@@ -42,6 +50,9 @@ export type ConsoleApplicant = {
   fee_status: string | null;
   castingDetails: SubmittedCastingDetails;
   confirmedAt: string | null;
+  passedRound: number;
+  /** 현재 단계 안내 메일이 이미 나갔는지. false면 콘솔이 "미발송"으로 드러낸다. */
+  noticeSent: boolean;
   evalCount: number;
   avgScore: number | null;
   myScore: number | null;
@@ -64,7 +75,29 @@ function formatFee(a: ConsoleApplicant): string | null {
   return `${sym}${amount}${unit}${nego}`;
 }
 
-type Tab = "pending" | "accepted" | "confirmed" | "rejected" | "all";
+// 단계 탭은 공고의 selection_rounds 만큼 동적으로 생긴다: round:1, round:2, ...
+type Tab = "pending" | "rejected" | "all" | `round:${number}`;
+
+// 콘솔은 camelCase, 단계 헬퍼는 DB 컬럼명(snake_case)을 받는다.
+function toStageApp(a: ConsoleApplicant) {
+  return {
+    status: a.status,
+    passed_round: a.passedRound,
+    confirmed_at: a.confirmedAt,
+  };
+}
+
+// 탭 분류·집계용 단계. 마지막 단계는 confirmed_at 을 기준으로 한다 —
+// passed_round 만 보면 "마지막 단계까지 갔지만 확정 안 된" 지원자가
+// 최종 합격 인원으로 잡혀 정원을 과대 표시한다.
+// 1단계 공고는 내려보낼 앞 단계가 없어 1에 머문다(탭에서 사라지지 않게).
+function effectiveRound(a: ConsoleApplicant, totalRounds: number): number {
+  const passed = getPassedRound(toStageApp(a));
+  if (passed >= totalRounds && !a.confirmedAt) {
+    return Math.max(totalRounds - 1, 1);
+  }
+  return passed;
+}
 type ChannelFilter = "all" | "none" | string;
 type SortMode = "newest" | "oldest" | "score" | "score_asc";
 type GenderFilter = "all" | "male" | "female";
@@ -81,13 +114,24 @@ export function ApplicantsConsole({
   initial,
   channels = [],
   canDecide = true,
+  selectionRounds = 2,
+  roundLabels = null,
 }: {
   projectId: string;
   recruitmentCount: number;
   initial: ConsoleApplicant[];
   channels?: Array<{ id: string; name: string }>;
   canDecide?: boolean;
+  selectionRounds?: number;
+  roundLabels?: string[] | null;
 }) {
+  const roundConfig = {
+    selection_rounds: selectionRounds,
+    round_labels: roundLabels,
+  };
+  const totalRounds = normalizeRounds(selectionRounds);
+  const steps = roundSteps(roundConfig);
+
   const router = useRouter();
   const [items, setItems] = useState<ConsoleApplicant[]>(initial);
   const [tab, setTab] = useState<Tab>("pending");
@@ -109,16 +153,18 @@ export function ApplicantsConsole({
   const counts = useMemo(() => {
     let pending = 0,
       accepted = 0,
-      confirmed = 0,
       rejected = 0;
+    const byRound = new Map<number, number>();
     for (const a of items) {
       if (a.status === "pending") pending++;
-      else if (a.status === "accepted") accepted++;
-      else if (a.status === "rejected" || a.status === "declined") rejected++;
-      if (a.confirmedAt) confirmed++;
+      else if (a.status === "accepted") {
+        accepted++;
+        const r = effectiveRound(a, totalRounds);
+        byRound.set(r, (byRound.get(r) ?? 0) + 1);
+      } else if (a.status === "rejected" || a.status === "declined") rejected++;
     }
-    return { pending, accepted, confirmed, rejected, total: items.length };
-  }, [items]);
+    return { pending, accepted, rejected, byRound, total: items.length };
+  }, [items, totalRounds]);
 
   const allGenres = useMemo(() => {
     const s = new Set<string>();
@@ -163,8 +209,11 @@ export function ApplicantsConsole({
     const q = query.trim().toLowerCase();
     let list = items.filter((a) => {
       if (tab === "pending" && a.status !== "pending") return false;
-      if (tab === "accepted" && a.status !== "accepted") return false;
-      if (tab === "confirmed" && !a.confirmedAt) return false;
+      if (tab.startsWith("round:")) {
+        const want = Number(tab.slice("round:".length));
+        if (a.status !== "accepted") return false;
+        if (effectiveRound(a, totalRounds) !== want) return false;
+      }
       if (tab === "rejected" && a.status !== "rejected" && a.status !== "declined")
         return false;
       if (channelFilter === "none" && a.recruitmentChannelId) return false;
@@ -215,6 +264,7 @@ export function ApplicantsConsole({
   }, [
     items,
     tab,
+    totalRounds,
     channelFilter,
     query,
     genre,
@@ -275,6 +325,65 @@ export function ApplicantsConsole({
     );
   }
 
+  // 다음 선발 단계로 올린다. 마지막 단계면 곧 최종 합격(확정)이라 한 번 더 묻는다.
+  async function advanceRound(id: string, toRound: number) {
+    if (!canDecide) return;
+    const isFinal = toRound >= totalRounds;
+    const label = roundLabel(toRound, roundConfig);
+    if (
+      isFinal &&
+      !confirm(
+        `${label}으로 확정할까요?\n확정하면 지원자가 직접 포기할 수 없게 되고, 최종 합격 안내 메일이 발송됩니다.`,
+      )
+    )
+      return;
+
+    setBusy(true);
+    const prevItem = items.find((a) => a.id === id);
+    patchItem(id, {
+      status: "accepted",
+      passedRound: toRound,
+      confirmedAt: isFinal ? new Date().toISOString() : null,
+      rejection_reason: null,
+    });
+    const fd = new FormData();
+    fd.set("application_id", id);
+    fd.set("round", String(toRound));
+    const r = await setApplicationRoundAction(fd);
+    setBusy(false);
+    if (!r.ok) {
+      if (prevItem) {
+        patchItem(id, {
+          status: prevItem.status,
+          passedRound: prevItem.passedRound,
+          confirmedAt: prevItem.confirmedAt,
+        });
+      }
+      toast.error(r.error);
+      return;
+    }
+    toast.success(`${label} 처리했습니다`);
+    if (r.data?.quotaReached && r.data.projectId) {
+      const pid = r.data.projectId;
+      toast("모집 인원이 모두 찼습니다", {
+        description: "모집을 마감할까요?",
+        action: {
+          label: "마감하기",
+          onClick: async () => {
+            const cf = new FormData();
+            cf.set("project_id", pid);
+            const cr = await closeProjectAction(cf);
+            if (cr.ok) {
+              toast.success("모집을 마감했습니다");
+              router.refresh();
+            } else toast.error(cr.error);
+          },
+        },
+      });
+    }
+    router.refresh();
+  }
+
   // 거절은 사유 입력 다이얼로그를 먼저 띄운다. 수락/대기는 즉시 처리.
   function requestDecide(
     id: string,
@@ -301,8 +410,10 @@ export function ApplicantsConsole({
     patchItem(id, {
       status: decision,
       rejection_reason: decision === "rejected" ? reason : null,
-      // 대기·거절로 되돌리면 확정도 함께 해제(서버와 동일).
-      ...(decision !== "accepted" ? { confirmedAt: null } : {}),
+      // 대기·거절로 되돌리면 확정·통과단계도 함께 해제(서버와 동일).
+      ...(decision !== "accepted"
+        ? { confirmedAt: null, passedRound: 0 }
+        : { passedRound: 1 }),
     }); // 낙관적 업데이트
     const fd = new FormData();
     fd.set("application_id", id);
@@ -390,19 +501,69 @@ export function ApplicantsConsole({
 
   const TABS: { key: Tab; label: string; n: number }[] = [
     { key: "pending", label: "대기", n: counts.pending },
-    { key: "accepted", label: "수락", n: counts.accepted },
-    { key: "confirmed", label: "확정", n: counts.confirmed },
+    ...steps.map((s) => ({
+      key: `round:${s.round}` as Tab,
+      label: s.label,
+      n: counts.byRound.get(s.round) ?? 0,
+    })),
     { key: "rejected", label: "거절", n: counts.rejected },
     { key: "all", label: "전체", n: counts.total },
   ];
 
+  const unnotified = items.filter(
+    (a) => a.status === "accepted" && !a.noticeSent,
+  ).length;
+
+  async function sendPendingNotices() {
+    if (
+      !confirm(
+        `단계 안내를 아직 못 받은 합격자 ${unnotified}명에게 안내 메일을 보냅니다.\n실제 발송입니다. 진행할까요?`,
+      )
+    )
+      return;
+    setBusy(true);
+    const fd = new FormData();
+    fd.set("project_id", projectId);
+    const r = await sendPendingStageNoticesAction(fd);
+    setBusy(false);
+    if (!r.ok) {
+      toast.error(r.error);
+      return;
+    }
+    toast.success(
+      `${r.data?.sent ?? 0}명에게 발송했습니다 (건너뜀 ${r.data?.skipped ?? 0}명)`,
+    );
+    router.refresh();
+  }
+
   return (
     <div className="flex flex-col gap-3">
+      {/* 캐스팅보드 벌크 반영처럼 메일 없이 단계만 오른 경우를 드러낸다.
+          조용히 잊히면 지원자는 합격·확정 사실을 모른 채 포기 권한만 잃는다. */}
+      {canDecide && unnotified > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 px-3 py-2.5">
+          <p className="text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+            단계 안내를 못 받은 합격자 <b>{unnotified}명</b>이 있습니다.
+            <br />
+            안내가 나가야 지원자가 현재 단계를 알 수 있습니다.
+          </p>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={sendPendingNotices}
+            className="shrink-0 rounded-full bg-amber-600 px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
+          >
+            안내 일괄 발송
+          </button>
+        </div>
+      ) : null}
+
       <div className="flex items-baseline justify-between">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 지원자</p>
         <p className="text-sm text-ink-2">
-          전체 {counts.total} · 대기 {counts.pending} · 수락 {counts.accepted} /{" "}
-          {recruitmentCount}
+          전체 {counts.total} · 대기 {counts.pending} ·{" "}
+          {roundLabel(totalRounds, roundConfig)}{" "}
+          {counts.byRound.get(totalRounds) ?? 0} / {recruitmentCount}
         </p>
       </div>
 
@@ -754,7 +915,7 @@ export function ApplicantsConsole({
                 </div>
                 {a.confirmedAt ? (
                   <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                    확정
+                    최종
                   </span>
                 ) : null}
                 <span
@@ -762,25 +923,32 @@ export function ApplicantsConsole({
                     STATUS_BADGE[a.status] ?? "bg-secondary text-ink-3"
                   }`}
                 >
-                  {APPLICATION_STATUS_LABELS[
-                    a.status as keyof typeof APPLICATION_STATUS_LABELS
-                  ] ?? a.status}
+                  {stageLabel(toStageApp(a), roundConfig)}
                 </span>
                 {canDecide ? (
                   <div
                     className="flex shrink-0 gap-1"
                     onClick={(e) => e.stopPropagation()}
                   >
-                  {a.status !== "accepted" ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => requestDecide(a.id, "accepted")}
-                      className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground disabled:opacity-50"
-                    >
-                      수락
-                    </button>
-                  ) : null}
+                  {/* 다음 단계로 올리는 단일 버튼. 마지막 단계면 곧 최종 합격 확정. */}
+                  {(() => {
+                    const passed =
+                      a.status === "accepted" ? getPassedRound(toStageApp(a)) : 0;
+                    // 마지막 단계까지 왔는데 확정만 안 된 경우(1단계 공고·레거시)도
+                    // 버튼을 남겨 최종 합격을 찍을 수 있게 한다.
+                    if (passed >= totalRounds && a.confirmedAt) return null;
+                    const next = Math.min(passed + 1, totalRounds);
+                    return (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => advanceRound(a.id, next)}
+                        className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground disabled:opacity-50"
+                      >
+                        {roundLabel(next, roundConfig)}
+                      </button>
+                    );
+                  })()}
                   {a.status !== "rejected" && a.status !== "declined" ? (
                     <button
                       type="button"
@@ -822,8 +990,20 @@ export function ApplicantsConsole({
           if (sheetId) patchMyScore(sheetId, score);
         }}
         onConfirmChange={(confirmedAt) => {
-          if (sheetId) patchItem(sheetId, { confirmedAt });
+          if (sheetId) {
+            patchItem(sheetId, {
+              confirmedAt,
+              passedRound: confirmedAt
+                ? totalRounds
+                : Math.max(totalRounds - 1, 1),
+            });
+          }
         }}
+        totalRounds={totalRounds}
+        passedRound={(() => {
+          const row = sheetId ? items.find((i) => i.id === sheetId) : null;
+          return row ? getPassedRound(toStageApp(row)) : 0;
+        })()}
       />
 
       <RejectReasonDialog

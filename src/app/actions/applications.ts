@@ -9,6 +9,7 @@ import { sendApplicationRejectionEmail } from "@/lib/notify/rejection-mail";
 import { NEEDS_DANCER_ERROR } from "@/lib/lite-constants";
 import { isExpired } from "@/lib/utils/deadline";
 import { castingApplicationDetailsSchema } from "@/lib/validation/application-details";
+import { normalizeRounds } from "@/lib/application-stage";
 import type { ActionResult } from "./auth";
 
 // Lite MVP: 1계정 = 1댄서 가정. team apply / manager-as-actor 분기 모두 제거.
@@ -213,13 +214,283 @@ export async function withdrawApplicationAction(
   return { ok: true };
 }
 
+// 선발 단계 이동 — 운영자 전용. 단계 관련 상태 변경은 전부 이 액션 하나로 모은다.
+//
+//   round = 0            → 대기로 되돌림
+//   0 < round < total    → 중간 단계 합격 (최종 아님, 본인 포기 가능)
+//   round = total        → 최종 합격 확정 (confirmed_at 설정, 본인 포기 불가)
+//
+// 단계 안내 메일은 단계별로 1회만 나간다(project_notification_log 멱등).
+export async function setApplicationRoundAction(
+  formData: FormData,
+): Promise<
+  ActionResult<{
+    round: number;
+    isFinal: boolean;
+    quotaReached?: true;
+    projectId?: string;
+  }>
+> {
+  const user = await requireUser();
+  const application_id = (formData.get("application_id") ?? "").toString();
+  const roundRaw = Number((formData.get("round") ?? "").toString());
+  if (!application_id || !Number.isInteger(roundRaw) || roundRaw < 0) {
+    return { ok: false, error: "잘못된 요청입니다." };
+  }
+
+  const supabase = await createClient();
+  const { data: app, error: fetchErr } = await supabase
+    .from("applications")
+    .select("id, project_id, status, passed_round, confirmed_at, applicant_id, dancer_id")
+    .eq("id", application_id)
+    .maybeSingle();
+  if (fetchErr || !app) return { ok: false, error: "지원 정보를 찾을 수 없습니다." };
+
+  if (!(await canManageProject(app.project_id as string))) {
+    return { ok: false, error: "단계를 변경할 권한이 없습니다." };
+  }
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("selection_rounds, round_labels")
+    .eq("id", app.project_id as string)
+    .maybeSingle();
+  const total = normalizeRounds(
+    (project?.selection_rounds as number | null) ?? null,
+  );
+  if (roundRaw > total) {
+    return { ok: false, error: `이 공고는 ${total}단계까지만 있습니다.` };
+  }
+
+  const isFinal = roundRaw === total && roundRaw > 0;
+  const now = new Date().toISOString();
+  const update =
+    roundRaw === 0
+      ? {
+          status: "pending" as const,
+          passed_round: 0,
+          responded_at: null,
+          rejection_reason: null,
+          confirmed_at: null,
+          confirmed_by: null,
+        }
+      : {
+          status: "accepted" as const,
+          passed_round: roundRaw,
+          responded_at: now,
+          rejection_reason: null,
+          confirmed_at: isFinal ? now : null,
+          confirmed_by: isFinal ? user.id : null,
+        };
+
+  const { error } = await supabase
+    .from("applications")
+    .update(update)
+    .eq("id", application_id);
+  if (error) return { ok: false, error: humanizeDbError(error.message) };
+
+  if (roundRaw > 0 && app.applicant_id) {
+    try {
+      const { sendStageEmail } = await import("@/lib/notify/stage-mail");
+      await sendStageEmail({
+        applicantId: app.applicant_id as string,
+        dancerId: (app.dancer_id as string | null) ?? null,
+        projectId: app.project_id as string,
+        round: roundRaw,
+        totalRounds: total,
+        roundLabels: (project?.round_labels as string[] | null) ?? null,
+      });
+    } catch (e) {
+      console.error("[stage-mail] 발송 실패:", e);
+    }
+  }
+
+  // 모집 정원은 "최종 합격" 기준으로 센다. 중간 단계 합격자는 정원에 포함하지 않는다.
+  let quotaReached = false;
+  if (isFinal) {
+    const [{ data: proj }, { count: finalCount }] = await Promise.all([
+      supabase
+        .from("projects")
+        .select("recruitment_count, status")
+        .eq("id", app.project_id as string)
+        .maybeSingle(),
+      supabase
+        .from("applications")
+        .select("id", { count: "exact", head: true })
+        .eq("project_id", app.project_id as string)
+        .eq("status", "accepted")
+        .not("confirmed_at", "is", null)
+        .is("archived_at", null),
+    ]);
+    if (
+      proj &&
+      proj.status === "open" &&
+      (finalCount ?? 0) >= (proj.recruitment_count ?? 1)
+    ) {
+      quotaReached = true;
+    }
+  }
+
+  revalidatePath(`/projects/${app.project_id as string}/applicants`);
+  revalidatePath(`/projects/${app.project_id as string}`);
+  revalidatePath("/applications");
+  return {
+    ok: true,
+    data: {
+      round: roundRaw,
+      isFinal,
+      ...(quotaReached
+        ? { quotaReached: true as const, projectId: app.project_id as string }
+        : {}),
+    },
+  };
+}
+
+// 아직 단계 안내가 나가지 않은 합격자에게 일괄 발송한다.
+//
+// 캐스팅보드 벌크 반영(applyCastingBoardReviewAction)은 상태만 바꾸고 메일을 보내지 않는다.
+// 벌크에서 자동 발송하면 승인 없이 수십~수백 통이 나가기 때문이다.
+// 대신 콘솔이 "미발송 N명"을 표시하고, 운영자가 이 액션으로 직접 트리거한다.
+// sendStageEmail 이 단계별 멱등이라 중복 발송은 구조적으로 막힌다.
+export async function sendPendingStageNoticesAction(
+  formData: FormData,
+): Promise<ActionResult<{ sent: number; skipped: number }>> {
+  await requireUser();
+  const projectId = (formData.get("project_id") ?? "").toString();
+  if (!projectId) return { ok: false, error: "잘못된 요청입니다." };
+  if (!(await canManageProject(projectId))) {
+    return { ok: false, error: "안내를 발송할 권한이 없습니다." };
+  }
+
+  const supabase = await createClient();
+  const [{ data: project }, { data: rows }] = await Promise.all([
+    supabase
+      .from("projects")
+      .select("selection_rounds, round_labels")
+      .eq("id", projectId)
+      .maybeSingle(),
+    supabase
+      .from("applications")
+      .select("id, applicant_id, dancer_id, passed_round")
+      .eq("project_id", projectId)
+      .eq("status", "accepted")
+      .is("archived_at", null)
+      .limit(500),
+  ]);
+
+  const totalRounds = normalizeRounds(
+    (project?.selection_rounds as number | null) ?? null,
+  );
+  const roundLabels = (project?.round_labels as string[] | null) ?? null;
+
+  const { sendStageEmail } = await import("@/lib/notify/stage-mail");
+  let sent = 0;
+  let skipped = 0;
+  for (const row of (rows ?? []) as Array<{
+    applicant_id: string | null;
+    dancer_id: string | null;
+    passed_round: number | null;
+  }>) {
+    if (!row.applicant_id) {
+      skipped++;
+      continue;
+    }
+    const round = Math.max(Number(row.passed_round ?? 0), 1);
+    try {
+      const res = await sendStageEmail({
+        applicantId: row.applicant_id,
+        dancerId: row.dancer_id,
+        projectId,
+        round,
+        totalRounds,
+        roundLabels,
+      });
+      if (res.ok && !res.skipped) sent++;
+      else skipped++;
+    } catch (e) {
+      console.error("[stage-mail] 일괄 발송 실패:", e);
+      skipped++;
+    }
+  }
+
+  revalidatePath(`/projects/${projectId}/applicants`);
+  return { ok: true, data: { sent, skipped } };
+}
+
+// 중간 단계 합격(최종 확정 전) 상태에서 본인이 참여를 포기한다.
+// 최종 선발(confirmed_at 있음) 이후에는 불가 — 서버·DB 트리거 양쪽에서 막는다.
+// 상태는 'declined'(본인 거절)로 두어 운영자 거절('rejected')과 구분한다.
+export async function declineAcceptedApplicationAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  const application_id = formData.get("application_id");
+  if (typeof application_id !== "string") {
+    return { ok: false, error: "잘못된 요청입니다." };
+  }
+  const reason = (formData.get("reason") ?? "").toString().trim().slice(0, 500);
+
+  const supabase = await createClient();
+  const { data: app } = await supabase
+    .from("applications")
+    .select("id, applicant_id, status, confirmed_at, project_id, dancer_id, passed_round")
+    .eq("id", application_id)
+    .maybeSingle();
+  if (!app) return { ok: false, error: "지원 정보를 찾을 수 없습니다." };
+  if (app.applicant_id !== user.id) {
+    return { ok: false, error: "본인 지원만 포기할 수 있습니다." };
+  }
+  if (app.status !== "accepted") {
+    return { ok: false, error: "1차 합격 상태에서만 포기할 수 있습니다." };
+  }
+  if (app.confirmed_at) {
+    return {
+      ok: false,
+      error:
+        "최종 합격한 지원은 직접 포기할 수 없습니다. contact@deetz.kr 로 연락해 주세요.",
+    };
+  }
+  // 2차 이상까지 올라온 뒤의 이탈은 후속 충원 판단이 필요하므로 사유를 받는다.
+  if (Number(app.passed_round ?? 0) >= 2 && !reason) {
+    return {
+      ok: false,
+      error: "이 단계에서는 포기 사유를 남겨주셔야 합니다.",
+    };
+  }
+
+  const { error } = await supabase
+    .from("applications")
+    .update({ status: "declined", responded_at: new Date().toISOString() })
+    .eq("id", application_id)
+    .eq("status", "accepted")
+    .is("confirmed_at", null);
+  if (error) return { ok: false, error: humanizeDbError(error.message) };
+
+  // 대체 인원을 바로 검토할 수 있도록 운영자에게 알린다. 비치명적.
+  try {
+    const { sendSelfDeclineNotice } = await import("@/lib/notify/stage-mail");
+    await sendSelfDeclineNotice({
+      projectId: (app.project_id as string | null) ?? null,
+      applicantId: (app.applicant_id as string | null) ?? null,
+      dancerId: (app.dancer_id as string | null) ?? null,
+      reason: reason || null,
+    });
+  } catch (e) {
+    console.error("[decline-notice] 발송 실패:", e);
+  }
+
+  revalidatePath("/applications");
+  revalidatePath(`/projects/${app.project_id as string}/applicants`);
+  return { ok: true };
+}
+
 // Lite: 수락 시 acceptedCount가 recruitment_count에 도달하면 quotaReached 신호를
 // 반환해 클라이언트가 "마감할까요?" 확인 후 closeProjectAction을 직접 호출.
 // 자동 마감 트리거는 마이그레이션 20260516_004에서 제거됨.
 export async function decideApplicationAction(
   formData: FormData,
 ): Promise<ActionResult<{ quotaReached?: true; projectId?: string }>> {
-  await requireUser();
+  const user = await requireUser();
   const application_id = formData.get("application_id");
   const decision = formData.get("decision");
   if (
@@ -249,21 +520,44 @@ export async function decideApplicationAction(
     return { ok: true };
   }
 
+  // 공고의 단계 수를 먼저 읽는다. 1단계 공고에서는 '합격'이 곧 최종 합격이라
+  // confirmed_at 까지 같이 찍어야 한다(안 찍으면 "합격인데 최종 확정 대기"로 떠서
+  // 지원자가 계속 본인 포기를 할 수 있다).
+  const { data: roundProject } = await supabase
+    .from("projects")
+    .select("selection_rounds, round_labels")
+    .eq("id", app.project_id as string)
+    .maybeSingle();
+  const totalRounds = normalizeRounds(
+    (roundProject?.selection_rounds as number | null) ?? null,
+  );
+  const acceptIsFinal = totalRounds === 1;
+
   // 거절 사유(선택) — 거절일 때만 저장, 수락/대기복귀 시 비움.
   const reason = (formData.get("rejection_reason") ?? "").toString().trim() || null;
-  // 대기·거절로 되돌리면 확정(confirmed) 상태도 함께 해제 — "확정이면서 거절" 같은 모순 방지.
+  // 대기·거절로 되돌리면 확정·통과단계도 함께 해제 — "최종 합격이면서 거절" 같은 모순 방지.
+  // 여기서 '합격'은 첫 단계 통과. 2차 이상은 setApplicationRoundAction 담당.
+  const now = new Date().toISOString();
   const update: {
     status: "accepted" | "rejected" | "pending";
     responded_at: string | null;
     rejection_reason: string | null;
-    confirmed_at?: null;
-    confirmed_by?: null;
+    passed_round: number;
+    confirmed_at?: string | null;
+    confirmed_by?: string | null;
   } =
     decision === "pending"
-      ? { status: "pending", responded_at: null, rejection_reason: null, confirmed_at: null, confirmed_by: null }
+      ? { status: "pending", responded_at: null, rejection_reason: null, passed_round: 0, confirmed_at: null, confirmed_by: null }
       : decision === "rejected"
-        ? { status: "rejected", responded_at: new Date().toISOString(), rejection_reason: reason, confirmed_at: null, confirmed_by: null }
-        : { status: "accepted", responded_at: new Date().toISOString(), rejection_reason: null };
+        ? { status: "rejected", responded_at: now, rejection_reason: reason, passed_round: 0, confirmed_at: null, confirmed_by: null }
+        : {
+            status: "accepted",
+            responded_at: now,
+            rejection_reason: null,
+            passed_round: 1,
+            confirmed_at: acceptIsFinal ? now : null,
+            confirmed_by: acceptIsFinal ? user.id : null,
+          };
 
   const { error } = await supabase
     .from("applications")
@@ -285,9 +579,28 @@ export async function decideApplicationAction(
     }
   }
 
+  // 단계 통과 안내 자동 발송. 단건 액션이라 폭주하지 않고, 단계별 1회만 나간다.
+  if (decision === "accepted" && app.applicant_id && app.project_id) {
+    try {
+      const { sendStageEmail } = await import("@/lib/notify/stage-mail");
+      await sendStageEmail({
+        applicantId: app.applicant_id as string,
+        dancerId: (app.dancer_id as string | null) ?? null,
+        projectId: app.project_id as string,
+        round: 1,
+        totalRounds,
+        roundLabels: (roundProject?.round_labels as string[] | null) ?? null,
+      });
+    } catch (e) {
+      console.error("[stage-mail] 발송 실패:", e);
+    }
+  }
+
+  // 정원은 "최종 합격(confirmed_at)" 인원으로 센다.
+  // 중간 단계 합격자까지 세면 1차 합격만으로 정원이 차버린다.
   let quotaReached = false;
   const canManageWholeProject = await canManageProject(app.project_id as string);
-  if (decision === "accepted" && canManageWholeProject) {
+  if (decision === "accepted" && acceptIsFinal && canManageWholeProject) {
     const [{ data: project }, { count: acceptedNow }] = await Promise.all([
       supabase
         .from("projects")
@@ -299,6 +612,7 @@ export async function decideApplicationAction(
         .select("id", { count: "exact", head: true })
         .eq("project_id", app.project_id)
         .eq("status", "accepted")
+        .not("confirmed_at", "is", null)
         .is("archived_at", null),
     ]);
     if (
@@ -354,12 +668,20 @@ export async function bulkDecideApplicationsAction(
     return { ok: false, error: "선택된 지원이 없습니다." };
 
   const supabase = await createClient();
+  // 대기·거절로 되돌리면 통과 단계도 0으로 초기화한다(단건 처리와 동일).
   const update =
     decision === "pending"
-      ? { status: "pending" as const, responded_at: null, confirmed_at: null, confirmed_by: null }
+      ? {
+          status: "pending" as const,
+          responded_at: null,
+          passed_round: 0,
+          confirmed_at: null,
+          confirmed_by: null,
+        }
       : {
           status: "rejected" as const,
           responded_at: new Date().toISOString(),
+          passed_round: 0,
           confirmed_at: null,
           confirmed_by: null,
         };

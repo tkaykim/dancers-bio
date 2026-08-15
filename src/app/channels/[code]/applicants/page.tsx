@@ -36,6 +36,7 @@ type ApplicationRow = {
   backup_dancer_history: string | null;
   personal_profile_url: string | null;
   confirmed_at: string | null;
+  passed_round: number | null;
   dancer:
     | {
         id: string;
@@ -75,7 +76,7 @@ export default async function ChannelApplicantsPage({
   const admin = createAdminClient();
   const { data: project } = await admin
     .from("projects")
-    .select("title, short_code, recruitment_count")
+    .select("title, short_code, recruitment_count, selection_rounds, round_labels")
     .eq("id", channel.project_id)
     .maybeSingle();
 
@@ -83,7 +84,7 @@ export default async function ChannelApplicantsPage({
     .from("applications")
     .select(
       `id, status, source, cover_message, created_at, rejection_reason, recruitment_channel_id,
-       proposed_fee, proposed_fee_currency, proposed_fee_unit, fee_status, confirmed_at,
+       proposed_fee, proposed_fee_currency, proposed_fee_unit, fee_status, confirmed_at, passed_round,
        applicant_name, birth_year, height_cm, primary_genre, dance_video_url,
        backup_dancer_history, personal_profile_url,
        applicant:profiles!applications_applicant_id_fkey ( id, display_name, avatar_url ),
@@ -167,6 +168,9 @@ export default async function ChannelApplicantsPage({
         personal_profile_url: app.personal_profile_url ?? null,
       },
       confirmedAt: app.confirmed_at ?? null,
+      passedRound: app.passed_round ?? 0,
+      // 채널 담당자 화면에서는 일괄 안내 발송을 노출하지 않는다(프로젝트 관리자 권한).
+      noticeSent: true,
       evalCount: 0,
       avgScore: null,
       myScore: null,
@@ -211,6 +215,8 @@ export default async function ChannelApplicantsPage({
       <ApplicantsConsole
         projectId={channel.project_id}
         recruitmentCount={project?.recruitment_count ?? counts.total}
+        selectionRounds={project?.selection_rounds ?? 2}
+        roundLabels={project?.round_labels ?? null}
         initial={consoleApplicants}
         channels={[{ id: channel.id, name: channel.name }]}
         canDecide={canDecide}

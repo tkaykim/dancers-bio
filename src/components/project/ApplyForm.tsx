@@ -352,3 +352,61 @@ export function WithdrawButton({ applicationId }: { applicationId: string }) {
     </Button>
   );
 }
+
+// 1차 합격(최종 확정 전) 상태에서 본인이 참여를 포기한다.
+// 최종 선발 이후에는 이 버튼 자체가 렌더되지 않고, 서버·DB 트리거도 전이를 막는다.
+export function DeclineOfferButton({
+  applicationId,
+  requireReason = false,
+}: {
+  applicationId: string;
+  /** 2차 이상 단계에서는 사유가 필수다(운영팀이 후속 충원을 판단해야 한다). */
+  requireReason?: boolean;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      disabled={pending}
+      onClick={() => {
+        if (
+          !confirm(
+            "이 프로젝트 참여를 포기하시겠습니까?\n포기하면 이번 캐스팅 검토 대상에서 제외되며, 되돌릴 수 없습니다.",
+          )
+        )
+          return;
+        const reason = (
+          prompt(
+            requireReason
+              ? "포기 사유를 남겨주세요. (필수)"
+              : "포기 사유를 남겨주세요. (선택)",
+          ) ?? ""
+        ).trim();
+        if (requireReason && !reason) {
+          alert("이 단계에서는 포기 사유를 남겨주셔야 합니다.");
+          return;
+        }
+        const fd = new FormData();
+        fd.set("application_id", applicationId);
+        fd.set("reason", reason);
+        startTransition(async () => {
+          const { declineAcceptedApplicationAction } = await import(
+            "@/app/actions/applications"
+          );
+          const result = await declineAcceptedApplicationAction(fd);
+          if (!result.ok) {
+            alert(result.error);
+            return;
+          }
+          router.refresh();
+        });
+      }}
+    >
+      {pending ? "처리 중..." : "참여 포기"}
+    </Button>
+  );
+}

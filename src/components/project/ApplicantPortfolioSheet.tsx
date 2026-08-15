@@ -159,6 +159,8 @@ export function ApplicantPortfolioSheet({
   canDecide = true,
   onMyScoreChange,
   onConfirmChange,
+  totalRounds = 2,
+  passedRound = 0,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -169,6 +171,8 @@ export function ApplicantPortfolioSheet({
   canDecide?: boolean;
   onMyScoreChange?: (score: number | null) => void;
   onConfirmChange?: (confirmedAt: string | null) => void;
+  totalRounds?: number;
+  passedRound?: number;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -189,7 +193,7 @@ export function ApplicantPortfolioSheet({
       toast.error(r.error);
       return;
     }
-    toast.success(next ? "확정했습니다" : "확정을 해제했습니다");
+    toast.success(next ? "최종 선발했습니다" : "최종 선발을 해제했습니다");
     onConfirmChange?.(next ? new Date().toISOString() : null);
   }
 
@@ -565,7 +569,7 @@ export function ApplicantPortfolioSheet({
               {(
                 [
                   { k: "pending", label: "대기", active: "bg-background text-foreground shadow-sm" },
-                  { k: "accepted", label: "수락", active: "bg-primary text-primary-foreground shadow-sm" },
+                  { k: "accepted", label: "합격", active: "bg-primary text-primary-foreground shadow-sm" },
                   { k: "rejected", label: "거절", active: "bg-destructive text-white shadow-sm" },
                 ] as const
               ).map((s) => {
@@ -586,12 +590,13 @@ export function ApplicantPortfolioSheet({
               })}
             </div>
 
-            {/* 확정 — 수락 상태 위에 얹는 최종 잠금(캐스팅보드·정산 기준). */}
+            {/* 최종 선발 — 1차 합격 위에 얹는 최종 잠금(캐스팅보드·정산 기준).
+                확정하는 순간 본인 포기가 막히고 최종 선발 안내 메일이 나간다. */}
             {applicant.status === "accepted" ? (
               applicant.confirmedAt ? (
                 <div className="mt-2 flex items-center justify-between rounded-xl border border-primary/40 bg-primary/5 px-3 py-2.5">
                   <span className="text-sm font-semibold text-primary">
-                    ✓ 확정됨
+                    ✓ 최종 선발됨
                   </span>
                   <button
                     type="button"
@@ -599,18 +604,31 @@ export function ApplicantPortfolioSheet({
                     disabled={confirming}
                     className="text-[12px] text-ink-3 underline hover:text-foreground disabled:opacity-50"
                   >
-                    확정 해제
+                    최종 선발 해제
                   </button>
                 </div>
+              ) : passedRound + 1 >= totalRounds ? (
+                <>
+                  <Button
+                    variant="outline"
+                    className="mt-2 w-full border-primary/50 text-primary"
+                    disabled={confirming}
+                    onClick={() => setConfirmed(true)}
+                  >
+                    최종 합격 확정하기
+                  </Button>
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-ink-3">
+                    확정하면 본인 포기가 막히고, 최종 합격 안내 메일이 발송됩니다.
+                  </p>
+                </>
               ) : (
-                <Button
-                  variant="outline"
-                  className="mt-2 w-full border-primary/50 text-primary"
-                  disabled={confirming}
-                  onClick={() => setConfirmed(true)}
-                >
-                  이 지원자 확정하기
-                </Button>
+                // 중간 단계를 건너뛰고 최종으로 점프시키지 않는다.
+                // 다음 단계 진급은 목록의 단계 버튼에서만 한 칸씩 올린다.
+                <p className="mt-2 rounded-lg bg-secondary/50 px-3 py-2 text-[11px] leading-relaxed text-ink-3">
+                  아직 중간 단계입니다.
+                  <br />
+                  지원자 목록의 단계 버튼으로 다음 단계부터 순서대로 올려주세요.
+                </p>
               )
             ) : null}
           </div>

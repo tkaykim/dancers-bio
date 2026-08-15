@@ -22,6 +22,23 @@ function strOrNull(formData: FormData, key: string): string | null {
   return v ? v : null;
 }
 
+// 폼은 단계 이름을 round_label_1..3 으로 보낸다. 최대 단계 수만큼 읽어 배열로 만든다.
+function parseRoundLabels(formData: FormData): string[] {
+  return [1, 2, 3].map((n) =>
+    (formData.get(`round_label_${n}`) ?? "").toString().trim(),
+  );
+}
+
+// 선택한 단계 수만큼만 저장하고, 전부 비어 있으면 NULL(기본 이름 사용).
+function normalizeRoundLabels(
+  labels: string[] | null | undefined,
+  rounds: number,
+): string[] | null {
+  if (!labels) return null;
+  const sliced = labels.slice(0, rounds).map((l) => l.trim());
+  return sliced.some((l) => l.length > 0) ? sliced : null;
+}
+
 function localDateTimeToIso(value: string | null): string | null {
   if (!value) return null;
   const d = new Date(value);
@@ -59,6 +76,8 @@ export async function createProjectAction(
     collect_casting_details:
       formData.get("collect_casting_details") === "on" ||
       formData.get("collect_casting_details") === "true",
+    selection_rounds: formData.get("selection_rounds") ?? 2,
+    round_labels: parseRoundLabels(formData),
     posted_by_label: strOrNull(formData, "posted_by_label"),
   });
   if (!parsed.success) {
@@ -97,6 +116,11 @@ export async function createProjectAction(
       is_standing_pool: isStandingPool,
       collect_applicant_fee: parsed.data.collect_applicant_fee,
       collect_casting_details: parsed.data.collect_casting_details,
+      selection_rounds: parsed.data.selection_rounds,
+      round_labels: normalizeRoundLabels(
+        parsed.data.round_labels,
+        parsed.data.selection_rounds,
+      ),
       posted_by_label: parsed.data.posted_by_label ?? null,
     })
     .select("id, short_code")
@@ -280,6 +304,8 @@ export async function updateProjectAction(
     collect_casting_details:
       formData.get("collect_casting_details") === "on" ||
       formData.get("collect_casting_details") === "true",
+    selection_rounds: formData.get("selection_rounds") ?? 2,
+    round_labels: parseRoundLabels(formData),
     posted_by_label: strOrNull(formData, "posted_by_label"),
     status: strOrNull(formData, "status") ?? undefined,
   });
@@ -306,6 +332,26 @@ export async function updateProjectAction(
   if (!existing || existing.deleted_at)
     return { ok: false, error: "공고를 찾을 수 없습니다." };
 
+  // 선발 단계 수를 이미 진행된 단계보다 낮추면 지원자 상태가 모순된다
+  // (예: 2차 합격자가 있는데 1단계 공고로 바꾸면 passed_round=2 가 범위를 벗어남).
+  // 클램프해서 조용히 강등시키지 않고 거부한다 — 합격 통보가 이미 나갔을 수 있다.
+  const { data: deepest } = await supabase
+    .from("applications")
+    .select("passed_round")
+    .eq("project_id", parsed.data.id)
+    .eq("status", "accepted")
+    .is("archived_at", null)
+    .order("passed_round", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const deepestRound = (deepest?.passed_round as number | null) ?? 0;
+  if (parsed.data.selection_rounds < deepestRound) {
+    return {
+      ok: false,
+      error: `이미 ${deepestRound}단계까지 진행된 지원자가 있어 선발 단계를 ${parsed.data.selection_rounds}단계로 줄일 수 없습니다.`,
+    };
+  }
+
   const updatePayload: Record<string, unknown> = {
     title: parsed.data.title,
     description: parsed.data.description,
@@ -320,6 +366,11 @@ export async function updateProjectAction(
     application_deadline: parsed.data.application_deadline ?? null,
     collect_applicant_fee: parsed.data.collect_applicant_fee,
     collect_casting_details: parsed.data.collect_casting_details,
+    selection_rounds: parsed.data.selection_rounds,
+    round_labels: normalizeRoundLabels(
+      parsed.data.round_labels,
+      parsed.data.selection_rounds,
+    ),
     posted_by_label: parsed.data.posted_by_label ?? null,
   };
   if (parsed.data.status) updatePayload.status = parsed.data.status;

@@ -6,6 +6,7 @@ import { createProjectAction } from "@/app/actions/projects";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectionRoundsField } from "@/components/project/SelectionRoundsField";
 import {
   PROJECT_CATEGORY_LABELS,
   PROJECT_CATEGORY_ORDER,
@@ -330,6 +331,8 @@ export function ProjectForm({
           개인 프로필은 보유한 경우 함께 받습니다.
         </span>
       </label>
+
+      <SelectionRoundsField />
 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">

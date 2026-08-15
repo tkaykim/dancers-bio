@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { MAX_SELECTION_ROUNDS } from "@/lib/application-stage";
+
 export const VISIBILITY_LABELS = {
   public: "공개",
   private: "비공개",
@@ -54,14 +56,32 @@ export type ProjectCategory = (typeof PROJECT_CATEGORY_ORDER)[number];
 
 export const APPLICATION_STATUS_LABELS = {
   pending: "대기",
-  accepted: "수락됨",
+  // accepted = 어느 선발 단계를 통과한 상태. 몇 차인지는 applications.passed_round,
+  // 최종 여부는 confirmed_at 이 가른다. 단계 라벨은 @/lib/application-stage 참조.
+  accepted: "합격",
   rejected: "거절됨",
   withdrawn: "취소됨",
-  declined: "거절",
+  declined: "본인 포기",
   expired: "만료",
   cancelled_by_applicant: "취소됨",
   cancelled_by_owner: "취소됨",
 } as const;
+
+// 선발 단계 설정 — 생성·수정 스키마가 공유한다.
+// round_labels 는 단계 수만큼만 저장하고, 빈 칸은 기본 이름("N차 합격"/"최종 합격")으로 표시된다.
+const selectionRoundsShape = {
+  selection_rounds: z.coerce
+    .number()
+    .int()
+    .min(1, "선발 단계는 1단계 이상이어야 합니다.")
+    .max(MAX_SELECTION_ROUNDS, `선발 단계는 최대 ${MAX_SELECTION_ROUNDS}단계입니다.`)
+    .default(2),
+  round_labels: z
+    .array(z.string().trim().max(20))
+    .max(MAX_SELECTION_ROUNDS)
+    .nullable()
+    .optional(),
+};
 
 export const projectSchema = z.object({
   title: z.string().trim().min(1, "제목을 입력해 주세요.").max(120),
@@ -98,6 +118,7 @@ export const projectSchema = z.object({
   collect_applicant_fee: z.boolean().default(false),
   // 이름·출생연도·키·주 장르·춤 영상·백업댄서 이력을 지원서에 필수로 받는다.
   collect_casting_details: z.boolean().default(false),
+  ...selectionRoundsShape,
   // Lite: admin이 직접 입력하는 등록자 표시 텍스트 (max 80)
   posted_by_label: z.string().trim().max(80).nullable().optional(),
 });
@@ -133,6 +154,7 @@ export const projectUpdateSchema = z.object({
   application_deadline: z.string().datetime().nullable().optional(),
   collect_applicant_fee: z.boolean().default(false),
   collect_casting_details: z.boolean().default(false),
+  ...selectionRoundsShape,
   posted_by_label: z.string().trim().max(80).nullable().optional(),
   status: z
     .enum(["draft", "open", "closed", "cancelled", "completed"])
