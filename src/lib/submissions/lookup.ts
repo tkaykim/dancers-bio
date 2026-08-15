@@ -20,6 +20,8 @@ export interface SubmissionContext {
   displayName: string | null;
   uploadedAt: string | null;
   driveFileName: string | null;
+  /** 제출자가 남긴 공동작업자 메모. 정산 근거가 아니다. */
+  collaboratorHandles: string[];
   /** 업로드 가능 여부. false 면 reason 에 사유가 담긴다. */
   open: boolean;
   reason?: string;
@@ -42,7 +44,7 @@ export async function loadSubmissionByToken(
   const { data: sub } = await admin
     .from("project_submissions")
     .select(
-      "id, token, project_id, application_id, instagram_handle, display_name, uploaded_at, drive_file_name, revoked_at",
+      "id, token, project_id, application_id, instagram_handle, display_name, uploaded_at, drive_file_name, revoked_at, collaborator_handles",
     )
     .eq("token", token)
     .maybeSingle();
@@ -67,6 +69,7 @@ export async function loadSubmissionByToken(
     displayName: (sub.display_name as string | null) ?? null,
     uploadedAt: (sub.uploaded_at as string | null) ?? null,
     driveFileName: (sub.drive_file_name as string | null) ?? null,
+    collaboratorHandles: (sub.collaborator_handles as string[] | null) ?? [],
     open: true,
   };
 

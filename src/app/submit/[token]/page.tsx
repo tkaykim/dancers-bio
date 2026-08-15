@@ -36,6 +36,7 @@ export default async function SubmitPage({
           initialHandle={sub.instagramHandle}
           displayName={sub.displayName}
           alreadyUploadedName={sub.driveFileName}
+          initialCollaborators={sub.collaboratorHandles}
         />
       ) : (
         <div className="text-sm leading-relaxed text-red-600 dark:text-red-400">
