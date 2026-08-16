@@ -28,6 +28,8 @@ type CaseRow = {
   audition_location?: string | null;
   audition_status?: string | null;
   audition_result?: string | null;
+  audition_ends_at?: string | null;
+  audition_rsvp?: string | null;
   training_required?: boolean | null;
   training_partner?: string | null;
   training_start_date?: string | null;
@@ -151,6 +153,8 @@ export default async function VisaCasePage({
     auditionLocation: row.audition_location ?? null,
     auditionStatus: row.audition_status ?? "not_scheduled",
     auditionResult: row.audition_result ?? "pending",
+    auditionEndsAt: row.audition_ends_at ?? null,
+    auditionRsvp: row.audition_rsvp ?? null,
     trainingRequired: row.training_required ?? null,
     trainingPartner: row.training_partner ?? null,
     trainingStartDate: row.training_start_date ?? null,

@@ -16,6 +16,9 @@ export const VISA_MEETING_REMINDER_CAMPAIGN = "visa_meeting_reminder";
 /** 오디션(레벨테스트) 일정 확정 안내. */
 export const VISA_AUDITION_CONFIRMED_CAMPAIGN = "visa_audition_confirmed";
 
+/** 오디션 초대 — 참석 여부 회신과 참가비 결제를 함께 요청한다. */
+export const VISA_AUDITION_INVITE_CAMPAIGN = "visa_audition_invite";
+
 type TrackingPayload = {
   applicationId: string;
   campaign: string;

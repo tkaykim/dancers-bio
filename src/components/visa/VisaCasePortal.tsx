@@ -51,6 +51,8 @@ export type VisaCaseInitial = {
   auditionLocation: string | null;
   auditionStatus: string;
   auditionResult: string;
+  auditionEndsAt: string | null;
+  auditionRsvp: string | null;
   trainingRequired: boolean | null;
   trainingPartner: string | null;
   trainingStartDate: string | null;
@@ -841,6 +843,8 @@ export function VisaCasePortal({
           auditionLocation: initial.auditionLocation,
           auditionStatus: initial.auditionStatus,
           auditionResult: initial.auditionResult,
+          auditionEndsAt: initial.auditionEndsAt,
+          auditionRsvp: initial.auditionRsvp,
           trainingRequired: initial.trainingRequired,
           trainingPartner: initial.trainingPartner,
           trainingStartDate: initial.trainingStartDate,

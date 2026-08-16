@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, CircleDollarSign, ExternalLink, Home, Video } from "lucide-react";
 import Link from "next/link";
+import { VisaAuditionRsvp } from "@/components/visa/VisaAuditionRsvp";
 import { VisaQuoteBuilder } from "@/components/visa/VisaQuoteBuilder";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,8 @@ export type JourneyData = {
   auditionLocation: string | null;
   auditionStatus: string;
   auditionResult: string;
+  auditionEndsAt: string | null;
+  auditionRsvp: string | null;
   // 트레이닝 분기
   trainingRequired: boolean | null;
   trainingPartner: string | null;
@@ -395,7 +398,19 @@ export function VisaJourneyTimeline({
             </dl>
           ) : null}
 
-          {auditionPayable ? (
+          {/* 오디션 일정이 잡혔으면 먼저 참석 여부를 묻는다 — 결제보다 앞선다. */}
+          {auditionScheduled && !auditionPaid ? (
+            <VisaAuditionRsvp
+              lang={lang}
+              token={caseToken}
+              initialRsvp={data.auditionRsvp}
+              paymentUrl={data.paymentStatus === "link_sent" ? data.paymentUrl : null}
+              feeLabel={lang === "en" ? "₩100,000" : lang === "ja" ? "10万ウォン" : "10만원"}
+              paid={auditionPaid}
+            />
+          ) : null}
+
+          {auditionPayable && data.auditionRsvp !== "unavailable" ? (
             <VisaQuoteBuilder
               lang={lang}
               caseToken={caseToken}

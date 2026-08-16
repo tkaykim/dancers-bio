@@ -359,3 +359,201 @@ export function renderVisaAuditionConfirmedMail(params: {
 
   return { subject: c.subject, text, html };
 }
+
+
+// ── ③ 오디션 초대 (참석 여부 회신 + 참가비 결제) ───────────────────────────
+//
+// 현장 참가가 원칙이다. 다만 지원자 절반 가까이가 해외 거주라,
+// 한국에 없거나 입국이 어려운 경우에만 온라인 참여가 가능하다고 함께 알린다.
+// "온라인도 됩니다"를 앞세우면 전원이 온라인을 고르므로 순서와 표현에 주의한다.
+
+const INVITE: Record<StageMailLang, {
+  subject: string;
+  eyebrow: string;
+  title: string;
+  boxTitle: string;
+  dateLabel: string;
+  placeLabel: string;
+  feeLabel: string;
+  cta: string;
+  intro: (name: string) => string[];
+  onsite: string[];
+  online: string[];
+  fee: string[];
+  outro: string[];
+}> = {
+  ko: {
+    subject: "[deetz] 9월 16일 오디션 안내 — 참석 여부를 알려주세요",
+    eyebrow: "오디션 초대",
+    title: "다음 오디션 일정이 확정되었습니다",
+    boxTitle: "오디션 · 레벨테스트",
+    dateLabel: "일시",
+    placeLabel: "장소",
+    feeLabel: "참가 확정비",
+    cta: "참석 여부 응답하기",
+    intro: (name) => [
+      `안녕하세요, ${name}님.`,
+      "다음 오디션(레벨테스트) 일정이 아래와 같이 확정되어 안내드립니다.",
+    ],
+    onsite: [
+      "오디션은 현장 참가를 원칙으로 합니다.",
+      "실제로 함께 움직여 봐야 정확한 판단이 가능하고, 현장에서 바로 피드백을 드릴 수 있기 때문입니다.",
+    ],
+    online: [
+      "다만 지금 한국에 계시지 않거나 입국이 어려운 경우에는 온라인 참여도 가능합니다.",
+      "아래 버튼에서 온라인 참여를 선택해 주시면 화상 링크를 따로 안내드리겠습니다.",
+    ],
+    fee: [
+      "참석이 확정되면 참가 확정비 100,000원을 결제해 주셔야 자리가 확보됩니다.",
+      "이 금액은 이후 프로그램을 진행하실 때 프로그램 결제 금액에서 전액 차감됩니다.",
+    ],
+    outro: [
+      "아래 버튼을 누르시면 참석 여부를 고르고 결제까지 한 번에 진행하실 수 있습니다.",
+      "일정이 어려우신 경우에도 알려주시면 다음 회차를 안내드리겠습니다.",
+      "감사합니다.",
+      "deetz",
+    ],
+  },
+  en: {
+    subject: "[deetz] Audition on September 16 — please confirm your attendance",
+    eyebrow: "Audition invitation",
+    title: "The next audition is scheduled",
+    boxTitle: "Audition · level test",
+    dateLabel: "Date and time",
+    placeLabel: "Venue",
+    feeLabel: "Attendance fee",
+    cta: "Confirm my attendance",
+    intro: (name) => [
+      `Hi ${name},`,
+      "The next audition (level test) has been scheduled as below.",
+    ],
+    onsite: [
+      "We ask everyone to attend in person.",
+      "We can only judge properly by moving together in the same room, and it lets us give you feedback on the spot.",
+    ],
+    online: [
+      "If you are not in Korea right now, or entering Korea is difficult for you, you can join online instead.",
+      "Choose the online option below and we will send you a video link separately.",
+    ],
+    fee: [
+      "Once you confirm, a 100,000 KRW attendance fee secures your place.",
+      "This amount is fully deducted from the program payment if you continue with the program.",
+    ],
+    outro: [
+      "The button below lets you choose how you will attend and complete the payment in one place.",
+      "If this date does not work for you, tell us there and we will let you know about the next round.",
+      "Thank you.",
+      "deetz",
+    ],
+  },
+  ja: {
+    subject: "[deetz] 9月16日オーディションのご案内 — 参加可否をお知らせください",
+    eyebrow: "オーディションのご招待",
+    title: "次回オーディションの日程が確定しました",
+    boxTitle: "オーディション・レベルテスト",
+    dateLabel: "日時",
+    placeLabel: "会場",
+    feeLabel: "参加確定費",
+    cta: "参加可否を回答する",
+    intro: (name) => [
+      `こんにちは、${name}様。`,
+      "次回のオーディション（レベルテスト）の日程が下記のとおり確定しましたのでご案内します。",
+    ],
+    onsite: [
+      "オーディションは対面参加を原則としています。",
+      "同じ空間で実際に動いていただくことで正確に判断でき、その場でフィードバックをお伝えできるためです。",
+    ],
+    online: [
+      "ただし現在韓国にいらっしゃらない場合や、入国が難しい場合はオンライン参加も可能です。",
+      "下のボタンからオンライン参加を選択いただければ、ビデオ通話のリンクを別途ご案内します。",
+    ],
+    fee: [
+      "参加が確定しましたら、参加確定費100,000ウォンのお支払いで枠が確保されます。",
+      "この金額は、その後プログラムを進められる際に決済金額から全額差し引かれます。",
+    ],
+    outro: [
+      "下のボタンから、参加方法の選択とお支払いをまとめて進めていただけます。",
+      "日程が難しい場合もお知らせいただければ、次回の回をご案内します。",
+      "よろしくお願いいたします。",
+      "deetz",
+    ],
+  },
+};
+
+/** 오디션 시간대 표기. 시작·종료가 같은 날이면 "9월 16일 (수) 16:00–18:00" 형태로 합친다. */
+export function formatAuditionWindow(
+  startIso: string,
+  endIso: string | null,
+  lang: StageMailLang,
+): string {
+  const start = formatMeetingAt(startIso, lang);
+  if (!endIso) return start;
+  const end = new Date(endIso);
+  const endTime = end.toLocaleTimeString(lang === "ko" ? "ko-KR" : lang === "ja" ? "ja-JP" : "en-US", {
+    timeZone: "Asia/Seoul",
+    hour: lang === "ja" ? "2-digit" : "numeric",
+    minute: "2-digit",
+  });
+  // 시작 표기 끝의 "(KST…)" 앞에 종료 시각을 끼워 넣는다.
+  const idx = start.lastIndexOf(" (");
+  if (idx < 0) return `${start} – ${endTime}`;
+  return `${start.slice(0, idx)} – ${endTime}${start.slice(idx)}`;
+}
+
+export function renderVisaAuditionInviteMail(params: {
+  name: string;
+  lang: StageMailLang;
+  auditionAtIso: string;
+  auditionEndsAtIso: string | null;
+  location: string;
+  feeKrw: number;
+  caseUrl: string;
+  trackedUrl?: string | null;
+  openPixelUrl?: string | null;
+}): { subject: string; text: string; html: string } {
+  const c = INVITE[params.lang];
+  const name = params.name?.trim() || "dancer";
+  const when = formatAuditionWindow(params.auditionAtIso, params.auditionEndsAtIso, params.lang);
+  const fee =
+    params.lang === "en"
+      ? `${params.feeKrw.toLocaleString("en-US")} KRW`
+      : `${(params.feeKrw / 10000).toLocaleString("en-US")}${params.lang === "ja" ? "万ウォン" : "만원"}`;
+  const link = params.trackedUrl || params.caseUrl;
+  const intro = c.intro(name);
+  const body = [...c.onsite, ...c.online, ...c.fee];
+
+  const text = [
+    ...intro,
+    "",
+    `[${c.boxTitle}]`,
+    `${c.dateLabel}: ${when}`,
+    `${c.placeLabel}: ${params.location}`,
+    `${c.feeLabel}: ${fee}`,
+    "",
+    ...body,
+    "",
+    ...c.outro,
+    "",
+    `${c.cta}: ${link}`,
+    "",
+    "deetz · deetz.kr · contact@deetz.kr",
+  ].join("\n");
+
+  const html = renderCard({
+    lang: params.lang,
+    eyebrow: c.eyebrow,
+    title: c.title,
+    intro: [...intro, ...body],
+    boxTitle: c.boxTitle,
+    rows: [
+      { label: c.dateLabel, value: when },
+      { label: c.placeLabel, value: params.location },
+      { label: c.feeLabel, value: fee },
+    ],
+    outro: c.outro,
+    cta: { label: c.cta, href: link },
+    openPixelUrl: params.openPixelUrl,
+  });
+
+  return { subject: c.subject, text, html };
+}

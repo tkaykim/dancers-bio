@@ -3,6 +3,7 @@ import { requireProfile } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { visaLabel } from "@/lib/data/korea-visas";
 import { VisaAdminList, type VisaAdminRow } from "@/components/admin/VisaAdminList";
+import { VisaAuditionInvitePanel } from "@/components/admin/VisaAuditionInvitePanel";
 import type { MeetingInvite, MeetingTracking } from "@/components/admin/VisaMeetingInvitePanel";
 import type { OutboundMail } from "@/components/admin/VisaOutboundMailsPanel";
 import { VISA_MEETING_CAMPAIGN } from "@/lib/visa/tracking";
@@ -313,6 +314,8 @@ export default async function AdminVisaPage() {
           {actionCount > 0 ? ` · 지금 처리할 것 ${actionCount}건` : ""}.
         </p>
       </header>
+
+      <VisaAuditionInvitePanel />
 
       <VisaAdminList rows={rows} />
     </div>
