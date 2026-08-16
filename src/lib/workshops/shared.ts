@@ -99,6 +99,50 @@ export function instagramUrl(handle: string): string {
   return `https://www.instagram.com/${normalizeInstagramHandle(handle)}/`;
 }
 
+/**
+ * 핸들 비교용 압축형 — 점·언더스코어 제거.
+ * `j.blaze` / `j_blaze` / `jblaze` 처럼 사용자가 표기를 다르게 적어도 같은 사람으로 합산한다.
+ * (⚠️ 저장은 항상 normalizeInstagramHandle 원형으로 하고, 이건 비교에만 쓴다.)
+ */
+export function compactInstagramHandle(raw: string): string {
+  return normalizeInstagramHandle(raw).replace(/[._]/g, "");
+}
+
+/** 이름 비교 키 — 소문자·발음기호 제거·영숫자만. "Ian Eastwood" → "ianeastwood" */
+export function nameKey(raw: string): string {
+  return raw
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9가-힣]/g, "");
+}
+
+/** 이름 토큰(3자 이상만) — 성만 쓰거나 이름만 쓴 경우의 부분일치 판단용. */
+export function nameTokens(raw: string): string[] {
+  return raw
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split(/[^a-z0-9가-힣]+/)
+    .filter((t) => t.length >= 3);
+}
+
+/**
+ * 이름 유사 판정 — 자동 병합엔 쓰지 않고 `possible_duplicate_of` 표시(운영자 확인)에만 쓴다.
+ * "eastwood" ⊂ "ian eastwood", "ian" ⊂ "ian eastwood" 같은 토큰 부분집합을 잡는다.
+ */
+export function namesLookSimilar(a: string, b: string): boolean {
+  const ka = nameKey(a);
+  const kb = nameKey(b);
+  if (!ka || !kb) return false;
+  if (ka === kb) return true;
+  const ta = nameTokens(a);
+  const tb = nameTokens(b);
+  if (ta.length === 0 || tb.length === 0) return false;
+  const [shorter, longer] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  return shorter.every((t) => longer.includes(t));
+}
+
 /** 금액 표기(원). 만원 단위가 아닌 전체 자릿수 — 결제 금액 혼동 방지. */
 export function won(amount: number): string {
   return `${amount.toLocaleString("ko-KR")}원`;

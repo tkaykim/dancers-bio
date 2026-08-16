@@ -76,6 +76,46 @@ export async function getPublicWorkshopArtistBySlug(slug: string): Promise<Works
   return withCounts([data as WorkshopArtist], counts)[0] ?? null;
 }
 
+// ── '다른 댄서들이 희망한 안무가' ───────────────────────────────────────────
+// suggested 카드는 RLS 가 anon 에게 숨기므로(공개 카드 아님) 서버에서 service-role 로 읽되,
+// 이름·핸들·수요 수만 내보낸다(제출자 연락처 등은 절대 포함하지 않는다).
+
+export type WorkshopWishRow = { name: string; instagram_handle: string; demand_count: number };
+
+export async function listWorkshopWishes(limit = 24): Promise<WorkshopWishRow[]> {
+  const admin = createAdminClient();
+  const { data: artists } = await admin
+    .from("workshop_artists")
+    .select("id, name, instagram_handle")
+    .eq("status", "suggested")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  const rows = (artists ?? []) as { id: string; name: string; instagram_handle: string }[];
+  if (rows.length === 0) return [];
+
+  const { data: demands } = await admin
+    .from("workshop_demands")
+    .select("artist_id")
+    .in(
+      "artist_id",
+      rows.map((r) => r.id),
+    );
+  const counts = new Map<string, number>();
+  for (const d of demands ?? []) {
+    const id = d.artist_id as string;
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+
+  return rows
+    .map((r) => ({
+      name: r.name,
+      instagram_handle: r.instagram_handle,
+      demand_count: counts.get(r.id) ?? 0,
+    }))
+    .sort((a, b) => b.demand_count - a.demand_count)
+    .slice(0, limit);
+}
+
 // ── 내 예약 ────────────────────────────────────────────────────────────────
 // reservations 는 service-role 전용이라 여기서만 admin client 를 쓴다(항상 user_id 로 스코프).
 

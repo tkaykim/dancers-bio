@@ -5,7 +5,7 @@ import { Check, Flame } from "lucide-react";
 
 import { submitWorkshopDemandAction } from "@/app/actions/workshops";
 import { cn } from "@/lib/utils";
-import { C } from "./copy";
+import { T, splitSentences, type Lang } from "./copy";
 
 const inputClass =
   "w-full rounded-lg border border-hairline-2 bg-background px-3.5 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-ink-4 focus:border-foreground/40";
@@ -39,12 +39,15 @@ function markVoted(artistId: string) {
 export function VoteBox({
   artistId,
   isLoggedIn,
+  lang = "ko",
   className,
 }: {
   artistId: string;
   isLoggedIn: boolean;
+  lang?: Lang;
   className?: string;
 }) {
+  const c = T[lang];
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [instagram, setInstagram] = useState("");
@@ -69,7 +72,7 @@ export function VoteBox({
         setDone(true);
         setOpen(false);
       } else {
-        setError(res.error || "다시 시도해 주세요.");
+        setError(res.error || c.errGeneric);
       }
     });
   };
@@ -83,7 +86,7 @@ export function VoteBox({
         )}
       >
         <Check className="size-3.5" />
-        {C.votedLabel}
+        {c.votedLabel}
       </div>
     );
   }
@@ -106,7 +109,7 @@ export function VoteBox({
         )}
       >
         <Flame className="size-3.5" />
-        {pending ? "등록 중…" : C.voteCta}
+        {pending ? c.voteSubmitting : c.voteCta}
       </button>
     );
   }
@@ -114,20 +117,23 @@ export function VoteBox({
   return (
     <div className={cn("flex flex-col gap-2 rounded-lg border border-hairline-2 bg-secondary/40 p-3", className)}>
       <p className="text-[12px] leading-relaxed text-ink-2">
-        <span className="block">진행 소식을 알려드릴 연락 수단이 필요해요.</span>
-        <span className="block">이메일 또는 인스타 아이디 중 하나만 남겨주세요.</span>
+        {splitSentences(c.voteContactPrompt).map((s, i) => (
+          <span key={i} className="block">
+            {s}
+          </span>
+        ))}
       </p>
       <input
         type="email"
         inputMode="email"
-        placeholder="이메일"
+        placeholder={c.voteEmailPh}
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         className={inputClass}
       />
       <input
         type="text"
-        placeholder="인스타그램 아이디 (@ 없이)"
+        placeholder={c.voteInstaPh}
         value={instagram}
         onChange={(e) => setInstagram(e.target.value)}
         className={inputClass}
@@ -139,13 +145,13 @@ export function VoteBox({
           onClick={() => setOpen(false)}
           className="rounded-lg border border-hairline-2 px-3 py-2 text-[13px] text-ink-3 transition-colors hover:text-foreground"
         >
-          닫기
+          {c.voteClose}
         </button>
         <button
           type="button"
           onClick={() => {
             if (!email.trim() && !instagram.trim()) {
-              setError("이메일 또는 인스타그램 아이디를 입력해 주세요.");
+              setError(c.voteNeedContact);
               return;
             }
             submit({
@@ -156,7 +162,7 @@ export function VoteBox({
           disabled={pending}
           className="flex-1 rounded-lg bg-primary px-3 py-2 text-[13px] font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-45"
         >
-          {pending ? "등록 중…" : "수요 등록"}
+          {pending ? c.voteSubmitting : c.voteSubmit}
         </button>
       </div>
     </div>

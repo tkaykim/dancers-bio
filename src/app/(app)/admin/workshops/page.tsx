@@ -16,13 +16,13 @@ export default async function AdminWorkshopsPage() {
     admin
       .from("workshop_artists")
       .select(
-        "id, slug, name, instagram_handle, image_url, country, genres, headline, description, status, deposit_amount, total_price, min_headcount, max_headcount, expected_period, recruit_deadline, recruit_opened_at, confirmed_at, created_at",
+        "id, slug, name, instagram_handle, image_url, country, genres, headline, description, status, deposit_amount, total_price, min_headcount, max_headcount, expected_period, recruit_deadline, recruit_opened_at, confirmed_at, possible_duplicate_of, created_at",
       )
       .order("created_at", { ascending: false })
       .limit(300),
     admin
       .from("workshop_demands")
-      .select("id, artist_id, source, contact_email, contact_instagram, user_id, want_type, comment, created_at")
+      .select("id, artist_id, source, contact_email, contact_instagram, user_id, comment, country_code, city, created_at")
       .order("created_at", { ascending: false })
       .limit(1000),
     admin

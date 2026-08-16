@@ -6,6 +6,7 @@ import { ChevronDown, ExternalLink, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import {
+  adminMergeWorkshopArtistsAction,
   adminSetWorkshopReservationStatusAction,
   adminUpsertWorkshopArtistAction,
 } from "@/app/actions/workshops";
@@ -43,6 +44,7 @@ export type AdminWorkshopArtist = {
   recruit_deadline: string | null;
   recruit_opened_at: string | null;
   confirmed_at: string | null;
+  possible_duplicate_of: string | null;
   created_at: string;
 };
 
@@ -53,8 +55,9 @@ export type AdminWorkshopDemand = {
   contact_email: string | null;
   contact_instagram: string | null;
   user_id: string | null;
-  want_type: string | null;
   comment: string | null;
+  country_code: string | null;
+  city: string | null;
   created_at: string;
 };
 
@@ -158,6 +161,7 @@ export function WorkshopAdminConsole({
           <ArtistRow
             key={a.id}
             artist={a}
+            allArtists={artists}
             demands={demandByArtist.get(a.id) ?? []}
             reservations={reservationsByArtist.get(a.id) ?? []}
           />
@@ -204,15 +208,20 @@ function statusBadgeClass(status: WorkshopStatus): string {
 
 function ArtistRow({
   artist,
+  allArtists,
   demands,
   reservations,
 }: {
   artist: AdminWorkshopArtist;
+  allArtists: AdminWorkshopArtist[];
   demands: AdminWorkshopDemand[];
   reservations: AdminWorkshopReservation[];
 }) {
   const [open, setOpen] = useState(artist.status === "suggested");
   const paid = reservations.filter((r) => r.status === "paid" || r.status === "confirmed");
+  const duplicateTarget = artist.possible_duplicate_of
+    ? allArtists.find((a) => a.id === artist.possible_duplicate_of)
+    : null;
 
   return (
     <div className="overflow-hidden rounded-xl border border-hairline-2 bg-card">
@@ -237,6 +246,11 @@ function ArtistRow({
             <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-bold", statusBadgeClass(artist.status))}>
               {WORKSHOP_STATUS_LABEL[artist.status]}
             </span>
+            {duplicateTarget && artist.status !== "archived" ? (
+              <span className="rounded-full bg-warn/15 px-2 py-0.5 text-[11px] font-bold text-warn">
+                중복 의심: {duplicateTarget.name}
+              </span>
+            ) : null}
           </div>
           <p className="truncate text-[12px] text-ink-3">
             @{artist.instagram_handle} · 수요 {demands.length} · 예약 {paid.length}
@@ -250,6 +264,9 @@ function ArtistRow({
       {open ? (
         <div className="flex flex-col gap-4 border-t border-hairline-2 p-4">
           <ArtistEditor artist={artist} />
+          {artist.status !== "archived" ? (
+            <MergePanel artist={artist} allArtists={allArtists} suggestedTarget={duplicateTarget ?? null} />
+          ) : null}
           {demands.length > 0 ? <DemandList demands={demands} /> : null}
           {reservations.length > 0 ? <ReservationList reservations={reservations} /> : null}
         </div>
@@ -258,8 +275,86 @@ function ArtistRow({
   );
 }
 
+/** 중복 카드 병합 — source(이 카드)의 수요를 target 으로 이관하고 이 카드는 보관 처리. */
+function MergePanel({
+  artist,
+  allArtists,
+  suggestedTarget,
+}: {
+  artist: AdminWorkshopArtist;
+  allArtists: AdminWorkshopArtist[];
+  suggestedTarget: AdminWorkshopArtist | null;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [targetId, setTargetId] = useState(suggestedTarget?.id ?? "");
+  // window.confirm 은 자동화 검증에서 화면을 정지시킨 전례가 있어 2단계 버튼으로 확인한다.
+  const [armed, setArmed] = useState(false);
+
+  const targets = allArtists.filter((a) => a.id !== artist.id && a.status !== "archived");
+  if (targets.length === 0) return null;
+
+  const merge = () => {
+    if (!targetId) return;
+    if (!armed) {
+      setArmed(true);
+      return;
+    }
+    startTransition(async () => {
+      const res = await adminMergeWorkshopArtistsAction({ sourceId: artist.id, targetId });
+      if (res.ok) {
+        toast.success(`수요 ${res.data?.moved ?? 0}건을 이관하고 카드를 보관 처리했습니다.`);
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    });
+  };
+
+  return (
+    <details className="rounded-lg border border-hairline-2 bg-secondary/30 p-3" open={!!suggestedTarget}>
+      <summary className="cursor-pointer text-[13px] font-semibold text-foreground">
+        중복 병합{suggestedTarget ? ` — 의심 대상: ${suggestedTarget.name}` : ""}
+      </summary>
+      <p className="mt-1 text-[11px] text-ink-4">
+        같은 안무가의 카드가 두 개면 이 카드의 수요를 아래 카드로 합치세요. 이 카드는 보관 처리됩니다.
+      </p>
+      <div className="mt-2 flex items-center gap-2">
+        <select
+          value={targetId}
+          onChange={(e) => {
+            setTargetId(e.target.value);
+            setArmed(false);
+          }}
+          className={cn(inputClass, "flex-1")}
+        >
+          <option value="">병합 대상 선택…</option>
+          {targets.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name} (@{t.instagram_handle}) · {WORKSHOP_STATUS_LABEL[t.status]}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={merge}
+          disabled={pending || !targetId}
+          className={cn(
+            "shrink-0 rounded-lg border px-4 py-2 text-[13px] font-bold transition-colors disabled:opacity-45",
+            armed
+              ? "border-red-400 bg-red-50 text-red-700 hover:bg-red-100"
+              : "border-warn/50 bg-warn/10 text-warn hover:bg-warn/20",
+          )}
+        >
+          {pending ? "병합 중…" : armed ? "한 번 더 눌러 확정" : "이 카드로 병합"}
+        </button>
+      </div>
+    </details>
+  );
+}
+
 function DemandList({ demands }: { demands: AdminWorkshopDemand[] }) {
-  const withComment = demands.filter((d) => d.comment || d.want_type);
+  const withComment = demands.filter((d) => d.comment);
   return (
     <details className="rounded-lg border border-hairline-2 bg-secondary/30 p-3">
       <summary className="cursor-pointer text-[13px] font-semibold text-foreground">
@@ -272,7 +367,7 @@ function DemandList({ demands }: { demands: AdminWorkshopDemand[] }) {
             <span className="font-semibold text-foreground">
               {d.contact_email || (d.contact_instagram ? `@${d.contact_instagram}` : d.user_id ? "회원" : "익명")}
             </span>
-            {d.want_type ? ` · ${d.want_type}` : ""}
+            {d.country_code ? ` · ${d.country_code}${d.city ? ` ${d.city}` : ""}` : ""}
             {d.comment ? ` — ${d.comment}` : ""}
             <span className="text-ink-4"> · {new Date(d.created_at).toLocaleDateString("ko-KR")}</span>
           </div>

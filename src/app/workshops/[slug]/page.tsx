@@ -8,7 +8,10 @@ import { InstagramGlyph } from "@/components/workshops/InstagramGlyph";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { ReserveCheckout } from "@/components/workshops/ReserveCheckout";
 import { VoteBox } from "@/components/workshops/VoteBox";
-import { C, splitSentences } from "@/components/workshops/copy";
+// 상세·결제 페이지는 한국어 운영 기준(규정·결제 문구) — 랜딩만 다국어다.
+import { T, splitSentences } from "@/components/workshops/copy";
+
+const C = T.ko;
 import { getProfile, getUser } from "@/lib/auth/guard";
 import { cn } from "@/lib/utils";
 import { MyReservationCard } from "@/components/workshops/MyReservationCard";

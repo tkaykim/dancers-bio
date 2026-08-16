@@ -6,6 +6,8 @@ import { getUser, requireAdmin } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWorkshopNominationOpsMail } from "@/lib/notify/workshop-mails";
 import {
+  compactInstagramHandle,
+  namesLookSimilar,
   normalizeInstagramHandle,
   suggestSlug,
   WORKSHOP_STATUSES,
@@ -31,10 +33,12 @@ const demandSchema = z
     artistId: z.string().uuid().optional().nullable(),
     artistName: z.string().trim().max(120).optional().nullable(),
     instagramHandle: z.string().trim().max(120).optional().nullable(),
-    wantType: z.enum(["class", "workshop", "camp"]).optional().nullable(),
     comment: z.string().trim().max(2000).optional().nullable(),
     contactEmail: z.string().trim().email("이메일 형식을 확인해 주세요.").max(200).optional().nullable().or(z.literal("")),
     contactInstagram: z.string().trim().max(120).optional().nullable(),
+    /** 제출자 거주지 — 미입력 시 대한민국/서울로 저장한다(대표 지시). */
+    countryCode: z.string().trim().length(2).optional().nullable(),
+    city: z.string().trim().max(120).optional().nullable(),
   })
   // 기존 카드 찜이 아니면(신규 제안) 안무가 이름·인스타그램이 필수다.
   .refine((d) => !!d.artistId || (!!d.artistName?.trim() && !!d.instagramHandle?.trim()), {
@@ -77,6 +81,10 @@ export async function submitWorkshopDemandAction(
   }
 
   // 1) 대상 안무가 카드 확정 (vote = 조회, nominate = 핸들 기준 upsert)
+  //    같은 안무가가 표기 차이로 중복 카드가 되는 경우의 수를 흡수한다:
+  //    - 핸들 완전 일치 → 같은 카드 (unique index)
+  //    - 핸들 compact 일치(j.blaze/j_blaze/jblaze) → 같은 카드로 자동 합산
+  //    - 이름만 유사(성만·이름만·표기차) → 새 카드를 만들되 possible_duplicate_of 로 표시(운영자 병합)
   let artistId = d.artistId ?? null;
   let artistName = d.artistName?.trim() ?? "";
   let artistHandle = "";
@@ -97,16 +105,29 @@ export async function submitWorkshopDemandAction(
     artistHandle = normalizeInstagramHandle(d.instagramHandle ?? "");
     if (!artistHandle) return { ok: false, error: "인스타그램 아이디를 확인해 주세요." };
 
-    const { data: existing } = await admin
+    // 카드 수가 작으므로(수백 규모) 전량 읽어 코드에서 비교한다.
+    const { data: candidates } = await admin
       .from("workshop_artists")
-      .select("id, name, slug, status")
-      .ilike("instagram_handle", artistHandle)
-      .maybeSingle();
+      .select("id, name, instagram_handle, slug, status")
+      .neq("status", "archived")
+      .limit(1000);
 
-    if (existing) {
-      artistId = existing.id as string;
-      artistName = existing.name as string;
-      artistSlug = (existing.slug as string) ?? null;
+    const compact = compactInstagramHandle(artistHandle);
+    const exact = (candidates ?? []).find(
+      (c) => (c.instagram_handle as string).toLowerCase() === artistHandle,
+    );
+    const compactMatch =
+      exact ?? (candidates ?? []).find((c) => compactInstagramHandle(c.instagram_handle as string) === compact);
+    const nameMatch =
+      compactMatch ??
+      (artistName
+        ? (candidates ?? []).find((c) => namesLookSimilar(c.name as string, artistName))
+        : undefined);
+
+    if (compactMatch) {
+      artistId = compactMatch.id as string;
+      artistName = compactMatch.name as string;
+      artistSlug = (compactMatch.slug as string) ?? null;
     } else {
       const { data: created, error: createError } = await admin
         .from("workshop_artists")
@@ -115,6 +136,8 @@ export async function submitWorkshopDemandAction(
           instagram_handle: artistHandle,
           status: "suggested",
           created_by: user?.id ?? null,
+          // 이름만 비슷한 건 다른 사람일 수 있어 자동 합산하지 않고 표시만 한다.
+          possible_duplicate_of: nameMatch ? (nameMatch.id as string) : null,
         })
         .select("id")
         .single();
@@ -150,8 +173,10 @@ export async function submitWorkshopDemandAction(
     contact_email: contactEmail,
     contact_instagram: contactInstagram,
     user_id: user?.id ?? null,
-    want_type: d.wantType ?? null,
     comment: d.comment?.trim() || null,
+    // 거주지 기본값 = 대한민국/서울 (대표 지시). 해외 수요는 향후 "한국 댄서 해외 진출 창구" 근거 데이터.
+    country_code: (d.countryCode?.trim().toUpperCase() || "KR").slice(0, 2),
+    city: d.city?.trim() || "서울",
   });
 
   let already = false;
@@ -175,7 +200,7 @@ export async function submitWorkshopDemandAction(
         artistName,
         instagramHandle: artistHandle || normalizeInstagramHandle(d.instagramHandle ?? ""),
         isNewArtist,
-        wantType: d.wantType ?? null,
+        wantType: null,
         comment: d.comment?.trim() || null,
         contactEmail,
         contactInstagram,
@@ -304,6 +329,46 @@ export async function adminUpsertWorkshopArtistAction(
   }
   revalidateWorkshops(row.slug as string | null);
   return { ok: true, data: { id: row.id as string, slug: (row.slug as string) ?? null } };
+}
+
+// ── 어드민: 중복 카드 병합 ──────────────────────────────────────────────────
+
+const mergeSchema = z.object({
+  sourceId: z.string().uuid(),
+  targetId: z.string().uuid(),
+});
+
+const MERGE_ERRORS: Record<string, string> = {
+  SAME_ARTIST: "같은 카드입니다.",
+  SOURCE_NOT_FOUND: "병합할 카드를 찾을 수 없습니다.",
+  TARGET_NOT_FOUND: "대상 카드를 찾을 수 없습니다.",
+  HAS_RESERVATIONS: "결제가 붙은 카드는 병합할 수 없습니다. 예약 건을 먼저 정리하세요.",
+};
+
+/** 중복 카드 병합 — source 의 수요를 target 으로 이관하고 source 는 보관 처리한다. */
+export async function adminMergeWorkshopArtistsAction(
+  input: z.input<typeof mergeSchema>,
+): Promise<ActionResult<{ moved: number }>> {
+  await requireAdmin();
+  const parsed = mergeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요." };
+  }
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("merge_workshop_artist", {
+    p_source: parsed.data.sourceId,
+    p_target: parsed.data.targetId,
+  });
+  if (error) {
+    console.error("[adminMergeWorkshopArtists] rpc failed:", error);
+    return { ok: false, error: GENERIC };
+  }
+  const result = data as { ok: boolean; error?: string; moved?: number } | null;
+  if (!result?.ok) {
+    return { ok: false, error: MERGE_ERRORS[result?.error ?? ""] ?? GENERIC };
+  }
+  revalidateWorkshops();
+  return { ok: true, data: { moved: result.moved ?? 0 } };
 }
 
 // ── 어드민: 예약 상태 기록 (환불·양도·참가확정 — 실제 환불은 PG 콘솔에서 수동) ──
