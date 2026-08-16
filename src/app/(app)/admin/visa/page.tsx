@@ -139,6 +139,8 @@ export default async function AdminVisaPage() {
   const meetingTrackingMap = new Map<string, MeetingTracking>();
   const invitesMap = new Map<string, MeetingInvite[]>();
   const outboundMap = new Map<string, OutboundMail[]>();
+  // 오디션 확정 안내 최근 발송 (신청건당 1건) — 패널의 중복 발송 방지 표시용
+  const auditionMailMap = new Map<string, { sentAt: string; key: string | null }>();
 
   if (dancerIds.length > 0) {
     const [{ data: dancers }, { data: privs }] = await Promise.all([
@@ -206,13 +208,22 @@ export default async function AdminVisaPage() {
     // 본문은 목록에 싣지 않는다 (열어볼 때만 서버 액션으로 가져온다).
     const { data: mailRows } = await admin
       .from("visa_outbound_mails")
-      .select("id, application_id, kind, lang, subject, status, source, sent_by_name, sent_at")
+      .select("id, application_id, kind, lang, subject, status, source, sent_by_name, sent_at, metadata")
       .in("application_id", appIds)
       .order("sent_at", { ascending: false })
       .limit(1000);
-    for (const mail of (mailRows ?? []) as unknown as Array<OutboundMail & { application_id: string }>) {
-      const { application_id: applicationId, ...rest } = mail;
+    for (const mail of (mailRows ?? []) as unknown as Array<
+      OutboundMail & { application_id: string; metadata?: Record<string, unknown> | null }
+    >) {
+      const { application_id: applicationId, metadata, ...rest } = mail;
       outboundMap.set(applicationId, [...(outboundMap.get(applicationId) ?? []), rest]);
+      // 오디션 확정 안내는 "같은 일정으로 이미 보냈는지"를 패널에서 보여줘야 한다.
+      if (rest.kind === "audition_confirmed" && rest.status === "sent" && !auditionMailMap.has(applicationId)) {
+        auditionMailMap.set(applicationId, {
+          sentAt: rest.sent_at,
+          key: (metadata?.auditionAt as string | null) ?? null,
+        });
+      }
     }
   }
 
@@ -279,6 +290,8 @@ export default async function AdminVisaPage() {
       meeting_tracking: meetingTrackingMap.get(a.id) ?? null,
       meeting_invites: invitesMap.get(a.id) ?? [],
       outbound_mails: outboundMap.get(a.id) ?? [],
+      audition_mail_sent_at: auditionMailMap.get(a.id)?.sentAt ?? null,
+      audition_mail_key: auditionMailMap.get(a.id)?.key ?? null,
     };
   });
 

@@ -3,5 +3,13 @@
   "framework": "nextjs",
   "buildCommand": "next build",
   "installCommand": "npm install",
-  "regions": ["hnd1"]
+  "regions": [
+    "hnd1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/visa-meeting-reminders",
+      "schedule": "0 1 * * *"
+    }
+  ]
 }

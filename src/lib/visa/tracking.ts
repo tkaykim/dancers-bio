@@ -10,6 +10,12 @@ export const VISA_MEETING_CAMPAIGN = "visa_meeting_invite";
 // 신청 즉시 자동 발송되는 접수 확인 메일 전용 캠페인.
 export const VISA_APPLICATION_CONFIRMATION_CAMPAIGN = "visa_application_confirmation";
 
+/** 미팅 하루 전 자동 리마인드(크론). */
+export const VISA_MEETING_REMINDER_CAMPAIGN = "visa_meeting_reminder";
+
+/** 오디션(레벨테스트) 일정 확정 안내. */
+export const VISA_AUDITION_CONFIRMED_CAMPAIGN = "visa_audition_confirmed";
+
 type TrackingPayload = {
   applicationId: string;
   campaign: string;

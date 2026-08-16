@@ -18,6 +18,7 @@ import {
 } from "@/app/actions/visa";
 import { Drawer } from "@/components/ui/drawer";
 import { VisaCaseOpsEditor } from "@/components/admin/VisaCaseOpsEditor";
+import { VisaAuditionMailPanel } from "@/components/admin/VisaAuditionMailPanel";
 import { VisaPaymentPanel } from "@/components/admin/VisaPaymentPanel";
 import {
   VisaMeetingInvitePanel,
@@ -63,6 +64,9 @@ export type VisaAdminRow = {
   case_stage: string;
   audition_at: string | null;
   audition_location: string | null;
+  /** 오디션 확정 안내를 보낸 시각·그때의 일정 키 (같은 일정 중복 발송 방지 표시용) */
+  audition_mail_sent_at?: string | null;
+  audition_mail_key?: string | null;
   audition_status: string;
   audition_result: string;
   audition_feedback: string | null;
@@ -664,6 +668,17 @@ function VisaDetail({
         consultationAnswers={row.follow_up_answers}
         invites={row.meeting_invites}
         tracking={row.meeting_tracking}
+      />
+
+      <VisaAuditionMailPanel
+        state={{
+          applicationId: row.id,
+          auditionAt: row.audition_at,
+          auditionLocation: row.audition_location,
+          applicantLang: row.preferred_lang,
+          sentAt: row.audition_mail_sent_at ?? null,
+          sentForAuditionAt: row.audition_mail_key ?? null,
+        }}
       />
 
       <VisaOutboundMailsPanel mails={row.outbound_mails} />
