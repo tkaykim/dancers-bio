@@ -23,6 +23,7 @@ const RESERVED_FIRST_SEGMENTS = new Set([
   "claim", "forgot-password", "login", "signup",
   "d", "dancers", "feed", "t", "u",
   "api", "h", "onboarding", "projects", "reset-password", "s", "sr", "fr", "fit", "sz", "welcome",
+  "workshops",
 ]);
 
 export async function middleware(request: NextRequest) {

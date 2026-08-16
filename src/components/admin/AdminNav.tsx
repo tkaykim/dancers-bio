@@ -19,6 +19,7 @@ import {
   Wallet,
   Receipt,
   Home,
+  Flame,
 } from "lucide-react";
 
 type Item = {
@@ -55,7 +56,10 @@ const GROUPS: Group[] = [
   },
   {
     title: "프로그램",
-    items: [{ href: "/admin/village", label: "Village 수요조사", Icon: Home, exact: true }],
+    items: [
+      { href: "/admin/village", label: "Village 수요조사", Icon: Home, exact: true },
+      { href: "/admin/workshops", label: "워크샵 초청", Icon: Flame, exact: true },
+    ],
   },
   {
     title: "수집 파이프",
