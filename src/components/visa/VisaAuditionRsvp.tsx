@@ -60,7 +60,7 @@ const T: Record<Lang, Copy> = {
     doneUnavailable: "Thank you for telling us. We will let you know about the next round.",
     change: "Change my answer",
     payTitle: "Secure your place",
-    payBody: "Your place is confirmed once the attendance fee is paid. It is fully deducted from the program payment.",
+    payBody: "Your place is confirmed once the attendance fee is paid. This fee is already part of the program cost, so you pay 100,000 KRW less when you join the program.",
     payCta: "Pay the attendance fee",
   },
   ja: {
@@ -83,7 +83,7 @@ const T: Record<Lang, Copy> = {
     doneUnavailable: "お知らせいただきありがとうございます。次回の回をご案内します。",
     change: "回答を変更する",
     payTitle: "参加枠を確保する",
-    payBody: "参加確定費のお支払いで枠が確保されます。プログラム決済から全額差し引かれます。",
+    payBody: "参加確定費のお支払いで枠が確保されます。この費用はプログラム費用に含まれているため、プログラム参加時は10万ウォン割引された金額のお支払いとなります。",
     payCta: "参加確定費を支払う",
   },
   ko: {
@@ -106,7 +106,7 @@ const T: Record<Lang, Copy> = {
     doneUnavailable: "알려주셔서 감사합니다. 다음 회차를 안내드리겠습니다.",
     change: "답변 바꾸기",
     payTitle: "참가 자리 확보하기",
-    payBody: "참가 확정비를 결제하시면 자리가 확보됩니다. 프로그램 결제 금액에서 전액 차감됩니다.",
+    payBody: "참가 확정비를 결제하시면 자리가 확보됩니다. 이 비용은 프로그램 비용에 포함되어 있어, 프로그램 진행 시 10만원 할인된 금액으로 결제하시게 됩니다.",
     payCta: "참가 확정비 결제하기",
   },
 };

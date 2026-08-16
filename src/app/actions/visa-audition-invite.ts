@@ -31,6 +31,9 @@ const eventSchema = z.object({
   startsAt: z.string().datetime({ offset: true }),
   endsAt: z.string().datetime({ offset: true }).nullable().optional(),
   location: z.string().trim().min(1).max(300),
+  address: z.string().trim().max(300).nullable().optional(),
+  transit: z.string().trim().max(300).nullable().optional(),
+  mapUrl: z.string().trim().url().max(600).nullable().optional().or(z.literal("")),
 });
 
 export type AuditionInviteCandidate = {
@@ -161,6 +164,9 @@ export async function previewAuditionInviteAction(
     auditionAtIso: parsed.data.startsAt,
     auditionEndsAtIso: parsed.data.endsAt ?? null,
     location: parsed.data.location,
+    address: parsed.data.address ?? null,
+    transit: parsed.data.transit ?? null,
+    mapUrl: parsed.data.mapUrl || null,
     feeKrw: AUDITION_FEE_KRW,
     caseUrl: `${SITE_URL}/visa/case/${makeVisaCaseToken(parsed.data.applicationId)}`,
   });
@@ -178,7 +184,7 @@ export async function sendAuditionInvitesAction(
   await requireAdmin();
   const parsed = sendSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "입력값을 확인해 주세요." };
-  const { startsAt, endsAt, location, applicationIds } = parsed.data;
+  const { startsAt, endsAt, location, address, transit, mapUrl, applicationIds } = parsed.data;
 
   const admin = createAdminClient();
   let sent = 0;
@@ -233,6 +239,9 @@ export async function sendAuditionInvitesAction(
       auditionAtIso: startsAt,
       auditionEndsAtIso: endsAt ?? null,
       location,
+      address: address ?? null,
+      transit: transit ?? null,
+      mapUrl: mapUrl || null,
       feeKrw: AUDITION_FEE_KRW,
       caseUrl,
       trackedUrl,
@@ -259,7 +268,7 @@ export async function sendAuditionInvitesAction(
       sent_by_name: "오디션 회차 초대",
       message_id: result.messageId ?? null,
       error: result.ok ? null : (result.error ?? "unknown"),
-      metadata: { startsAt, endsAt: endsAt ?? null, location, caseUrl },
+      metadata: { startsAt, endsAt: endsAt ?? null, location, address: address ?? null, transit: transit ?? null, mapUrl: mapUrl || null, caseUrl },
     });
 
     if (result.ok) {
@@ -270,7 +279,7 @@ export async function sendAuditionInvitesAction(
         .update({
           audition_at: startsAt,
           audition_ends_at: endsAt ?? null,
-          audition_location: location,
+          audition_location: [location, address?.trim()].filter(Boolean).join(" · "),
           audition_status: "scheduled",
           next_action: "오디션 참석 여부 회신 대기",
         })

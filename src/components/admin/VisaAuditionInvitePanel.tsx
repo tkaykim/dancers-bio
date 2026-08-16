@@ -23,7 +23,13 @@ export function VisaAuditionInvitePanel() {
 
   const [startsAt, setStartsAt] = useState("2026-09-16T16:00");
   const [endsAt, setEndsAt] = useState("2026-09-16T18:00");
-  const [location, setLocation] = useState("엠아이디(MID) 댄스 스튜디오 · 이대역");
+  const [location, setLocation] = useState("엠아이디(MID) 댄스학원");
+  // 공식 홈페이지(middance.com) 기준. 지원자가 길을 못 찾는 일이 없게 주소·교통·지도를 함께 보낸다.
+  const [address, setAddress] = useState("서울시 서대문구 신촌역로 22-8 4층");
+  const [transit, setTransit] = useState("경의중앙선 신촌역 1번 출구 도보 1분 · 2호선 이대역 1번 출구 도보 7분");
+  const [mapUrl, setMapUrl] = useState(
+    "https://www.google.com/maps/search/?api=1&query=%EC%84%9C%EC%9A%B8%EC%8B%9C%20%EC%84%9C%EB%8C%80%EB%AC%B8%EA%B5%AC%20%EC%8B%A0%EC%B4%8C%EC%97%AD%EB%A1%9C%2022-8%20%EC%97%A0%EC%95%84%EC%9D%B4%EB%94%94%20%EB%8C%84%EC%8A%A4%ED%95%99%EC%9B%90",
+  );
 
   const [candidates, setCandidates] = useState<AuditionInviteCandidate[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -38,6 +44,9 @@ export function VisaAuditionInvitePanel() {
     startsAt: iso(startsAt) ?? "",
     endsAt: iso(endsAt),
     location: location.trim(),
+    address: address.trim() || null,
+    transit: transit.trim() || null,
+    mapUrl: mapUrl.trim() || null,
   });
 
   const load = () => {
@@ -136,6 +145,38 @@ export function VisaAuditionInvitePanel() {
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             maxLength={300}
+            className="rounded-md border border-zinc-300 px-2.5 py-2 text-xs"
+          />
+        </label>
+      </div>
+
+      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-zinc-500">주소</span>
+          <input
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            maxLength={300}
+            placeholder="비우면 메일에서 생략됩니다"
+            className="rounded-md border border-zinc-300 px-2.5 py-2 text-xs"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-zinc-500">오시는 길</span>
+          <input
+            value={transit}
+            onChange={(e) => setTransit(e.target.value)}
+            maxLength={300}
+            className="rounded-md border border-zinc-300 px-2.5 py-2 text-xs"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-zinc-500">지도 링크</span>
+          <input
+            value={mapUrl}
+            onChange={(e) => setMapUrl(e.target.value)}
+            maxLength={600}
+            placeholder="https://..."
             className="rounded-md border border-zinc-300 px-2.5 py-2 text-xs"
           />
         </label>

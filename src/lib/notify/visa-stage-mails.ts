@@ -374,6 +374,9 @@ const INVITE: Record<StageMailLang, {
   boxTitle: string;
   dateLabel: string;
   placeLabel: string;
+  addressLabel: string;
+  transitLabel: string;
+  mapLabel: string;
   feeLabel: string;
   cta: string;
   intro: (name: string) => string[];
@@ -389,6 +392,9 @@ const INVITE: Record<StageMailLang, {
     boxTitle: "오디션 · 레벨테스트",
     dateLabel: "일시",
     placeLabel: "장소",
+    addressLabel: "주소",
+    transitLabel: "오시는 길",
+    mapLabel: "지도",
     feeLabel: "참가 확정비",
     cta: "참석 여부 응답하기",
     intro: (name) => [
@@ -405,7 +411,9 @@ const INVITE: Record<StageMailLang, {
     ],
     fee: [
       "참석이 확정되면 참가 확정비 100,000원을 결제해 주셔야 자리가 확보됩니다.",
-      "이 금액은 이후 프로그램을 진행하실 때 프로그램 결제 금액에서 전액 차감됩니다.",
+      "이 참가비는 프로그램 비용에 이미 포함되어 있습니다.",
+      "그래서 나중에 프로그램을 진행하실 때 100,000원이 할인된 금액으로 결제하시게 됩니다.",
+      "따로 더 내시는 돈이 아닙니다.",
     ],
     outro: [
       "아래 버튼을 누르시면 참석 여부를 고르고 결제까지 한 번에 진행하실 수 있습니다.",
@@ -421,6 +429,9 @@ const INVITE: Record<StageMailLang, {
     boxTitle: "Audition · level test",
     dateLabel: "Date and time",
     placeLabel: "Venue",
+    addressLabel: "Address",
+    transitLabel: "Getting there",
+    mapLabel: "Map",
     feeLabel: "Attendance fee",
     cta: "Confirm my attendance",
     intro: (name) => [
@@ -437,7 +448,9 @@ const INVITE: Record<StageMailLang, {
     ],
     fee: [
       "Once you confirm, a 100,000 KRW attendance fee secures your place.",
-      "This amount is fully deducted from the program payment if you continue with the program.",
+      "This fee is already part of the program cost.",
+      "So when you join the program later, you pay 100,000 KRW less.",
+      "It is not an extra charge on top.",
     ],
     outro: [
       "The button below lets you choose how you will attend and complete the payment in one place.",
@@ -453,6 +466,9 @@ const INVITE: Record<StageMailLang, {
     boxTitle: "オーディション・レベルテスト",
     dateLabel: "日時",
     placeLabel: "会場",
+    addressLabel: "住所",
+    transitLabel: "アクセス",
+    mapLabel: "地図",
     feeLabel: "参加確定費",
     cta: "参加可否を回答する",
     intro: (name) => [
@@ -469,7 +485,9 @@ const INVITE: Record<StageMailLang, {
     ],
     fee: [
       "参加が確定しましたら、参加確定費100,000ウォンのお支払いで枠が確保されます。",
-      "この金額は、その後プログラムを進められる際に決済金額から全額差し引かれます。",
+      "この参加費はプログラム費用にすでに含まれています。",
+      "そのため、後日プログラムに進まれる際は100,000ウォン割引された金額のお支払いとなります。",
+      "追加でお支払いいただく費用ではありません。",
     ],
     outro: [
       "下のボタンから、参加方法の選択とお支払いをまとめて進めていただけます。",
@@ -505,7 +523,14 @@ export function renderVisaAuditionInviteMail(params: {
   lang: StageMailLang;
   auditionAtIso: string;
   auditionEndsAtIso: string | null;
+  /** 장소 이름 (예: 엠아이디(MID) 댄스학원) */
   location: string;
+  /** 도로명 주소. 비어 있으면 행을 생략한다. */
+  address?: string | null;
+  /** 지하철 안내. 비어 있으면 생략. */
+  transit?: string | null;
+  /** 지도 링크. 비어 있으면 생략. */
+  mapUrl?: string | null;
   feeKrw: number;
   caseUrl: string;
   trackedUrl?: string | null;
@@ -522,12 +547,21 @@ export function renderVisaAuditionInviteMail(params: {
   const intro = c.intro(name);
   const body = [...c.onsite, ...c.online, ...c.fee];
 
+  // 주소·교통·지도는 값이 있을 때만 넣는다(온라인 회차엔 주소가 없다).
+  const venueRows: { label: string; value: string; href?: string | null }[] = [
+    { label: c.placeLabel, value: params.location },
+  ];
+  if (params.address?.trim()) venueRows.push({ label: c.addressLabel, value: params.address.trim() });
+  if (params.transit?.trim()) venueRows.push({ label: c.transitLabel, value: params.transit.trim() });
+  if (params.mapUrl?.trim())
+    venueRows.push({ label: c.mapLabel, value: params.mapUrl.trim(), href: params.mapUrl.trim() });
+
   const text = [
     ...intro,
     "",
     `[${c.boxTitle}]`,
     `${c.dateLabel}: ${when}`,
-    `${c.placeLabel}: ${params.location}`,
+    ...venueRows.map((r) => `${r.label}: ${r.value}`),
     `${c.feeLabel}: ${fee}`,
     "",
     ...body,
@@ -545,11 +579,7 @@ export function renderVisaAuditionInviteMail(params: {
     title: c.title,
     intro: [...intro, ...body],
     boxTitle: c.boxTitle,
-    rows: [
-      { label: c.dateLabel, value: when },
-      { label: c.placeLabel, value: params.location },
-      { label: c.feeLabel, value: fee },
-    ],
+    rows: [{ label: c.dateLabel, value: when }, ...venueRows, { label: c.feeLabel, value: fee }],
     outro: c.outro,
     cta: { label: c.cta, href: link },
     openPixelUrl: params.openPixelUrl,
