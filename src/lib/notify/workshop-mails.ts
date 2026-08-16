@@ -117,6 +117,47 @@ export async function sendWorkshopDepositReceiptEmail(input: {
   });
 }
 
+/**
+ * 돈은 받았는데 예약 확정에 실패한 건 알림(운영자 전용).
+ * 웹훅·대사 크론이 없는 v1 에서 이걸 놓치면 고객은 결제했는데 자리가 없는 상태가 된다.
+ */
+export async function sendWorkshopPaymentRecoveryMail(input: {
+  orderNo: string;
+  reason: string;
+  artistName: string;
+  customerName: string;
+  customerEmail: string;
+  amount: number;
+  provider: "toss" | "paypal";
+  paymentKey: string | null;
+}): Promise<void> {
+  const html = `<div style="font-family:'Apple SD Gothic Neo','Malgun Gothic',Helvetica,Arial,sans-serif;font-size:14px;color:#111;max-width:560px;word-break:keep-all;">
+<p style="margin:0 0 14px;font-size:16px;font-weight:700;color:#b91c1c;">⚠️ 결제는 됐는데 예약 확정에 실패했습니다.</p>
+<p style="margin:0 0 14px;font-size:13px;color:#6b7280;line-height:1.8;">
+사유: ${escapeHtml(input.reason)}<br>
+고객에게는 "확정 처리 지연" 안내가 표시됩니다. 수동 확인이 필요합니다.
+</p>
+<table role="presentation" cellpadding="0" cellspacing="0">
+${line("워크샵", escapeHtml(input.artistName))}
+${line("결제번호", `<span style="font-family:monospace;">${escapeHtml(input.orderNo)}</span>`)}
+${line("고객", `${escapeHtml(input.customerName)} &lt;${escapeHtml(input.customerEmail)}&gt;`)}
+${line("금액", `<strong>${escapeHtml(won(input.amount))}</strong>`)}
+${line("PG", input.provider === "paypal" ? "PayPal" : "토스페이먼츠")}
+${line("paymentKey", `<span style="font-family:monospace;font-size:12px;">${escapeHtml(input.paymentKey ?? "(없음)")}</span>`)}
+</table>
+<p style="margin:16px 0 0;font-size:13px;color:#6b7280;line-height:1.8;">
+PG 콘솔에서 위 paymentKey 로 실제 승인 여부를 확인한 뒤, 좌석을 복구하거나 환불 처리하세요.<br>
+<a href="https://deetz.kr/admin/workshops">워크샵 관리</a>
+</p></div>`;
+
+  await sendGmailEmail({
+    to: OPS_TO,
+    subject: `🚨 [Workshop 결제복구] ${input.orderNo} · ${won(input.amount)} · ${input.customerName}`,
+    text: `결제 확정 실패\n사유 ${input.reason}\n결제번호 ${input.orderNo}\n고객 ${input.customerName} <${input.customerEmail}>\n금액 ${won(input.amount)}\npaymentKey ${input.paymentKey ?? "(없음)"}`,
+    html,
+  });
+}
+
 export async function sendWorkshopDepositOpsMail(input: {
   customerName: string;
   customerEmail: string;

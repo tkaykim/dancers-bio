@@ -310,6 +310,7 @@ export async function adminUpsertWorkshopArtistAction(
 
 const reservationStatusSchema = z.object({
   id: z.string().uuid(),
+  // recovery_required(돈은 받았으나 자동 확정 실패)는 운영자가 paid 로 살리거나 refunded 로 닫는다.
   status: z.enum(["paid", "cancelled", "refunded", "transferred", "confirmed"]),
   memo: z.string().trim().max(2000).optional().nullable(),
 });

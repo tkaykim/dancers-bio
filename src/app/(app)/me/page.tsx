@@ -73,6 +73,11 @@ export default async function MePage() {
             title="정산 · 출금"
             desc="정산금액 확인 · 계좌 등록 · 출금 신청"
           />
+          <SettingsRow
+            href="/me/workshops"
+            title="내 워크샵 예약"
+            desc="예약금 결제 내역 · 진행 상태"
+          />
           {profile.is_admin ? (
             <SettingsRow
               href="/projects/new"

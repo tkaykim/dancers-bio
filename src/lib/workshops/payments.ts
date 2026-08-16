@@ -5,6 +5,7 @@ import { foreignQuote, PAYPAL_FOREIGN_CURRENCY } from "@/lib/paypal-fx";
 import {
   sendWorkshopDepositOpsMail,
   sendWorkshopDepositReceiptEmail,
+  sendWorkshopPaymentRecoveryMail,
 } from "@/lib/notify/workshop-mails";
 
 // deetz Workshop 예약금 결제 서버 로직 (grigoent /training 연동 이식).
@@ -15,7 +16,12 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://deetz.kr";
 
 export type ConfirmResult =
   | { ok: true; orderNo: string; artistName: string; artistSlug: string | null; amount: number; idempotent: boolean }
-  | { ok: false; error: string };
+  /**
+   * 돈은 받았지만 예약으로 확정하지 못한 상태(기록 실패 또는 취소·만료 주문에 승인 도착).
+   * 사용자에게 "결제 실패"라고 하면 거짓말이므로 별도 화면으로 안내하고 운영자가 수동 처리한다.
+   */
+  | { ok: false; recovery: true; orderNo: string; error: string }
+  | { ok: false; recovery?: false; error: string };
 
 function getTossSecretKey(): string | null {
   const useLive = process.env.NEXT_PUBLIC_TOSS_USE_LIVE === "true";
@@ -65,7 +71,15 @@ async function loadByPgOrderId(pgOrderId: string): Promise<{
   return { reservation: reservation as ReservationRow, artist: (artist as ArtistRow) ?? null };
 }
 
-/** 결제 완료 처리 공통부 — 레코드 확정 + 안내/운영 메일(비치명적). */
+type FinalizeOutcome = "recorded" | "already_recorded" | "recovery_required";
+
+/**
+ * 결제 완료 처리 공통부.
+ *
+ * 상태 전이는 `mark_workshop_reservation_paid()` 가 원자적으로 한 번만 성공시킨다 —
+ * 동시 요청(새로고침·중복 호출)에서도 영수증 메일은 한 번만 나간다.
+ * 결과를 그대로 돌려주어 호출부가 "돈은 받았는데 확정 못 함"을 성공으로 위장하지 않게 한다.
+ */
 async function finalizePaid(params: {
   reservation: ReservationRow;
   artist: ArtistRow | null;
@@ -73,22 +87,57 @@ async function finalizePaid(params: {
   paymentKey: string | null;
   receiptUrl: string | null;
   raw: unknown;
-}): Promise<void> {
+}): Promise<FinalizeOutcome> {
   const admin = createAdminClient();
   const paidAt = new Date().toISOString();
 
-  await admin
-    .from("workshop_reservations")
-    .update({
-      status: "paid",
-      pg_provider: params.provider,
-      payment_key: params.paymentKey,
-      paid_at: paidAt,
-      receipt_url: params.receiptUrl,
-      raw: params.raw ?? null,
-      updated_at: paidAt,
-    })
-    .eq("id", params.reservation.id);
+  const { data: outcome, error: transitionError } = await admin.rpc(
+    "mark_workshop_reservation_paid",
+    {
+      p_reservation_id: params.reservation.id,
+      p_provider: params.provider,
+      p_payment_key: params.paymentKey,
+      p_receipt_url: params.receiptUrl,
+      p_raw: (params.raw as Record<string, unknown>) ?? null,
+    },
+  );
+
+  if (transitionError || !outcome) {
+    // 승인은 됐는데 기록에 실패했다 — 운영자에게 즉시 알리고, 호출부엔 복구 필요를 알린다.
+    console.error("[workshop] paid transition FAILED (money received, row not updated):", {
+      reservationId: params.reservation.id,
+      orderNo: params.reservation.order_no,
+      paymentKey: params.paymentKey,
+      error: transitionError,
+    });
+    await alertPaymentRecovery(params, "DB 기록 실패");
+    return "recovery_required";
+  }
+
+  if (outcome === "recovery_required") {
+    await alertPaymentRecovery(params, "취소·만료된 주문에 결제 승인이 도착");
+    return "recovery_required";
+  }
+  if (outcome !== "recorded") {
+    // 다른 요청이 먼저 처리했다. 실제 상태를 다시 읽어 **paid·confirmed 일 때만** 성공으로 본다.
+    // refunded·transferred·recovery_required, 그리고 재조회 실패는 전부 사람이 확인해야 하는 상태다
+    // (환불된 건에 승인이 또 들어온 상황을 성공 화면으로 보여주면 안 된다).
+    const { data: current, error: readError } = await admin
+      .from("workshop_reservations")
+      .select("status")
+      .eq("id", params.reservation.id)
+      .maybeSingle();
+
+    if (readError || !current) {
+      await alertPaymentRecovery(params, "중복 승인 후 상태 재조회 실패");
+      return "recovery_required";
+    }
+    if (current.status === "paid" || current.status === "confirmed") {
+      return "already_recorded";
+    }
+    await alertPaymentRecovery(params, `중복 승인 시점 상태가 '${current.status}'`);
+    return "recovery_required";
+  }
 
   const artistName = params.artist?.name ?? "deetz";
   const detailUrl = params.artist?.slug
@@ -141,9 +190,49 @@ async function finalizePaid(params: {
   } catch (e) {
     console.error("[workshop] ops mail failed (non-fatal):", e);
   }
+
+  return "recorded";
 }
 
-/** 토스 결제 승인 — 성공 페이지(서버 컴포넌트)에서 호출한다. */
+/**
+ * 돈은 받았는데 예약으로 확정하지 못한 건을 운영자에게 즉시 알린다.
+ * 웹훅·대사 크론이 없는 v1 에서 이 메일이 유일한 감지 수단이다 — 실패해도 로그는 반드시 남긴다.
+ */
+async function alertPaymentRecovery(
+  params: {
+    reservation: ReservationRow;
+    artist: ArtistRow | null;
+    provider: "toss" | "paypal";
+    paymentKey: string | null;
+  },
+  reason: string,
+): Promise<void> {
+  console.error("[workshop] PAYMENT RECOVERY REQUIRED", {
+    reason,
+    orderNo: params.reservation.order_no,
+    reservationId: params.reservation.id,
+    paymentKey: params.paymentKey,
+    provider: params.provider,
+    amount: params.reservation.amount,
+    customer: params.reservation.customer_email,
+  });
+  try {
+    await sendWorkshopPaymentRecoveryMail({
+      orderNo: params.reservation.order_no,
+      reason,
+      artistName: params.artist?.name ?? "(알 수 없음)",
+      customerName: params.reservation.customer_name,
+      customerEmail: params.reservation.customer_email,
+      amount: params.reservation.amount,
+      provider: params.provider,
+      paymentKey: params.paymentKey,
+    });
+  } catch (e) {
+    console.error("[workshop] recovery alert mail failed:", e);
+  }
+}
+
+/** 토스 결제 승인. */
 export async function confirmWorkshopTossPayment(params: {
   paymentKey: string;
   orderId: string;
@@ -157,7 +246,20 @@ export async function confirmWorkshopTossPayment(params: {
   const { reservation, artist } = await loadByPgOrderId(orderId);
   if (!reservation) return { ok: false, error: "주문을 찾을 수 없습니다." };
 
-  // 멱등: 이미 승인된 건이면 그대로 성공.
+  // 복구 대기 건이면 Toss 를 다시 부르지 않는다.
+  // (재호출하면 ALREADY_PROCESSED_PAYMENT 로 실패 화면이 떠 "결제됐는데 실패"로 보인다.)
+  // 복구 대기·환불·양도된 건은 PG 를 다시 부르지 않는다.
+  // (재호출하면 중복 승인 오류로 "결제됐는데 실패" 화면이 뜬다. 사람이 확인할 상태로 안내한다.)
+  if (["recovery_required", "refunded", "transferred"].includes(reservation.status)) {
+    return {
+      ok: false,
+      recovery: true,
+      orderNo: reservation.order_no,
+      error: "결제 건을 확인하고 있습니다. 운영진이 확인 후 안내드립니다.",
+    };
+  }
+
+  // 멱등: 이미 승인된 건이면 Toss 를 다시 호출하지 않고 그대로 성공 화면을 준다.
   if (reservation.status === "paid" || reservation.status === "confirmed") {
     return {
       ok: true,
@@ -190,6 +292,7 @@ export async function confirmWorkshopTossPayment(params: {
 
   if (!tossResponse.ok) {
     console.error("[workshop/confirm] toss confirm failed:", tossData);
+    // 이미 확정된 행의 실패 사유·raw 를 덮어쓰지 않는다(중복 요청 중 하나만 실패한 경우).
     await admin
       .from("workshop_reservations")
       .update({
@@ -197,11 +300,12 @@ export async function confirmWorkshopTossPayment(params: {
         raw: tossData,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", reservation.id);
+      .eq("id", reservation.id)
+      .not("status", "in", "(paid,confirmed,refunded,transferred,recovery_required)");
     return { ok: false, error: tossData?.message || "결제 승인에 실패했습니다." };
   }
 
-  await finalizePaid({
+  const outcome = await finalizePaid({
     reservation,
     artist,
     provider: "toss",
@@ -209,6 +313,15 @@ export async function confirmWorkshopTossPayment(params: {
     receiptUrl: tossData?.receipt?.url ?? null,
     raw: tossData,
   });
+
+  if (outcome === "recovery_required") {
+    return {
+      ok: false,
+      recovery: true,
+      orderNo: reservation.order_no,
+      error: "결제는 완료되었지만 예약 확정 처리가 지연되고 있습니다.",
+    };
+  }
 
   return {
     ok: true,
@@ -325,6 +438,16 @@ export async function captureWorkshopPaypalOrder(params: {
 }): Promise<ConfirmResult> {
   const { reservation, artist } = await loadByPgOrderId(params.pgOrderId);
   if (!reservation) return { ok: false, error: "주문을 찾을 수 없습니다." };
+  // 복구 대기·환불·양도된 건은 PG 를 다시 부르지 않는다.
+  // (재호출하면 중복 승인 오류로 "결제됐는데 실패" 화면이 뜬다. 사람이 확인할 상태로 안내한다.)
+  if (["recovery_required", "refunded", "transferred"].includes(reservation.status)) {
+    return {
+      ok: false,
+      recovery: true,
+      orderNo: reservation.order_no,
+      error: "결제 건을 확인하고 있습니다. 운영진이 확인 후 안내드립니다.",
+    };
+  }
   if (reservation.status === "paid" || reservation.status === "confirmed") {
     return {
       ok: true,
@@ -354,12 +477,13 @@ export async function captureWorkshopPaypalOrder(params: {
           raw: captureData,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", reservation.id);
+        .eq("id", reservation.id)
+        .not("status", "in", "(paid,confirmed,refunded,transferred,recovery_required)");
       return { ok: false, error: "PayPal 결제 승인에 실패했습니다." };
     }
 
     const captureDetails = captureData.purchase_units?.[0]?.payments?.captures?.[0];
-    await finalizePaid({
+    const outcome = await finalizePaid({
       reservation,
       artist,
       provider: "paypal",
@@ -367,6 +491,15 @@ export async function captureWorkshopPaypalOrder(params: {
       receiptUrl: null,
       raw: captureData,
     });
+
+    if (outcome === "recovery_required") {
+      return {
+        ok: false,
+        recovery: true,
+        orderNo: reservation.order_no,
+        error: "결제는 완료되었지만 예약 확정 처리가 지연되고 있습니다.",
+      };
+    }
 
     return {
       ok: true,

@@ -289,7 +289,7 @@ function ReservationList({ reservations }: { reservations: AdminWorkshopReservat
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  const setStatus = (id: string, status: Exclude<ReservationStatus, "pending">) => {
+  const setStatus = (id: string, status: Exclude<ReservationStatus, "pending" | "recovery_required">) => {
     startTransition(async () => {
       const res = await adminSetWorkshopReservationStatusAction({ id, status });
       if (res.ok) {
@@ -315,9 +315,11 @@ function ReservationList({ reservations }: { reservations: AdminWorkshopReservat
                 "rounded-full px-2 py-0.5 text-[11px] font-bold",
                 r.status === "paid" || r.status === "confirmed"
                   ? "bg-ok/15 text-ok"
-                  : r.status === "pending"
-                    ? "bg-warn/15 text-warn"
-                    : "bg-secondary text-ink-3",
+                  : r.status === "recovery_required"
+                    ? "bg-red-100 font-bold text-red-700"
+                    : r.status === "pending"
+                      ? "bg-warn/15 text-warn"
+                      : "bg-secondary text-ink-3",
               )}
             >
               {RESERVATION_STATUS_LABEL[r.status]}
@@ -329,7 +331,13 @@ function ReservationList({ reservations }: { reservations: AdminWorkshopReservat
             <span className="font-semibold text-foreground">{won(r.amount)}</span>
             {r.pg_provider ? <span className="text-ink-4">{r.pg_provider}</span> : null}
             <span className="ml-auto flex gap-1">
-              {(r.status === "paid" ? (["confirmed", "refunded", "transferred"] as const) : []).map((s) => (
+              {(r.status === "paid"
+                ? (["confirmed", "refunded", "transferred"] as const)
+                : r.status === "recovery_required"
+                  ? // 돈은 받은 건 — 좌석을 살리거나(paid) 환불로 닫는다.
+                    (["paid", "refunded"] as const)
+                  : []
+              ).map((s) => (
                 <button
                   key={s}
                   type="button"

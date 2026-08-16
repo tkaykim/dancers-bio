@@ -168,9 +168,9 @@ export function ReserveCheckout({
             className="mt-0.5 size-4 accent-black"
           />
           <span className="text-[12px] leading-relaxed text-ink-2">
-            <span className="block">예약금은 수강료의 일부 선납이며, 최소 인원 미달 시 전액 환불됩니다.</span>
-            <span className="block">초청 확정 후에는 환불이 불가하고 양도만 가능합니다.</span>
-            <span className="block font-semibold text-foreground">위 규정을 확인했고 동의합니다.</span>
+            <span className="block">예약금은 참가비의 일부이며, 인원 미달로 열리지 않으면 전액 환불됩니다.</span>
+            <span className="block">확정 후에는 개인 사유 취소·환불이 제한될 수 있고, 양도는 운영진 확인 후 가능합니다.</span>
+            <span className="block font-semibold text-foreground">위 예약금·환불 규정을 확인했고 동의합니다.</span>
           </span>
         </label>
 
@@ -238,6 +238,12 @@ export function ReserveCheckout({
               `/workshops/pay/success?provider=paypal&orderNo=${encodeURIComponent(orderNo)}&slug=${encodeURIComponent(artistSlug)}`,
             );
           }}
+          onRecovery={(orderNo) => {
+            // 돈은 받았는데 확정 실패 — 실패 문구 대신 "확인 중" 화면으로 보낸다.
+            router.push(
+              `/workshops/pay/success?provider=paypal&recovery=1&orderNo=${encodeURIComponent(orderNo ?? "")}&slug=${encodeURIComponent(artistSlug)}`,
+            );
+          }}
           onError={(m) => setError(m)}
         />
       ) : (
@@ -265,15 +271,14 @@ export function ReserveCheckout({
 
 // ── PayPal ──────────────────────────────────────────────────────────────────
 
-function WorkshopPayPal({
-  session,
-  onSuccess,
-  onError,
-}: {
+type PayPalProps = {
   session: WorkshopCheckoutSession;
   onSuccess: (orderNo: string) => void;
+  onRecovery: (orderNo: string | null) => void;
   onError: (message: string) => void;
-}) {
+};
+
+function WorkshopPayPal(props: PayPalProps) {
   if (!paypalClientId) {
     return (
       <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-[13px] text-amber-800">
@@ -283,20 +288,12 @@ function WorkshopPayPal({
   }
   return (
     <PayPalScriptProvider options={{ clientId: paypalClientId, currency: "USD", intent: "capture" }}>
-      <PayPalInner session={session} onSuccess={onSuccess} onError={onError} />
+      <PayPalInner {...props} />
     </PayPalScriptProvider>
   );
 }
 
-function PayPalInner({
-  session,
-  onSuccess,
-  onError,
-}: {
-  session: WorkshopCheckoutSession;
-  onSuccess: (orderNo: string) => void;
-  onError: (message: string) => void;
-}) {
+function PayPalInner({ session, onSuccess, onRecovery, onError }: PayPalProps) {
   const [{ isPending }] = usePayPalScriptReducer();
   const [processing, setProcessing] = useState(false);
 
@@ -339,6 +336,10 @@ function PayPalInner({
               paypalOrderId: data.orderID,
               pgOrderId: session.pgOrderId,
             });
+            if (!res.ok && res.recovery) {
+              onRecovery(res.orderNo);
+              return;
+            }
             if (!res.ok || !res.data) throw new Error(res.ok ? "PayPal 결제 승인에 실패했습니다." : res.error);
             onSuccess(res.data.orderNo);
           } catch (e) {

@@ -11,7 +11,8 @@ import { VoteBox } from "@/components/workshops/VoteBox";
 import { C, splitSentences } from "@/components/workshops/copy";
 import { getProfile, getUser } from "@/lib/auth/guard";
 import { cn } from "@/lib/utils";
-import { getPublicWorkshopArtistBySlug } from "@/lib/workshops/queries";
+import { MyReservationCard } from "@/components/workshops/MyReservationCard";
+import { getMyWorkshopReservation, getPublicWorkshopArtistBySlug } from "@/lib/workshops/queries";
 import { instagramUrl, won } from "@/lib/workshops/shared";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +46,12 @@ function Lines({ text, className }: { text: string; className?: string }) {
   );
 }
 
+/** 렌더 본문에서 Date.now() 를 직접 부르면 purity 규칙에 걸린다 — 모듈 레벨 헬퍼로 감싼다. */
+function isPast(iso: string | null): boolean {
+  if (!iso) return false;
+  return new Date(iso).getTime() < Date.now();
+}
+
 function dday(deadline: string | null): string | null {
   if (!deadline) return null;
   const diff = Math.ceil((new Date(deadline).getTime() - Date.now()) / 86_400_000);
@@ -64,14 +71,20 @@ export default async function WorkshopDetailPage({
 
   const user = await getUser();
   const profile = user ? await getProfile() : null;
+  // 이미 예약한 사람에게 결제 폼을 다시 보여주면 "또 내야 하나" 문의가 생긴다 — 상태를 먼저 읽는다.
+  const myReservation = user ? await getMyWorkshopReservation(artist.id) : null;
+  const alreadyPaid =
+    myReservation?.status === "paid" ||
+    myReservation?.status === "confirmed" ||
+    myReservation?.status === "transferred" ||
+    myReservation?.status === "recovery_required";
 
   const min = artist.min_headcount ?? 0;
   const pct = min > 0 ? Math.min(100, Math.round((artist.reserved_count / min) * 100)) : 0;
   const remainingToMin = Math.max(0, min - artist.reserved_count);
   const full =
     !!artist.max_headcount && artist.reserved_count >= artist.max_headcount;
-  const deadlinePassed =
-    !!artist.recruit_deadline && new Date(artist.recruit_deadline).getTime() < Date.now();
+  const deadlinePassed = isPast(artist.recruit_deadline);
   const d = dday(artist.recruit_deadline);
 
   const returnPath = `/workshops/${slug}`;
@@ -215,7 +228,9 @@ export default async function WorkshopDetailPage({
           </div>
 
           <div className="mt-5 border-t border-hairline-2 pt-5">
-            {deadlinePassed ? (
+            {myReservation && alreadyPaid ? (
+              <MyReservationCard reservation={myReservation} artistStatus={artist.status} />
+            ) : deadlinePassed ? (
               <p className="rounded-lg bg-secondary/50 px-4 py-3 text-center text-[13px] font-semibold text-ink-2">
                 모집이 마감되었습니다. 확정 여부는 예약자분들께 개별 안내드립니다.
               </p>
@@ -243,13 +258,18 @@ export default async function WorkshopDetailPage({
                 </Link>
               </div>
             ) : (
-              <ReserveCheckout
-                artistId={artist.id}
-                depositAmount={artist.deposit_amount ?? 0}
-                artistSlug={slug}
-                defaultName={profile?.display_name ?? ""}
-                defaultEmail={user.email ?? ""}
-              />
+              <div className="flex flex-col gap-3">
+                {myReservation ? (
+                  <MyReservationCard reservation={myReservation} artistStatus={artist.status} />
+                ) : null}
+                <ReserveCheckout
+                  artistId={artist.id}
+                  depositAmount={artist.deposit_amount ?? 0}
+                  artistSlug={slug}
+                  defaultName={profile?.display_name ?? ""}
+                  defaultEmail={user.email ?? ""}
+                />
+              </div>
             )}
           </div>
         </section>
