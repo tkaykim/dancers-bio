@@ -43,6 +43,21 @@ export async function resolveDancerIdForUserInProject(
       .limit(1)
       .maybeSingle();
     if (app2?.dancer_id) return app2.dancer_id as string;
+
+    // ③ 정산 수집 링크로만 들어온 댄서 — 지원 이력이 없다.
+    // 구글폼을 대체하는 경로라 applications 행이 아예 생기지 않으므로, 본인 소유 댄서와
+    // 이 프로젝트의 정산 건이 겹치는 경우만 본인으로 인정한다.
+    // ⚠ "이 프로젝트에 정산이 있으면 본인"으로 넓히면 링크를 아는 로그인 사용자가
+    // 남의 정산 금액을 볼 수 있으므로, 반드시 내 dancer id 집합과의 교집합이어야 한다.
+    const { data: settled } = await admin
+      .from("settlements")
+      .select("dancer_id")
+      .eq("project_id", projectId)
+      .in("dancer_id", ids)
+      .neq("status", "cancelled")
+      .limit(1)
+      .maybeSingle();
+    if (settled?.dancer_id) return settled.dancer_id as string;
   }
 
   return null;
