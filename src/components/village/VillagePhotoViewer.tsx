@@ -36,6 +36,9 @@ export function VillagePhotoViewer({
   const open = index !== null;
   const closeRef = useRef<HTMLButtonElement>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  // 이동량은 ref 로도 들고 간다 — 빠르게 튕기면 touchend 시점에 state 가 아직 커밋되지 않아
+  // 0 으로 읽히고 스와이프가 씹힌다. 판정은 ref, 화면 이동(transform)만 state 로 한다.
+  const dragXRef = useRef(0);
   const [dragX, setDragX] = useState(0);
 
   const go = useCallback(
@@ -83,18 +86,26 @@ export function VillagePhotoViewer({
       onClick={onClose}
       onTouchStart={(e) => {
         const t = e.touches[0];
+        if (!t) return;
         touchStart.current = { x: t.clientX, y: t.clientY };
+        dragXRef.current = 0;
       }}
       onTouchMove={(e) => {
         if (!touchStart.current) return;
         const t = e.touches[0];
+        if (!t) return;
         const dx = t.clientX - touchStart.current.x;
         const dy = t.clientY - touchStart.current.y;
         // 세로로 크게 움직이면 스와이프로 보지 않는다.
-        if (Math.abs(dx) > Math.abs(dy)) setDragX(dx);
+        if (Math.abs(dx) > Math.abs(dy)) {
+          dragXRef.current = dx;
+          setDragX(dx);
+        }
       }}
       onTouchEnd={() => {
-        if (Math.abs(dragX) > SWIPE_THRESHOLD) go(dragX < 0 ? 1 : -1);
+        const dx = dragXRef.current;
+        if (Math.abs(dx) > SWIPE_THRESHOLD) go(dx < 0 ? 1 : -1);
+        dragXRef.current = 0;
         setDragX(0);
         touchStart.current = null;
       }}
