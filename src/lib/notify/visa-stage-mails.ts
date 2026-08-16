@@ -418,6 +418,7 @@ const INVITE: Record<StageMailLang, {
     outro: [
       "아래 버튼을 누르시면 참석 여부를 고르고 결제까지 한 번에 진행하실 수 있습니다.",
       "일정이 어려우신 경우에도 알려주시면 다음 회차를 안내드리겠습니다.",
+      "궁금한 점은 인스타그램 @deetz.kr 로 DM 주시면 가장 빠르게 답변드립니다.",
       "감사합니다.",
       "deetz",
     ],
@@ -455,6 +456,7 @@ const INVITE: Record<StageMailLang, {
     outro: [
       "The button below lets you choose how you will attend and complete the payment in one place.",
       "If this date does not work for you, tell us there and we will let you know about the next round.",
+      "Any questions? Send us a DM on Instagram @deetz.kr — that is the fastest way to reach us.",
       "Thank you.",
       "deetz",
     ],
@@ -492,6 +494,7 @@ const INVITE: Record<StageMailLang, {
     outro: [
       "下のボタンから、参加方法の選択とお支払いをまとめて進めていただけます。",
       "日程が難しい場合もお知らせいただければ、次回の回をご案内します。",
+      "ご不明な点はInstagram @deetz.kr へDMをお送りください。最も早くご返信できます。",
       "よろしくお願いいたします。",
       "deetz",
     ],
