@@ -7,7 +7,11 @@ import {
   renderDeetzMail,
   resolveApplicantContact,
 } from "@/lib/notify/deetz-mail";
-import { normalizeRounds, roundLabel } from "@/lib/application-stage";
+import {
+  normalizeRounds,
+  roundLabel,
+  toParagraphs,
+} from "@/lib/application-stage";
 
 type SendResult = { ok: boolean; skipped?: string };
 
@@ -72,9 +76,12 @@ export async function sendStageEmail(params: {
   round: number;
   totalRounds: number;
   roundLabels?: string[] | null;
+  /** 공고별 본문 덮어쓰기(줄바꿈=문단). 비우면 기본 문구. */
+  bodyOverride?: string | null;
+  /** 경고 박스 아래 붙는 공고별 추가 안내. */
   note?: string | null;
 }): Promise<SendResult> {
-  const { applicantId, projectId, round, note } = params;
+  const { applicantId, projectId, round, note, bodyOverride } = params;
   if (!projectId || !applicantId) return { ok: false, skipped: "no_target" };
   if (round < 1) return { ok: false, skipped: "not_a_pass" };
 
@@ -102,21 +109,27 @@ export async function sendStageEmail(params: {
   const safeName = escapeHtml(name);
   const noteClean = note?.trim() || null;
 
+  // 공고별 본문이 있으면 기본 문구 대신 쓴다. 경고 박스는 아래에서 항상 붙는다.
+  const customBody = toParagraphs(bodyOverride);
+  const defaultBody = isFinal
+    ? [
+        "모든 선발 절차가 끝나 최종 합격하셨음을 안내드립니다.",
+        "함께하게 되어 반갑습니다.",
+      ]
+    : [
+        "deetz를 통해 지원해 주셔서 감사합니다.",
+        `보내주신 프로필을 검토한 결과, ${label}하셨습니다.`,
+      ];
+  const bodyLinesText = customBody.length ? customBody : defaultBody;
+  const bodyLines = bodyLinesText.map(escapeHtml);
+
   const html = renderDeetzMail({
     pill: isFinal ? escapeHtml(label) : `${escapeHtml(label)} (최종 확정 아님)`,
     pillTone: isFinal ? "ok" : "pending",
     heading: isFinal
       ? `${safeName}님, 최종 합격하셨습니다.`
       : `${safeName}님, ${escapeHtml(label)}을 안내드립니다.`,
-    bodyLines: isFinal
-      ? [
-          "모든 선발 절차가 끝나 최종 합격하셨음을 안내드립니다.",
-          "함께하게 되어 반갑습니다.",
-        ]
-      : [
-          "deetz를 통해 지원해 주셔서 감사합니다.",
-          `보내주신 프로필을 검토한 결과, ${escapeHtml(label)}하셨습니다.`,
-        ],
+    bodyLines,
     infoRows: [
       { label: "지원 프로젝트", value: title ? escapeHtml(title) : "-", strong: true },
       {
@@ -152,15 +165,7 @@ export async function sendStageEmail(params: {
   const text = [
     `안녕하세요 ${name}님,`,
     ``,
-    ...(isFinal
-      ? [
-          `모든 선발 절차가 끝나 최종 합격하셨음을 안내드립니다.`,
-          `함께하게 되어 반갑습니다.`,
-        ]
-      : [
-          `deetz를 통해 지원해 주셔서 감사합니다.`,
-          `보내주신 프로필을 검토한 결과, ${label}하셨습니다.`,
-        ]),
+    ...bodyLinesText,
     ...(title ? [``, `지원 프로젝트: ${title}`] : []),
     `현재 단계: ${total > 1 ? `${label} (${round}/${total}단계)` : label}`,
     ``,

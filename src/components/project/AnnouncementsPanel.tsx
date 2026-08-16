@@ -8,7 +8,9 @@ import {
   createAnnouncementAction,
   updateAnnouncementAction,
   deleteAnnouncementAction,
+  sendAnnouncementEmailAction,
 } from "@/app/actions/project-announcements";
+import { roundSteps } from "@/lib/application-stage";
 
 export type AnnouncementRow = {
   id: string;
@@ -17,6 +19,8 @@ export type AnnouncementRow = {
   audiences: string[];
   pinned: boolean;
   created_at: string;
+  email_sent_at: string | null;
+  email_sent_count: number;
 };
 
 const AUDIENCE_OPTIONS: { value: string; label: string }[] = [
@@ -46,10 +50,14 @@ export function AnnouncementsPanel({
   projectId,
   shortCode,
   announcements,
+  selectionRounds = 2,
+  roundLabels = null,
 }: {
   projectId: string;
   shortCode: string;
   announcements: AnnouncementRow[];
+  selectionRounds?: number;
+  roundLabels?: string[] | null;
 }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
@@ -57,6 +65,60 @@ export function AnnouncementsPanel({
   const [editId, setEditId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [mailTargets, setMailTargets] = useState<Record<string, string[]>>({});
+
+  // 메일 대상 = 상태 기반 + 공고의 단계 수만큼 생기는 단계 기반.
+  const mailAudienceOptions = [
+    ...roundSteps({
+      selection_rounds: selectionRounds,
+      round_labels: roundLabels,
+    }).map((s) => ({ value: `round:${s.round}`, label: s.label })),
+    { value: "pending", label: "검토 중" },
+    { value: "rejected", label: "불합격·포기" },
+    { value: "all", label: "전체" },
+  ];
+
+  function toggleMailTarget(id: string, value: string) {
+    setMailTargets((prev) => {
+      const cur = prev[id] ?? [];
+      return {
+        ...prev,
+        [id]: cur.includes(value)
+          ? cur.filter((v) => v !== value)
+          : [...cur, value],
+      };
+    });
+  }
+
+  function sendMail(a: AnnouncementRow) {
+    const targets = mailTargets[a.id] ?? [];
+    if (targets.length === 0) return;
+    const labels = targets
+      .map((t) => mailAudienceOptions.find((o) => o.value === t)?.label ?? t)
+      .join(", ");
+    if (
+      !confirm(
+        `「${a.title ?? "공지"}」를 메일로 발송합니다.\n대상: ${labels}\n\n실제 발송입니다. 진행할까요?`,
+      )
+    )
+      return;
+    const fd = new FormData();
+    fd.set("announcement_id", a.id);
+    fd.set("project_id", projectId);
+    targets.forEach((t) => fd.append("email_audiences", t));
+    startTransition(async () => {
+      const r = await sendAnnouncementEmailAction(fd);
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      toast.success(
+        `${r.data?.sent ?? 0}명 발송 (대상 ${r.data?.targeted ?? 0}명 · 건너뜀 ${r.data?.skipped ?? 0}명)`,
+      );
+      router.refresh();
+    });
+  }
+
   const [audiences, setAudiences] = useState<string[]>(["accepted"]);
   const [pinned, setPinned] = useState(false);
 
@@ -284,6 +346,47 @@ export function AnnouncementsPanel({
                   </span>
                 ))}
               </div>
+              {/* 메일 발송 — 인앱·푸시와 달리 자동이 아니다. 대상은 단계까지 고를 수 있다. */}
+              <div className="flex flex-col gap-1.5 rounded-lg bg-secondary/40 px-2.5 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-medium text-ink-2">메일로 발송</p>
+                  {a.email_sent_at ? (
+                    <span className="text-[10px] text-ink-3">
+                      {formatWhen(a.email_sent_at)} · {a.email_sent_count}명 발송됨
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-ink-3">미발송</span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-1">
+                  {mailAudienceOptions.map((o) => {
+                    const on = (mailTargets[a.id] ?? []).includes(o.value);
+                    return (
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => toggleMailTarget(a.id, o.value)}
+                        className={`rounded-full border px-2.5 py-1 text-[11px] ${
+                          on
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border text-ink-2 hover:bg-secondary"
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    disabled={busy || (mailTargets[a.id] ?? []).length === 0}
+                    onClick={() => sendMail(a)}
+                    className="ml-auto rounded-full bg-amber-600 px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-40"
+                  >
+                    발송
+                  </button>
+                </div>
+              </div>
+
               <div className="flex flex-wrap items-center gap-2 text-[11px]">
                 <button
                   type="button"

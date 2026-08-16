@@ -768,7 +768,9 @@ export default async function ApplicantsPage({
   // 공지사항 (관리자는 RLS pa_manage 로 전체 조회)
   const { data: annRows } = await supabase
     .from("project_announcements")
-    .select("id, title, body, audiences, pinned, created_at")
+    .select(
+      "id, title, body, audiences, pinned, created_at, email_sent_at, email_sent_count",
+    )
     .eq("project_id", p.id)
     .is("deleted_at", null)
     .order("pinned", { ascending: false })
@@ -814,6 +816,8 @@ export default async function ApplicantsPage({
             projectId={p.id}
             shortCode={p.short_code}
             announcements={announcements}
+            selectionRounds={p.selection_rounds ?? 2}
+            roundLabels={p.round_labels ?? null}
           />
 
           <SchedulePanel

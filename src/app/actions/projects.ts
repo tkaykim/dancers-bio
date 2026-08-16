@@ -39,6 +39,25 @@ function normalizeRoundLabels(
   return sliced.some((l) => l.length > 0) ? sliced : null;
 }
 
+// 단계별 안내 메일 문구. 선택한 단계 수 범위만 저장하고, 빈 값은 키 자체를 뺀다.
+// 전부 비면 NULL 이라 기본 문구가 그대로 나간다.
+function parseRoundMessages(
+  formData: FormData,
+  rounds: number,
+): Record<string, { body?: string; note?: string }> | null {
+  const out: Record<string, { body?: string; note?: string }> = {};
+  for (let n = 1; n <= rounds; n++) {
+    const body = (formData.get(`round_body_${n}`) ?? "").toString().trim().slice(0, 1500);
+    const note = (formData.get(`round_note_${n}`) ?? "").toString().trim().slice(0, 1500);
+    if (!body && !note) continue;
+    out[String(n)] = {
+      ...(body ? { body } : {}),
+      ...(note ? { note } : {}),
+    };
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 function localDateTimeToIso(value: string | null): string | null {
   if (!value) return null;
   const d = new Date(value);
@@ -121,6 +140,7 @@ export async function createProjectAction(
         parsed.data.round_labels,
         parsed.data.selection_rounds,
       ),
+      round_messages: parseRoundMessages(formData, parsed.data.selection_rounds),
       posted_by_label: parsed.data.posted_by_label ?? null,
     })
     .select("id, short_code")
@@ -371,6 +391,7 @@ export async function updateProjectAction(
       parsed.data.round_labels,
       parsed.data.selection_rounds,
     ),
+    round_messages: parseRoundMessages(formData, parsed.data.selection_rounds),
     posted_by_label: parsed.data.posted_by_label ?? null,
   };
   if (parsed.data.status) updatePayload.status = parsed.data.status;

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { humanizeDbError } from "@/lib/db-errors";
-import { normalizeRounds } from "@/lib/application-stage";
+import { getRoundMessage, normalizeRounds } from "@/lib/application-stage";
 import type { ActionResult } from "./auth";
 
 const STAGE = "prescreen";
@@ -164,7 +164,7 @@ export async function setApplicationConfirmedAction(
 
   const { data: project } = await supabase
     .from("projects")
-    .select("selection_rounds, round_labels")
+    .select("selection_rounds, round_labels, round_messages")
     .eq("id", app.project_id as string)
     .maybeSingle();
   const total = normalizeRounds(
@@ -194,6 +194,7 @@ export async function setApplicationConfirmedAction(
   if (confirmed && app.applicant_id && app.project_id) {
     try {
       const { sendStageEmail } = await import("@/lib/notify/stage-mail");
+      const msg = getRoundMessage(project?.round_messages, total);
       await sendStageEmail({
         applicantId: app.applicant_id as string,
         dancerId: (app.dancer_id as string | null) ?? null,
@@ -201,6 +202,8 @@ export async function setApplicationConfirmedAction(
         round: total,
         totalRounds: total,
         roundLabels: (project?.round_labels as string[] | null) ?? null,
+        bodyOverride: msg.body,
+        note: msg.note,
       });
     } catch (e) {
       console.error("[stage-mail] 발송 실패:", e);

@@ -34,6 +34,34 @@ export type ProjectRoundConfig = {
   round_labels?: string[] | null;
 };
 
+// 공고별 단계 안내 메일 문구. 라운드 번호(문자열) → { body, note }.
+// body 를 비우면 기본 문구가 나가고, note 는 경고 박스 아래에 덧붙는다.
+// "최종 합격 아님" 경고는 여기서 덮어쓸 수 없다 — 코드 고정이다.
+export type RoundMessage = { body?: string | null; note?: string | null };
+export type RoundMessages = Record<string, RoundMessage>;
+
+export function getRoundMessage(
+  messages: unknown,
+  round: number,
+): RoundMessage {
+  if (!messages || typeof messages !== "object") return {};
+  const entry = (messages as RoundMessages)[String(round)];
+  if (!entry || typeof entry !== "object") return {};
+  return {
+    body: typeof entry.body === "string" ? entry.body : null,
+    note: typeof entry.note === "string" ? entry.note : null,
+  };
+}
+
+// 여러 줄 입력을 문단 배열로. 빈 줄은 버린다.
+export function toParagraphs(text: string | null | undefined): string[] {
+  if (!text) return [];
+  return text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
+
 export function normalizeRounds(rounds: number | null | undefined): number {
   const n = Number(rounds ?? 1);
   if (!Number.isFinite(n)) return 1;

@@ -9,7 +9,7 @@ import { sendApplicationRejectionEmail } from "@/lib/notify/rejection-mail";
 import { NEEDS_DANCER_ERROR } from "@/lib/lite-constants";
 import { isExpired } from "@/lib/utils/deadline";
 import { castingApplicationDetailsSchema } from "@/lib/validation/application-details";
-import { normalizeRounds } from "@/lib/application-stage";
+import { getRoundMessage, normalizeRounds } from "@/lib/application-stage";
 import type { ActionResult } from "./auth";
 
 // Lite MVP: 1계정 = 1댄서 가정. team apply / manager-as-actor 분기 모두 제거.
@@ -252,7 +252,7 @@ export async function setApplicationRoundAction(
 
   const { data: project } = await supabase
     .from("projects")
-    .select("selection_rounds, round_labels")
+    .select("selection_rounds, round_labels, round_messages")
     .eq("id", app.project_id as string)
     .maybeSingle();
   const total = normalizeRounds(
@@ -292,6 +292,7 @@ export async function setApplicationRoundAction(
   if (roundRaw > 0 && app.applicant_id) {
     try {
       const { sendStageEmail } = await import("@/lib/notify/stage-mail");
+      const msg = getRoundMessage(project?.round_messages, roundRaw);
       await sendStageEmail({
         applicantId: app.applicant_id as string,
         dancerId: (app.dancer_id as string | null) ?? null,
@@ -299,6 +300,8 @@ export async function setApplicationRoundAction(
         round: roundRaw,
         totalRounds: total,
         roundLabels: (project?.round_labels as string[] | null) ?? null,
+        bodyOverride: msg.body,
+        note: msg.note,
       });
     } catch (e) {
       console.error("[stage-mail] 발송 실패:", e);
@@ -366,7 +369,7 @@ export async function sendPendingStageNoticesAction(
   const [{ data: project }, { data: rows }] = await Promise.all([
     supabase
       .from("projects")
-      .select("selection_rounds, round_labels")
+      .select("selection_rounds, round_labels, round_messages")
       .eq("id", projectId)
       .maybeSingle(),
     supabase
@@ -396,6 +399,7 @@ export async function sendPendingStageNoticesAction(
       continue;
     }
     const round = Math.max(Number(row.passed_round ?? 0), 1);
+    const msg = getRoundMessage(project?.round_messages, round);
     try {
       const res = await sendStageEmail({
         applicantId: row.applicant_id,
@@ -404,6 +408,8 @@ export async function sendPendingStageNoticesAction(
         round,
         totalRounds,
         roundLabels,
+        bodyOverride: msg.body,
+        note: msg.note,
       });
       if (res.ok && !res.skipped) sent++;
       else skipped++;
@@ -525,7 +531,7 @@ export async function decideApplicationAction(
   // 지원자가 계속 본인 포기를 할 수 있다).
   const { data: roundProject } = await supabase
     .from("projects")
-    .select("selection_rounds, round_labels")
+    .select("selection_rounds, round_labels, round_messages")
     .eq("id", app.project_id as string)
     .maybeSingle();
   const totalRounds = normalizeRounds(
@@ -583,6 +589,7 @@ export async function decideApplicationAction(
   if (decision === "accepted" && app.applicant_id && app.project_id) {
     try {
       const { sendStageEmail } = await import("@/lib/notify/stage-mail");
+      const msg = getRoundMessage(roundProject?.round_messages, 1);
       await sendStageEmail({
         applicantId: app.applicant_id as string,
         dancerId: (app.dancer_id as string | null) ?? null,
@@ -590,6 +597,8 @@ export async function decideApplicationAction(
         round: 1,
         totalRounds,
         roundLabels: (roundProject?.round_labels as string[] | null) ?? null,
+        bodyOverride: msg.body,
+        note: msg.note,
       });
     } catch (e) {
       console.error("[stage-mail] 발송 실패:", e);

@@ -27,7 +27,7 @@ export default async function ProjectEditPage({
       `id, short_code, owner_id, title, description, visibility, status, category, genre_id,
        region_text, pay_amount, pay_type, recruitment_count,
        application_deadline, collect_applicant_fee, collect_casting_details,
-       selection_rounds, round_labels, posted_by_label`,
+       selection_rounds, round_labels, round_messages, posted_by_label`,
     )
     .is("deleted_at", null);
 
@@ -67,6 +67,8 @@ export default async function ProjectEditPage({
     collect_casting_details: Boolean(project.collect_casting_details),
     selection_rounds: (project.selection_rounds as number | null) ?? 2,
     round_labels: (project.round_labels as string[] | null) ?? null,
+    round_messages:
+      (project.round_messages as ProjectEditInitial["round_messages"]) ?? null,
     posted_by_label: (project.posted_by_label as string | null) ?? null,
   };
 

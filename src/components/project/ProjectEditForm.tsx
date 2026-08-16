@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectionRoundsField } from "@/components/project/SelectionRoundsField";
+import type { RoundMessages } from "@/lib/application-stage";
 import {
   STATUS_LABELS,
   PROJECT_CATEGORY_LABELS,
@@ -34,6 +35,7 @@ export type ProjectEditInitial = {
   collect_casting_details: boolean;
   selection_rounds: number | null;
   round_labels: string[] | null;
+  round_messages: RoundMessages | null;
   posted_by_label: string | null;
 };
 
@@ -239,6 +241,7 @@ export function ProjectEditForm({
       <SelectionRoundsField
         defaultRounds={initial.selection_rounds ?? 2}
         defaultLabels={initial.round_labels}
+        defaultMessages={initial.round_messages}
       />
 
       <div className="grid grid-cols-2 gap-3">

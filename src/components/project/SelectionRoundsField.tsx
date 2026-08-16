@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MAX_SELECTION_ROUNDS, roundLabel } from "@/lib/application-stage";
+import {
+  MAX_SELECTION_ROUNDS,
+  roundLabel,
+  type RoundMessages,
+} from "@/lib/application-stage";
 
 const ROUND_OPTIONS = [
   {
@@ -28,9 +32,11 @@ const ROUND_OPTIONS = [
 export function SelectionRoundsField({
   defaultRounds = 2,
   defaultLabels = null,
+  defaultMessages = null,
 }: {
   defaultRounds?: number;
   defaultLabels?: string[] | null;
+  defaultMessages?: RoundMessages | null;
 }) {
   const [rounds, setRounds] = useState(() =>
     Math.min(Math.max(defaultRounds || 2, 1), MAX_SELECTION_ROUNDS),
@@ -87,6 +93,54 @@ export function SelectionRoundsField({
           </div>
         ))}
       </div>
+
+      <details className="rounded-lg border border-border">
+        <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-ink-2">
+          단계별 안내 메일 문구 (선택)
+        </summary>
+        <div className="flex flex-col gap-4 border-t border-border px-3 py-3">
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            비우면 기본 문구로 발송됩니다.
+            <br />
+            <b>「최종 합격이 아닙니다」 경고 문구는 항상 자동으로 들어가며 지울 수
+            없습니다.</b>
+          </p>
+          {Array.from({ length: rounds }, (_, i) => i + 1).map((n) => {
+            const label = roundLabel(n, {
+              selection_rounds: rounds,
+              round_labels: defaultLabels,
+            });
+            const msg = defaultMessages?.[String(n)] ?? {};
+            return (
+              <div key={n} className="flex flex-col gap-1.5">
+                <p className="text-xs font-semibold">
+                  {n}단계 · {label}
+                </p>
+                <textarea
+                  name={`round_body_${n}`}
+                  defaultValue={msg.body ?? ""}
+                  rows={3}
+                  maxLength={1500}
+                  placeholder={
+                    n >= rounds
+                      ? "예) 모든 선발 절차가 끝나 최종 합격하셨음을 안내드립니다."
+                      : "예) 보내주신 프로필을 검토한 결과, 1차 합격하셨습니다."
+                  }
+                  className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                />
+                <textarea
+                  name={`round_note_${n}`}
+                  defaultValue={msg.note ?? ""}
+                  rows={2}
+                  maxLength={1500}
+                  placeholder="추가 안내 (선택) — 예) 리허설 일정은 확정 후 개별 안내드립니다."
+                  className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                />
+              </div>
+            );
+          })}
+        </div>
+      </details>
     </div>
   );
 }
