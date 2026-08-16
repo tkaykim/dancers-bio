@@ -2,11 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, CircleAlert, Loader2, PartyPopper, ThumbsDown } from "lucide-react";
+import { Check, CircleAlert, Home, Loader2, PartyPopper, ThumbsDown } from "lucide-react";
 
 import { SearchableSelect, type SearchableOption } from "@/components/ui/searchable-select";
 import { COUNTRIES } from "@/lib/data/countries";
 import { submitVillageWaitlistAction } from "@/app/actions/village";
+import { getVillageDepositUrlAction } from "@/app/actions/village-deposit";
 import { cn } from "@/lib/utils";
 import {
   CONTACT_TYPES,
@@ -28,6 +29,13 @@ const COUNTRY_OPTIONS: SearchableOption[] = COUNTRIES.map((c) => ({
 }));
 
 const OPTION_VALUES: PreferredOption[] = ["a", "b", "either", "undecided"];
+
+/** 사전예약금 표기. 금액 정본은 grigoent training_price_plans(village-deposit). */
+const VILLAGE_DEPOSIT_LABEL: Record<Lang, string> = {
+  en: "₩200,000",
+  ja: "20万ウォン",
+  ko: "20만원",
+};
 
 /** 입주 희망 시기 선택지 — 이번 달부터 12개월. */
 function nextMonths(count: number): string[] {
@@ -58,6 +66,8 @@ export function VillageWaitlistForm({ lang }: { lang: Lang }) {
 
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<"yes" | "no" | null>(null);
+  const [waitlistId, setWaitlistId] = useState<string | null>(null);
+  const [depositPending, setDepositPending] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const months = useMemo(() => nextMonths(12), []);
@@ -94,6 +104,7 @@ export function VillageWaitlistForm({ lang }: { lang: Lang }) {
         declineReasonDetail: interested ? null : declineDetail.trim() || null,
       });
       if (res.ok) {
+        setWaitlistId(res.data?.id ?? null);
         setDone(interested ? "yes" : "no");
       } else {
         setError(res.error || c.errGeneric);
@@ -120,6 +131,46 @@ export function VillageWaitlistForm({ lang }: { lang: Lang }) {
           text={ok ? c.doneBody : c.doneDeclineBody}
           className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-ink-2"
         />
+        {ok && waitlistId ? (
+          <div className="mt-5 rounded-xl border border-primary/30 bg-primary/5 p-4 text-left">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-sm font-bold text-foreground">{c.depositTitle}</p>
+              <p className="shrink-0 text-lg font-bold tracking-tight text-foreground">
+                {VILLAGE_DEPOSIT_LABEL[lang]}
+              </p>
+            </div>
+            <Lines text={c.depositBody} className="mt-1 text-[13px] leading-relaxed text-ink-2" />
+            <ul className="mt-2 flex flex-col gap-1">
+              {c.depositTerms.map((term, i) => (
+                <li key={i} className="text-[12.5px] leading-relaxed text-ink-2">
+                  · {term}
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              disabled={depositPending}
+              onClick={() => {
+                setError(null);
+                setDepositPending(true);
+                startTransition(async () => {
+                  const res = await getVillageDepositUrlAction({ waitlistId });
+                  if (res.ok && res.data) window.location.href = res.data.url;
+                  else {
+                    setError(res.ok ? c.depositErr : res.error);
+                    setDepositPending(false);
+                  }
+                });
+              }}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3.5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-45"
+            >
+              {depositPending ? <Loader2 className="size-4 animate-spin" /> : <Home className="size-4" />}
+              {c.depositCta}
+            </button>
+            {error ? <p className="mt-2 text-[12.5px] text-destructive">{error}</p> : null}
+          </div>
+        ) : null}
+
         <Link
           href={`/program?lang=${lang}`}
           className="mt-5 inline-flex items-center justify-center rounded-lg border border-hairline-2 px-5 py-3 text-sm font-semibold text-foreground hover:bg-secondary"

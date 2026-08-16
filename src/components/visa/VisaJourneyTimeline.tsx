@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, CircleDollarSign, ExternalLink, Home, Video } from "lucide-react";
 import Link from "next/link";
+import { VisaQuoteBuilder } from "@/components/visa/VisaQuoteBuilder";
 import { cn } from "@/lib/utils";
 
 // 비자 프로그램 케이스 포털의 "내 여정" 타임라인.
@@ -40,12 +41,13 @@ export type JourneyData = {
   paymentUrl: string | null;
   paymentAmountKrw: number | null;
   paidAt: string | null;
-  // Village 개인화
+  // Village 개인화·사전예약
   wantsHousing: boolean;
+  villageDepositStatus: string;
+  villageDepositPaidAt: string | null;
 };
 
-/** 오디션 참석 확정비. 정본은 grigoent training_products(audition-fee) — 금액 변경 시 여기도 갱신. */
-const AUDITION_FEE_KRW = 100_000;
+// 금액 상수는 선택형 견적(VisaQuoteBuilder)이 정본으로 들고 있다.
 
 type StepState = "done" | "now" | "todo";
 
@@ -92,6 +94,9 @@ type Copy = {
   villagePrice: string;
   villageCta: string;
   memo: string;
+  villageReserved: string;
+  villageReservedBody: string;
+  villageSeePage: string;
 };
 
 const T: Record<Lang, Copy> = {
@@ -138,6 +143,9 @@ const T: Record<Lang, Copy> = {
     villagePrice: "₩500,000–600,000 / month · deposit ₩0 · pre-registration open",
     villageCta: "See details & join the waitlist",
     memo: "Note from deetz",
+    villageReserved: "deetz Village is reserved",
+    villageReservedBody: "We will contact you first with photos, the exact address, and move-in dates.",
+    villageSeePage: "See the Village page",
   },
   ja: {
     title: "あなたの進行状況",
@@ -182,6 +190,9 @@ const T: Record<Lang, Copy> = {
     villagePrice: "月50万〜60万ウォン · 保証金0円 · 事前登録受付中",
     villageCta: "詳しく見て関心登録する",
     memo: "deetzからのメモ",
+    villageReserved: "deetz Village を予約済みです",
+    villageReservedBody: "写真・正確な住所・入居可能日を最初にご連絡します。",
+    villageSeePage: "Villageのページを見る",
   },
   ko: {
     title: "나의 진행 상황",
@@ -226,6 +237,9 @@ const T: Record<Lang, Copy> = {
     villagePrice: "월 50만~60만원 · 보증금 0원 · 사전 등록 진행 중",
     villageCta: "자세히 보고 관심 등록하기",
     memo: "deetz 메모",
+    villageReserved: "deetz Village 예약이 완료됐어요",
+    villageReservedBody: "사진, 정확한 주소, 입주 가능일을 가장 먼저 연락드립니다.",
+    villageSeePage: "Village 페이지 보기",
   },
 };
 
@@ -263,11 +277,13 @@ export function VisaJourneyTimeline({
   data,
   lang,
   nextActionNote,
+  caseToken,
 }: {
   data: JourneyData;
   lang: Lang;
   /** 관리자가 next_action 에 직접 적은 안내 (일반 문구는 걸러진 상태로 전달됨) */
   nextActionNote: string | null;
+  caseToken: string;
 }) {
   const t = T[lang];
   // "미팅이 지났는가" 판정 기준 시각. 렌더 순수성을 위해 마운트 시 1회만 고정한다.
@@ -380,25 +396,14 @@ export function VisaJourneyTimeline({
           ) : null}
 
           {auditionPayable ? (
-            <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 p-4">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="text-[13px] font-semibold text-foreground">{t.auditionFeeTitle}</p>
-                <p className="text-lg font-bold tracking-tight text-foreground">
-                  ₩{AUDITION_FEE_KRW.toLocaleString()}
-                </p>
-              </div>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">{t.auditionFeePurpose}</p>
-              <p className="text-[13px] font-semibold leading-relaxed text-foreground">{t.auditionFeeDeduct}</p>
-              <a
-                href={data.paymentUrl!}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90"
-              >
-                <CircleDollarSign className="size-4" />
-                {t.auditionFeePay}
-              </a>
-            </div>
+            <VisaQuoteBuilder
+              lang={lang}
+              caseToken={caseToken}
+              auditionPayable
+              auditionPaid={false}
+              auditionPaymentUrl={data.paymentUrl}
+              villageDepositStatus={data.villageDepositStatus}
+            />
           ) : auditionPaid ? (
             <div className="mt-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
               <p className="flex items-center gap-1.5 text-[13px] font-bold text-emerald-700 dark:text-emerald-400">
@@ -484,7 +489,27 @@ export function VisaJourneyTimeline({
       ) : null}
 
       {/* Village — 오디션 확정 이후에만, 결제 흐름을 방해하지 않게 타임라인 밖 하단 카드로. */}
-      {showVillage ? (
+      {showVillage && data.villageDepositStatus === "paid" ? (
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
+            <Home className="size-5 text-emerald-700 dark:text-emerald-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 text-sm font-bold text-emerald-700 dark:text-emerald-400">
+              <Check className="size-4" />
+              {t.villageReserved}
+            </p>
+            <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{t.villageReservedBody}</p>
+            <Link
+              href={`/village?lang=${lang}`}
+              className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-semibold text-primary"
+            >
+              {t.villageSeePage}
+              <ExternalLink className="size-3.5" />
+            </Link>
+          </div>
+        </div>
+      ) : showVillage ? (
         <Link
           href={`/village?lang=${lang}`}
           className="mt-4 flex items-start gap-3 rounded-xl border border-hairline-2 bg-secondary/40 p-4 transition-colors hover:border-foreground/30"

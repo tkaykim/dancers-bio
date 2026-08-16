@@ -21,16 +21,25 @@ export const VISA_PAYMENT_REF_TTL_DAYS = 30;
 export const VISA_PAYMENT_PAGES = {
   "audition-fee": "/audition-fee",
   "training-and-placement": "/training",
+  // Village 사전예약금 — ref 의 id 는 비자 케이스가 아니라 village_waitlist 행을 가리킨다.
+  "village-deposit": "/village-deposit",
 } as const;
 
 export type VisaPaymentProductSlug = keyof typeof VISA_PAYMENT_PAGES;
 
 const PAY_SITE_URL = (process.env.NEXT_PUBLIC_GRIGOENT_URL || "https://grigoent.co.kr").replace(/\/$/, "");
 
-/** 케이스 1건에 대한 결제 페이지 전체 URL. 토큰은 호출 시점에 새로 서명한다(만료 걱정 없음). */
-export function makeVisaPaymentUrl(applicationId: string, productSlug: VisaPaymentProductSlug): string {
-  return `${PAY_SITE_URL}${VISA_PAYMENT_PAGES[productSlug]}?ref=${makeVisaPaymentRef(applicationId, productSlug)}`;
+/**
+ * 결제 페이지 전체 URL. 토큰은 호출 시점에 새로 서명한다(만료 걱정 없음).
+ * subjectId 는 상품에 따라 대상이 다르다 — village-deposit 은 village_waitlist 행 id,
+ * 나머지는 dancer_visa_applications 행 id 다. 콜백이 이 id 로 대상 테이블을 찾는다.
+ */
+export function makeVisaPaymentUrl(subjectId: string, productSlug: VisaPaymentProductSlug): string {
+  return `${PAY_SITE_URL}${VISA_PAYMENT_PAGES[productSlug]}?ref=${makeVisaPaymentRef(subjectId, productSlug)}`;
 }
+
+/** Village 사전예약금 정본 금액. 정본은 grigoent training_price_plans — 변경 시 함께 갱신. */
+export const VILLAGE_DEPOSIT_KRW = 200_000;
 
 export type VisaPaymentRef = {
   applicationId: string;

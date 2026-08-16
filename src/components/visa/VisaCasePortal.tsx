@@ -68,6 +68,9 @@ export type VisaCaseInitial = {
   paymentUrl: string | null;
   paymentAmountKrw: number | null;
   paidAt: string | null;
+  // Village 사전예약금 (village_waitlist 미러링)
+  villageDepositStatus: string;
+  villageDepositPaidAt: string | null;
   basePriceKrw: number;
   quotedPriceKrw: number | null;
   declinedAt: string | null;
@@ -804,6 +807,7 @@ export function VisaCasePortal({
     if (!raw) return null;
     if (isOnlineMeetingNextAction(raw)) return null;
     if (raw.includes("결제 링크 발송")) return null;
+    if (raw.includes("결제 완료") || raw.includes("결제 취소")) return null;
     // 타임라인이 이미 보여주는 일반 상태 문구는 메모로 반복하지 않는다.
     if (/^(온라인\s*(미팅|상담)\s*예정|온라인 미팅 완료.*|Online meeting scheduled|オンラインミーティング予定)$/i.test(raw)) return null;
     return raw;
@@ -849,9 +853,12 @@ export function VisaCasePortal({
           paymentAmountKrw: initial.paymentAmountKrw,
           paidAt: initial.paidAt,
           wantsHousing: arrayValue(a, "settlementNeeds").includes("housing"),
+          villageDepositStatus: initial.villageDepositStatus,
+          villageDepositPaidAt: initial.villageDepositPaidAt,
         }}
         lang={lang}
         nextActionNote={journeyNote}
+        caseToken={token}
       />
 
       <section className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-5">

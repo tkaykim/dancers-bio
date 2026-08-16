@@ -19,7 +19,7 @@ export default async function AdminVillagePage() {
   const { data } = await admin
     .from("village_waitlist")
     .select(
-      "id, created_at, interested, name, nationality, nationality_code, contact_type, contact, preferred_option, room_preference, move_in_month, message, decline_reasons, decline_reason_detail, lang, status, memo",
+      "id, created_at, interested, name, nationality, nationality_code, contact_type, contact, preferred_option, room_preference, move_in_month, message, decline_reasons, decline_reason_detail, lang, status, memo, deposit_status, deposit_amount_krw, deposit_paid_at, visa_application_id",
     )
     .order("created_at", { ascending: false })
     .limit(500);
@@ -30,6 +30,9 @@ export default async function AdminVillagePage() {
   const testCount = allRows.length - rows.length;
   const yes = rows.filter((r) => r.interested);
   const no = rows.filter((r) => !r.interested);
+  // 사전예약금까지 낸 사람 = 가장 강한 수요 신호. 별도로 센다.
+  const paid = rows.filter((r) => r.deposit_status === "paid");
+  const paidTotal = paid.reduce((sum, r) => sum + (r.deposit_amount_krw ?? 0), 0);
 
   // 미진행 사유 집계 — 무엇을 바꿔야 하는지가 이 화면의 핵심 정보다.
   const reasonCounts = new Map<string, number>();
@@ -52,7 +55,7 @@ export default async function AdminVillagePage() {
         <h1 className="text-xl font-bold tracking-tight">deetz Village 수요조사</h1>
         <p className="mt-1 text-sm text-ink-3">
           공개 페이지 <code className="rounded bg-secondary px-1.5 py-0.5 text-xs">/village</code> 접수 내역.
-          아직 결제는 받지 않는 사전 수요조사 단계입니다.
+관심 등록(무료)과 사전예약금 결제(₩200,000, 크라우드펀딩형 베타)를 함께 받습니다.
           {testCount > 0 ? ` 테스트 행 ${testCount}건은 집계에서 제외했습니다.` : ""}
         </p>
       </div>
@@ -62,6 +65,18 @@ export default async function AdminVillagePage() {
         <StatCard label="진행 희망 (대기등록)" value={yes.length} tone="primary" />
         <StatCard label="진행 안 함" value={no.length} />
       </div>
+
+      {paid.length > 0 ? (
+        <div className="rounded-xl border border-primary/40 bg-primary/5 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">사전예약금 결제</p>
+          <p className="mt-1 text-2xl font-bold tracking-tight text-foreground">
+            {paid.length}명 · {paidTotal.toLocaleString("ko-KR")}원
+          </p>
+          <p className="mt-1 text-xs text-ink-3">
+            관심 등록보다 강한 수요 신호입니다. 오픈이 무산되면 전액 환불 대상입니다.
+          </p>
+        </div>
+      ) : null}
 
       {yes.length > 0 ? (
         <div className="rounded-xl border border-hairline-2 bg-card p-5">

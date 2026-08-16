@@ -1,8 +1,10 @@
 // deetz Village(디츠 빌리지) 예고·수요조사 페이지 문구 정본.
 // 랜딩(VillageLanding)과 폼(VillageWaitlistForm)이 같은 딕셔너리를 쓴다.
 //
-// ⚠️ 아직 오픈 전(수요조사 단계)이다. 확정 표현("보장", "제공합니다") 대신
-//    "예정", "계획"으로 쓰고, 결제는 이 페이지에서 절대 받지 않는다.
+// ⚠️ 아직 오픈 전이다. 확정 표현("보장", "제공합니다") 대신 "예정", "계획"으로 쓴다.
+//    2026-08-16부터 크라우드펀딩형 사전예약금(₩200,000)을 받는다 —
+//    입주 시 첫 결제에서 전액 차감, 오픈 무산·입주 전 요청 시 전액 환불이 고지 정본이다.
+//    무료 관심 등록(waitlist)은 그대로 유지한다.
 
 export type Lang = "en" | "ja" | "ko";
 
@@ -201,6 +203,15 @@ export type Copy = {
   doneDeclineBody: string;
   backToProgram: string;
 
+  // 사전예약 결제 (크라우드펀딩형 베타)
+  depositTitle: string;
+  depositBody: string;
+  depositTerms: string[];
+  depositCta: string;
+  depositSkip: string;
+  depositAmountLabel: string;
+  depositErr: string;
+
   // 마무리
   disclaimer: string;
 };
@@ -212,9 +223,9 @@ export const T: Record<Lang, Copy> = {
     title2: "Just move in and dance.",
     sub: "deetz Village is a dancer house we are preparing in Seoul, for dancers coming from abroad. Renting in Korea normally means a 10–20 million KRW deposit before you even pay rent. We are building a place where you can start without it.",
     heroNote:
-      "This page is a pre-announcement. Nothing is charged here — we are checking how many dancers actually need this before we open.",
+      "This page is a pre-announcement. Registering your interest is free, and reserving a room with a deposit is optional.",
     cta: "Join the waitlist",
-    ctaSub: "Takes about 1 minute. No payment, no commitment.",
+    ctaSub: "Takes about 1 minute. Free, no commitment.",
 
     problemTitle: "Why we are building this",
     problemBody:
@@ -360,14 +371,26 @@ export const T: Record<Lang, Copy> = {
 
     doneTitle: "You're on the waitlist",
     doneBody:
-      "We will contact you with photos, the exact address, and move-in dates before we open it to anyone else. Nothing is charged until you see the real terms.",
+      "We will contact you with photos, the exact address, and move-in dates before we open it to anyone else. Registering your interest alone does not charge you anything.",
     doneDeclineTitle: "Thank you — that helps",
     doneDeclineBody:
       "Your answer goes straight into how we design this. If it changes later, you can always come back to this page.",
     backToProgram: "See the deetz Korea program",
 
+    depositTitle: "Reserve your place now",
+    depositBody:
+      "We are confirming the building. Reserving now secures a room and shows us the demand is real.",
+    depositTerms: [
+      "Fully deducted from your first payment when you move in.",
+      "Full refund if we do not reach enough residents, or the opening does not happen.",
+      "Full refund for any reason at any time before move-in begins.",
+    ],
+    depositCta: "Reserve with a deposit",
+    depositSkip: "Or register your interest for free above — no payment needed.",
+    depositAmountLabel: "Pre-registration deposit",
+    depositErr: "We could not open the payment page. Please try again.",
     disclaimer:
-      "deetz Village is in preparation and is not open yet. Buildings, room composition, prices, and the opening date can change. This page collects interest only — no payment is taken here, and joining the waitlist does not reserve a room.",
+      "deetz Village is in preparation and is not open yet. Buildings, room composition, prices, and the opening date can change. Registering your interest is free and does not reserve a room. A pre-registration deposit reserves a room and is fully deducted from your first payment, or fully refunded if the opening does not happen.",
   },
 
   ja: {
@@ -376,9 +399,9 @@ export const T: Record<Lang, Copy> = {
     title2: "ソウルでの生活を始める。",
     sub: "deetz Villageは、海外から来るダンサーのためにソウルで準備しているダンサーハウスです。韓国で部屋を借りるには、家賃とは別に1,000万〜2,000万ウォンの保証金が必要になります。それがなくても始められる場所をつくります。",
     heroNote:
-      "このページは事前告知です。ここでの支払いは一切ありません。実際にどれくらいのダンサーに必要とされているかを確認している段階です。",
+      "このページは事前告知です。関心登録は無料で、事前予約金でのお部屋確保は任意です。",
     cta: "ウェイトリストに登録",
-    ctaSub: "約1分。支払いも、義務もありません。",
+    ctaSub: "約1分。無料で、義務もありません。",
 
     problemTitle: "なぜつくるのか",
     problemBody:
@@ -524,14 +547,26 @@ export const T: Record<Lang, Copy> = {
 
     doneTitle: "ウェイトリストに登録しました",
     doneBody:
-      "写真・正確な住所・入居可能日を、公開前に最初にご連絡します。実際の条件をご覧いただくまで、お支払いは一切発生しません。",
+      "写真・正確な住所・入居可能日を、公開前に最初にご連絡します。関心登録のみであれば、お支払いは発生しません。",
     doneDeclineTitle: "ありがとうございます",
     doneDeclineBody:
       "いただいた回答は、そのまま設計の見直しに使わせていただきます。お気持ちが変わったら、いつでもこのページに戻ってきてください。",
     backToProgram: "deetzの韓国プログラムを見る",
 
+    depositTitle: "今すぐ入居枠を確保する",
+    depositBody:
+      "現在、物件を確定中です。今ご予約いただくと入居枠が確保され、私たちにとっては実際の需要の確認になります。",
+    depositTerms: [
+      "ご入居時に初回のお支払い金額から全額差し引かれます。",
+      "入居者が定員に満たない場合、またはオープンが実現しない場合は全額返金します。",
+      "入居開始前であれば、理由を問わずいつでも全額返金します。",
+    ],
+    depositCta: "事前予約金を支払って確保する",
+    depositSkip: "まずは上のフォームから無料で関心登録だけすることもできます。",
+    depositAmountLabel: "事前予約金",
+    depositErr: "決済ページを開けませんでした。もう一度お試しください。",
     disclaimer:
-      "deetz Villageは準備中で、まだオープンしていません。物件・部屋構成・料金・オープン時期は変更される可能性があります。このページは関心の登録のみで、支払いは発生せず、登録によって部屋が確保されるものではありません。",
+      "deetz Villageは準備中で、まだオープンしていません。物件・部屋構成・料金・オープン時期は変更される可能性があります。関心登録は無料で、登録によって部屋が確保されるものではありません。事前予約金をお支払いいただくと入居枠が確保され、ご入居時に初回のお支払いから全額差し引かれます。オープンが実現しない場合は全額返金いたします。",
   },
 
   ko: {
@@ -540,9 +575,9 @@ export const T: Record<Lang, Copy> = {
     title2: "서울에서 시작하는 법.",
     sub: "deetz Village는 해외에서 오는 댄서들을 위해 서울에 준비하고 있는 댄서 하우스입니다. 한국에서 방을 구하려면 월세와 별개로 보증금 1,000만~2,000만원이 필요합니다. 그 장벽 없이 시작할 수 있는 공간을 만듭니다.",
     heroNote:
-      "이 페이지는 사전 예고입니다. 여기서 결제되는 금액은 없습니다. 실제로 얼마나 필요한지 먼저 확인하는 단계입니다.",
+      "이 페이지는 사전 예고입니다. 관심 등록은 무료이고, 사전예약금으로 자리를 확보하는 것은 선택입니다.",
     cta: "웨이팅 리스트 등록",
-    ctaSub: "1분이면 끝나요. 결제도, 의무도 없습니다.",
+    ctaSub: "1분이면 끝나요. 무료이고 의무도 없습니다.",
 
     problemTitle: "왜 만드나요",
     problemBody:
@@ -688,13 +723,25 @@ export const T: Record<Lang, Copy> = {
 
     doneTitle: "웨이팅 리스트에 등록됐어요",
     doneBody:
-      "사진, 정확한 주소, 입주 가능일을 공개 전에 가장 먼저 연락드립니다. 실제 조건을 확인하시기 전까지 결제되는 금액은 없습니다.",
+      "사진, 정확한 주소, 입주 가능일을 공개 전에 가장 먼저 연락드립니다. 관심 등록만으로는 결제되는 금액이 없습니다.",
     doneDeclineTitle: "답변 감사합니다",
     doneDeclineBody:
       "주신 답변은 그대로 기획을 다시 보는 데 쓰입니다. 생각이 바뀌시면 언제든 이 페이지로 다시 오세요.",
     backToProgram: "deetz 한국 활동 프로그램 보기",
 
+    depositTitle: "지금 입주 자리 확보하기",
+    depositBody:
+      "지금 건물을 확정하는 중입니다. 지금 예약하시면 자리가 확보되고, 저희에게는 실제 수요를 확인하는 근거가 됩니다.",
+    depositTerms: [
+      "입주하시면 첫 결제 금액에서 전액 차감됩니다.",
+      "정원이 차지 않거나 오픈이 무산되면 전액 환불해 드립니다.",
+      "입주 시작 전까지는 사유를 불문하고 언제든 전액 환불해 드립니다.",
+    ],
+    depositCta: "사전예약금 결제하고 확보하기",
+    depositSkip: "먼저 위에서 무료로 관심 등록만 하셔도 됩니다.",
+    depositAmountLabel: "사전예약금",
+    depositErr: "결제 페이지를 열지 못했습니다. 다시 시도해 주세요.",
     disclaimer:
-      "deetz Village는 준비 중이며 아직 오픈하지 않았습니다. 건물, 방 구성, 요금, 오픈 시기는 변경될 수 있습니다. 이 페이지는 관심 등록만 받으며, 결제는 발생하지 않고 등록만으로 방이 확보되지 않습니다.",
+      "deetz Village는 준비 중이며 아직 오픈하지 않았습니다. 건물, 방 구성, 요금, 오픈 시기는 변경될 수 있습니다. 관심 등록은 무료이며 등록만으로 방이 확보되지 않습니다. 사전예약금을 결제하시면 입주 자리가 확보되고, 입주 시 첫 결제 금액에서 전액 차감되며, 오픈이 무산되면 전액 환불해 드립니다.",
   },
 };

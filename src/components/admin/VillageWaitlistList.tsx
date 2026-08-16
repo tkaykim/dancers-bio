@@ -25,6 +25,10 @@ export type VillageRow = {
   lang: string;
   status: string;
   memo: string | null;
+  deposit_status: string | null;
+  deposit_amount_krw: number | null;
+  deposit_paid_at: string | null;
+  visa_application_id: string | null;
 };
 
 const STATUSES = ["new", "contacted", "converted", "closed"] as const;
@@ -152,6 +156,18 @@ function RowCard({ row }: { row: VillageRow }) {
         <span className="rounded border border-hairline-2 px-1.5 py-0.5 text-[10px] text-ink-4">
           {LANG_LABEL[row.lang] ?? row.lang}
         </span>
+        {row.deposit_status === "paid" ? (
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+            사전예약금 {(row.deposit_amount_krw ?? 0).toLocaleString("ko-KR")}원 결제
+          </span>
+        ) : row.deposit_status === "link_sent" ? (
+          <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] text-ink-3">결제 링크 발급</span>
+        ) : row.deposit_status === "refunded" ? (
+          <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] text-ink-3">환불됨</span>
+        ) : null}
+        {row.visa_application_id ? (
+          <span className="rounded-full border border-hairline-2 px-2 py-0.5 text-[10px] text-ink-4">비자 케이스</span>
+        ) : null}
         <span className="ml-auto text-[11px] text-ink-4">{created}</span>
       </div>
 

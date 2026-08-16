@@ -111,6 +111,13 @@ export default async function VisaCasePage({
     }
   }
 
+  // Village 사전예약금 상태 (이 케이스로 만든 대기자 행이 있으면).
+  const { data: villageRow } = await admin
+    .from("village_waitlist")
+    .select("deposit_status, deposit_paid_at")
+    .eq("visa_application_id", applicationId)
+    .maybeSingle();
+
   let name = "Dancer";
   let nationality: string | null = null;
   let hasVisa: boolean | null = null;
@@ -159,6 +166,8 @@ export default async function VisaCasePage({
     paymentUrl,
     paymentAmountKrw: row.payment_amount_krw ?? null,
     paidAt: row.paid_at ?? null,
+    villageDepositStatus: (villageRow?.deposit_status as string | null) ?? "none",
+    villageDepositPaidAt: (villageRow?.deposit_paid_at as string | null) ?? null,
     basePriceKrw: row.base_price_krw ?? 4_000_000,
     quotedPriceKrw: row.quoted_price_krw ?? null,
     declinedAt: row.declined_at ?? null,
