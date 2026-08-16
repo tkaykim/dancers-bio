@@ -30,11 +30,47 @@ function getTransporter(): Transporter | null {
     console.error("[gmail] DEETZ_GMAIL_USER/GMAIL_USER or app password env missing");
     return null;
   }
+  // ⚠ 풀링이 없으면 sendMail 마다 SMTP 연결을 새로 열고 AUTH 를 다시 한다.
+  // 일괄 발송에서 수십~수백 번 로그인하면 Gmail 이 "too many login attempts" 로 잠근다.
+  // pool 로 인증된 연결을 재사용하고, 초당 발송량도 제한한다.
   _transporter = nodemailer.createTransport({
     service: "gmail",
     auth: { user, pass },
+    pool: true,
+    maxConnections: 1, // 연결 1개만 유지 = 로그인 1회
+    maxMessages: 100, // 100통마다 연결 재생성(장시간 유휴 소켓 방지)
+    rateDelta: 1000,
+    rateLimit: 3, // 초당 3통
   });
   return _transporter;
+}
+
+// 일괄 발송이 끝나면 유휴 소켓을 닫는다. 서버리스에서 열린 채 남지 않게.
+export function closeGmailPool(): void {
+  if (!_transporter) return;
+  try {
+    _transporter.close();
+  } catch {
+    // 닫기 실패는 무시 — 다음 호출에서 새 트랜스포터를 만든다.
+  }
+  _transporter = null;
+}
+
+// 재시도해도 소용없고 즉시 멈춰야 하는 오류인지. 인증 잠김·발송 한도 초과 등.
+// 이런 상태에서 계속 시도하면 계정이 더 오래 잠긴다.
+export function isFatalSmtpError(message: string | undefined): boolean {
+  if (!message) return false;
+  const m = message.toLowerCase();
+  return (
+    m.includes("invalid login") ||
+    m.includes("username and password not accepted") ||
+    m.includes("eauth") ||
+    m.includes("too many login") ||
+    m.includes("daily user sending limit") ||
+    m.includes("rate exceeded") ||
+    m.includes("4.7.0") || // 임시 차단
+    m.includes("5.4.5") // 발송 한도
+  );
 }
 
 export async function sendGmailEmail({

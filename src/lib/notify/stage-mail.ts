@@ -13,7 +13,7 @@ import {
   toParagraphs,
 } from "@/lib/application-stage";
 
-type SendResult = { ok: boolean; skipped?: string };
+type SendResult = { ok: boolean; skipped?: string; error?: string };
 
 // 단계 안내 메일 이력. project_notification_log 의 PK(project_id, recipient_id, channel)를
 // 그대로 멱등키로 쓴다 — 같은 단계 안내가 두 번 나가지 않는다.
@@ -199,7 +199,7 @@ export async function sendStageEmail(params: {
     html,
   });
   if (!res.ok) await releaseClaim(projectId, applicantId, channel);
-  return { ok: res.ok };
+  return { ok: res.ok, error: res.error };
 }
 
 // ───────────────────────────────────────────── 본인 포기 → 운영자에게 즉시 알림

@@ -10,6 +10,7 @@ import { NEEDS_DANCER_ERROR } from "@/lib/lite-constants";
 import { isExpired } from "@/lib/utils/deadline";
 import { castingApplicationDetailsSchema } from "@/lib/validation/application-details";
 import { getRoundMessage, normalizeRounds } from "@/lib/application-stage";
+import { closeGmailPool, isFatalSmtpError } from "@/lib/gmail";
 import type { ActionResult } from "./auth";
 
 // Lite MVP: 1계정 = 1댄서 가정. team apply / manager-as-actor 분기 모두 제거.
@@ -429,9 +430,10 @@ export async function sendPendingNoticesAction(
 
   let sent = 0;
   let skipped = 0;
+  let fatal: string | null = null;
   for (const row of batch) {
     try {
-      let res: { ok: boolean; skipped?: string };
+      let res: { ok: boolean; skipped?: string; error?: string };
       if (row.status === "accepted") {
         const round = Math.max(Number(row.passed_round ?? 0), 1);
         const msg = getRoundMessage(project?.round_messages, round);
@@ -454,13 +456,25 @@ export async function sendPendingNoticesAction(
       }
       if (res.ok && !res.skipped) sent++;
       else skipped++;
+      // 인증 잠김·발송 한도는 재시도할수록 악화된다. 즉시 멈춘다.
+      if (!res.ok && isFatalSmtpError(res.error)) {
+        fatal = res.error ?? "SMTP 오류";
+        break;
+      }
     } catch (e) {
       console.error("[notice] 일괄 발송 실패:", e);
       skipped++;
     }
   }
 
+  closeGmailPool();
   revalidatePath(`/projects/${projectId}/applicants`);
+  if (fatal) {
+    return {
+      ok: false,
+      error: `메일 서버가 발송을 거부했습니다. 남은 발송을 중단합니다 — ${fatal.slice(0, 160)}`,
+    };
+  }
   return {
     ok: true,
     data: { sent, skipped, remaining: Math.max(pendingRows.length - batch.length, 0) },

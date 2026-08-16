@@ -21,7 +21,7 @@ export async function sendApplicationRejectionEmail(params: {
   applicantId: string | null;
   dancerId: string | null;
   projectId: string | null;
-}): Promise<{ ok: boolean; skipped?: string }> {
+}): Promise<{ ok: boolean; skipped?: string; error?: string }> {
   const { applicantId, projectId } = params;
   if (!applicantId || !projectId) return { ok: false, skipped: "no_target" };
 
@@ -122,5 +122,5 @@ export async function sendApplicationRejectionEmail(params: {
     html,
   });
   if (!res.ok) await releaseClaim();
-  return { ok: res.ok };
+  return { ok: res.ok, error: res.error };
 }
