@@ -1,5 +1,9 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth/guard";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { BRAND_META } from "@/lib/brand";
+import { brandMetadata, getBrand } from "@/lib/brand-server";
 import { createClient } from "@/lib/supabase/server";
 import {
   MySettlements,
@@ -15,8 +19,14 @@ import {
   normalizeAccountNumber,
 } from "@/lib/payout-validation";
 
+// GRIGO 화이트라벨 호스트: 탭 제목·공유 카드도 회사 명의로.
+export async function generateMetadata(): Promise<Metadata> {
+  return brandMetadata("GRIGO ENT 정산 · 출금");
+}
+
 export default async function MySettlementsPage() {
   const user = await requireUser();
+  const brand = await getBrand();
   const supabase = await createClient();
 
   // 본인 댄서 프로필 (profile_id = uid)
@@ -116,12 +126,16 @@ export default async function MySettlementsPage() {
   return (
     <div className="flex flex-col gap-6 px-6 pb-10 pt-8">
       <header className="flex flex-col gap-1">
-        <Link
-          href="/me"
-          className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
-        >
-          ← 마이
-        </Link>
+        {brand === "grigo" ? (
+          <BrandLogo brand={brand} className="mb-2 h-8 w-auto" priority />
+        ) : (
+          <Link
+            href="/me"
+            className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
+          >
+            ← 마이
+          </Link>
+        )}
         <h1 className="text-2xl font-bold tracking-tight">정산 · 출금</h1>
         <p className="text-sm text-ink-3">
           확정된 정산금액과 출금 신청 현황이에요. 원천징수 3.3%를 뺀 금액이
@@ -144,6 +158,7 @@ export default async function MySettlementsPage() {
           residentNumberRegistered={residentNumberRegistered}
           docs={docs}
           dancerNames={Object.fromEntries(nameById)}
+          brandName={BRAND_META[brand].orgName}
         />
       )}
     </div>
