@@ -132,6 +132,10 @@ export type Copy = {
   photosBody: string;
   photoPlaceholder: string;
   photoCommonLabel: string;
+  photoOpen: string;
+  photoClose: string;
+  photoPrev: string;
+  photoNext: string;
 
   // 가격
   priceTitle: string;
@@ -266,6 +270,10 @@ export const T: Record<Lang, Copy> = {
     photosBody: "Real photos of the building and rooms are being prepared and will be added here.",
     photoPlaceholder: "Photo coming soon",
     photoCommonLabel: "Shared space",
+    photoOpen: "Tap a photo to view it larger",
+    photoClose: "Close",
+    photoPrev: "Previous photo",
+    photoNext: "Next photo",
 
     priceTitle: "Planned pricing",
     priceBody:
@@ -442,6 +450,10 @@ export const T: Record<Lang, Copy> = {
     photosBody: "建物と部屋の実際の写真は準備中で、ここに追加されます。",
     photoPlaceholder: "写真は準備中です",
     photoCommonLabel: "共用スペース",
+    photoOpen: "写真をタップすると大きく見られます",
+    photoClose: "閉じる",
+    photoPrev: "前の写真",
+    photoNext: "次の写真",
 
     priceTitle: "予定料金",
     priceBody:
@@ -618,6 +630,10 @@ export const T: Record<Lang, Copy> = {
     photosBody: "건물과 방의 실제 사진은 준비 중이며, 확정되는 대로 이곳에 올라갑니다.",
     photoPlaceholder: "사진 준비 중",
     photoCommonLabel: "공용 공간",
+    photoOpen: "사진을 누르면 크게 볼 수 있어요",
+    photoClose: "닫기",
+    photoPrev: "이전 사진",
+    photoNext: "다음 사진",
 
     priceTitle: "예정 요금",
     priceBody:

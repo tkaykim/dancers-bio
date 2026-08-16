@@ -18,6 +18,7 @@ import {
 
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { cn } from "@/lib/utils";
+import { VillagePhotoViewer, type ViewerPhoto } from "./VillagePhotoViewer";
 import { VillageWaitlistForm } from "./VillageWaitlistForm";
 import {
   LANG_STORAGE_KEY,
@@ -63,6 +64,7 @@ export function VillageLanding({
   photos?: VillagePhoto[];
 }) {
   const [lang, setLang] = useState<Lang>(initialLang);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
   const selectLang = (l: Lang) => {
     setLang(l);
@@ -100,6 +102,20 @@ export function VillageLanding({
   }, [lockLang]);
 
   const c = T[lang];
+
+  // 뷰어는 옵션 경계를 넘어 이어서 넘길 수 있게 평평한 목록으로 만든다.
+  const viewerPhotos: ViewerPhoto[] = PHOTO_GROUPS.flatMap((group) =>
+    photos
+      .filter((p) => p.optionKey === group)
+      .map((p) => ({
+        id: p.id,
+        url: p.url,
+        caption: p.caption,
+        groupLabel:
+          group === "common" ? c.photoCommonLabel : `${c.planNames[group]} · ${c.planDescs[group]}`,
+      })),
+  );
+  const viewerIndexOf = (id: string) => viewerPhotos.findIndex((p) => p.id === id);
 
   return (
     <div
@@ -232,7 +248,12 @@ export function VillageLanding({
 
       {/* 사진 (placeholder) */}
       <SectionTitle>{c.photosTitle}</SectionTitle>
-      <Lines text={c.photosBody} className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl" />
+      <Lines text={c.photosBody} className="mb-1 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl" />
+      {viewerPhotos.length > 0 ? (
+        <p className="mb-4 text-[12px] text-ink-4">{c.photoOpen}</p>
+      ) : (
+        <div className="mb-4" />
+      )}
       {PHOTO_GROUPS.map((group) => {
         const shots = photos.filter((p) => p.optionKey === group);
         // 공용 사진은 올라온 게 있을 때만 섹션을 만든다.
@@ -246,13 +267,20 @@ export function VillageLanding({
               <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3">
                 {shots.map((p) => (
                   <figure key={p.id} className="overflow-hidden rounded-xl border border-hairline-2 bg-card">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={p.url}
-                      alt={p.caption ?? label}
-                      loading="lazy"
-                      className="aspect-[4/3] w-full object-cover"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setViewerIndex(viewerIndexOf(p.id))}
+                      aria-label={c.photoOpen}
+                      className="block w-full cursor-zoom-in transition-opacity hover:opacity-90"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={p.url}
+                        alt={p.caption ?? label}
+                        loading="lazy"
+                        className="aspect-[4/3] w-full object-cover"
+                      />
+                    </button>
                     {p.caption ? (
                       <figcaption className="px-3 py-2.5 text-[12px] text-ink-3">{p.caption}</figcaption>
                     ) : null}
@@ -350,6 +378,16 @@ export function VillageLanding({
       <div className="mt-11 md:mt-14">
         <VillageWaitlistForm lang={lang} />
       </div>
+
+      <VillagePhotoViewer
+        photos={viewerPhotos}
+        index={viewerIndex}
+        onClose={() => setViewerIndex(null)}
+        onIndexChange={setViewerIndex}
+        closeLabel={c.photoClose}
+        prevLabel={c.photoPrev}
+        nextLabel={c.photoNext}
+      />
 
       <Lines
         text={c.disclaimer}
