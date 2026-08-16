@@ -8,7 +8,7 @@ import {
   decideApplicationAction,
   bulkDecideApplicationsAction,
   setApplicationRoundAction,
-  sendPendingStageNoticesAction,
+  sendPendingNoticesAction,
 } from "@/app/actions/applications";
 import { closeProjectAction } from "@/app/actions/projects";
 import {
@@ -510,42 +510,65 @@ export function ApplicantsConsole({
     { key: "all", label: "전체", n: counts.total },
   ];
 
-  const unnotified = items.filter(
+  const unnotifiedAccepted = items.filter(
     (a) => a.status === "accepted" && !a.noticeSent,
   ).length;
+  const unnotifiedRejected = items.filter(
+    (a) => a.status === "rejected" && !a.noticeSent,
+  ).length;
+  const unnotified = unnotifiedAccepted + unnotifiedRejected;
 
+  // 서버는 한 번에 20건만 처리하고 남은 수를 돌려준다(실행 시간 제한).
+  // remaining 이 0 이 될 때까지 이어서 호출한다.
   async function sendPendingNotices() {
+    const parts = [
+      unnotifiedAccepted ? `합격 ${unnotifiedAccepted}명` : null,
+      unnotifiedRejected ? `불합격 ${unnotifiedRejected}명` : null,
+    ].filter(Boolean);
     if (
       !confirm(
-        `단계 안내를 아직 못 받은 합격자 ${unnotified}명에게 안내 메일을 보냅니다.\n실제 발송입니다. 진행할까요?`,
+        `결과 안내를 아직 못 받은 ${parts.join(" · ")}에게 메일을 보냅니다.\n실제 발송입니다. 진행할까요?`,
       )
     )
       return;
+
     setBusy(true);
-    const fd = new FormData();
-    fd.set("project_id", projectId);
-    const r = await sendPendingStageNoticesAction(fd);
-    setBusy(false);
-    if (!r.ok) {
-      toast.error(r.error);
-      return;
+    let sent = 0;
+    let skipped = 0;
+    for (let i = 0; i < 60; i++) {
+      const fd = new FormData();
+      fd.set("project_id", projectId);
+      const r = await sendPendingNoticesAction(fd);
+      if (!r.ok) {
+        setBusy(false);
+        toast.error(r.error);
+        router.refresh();
+        return;
+      }
+      sent += r.data?.sent ?? 0;
+      skipped += r.data?.skipped ?? 0;
+      const remaining = r.data?.remaining ?? 0;
+      if (remaining <= 0) break;
+      toast.message(`발송 중… ${sent}명 완료, ${remaining}명 남음`);
     }
-    toast.success(
-      `${r.data?.sent ?? 0}명에게 발송했습니다 (건너뜀 ${r.data?.skipped ?? 0}명)`,
-    );
+    setBusy(false);
+    toast.success(`${sent}명에게 발송했습니다 (건너뜀 ${skipped}명)`);
     router.refresh();
   }
 
   return (
     <div className="flex flex-col gap-3">
-      {/* 캐스팅보드 벌크 반영처럼 메일 없이 단계만 오른 경우를 드러낸다.
-          조용히 잊히면 지원자는 합격·확정 사실을 모른 채 포기 권한만 잃는다. */}
+      {/* 벌크 반영·일괄 거절처럼 메일 없이 상태만 바뀐 경우를 드러낸다.
+          조용히 잊히면 지원자는 결과를 영영 모른 채 남는다. */}
       {canDecide && unnotified > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 px-3 py-2.5">
           <p className="text-xs leading-relaxed text-amber-800 dark:text-amber-300">
-            단계 안내를 못 받은 합격자 <b>{unnotified}명</b>이 있습니다.
+            결과 안내를 못 받은 지원자 <b>{unnotified}명</b>이 있습니다.
+            {unnotifiedAccepted > 0 && unnotifiedRejected > 0 ? (
+              <> (합격 {unnotifiedAccepted} · 불합격 {unnotifiedRejected})</>
+            ) : null}
             <br />
-            안내가 나가야 지원자가 현재 단계를 알 수 있습니다.
+            안내가 나가야 지원자가 결과를 알 수 있습니다.
           </p>
           <button
             type="button"

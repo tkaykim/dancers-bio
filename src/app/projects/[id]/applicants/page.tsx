@@ -519,13 +519,13 @@ export default async function ApplicantsPage({
     channelStats.set(app.recruitment_channel_id, stats);
   }
 
-  // 단계 안내 발송 이력 — 캐스팅보드 벌크 반영처럼 메일 없이 상태만 바뀐 경우를
-  // 콘솔에서 "미발송"으로 드러내기 위한 조회. 채널 = stage_r{n}.
+  // 결과 안내 발송 이력 — 벌크 반영·일괄 거절처럼 메일 없이 상태만 바뀐 경우를
+  // 콘솔에서 "미발송"으로 드러내기 위한 조회. 채널 = stage_r{n} / stage_reject.
   const { data: stageNoticeRows } = await createAdminClient()
     .from("project_notification_log")
     .select("recipient_id, channel")
     .eq("project_id", p.id)
-    .like("channel", "stage_r%");
+    .or("channel.like.stage_r%,channel.eq.stage_reject");
   const stageNoticeSet = new Set(
     ((stageNoticeRows ?? []) as Array<{ recipient_id: string; channel: string }>).map(
       (r) => `${r.recipient_id}|${r.channel}`,
@@ -589,11 +589,14 @@ export default async function ApplicantsPage({
       },
       confirmedAt: a.confirmed_at ?? null,
       passedRound: a.passed_round ?? 0,
+      // 본인 포기(declined)는 스스로 빠진 것이라 안내 대상이 아니다.
       noticeSent:
-        a.status !== "accepted" ||
         !a.applicant?.id ||
+        (a.status !== "accepted" && a.status !== "rejected") ||
         stageNoticeSet.has(
-          `${a.applicant.id}|stage_r${Math.max(a.passed_round ?? 0, 1)}`,
+          a.status === "accepted"
+            ? `${a.applicant.id}|stage_r${Math.max(a.passed_round ?? 0, 1)}`
+            : `${a.applicant.id}|stage_reject`,
         ),
       evalCount: evalAgg.get(a.id)?.count ?? 0,
       avgScore:

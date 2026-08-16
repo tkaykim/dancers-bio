@@ -349,15 +349,22 @@ export async function setApplicationRoundAction(
   };
 }
 
-// 아직 단계 안내가 나가지 않은 합격자에게 일괄 발송한다.
+// 아직 결과 안내가 나가지 않은 지원자에게 일괄 발송한다. 합격(단계 안내)과 불합격을 함께 처리한다.
 //
-// 캐스팅보드 벌크 반영(applyCastingBoardReviewAction)은 상태만 바꾸고 메일을 보내지 않는다.
-// 벌크에서 자동 발송하면 승인 없이 수십~수백 통이 나가기 때문이다.
-// 대신 콘솔이 "미발송 N명"을 표시하고, 운영자가 이 액션으로 직접 트리거한다.
-// sendStageEmail 이 단계별 멱등이라 중복 발송은 구조적으로 막힌다.
-export async function sendPendingStageNoticesAction(
+// 자동 발송이 아닌 이유
+//   - 캐스팅보드 벌크 반영은 상태만 바꾸고 메일을 보내지 않는다.
+//   - 일괄 거절(bulkDecideApplicationsAction)도 마찬가지다.
+//   벌크에서 자동으로 보내면 승인 없이 수십~수백 통이 나간다.
+//   대신 콘솔이 "미발송 N명"을 드러내고, 운영자가 이 액션으로 직접 트리거한다.
+//
+// 한 번에 BATCH 건만 처리하고 remaining 을 돌려준다.
+// 수백 통을 한 요청에서 순차 발송하면 서버리스 실행 시간 제한에 걸린다.
+// 클라이언트가 remaining 이 0 이 될 때까지 반복 호출한다.
+const NOTICE_BATCH = 20;
+
+export async function sendPendingNoticesAction(
   formData: FormData,
-): Promise<ActionResult<{ sent: number; skipped: number }>> {
+): Promise<ActionResult<{ sent: number; skipped: number; remaining: number }>> {
   await requireUser();
   const projectId = (formData.get("project_id") ?? "").toString();
   if (!projectId) return { ok: false, error: "잘못된 요청입니다." };
@@ -366,7 +373,8 @@ export async function sendPendingStageNoticesAction(
   }
 
   const supabase = await createClient();
-  const [{ data: project }, { data: rows }] = await Promise.all([
+  const admin = createAdminClient();
+  const [{ data: project }, { data: rows }, { data: logRows }] = await Promise.all([
     supabase
       .from("projects")
       .select("selection_rounds, round_labels, round_messages")
@@ -374,53 +382,89 @@ export async function sendPendingStageNoticesAction(
       .maybeSingle(),
     supabase
       .from("applications")
-      .select("id, applicant_id, dancer_id, passed_round")
+      .select("id, applicant_id, dancer_id, passed_round, status")
       .eq("project_id", projectId)
-      .eq("status", "accepted")
+      .in("status", ["accepted", "rejected", "declined"])
       .is("archived_at", null)
-      .limit(500),
+      .limit(1000),
+    admin
+      .from("project_notification_log")
+      .select("recipient_id, channel")
+      .eq("project_id", projectId)
+      .or("channel.like.stage_r%,channel.eq.stage_reject"),
   ]);
 
   const totalRounds = normalizeRounds(
     (project?.selection_rounds as number | null) ?? null,
   );
   const roundLabels = (project?.round_labels as string[] | null) ?? null;
+  const sentSet = new Set(
+    ((logRows ?? []) as Array<{ recipient_id: string; channel: string }>).map(
+      (r) => `${r.recipient_id}|${r.channel}`,
+    ),
+  );
 
-  const { sendStageEmail } = await import("@/lib/notify/stage-mail");
-  let sent = 0;
-  let skipped = 0;
-  for (const row of (rows ?? []) as Array<{
+  type Row = {
     applicant_id: string | null;
     dancer_id: string | null;
     passed_round: number | null;
-  }>) {
-    if (!row.applicant_id) {
-      skipped++;
-      continue;
-    }
-    const round = Math.max(Number(row.passed_round ?? 0), 1);
-    const msg = getRoundMessage(project?.round_messages, round);
+    status: string;
+  };
+  // 본인 포기(declined)는 스스로 빠진 것이라 불합격 안내를 보내지 않는다.
+  const pendingRows = ((rows ?? []) as Row[]).filter((r) => {
+    if (!r.applicant_id) return false;
+    if (r.status === "declined") return false;
+    const channel =
+      r.status === "accepted"
+        ? `stage_r${Math.max(Number(r.passed_round ?? 0), 1)}`
+        : "stage_reject";
+    return !sentSet.has(`${r.applicant_id}|${channel}`);
+  });
+
+  const batch = pendingRows.slice(0, NOTICE_BATCH);
+  const { sendStageEmail } = await import("@/lib/notify/stage-mail");
+  const { sendApplicationRejectionEmail: sendReject } = await import(
+    "@/lib/notify/rejection-mail"
+  );
+
+  let sent = 0;
+  let skipped = 0;
+  for (const row of batch) {
     try {
-      const res = await sendStageEmail({
-        applicantId: row.applicant_id,
-        dancerId: row.dancer_id,
-        projectId,
-        round,
-        totalRounds,
-        roundLabels,
-        bodyOverride: msg.body,
-        note: msg.note,
-      });
+      let res: { ok: boolean; skipped?: string };
+      if (row.status === "accepted") {
+        const round = Math.max(Number(row.passed_round ?? 0), 1);
+        const msg = getRoundMessage(project?.round_messages, round);
+        res = await sendStageEmail({
+          applicantId: row.applicant_id,
+          dancerId: row.dancer_id,
+          projectId,
+          round,
+          totalRounds,
+          roundLabels,
+          bodyOverride: msg.body,
+          note: msg.note,
+        });
+      } else {
+        res = await sendReject({
+          applicantId: row.applicant_id,
+          dancerId: row.dancer_id,
+          projectId,
+        });
+      }
       if (res.ok && !res.skipped) sent++;
       else skipped++;
     } catch (e) {
-      console.error("[stage-mail] 일괄 발송 실패:", e);
+      console.error("[notice] 일괄 발송 실패:", e);
       skipped++;
     }
   }
 
   revalidatePath(`/projects/${projectId}/applicants`);
-  return { ok: true, data: { sent, skipped } };
+  return {
+    ok: true,
+    data: { sent, skipped, remaining: Math.max(pendingRows.length - batch.length, 0) },
+  };
 }
 
 // 중간 단계 합격(최종 확정 전) 상태에서 본인이 참여를 포기한다.
@@ -578,7 +622,6 @@ export async function decideApplicationAction(
         applicantId: (app.applicant_id as string | null) ?? null,
         dancerId: (app.dancer_id as string | null) ?? null,
         projectId: (app.project_id as string | null) ?? null,
-        reason,
       });
     } catch (e) {
       console.error("[reject-mail] 발송 실패:", e);
