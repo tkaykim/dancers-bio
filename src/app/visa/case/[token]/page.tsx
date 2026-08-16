@@ -3,6 +3,11 @@ import { notFound } from "next/navigation";
 import { VisaCasePortal, type VisaCaseInitial } from "@/components/visa/VisaCasePortal";
 import { visaLabel } from "@/lib/data/korea-visas";
 import { verifyVisaCaseToken } from "@/lib/quick-token";
+import {
+  makeVisaPaymentUrl,
+  VISA_PAYMENT_PAGES,
+  type VisaPaymentProductSlug,
+} from "@/lib/visa/payment-link";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
@@ -38,6 +43,10 @@ type CaseRow = {
   declined_at?: string | null;
   decline_reason?: string | null;
   decline_reason_detail?: string | null;
+  payment_status?: string | null;
+  payment_amount_krw?: number | null;
+  paid_at?: string | null;
+  payment_meta?: Record<string, unknown> | null;
 };
 
 function requestedLang(value: string | string[] | undefined): string | null {
@@ -74,6 +83,33 @@ export default async function VisaCasePage({
     .maybeSingle();
   if (!raw) notFound();
   const row = raw as unknown as CaseRow;
+
+  // 확정된 온라인 미팅 — 가장 최근에 발송(sent)된 초대를 여정 타임라인에 보여준다.
+  const { data: meetingInvite } = await admin
+    .from("visa_meeting_invites")
+    .select("meeting_at, meeting_url")
+    .eq("application_id", applicationId)
+    .eq("status", "sent")
+    .order("meeting_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // 결제 링크가 발급된 상태면 포털에서 바로 결제할 수 있게 URL 을 새로 서명해 만든다.
+  // (링크를 저장하지 않고 매 렌더마다 서명하므로 만료 걱정이 없다.)
+  const paymentStatus = row.payment_status ?? "unpaid";
+  const issuedSlug = (row.payment_meta?.issued_product_slug as string | undefined) ?? "audition-fee";
+  const paymentProductSlug: VisaPaymentProductSlug = issuedSlug in VISA_PAYMENT_PAGES
+    ? (issuedSlug as VisaPaymentProductSlug)
+    : "audition-fee";
+  let paymentUrl: string | null = null;
+  if (paymentStatus === "link_sent") {
+    try {
+      paymentUrl = makeVisaPaymentUrl(applicationId, paymentProductSlug);
+    } catch (error) {
+      // 시크릿 미설정 등 — 결제 버튼만 빠지고 나머지 화면은 정상 동작해야 한다.
+      console.error("[visa-case] payment url 생성 실패 (non-fatal):", error);
+    }
+  }
 
   let name = "Dancer";
   let nationality: string | null = null;
@@ -116,6 +152,13 @@ export default async function VisaCasePage({
     monthlyEvaluationAt: row.monthly_evaluation_at ?? null,
     monthlyEvaluationResult: row.monthly_evaluation_result ?? "pending",
     nextAction: row.next_action ?? null,
+    meetingAt: (meetingInvite?.meeting_at as string | null) ?? null,
+    meetingUrl: (meetingInvite?.meeting_url as string | null) ?? null,
+    paymentStatus,
+    paymentProductSlug,
+    paymentUrl,
+    paymentAmountKrw: row.payment_amount_krw ?? null,
+    paidAt: row.paid_at ?? null,
     basePriceKrw: row.base_price_krw ?? 4_000_000,
     quotedPriceKrw: row.quoted_price_krw ?? null,
     declinedAt: row.declined_at ?? null,

@@ -16,6 +16,22 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const VISA_PAYMENT_REF_TTL_DAYS = 30;
 
+// 상품 slug ↔ grigoent 결제 페이지 경로. grigoent 쪽 라우트와 1:1로 맞춰야 한다.
+// 어드민 발급(visa-payment.ts)과 케이스 포털 노출(case page)이 같은 정의를 쓴다.
+export const VISA_PAYMENT_PAGES = {
+  "audition-fee": "/audition-fee",
+  "training-and-placement": "/training",
+} as const;
+
+export type VisaPaymentProductSlug = keyof typeof VISA_PAYMENT_PAGES;
+
+const PAY_SITE_URL = (process.env.NEXT_PUBLIC_GRIGOENT_URL || "https://grigoent.co.kr").replace(/\/$/, "");
+
+/** 케이스 1건에 대한 결제 페이지 전체 URL. 토큰은 호출 시점에 새로 서명한다(만료 걱정 없음). */
+export function makeVisaPaymentUrl(applicationId: string, productSlug: VisaPaymentProductSlug): string {
+  return `${PAY_SITE_URL}${VISA_PAYMENT_PAGES[productSlug]}?ref=${makeVisaPaymentRef(applicationId, productSlug)}`;
+}
+
 export type VisaPaymentRef = {
   applicationId: string;
   /** 결제 대상 상품 slug (grigoent training_products.slug) */

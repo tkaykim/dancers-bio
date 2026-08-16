@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { makeVisaPaymentRef } from "@/lib/visa/payment-link";
+import { makeVisaPaymentUrl } from "@/lib/visa/payment-link";
 import type { ActionResult } from "./auth";
 
 // 오디션까지 마친 지원자에게 보낼 결제 링크를 발급한다.
@@ -12,19 +12,6 @@ import type { ActionResult } from "./auth";
 // 링크는 grigoent 결제 페이지를 가리키고, ref 토큰이 "이 결제 = 이 케이스"를 증명한다.
 // 결제가 승인되면 grigoent 가 /api/visa/payment-callback 으로 결과를 돌려주고,
 // 그때 payment_status 가 paid 로 바뀐다. 여기서는 link_sent 까지만 기록한다.
-
-const PAY_SITE_URL = (process.env.NEXT_PUBLIC_GRIGOENT_URL || "https://grigoent.co.kr").replace(
-  /\/$/,
-  "",
-);
-
-// 상품 slug ↔ 결제 페이지 경로. grigoent 쪽 라우트와 1:1로 맞춰야 한다.
-const PAYMENT_PAGES = {
-  "audition-fee": "/audition-fee",
-  "training-and-placement": "/training",
-} as const;
-
-export type VisaPaymentProduct = keyof typeof PAYMENT_PAGES;
 
 const issueSchema = z.object({
   applicationId: z.string().uuid(),
@@ -47,7 +34,7 @@ export async function issueVisaPaymentLinkAction(
 
   const { data: application } = await supabase
     .from("dancer_visa_applications")
-    .select("id, payment_status")
+    .select("id, payment_status, payment_meta")
     .eq("id", applicationId)
     .maybeSingle();
 
@@ -56,21 +43,23 @@ export async function issueVisaPaymentLinkAction(
     return { ok: false, error: "이미 결제가 완료된 건입니다." };
   }
 
-  let ref: string;
+  let url: string;
   try {
-    ref = makeVisaPaymentRef(applicationId, productSlug);
+    url = makeVisaPaymentUrl(applicationId, productSlug);
   } catch (error) {
     console.error("[visa-payment] ref 생성 실패", error);
     return { ok: false, error: "결제 링크 설정이 완료되지 않았습니다. (VISA_PAYMENT_LINK_SECRET)" };
   }
 
-  const url = `${PAY_SITE_URL}${PAYMENT_PAGES[productSlug]}?ref=${ref}`;
-
+  // 어떤 상품의 링크를 발급했는지 남긴다 — 케이스 포털이 이 값으로
+  // "오디션 참가비 카드"와 "프로그램 결제 카드"를 구분해 그린다.
+  const prevMeta = (application.payment_meta ?? {}) as Record<string, unknown>;
   const { error } = await supabase
     .from("dancer_visa_applications")
     .update({
       payment_status: "link_sent",
       payment_link_sent_at: new Date().toISOString(),
+      payment_meta: { ...prevMeta, issued_product_slug: productSlug },
       next_action: "결제 링크 발송 — 입금 대기",
     })
     .eq("id", applicationId);
