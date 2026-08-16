@@ -291,14 +291,31 @@ export async function setSettlementAmountAction(
   const supabase = await createClient();
   const { data: existing } = await supabase
     .from("settlements")
-    .select("id, status")
+    .select("id, status, gross_amount")
     .eq("project_id", projectId)
     .eq("dancer_id", dancerId)
     .maybeSingle();
 
+  // 금액 잠금: 입금완료뿐 아니라 출금신청·취소 건도 여기서 바꿀 수 없다.
+  // 댄서가 신청 시점에 본 금액과 실제 이체 금액이 달라지는 것을 막는다.
+  // 변경이 필요하면 관리자가 정산 취소 후 다시 등록한다.
   if (existing?.status === "paid")
     return { ok: false, error: "이미 입금완료된 건은 금액을 수정할 수 없습니다." };
+  if (existing?.status === "requested")
+    return {
+      ok: false,
+      error:
+        "댄서가 이미 출금 신청한 건이라 금액을 수정할 수 없습니다. 정산을 취소한 뒤 다시 등록해 주세요.",
+    };
+  if (existing?.status === "cancelled")
+    return {
+      ok: false,
+      error: "취소된 정산 건입니다. 새로 등록해 주세요.",
+    };
 
+  // 금액이 처음 정해졌거나 달라졌을 때만 댄서에게 알린다(같은 값 재저장은 조용히).
+  const shouldNotify =
+    !existing || (existing.gross_amount as number | null) !== gross;
   let id: string;
   if (existing) {
     const { data, error } = await supabase
@@ -326,10 +343,89 @@ export async function setSettlementAmountAction(
     id = data.id as string;
   }
 
+  // 금액이 확정되면 댄서가 바로 알 수 있게 알림을 보낸다.
+  // 이게 없으면 댄서는 자기 금액이 정해진 걸 모르고 출금 신청을 하지 않는다.
+  // (알림 실패는 비치명적 — 금액 저장 자체는 성공으로 돌려준다)
+  if (shouldNotify) await notifyDancerSettlement(id, "confirmed");
+
   revalidatePath(`/projects/${projectId}/applicants`);
+  revalidatePath(`/projects/${projectId}/settlements`);
   revalidatePath("/me/settlements");
   revalidatePath("/admin/settlements");
   return { ok: true, data: { id } };
+}
+
+/**
+ * 안무가가 정산 대상 댄서를 직접 명단에 올린다.
+ *
+ * 이미 구두·SNS로 섭외를 끝내고 프로젝트도 끝난 뒤 "정산만 기입"하는 경우를 위한 경로다.
+ * 캐스팅 제안→수락 루프를 거치지 않고 바로 정산 대상이 된다.
+ * 금액은 여기서 받지 않는다 — 수집링크로 들어온 건과 같은 "금액 미입력" 상태로 명단에
+ * 올려두고, 안무가가 같은 화면에서 금액을 채우게 해 입력 지점을 하나로 유지한다.
+ * 계좌·주민번호는 법적으로 본인만 넣을 수 있으므로 댄서에게 등록 요청 알림을 보낸다.
+ */
+export async function addSettlementDancerAction(
+  fd: FormData,
+): Promise<ActionResult<{ id: string; created: boolean }>> {
+  const user = await requireUser();
+  const projectId = (fd.get("project_id") ?? "").toString().trim();
+  const dancerId = (fd.get("dancer_id") ?? "").toString().trim();
+  if (!projectId || !dancerId)
+    return { ok: false, error: "잘못된 요청입니다." };
+  if (!(await canManageProject(projectId)))
+    return { ok: false, error: "권한이 없습니다." };
+
+  const admin = createAdminClient();
+  const { data: dancer } = await admin
+    .from("dancers")
+    .select("id")
+    .eq("id", dancerId)
+    .maybeSingle();
+  if (!dancer) return { ok: false, error: "댄서를 찾을 수 없습니다." };
+
+  // 이미 명단에 있으면 중복 생성하지 않는다(취소된 건은 되살린다).
+  const { data: existing } = await admin
+    .from("settlements")
+    .select("id, status")
+    .eq("project_id", projectId)
+    .eq("dancer_id", dancerId)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.status !== "cancelled")
+      return { ok: true, data: { id: existing.id as string, created: false } };
+    const { error } = await admin
+      .from("settlements")
+      .update({ status: "pending" })
+      .eq("id", existing.id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath(`/projects/${projectId}/settlements`);
+    return { ok: true, data: { id: existing.id as string, created: false } };
+  }
+
+  const { data, error } = await admin
+    .from("settlements")
+    .insert({
+      project_id: projectId,
+      dancer_id: dancerId,
+      gross_amount: null,
+      withholding_rate: DEFAULT_WITHHOLDING_RATE,
+      origin: "manager",
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: error.message };
+  const id = data.id as string;
+
+  // 계좌·주민번호는 본인만 등록할 수 있으므로 바로 요청 알림을 보낸다.
+  // (계정이 없는 댄서면 알림 대상이 없어 조용히 지나간다 — 이 경우 안무가가 수집링크를 직접 전달)
+  await notifyDancerSettlement(id, "info_required");
+
+  revalidatePath(`/projects/${projectId}/settlements`);
+  revalidatePath("/me/settlements");
+  revalidatePath("/admin/settlements");
+  return { ok: true, data: { id, created: true } };
 }
 
 // ── 댄서: 입금 계좌 등록/수정 (민감정보 → dancer_private_info) ──────────────

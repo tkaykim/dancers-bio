@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Check } from "lucide-react";
 import { toast } from "sonner";
+import { AddSettlementDancer } from "@/components/settlement/AddSettlementDancer";
 import {
   setSettlementCollectionAction,
   setProjectFinanceAction,
@@ -201,7 +202,10 @@ export function OwnerSettlementConsole({
         onDone={() => router.refresh()}
       />
 
-      {/* 3) 댄서별 정산 */}
+      {/* 3) 참여 댄서 직접 추가 — 이미 섭외가 끝난 건을 정산만 기입하는 경로 */}
+      <AddSettlementDancer projectId={projectId} />
+
+      {/* 4) 댄서별 정산 */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-ink-2">
@@ -213,8 +217,8 @@ export function OwnerSettlementConsole({
         </div>
         {rows.length === 0 ? (
           <div className="rounded-2xl border border-border bg-card p-5 text-sm text-ink-3">
-            아직 제출한 댄서가 없어요. 위 수집 링크를 보내 정산 정보를 받아
-            보세요.
+            아직 명단이 비어 있어요. 위에서 댄서를 직접 추가하거나, 수집 링크를
+            보내 정산 정보를 받아 보세요.
           </div>
         ) : (
           <ul className="flex flex-col gap-3">
