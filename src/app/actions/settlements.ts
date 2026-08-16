@@ -19,6 +19,7 @@ import {
   sendSettlementPaidAlimtalk,
   sendSettlementInfoRequiredAlimtalk,
 } from "@/lib/alimtalk/dancer-events";
+import { z } from "zod";
 import type { ActionResult } from "./auth";
 
 const SITE = "https://deetz.kr";
@@ -353,6 +354,164 @@ export async function setSettlementAmountAction(
   revalidatePath("/me/settlements");
   revalidatePath("/admin/settlements");
   return { ok: true, data: { id } };
+}
+
+/**
+ * 여러 댄서의 정산 금액을 한 번에 저장한다.
+ *
+ * 단건 저장은 매번 화면을 새로 그려서, 7명짜리 프로젝트에서 나머지 입력칸이 비워지는
+ * 마찰이 있었다(실제 E2E에서 재차 입력 발생). 입력을 모아 한 번에 보내고 새로고침도
+ * 한 번만 하도록 한다.
+ *
+ * 상태 가드는 단건과 동일하게 행마다 적용하고, 일부가 막혀도 나머지는 저장한 뒤
+ * 실패 건만 돌려준다(전부 롤백하면 오히려 다시 입력해야 한다).
+ */
+const bulkEntriesSchema = z
+  .array(
+    z.object({
+      dancerId: z.string().uuid(),
+      amount: z.string().max(20),
+    }),
+  )
+  .min(1)
+  .max(200);
+
+export async function setSettlementAmountsBulkAction(
+  fd: FormData,
+): Promise<
+  ActionResult<{
+    saved: number;
+    failures: Array<{ dancerId: string; error: string }>;
+  }>
+> {
+  const user = await requireUser();
+  const projectId = (fd.get("project_id") ?? "").toString().trim();
+  const raw = (fd.get("entries") ?? "").toString();
+  if (!projectId) return { ok: false, error: "잘못된 요청입니다." };
+  // 요청 본문 크기 상한 — 200건 × 넉넉한 여유.
+  if (raw.length > 20_000) return { ok: false, error: "요청이 너무 큽니다." };
+  if (!(await canManageProject(projectId)))
+    return { ok: false, error: "권한이 없습니다." };
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { ok: false, error: "잘못된 요청입니다." };
+  }
+  const check = bulkEntriesSchema.safeParse(parsed);
+  if (!check.success) return { ok: false, error: "잘못된 요청입니다." };
+  const entries = check.data;
+
+  // 같은 댄서가 두 번 들어오면 어느 금액이 맞는지 알 수 없으므로 요청 자체를 거부한다.
+  const seen = new Set<string>();
+  for (const e of entries) {
+    if (seen.has(e.dancerId))
+      return { ok: false, error: "같은 댄서가 중복으로 들어왔습니다." };
+    seen.add(e.dancerId);
+  }
+
+  const supabase = await createClient();
+  const failures: Array<{ dancerId: string; error: string }> = [];
+  const notifyIds: string[] = [];
+  let saved = 0;
+
+  for (const e of entries) {
+    const dancerId = e.dancerId;
+    const gross = parseWon(e.amount);
+    if (gross == null || gross <= 0) {
+      failures.push({ dancerId, error: "금액을 1원 이상으로 입력해 주세요." });
+      continue;
+    }
+
+    const { data: existing, error: readErr } = await supabase
+      .from("settlements")
+      .select("id, status, gross_amount")
+      .eq("project_id", projectId)
+      .eq("dancer_id", dancerId)
+      .maybeSingle();
+    // 조회 자체가 실패하면 신규로 오인해 중복 생성될 수 있으므로 그 행은 건너뛴다.
+    if (readErr) {
+      failures.push({ dancerId, error: "조회에 실패했습니다." });
+      continue;
+    }
+
+    // 단건 저장과 같은 잠금 규칙 — 댄서가 본 금액이 뒤에서 바뀌지 않게.
+    if (existing?.status === "paid") {
+      failures.push({ dancerId, error: "이미 입금완료된 건입니다." });
+      continue;
+    }
+    if (existing?.status === "requested") {
+      failures.push({ dancerId, error: "이미 출금 신청한 건입니다." });
+      continue;
+    }
+    if (existing?.status === "cancelled") {
+      failures.push({ dancerId, error: "취소된 정산 건입니다." });
+      continue;
+    }
+
+    if (existing) {
+      const changed = (existing.gross_amount as number | null) !== gross;
+      // status 조건을 UPDATE에 함께 걸어, 조회와 저장 사이에 댄서가 출금 신청해도
+      // 그 건을 덮어쓰지 않게 한다(0행 반환 → 실패로 처리).
+      const { data: updated, error } = await supabase
+        .from("settlements")
+        .update({ gross_amount: gross })
+        .eq("id", existing.id)
+        .eq("status", "pending")
+        .select("id");
+      if (error) {
+        failures.push({ dancerId, error: error.message });
+        continue;
+      }
+      if (!updated || updated.length === 0) {
+        failures.push({
+          dancerId,
+          error: "저장 중 상태가 바뀌었습니다. 새로고침 후 다시 시도해 주세요.",
+        });
+        continue;
+      }
+      if (changed) notifyIds.push(existing.id as string);
+    } else {
+      // RLS(settlements_manage)가 관리권한자 insert를 허용하므로 user 클라이언트로 둔다.
+      const { data, error } = await supabase
+        .from("settlements")
+        .insert({
+          project_id: projectId,
+          dancer_id: dancerId,
+          gross_amount: gross,
+          withholding_rate: DEFAULT_WITHHOLDING_RATE,
+          origin: "manager",
+          created_by: user.id,
+        })
+        .select("id")
+        .single();
+      if (error) {
+        failures.push({ dancerId, error: error.message });
+        continue;
+      }
+      notifyIds.push(data.id as string);
+    }
+    saved += 1;
+  }
+
+  // 금액이 실제로 바뀐 건만 알린다(같은 값 재저장은 조용히).
+  // 알림은 저장과 분리해 실패해도 저장 결과를 되돌리지 않는다. 다만 200건을 한꺼번에
+  // 밀지 않도록 소규모 동시 실행으로 끊어 보낸다.
+  const CONCURRENCY = 4;
+  for (let i = 0; i < notifyIds.length; i += CONCURRENCY) {
+    await Promise.all(
+      notifyIds
+        .slice(i, i + CONCURRENCY)
+        .map((id) => notifyDancerSettlement(id, "confirmed")),
+    );
+  }
+
+  revalidatePath(`/projects/${projectId}/settlements`);
+  revalidatePath(`/projects/${projectId}/applicants`);
+  revalidatePath("/me/settlements");
+  revalidatePath("/admin/settlements");
+  return { ok: true, data: { saved, failures } };
 }
 
 /**

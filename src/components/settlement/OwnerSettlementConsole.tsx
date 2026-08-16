@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { AddSettlementDancer } from "@/components/settlement/AddSettlementDancer";
+import { setSettlementAmountsBulkAction } from "@/app/actions/settlements";
 import {
   setSettlementCollectionAction,
   setProjectFinanceAction,
@@ -54,6 +55,122 @@ export function OwnerSettlementConsole({
   const [busy, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
   const [copiedGrigo, setCopiedGrigo] = useState(false);
+  // 금액 입력값을 상위에서 보관한다. 단건 저장마다 화면이 새로 그려지면서
+  // 나머지 입력이 날아가던 문제를 없애고, 일괄 입력·일괄 저장이 같은 값을 공유한다.
+  const [amounts, setAmounts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(rows.map((r) => [r.dancerId, formatWonInput(r.grossAmount)])),
+  );
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkAmount, setBulkAmount] = useState("");
+  // 사용자가 실제로 건드린 칸. 서버 갱신이 입력 중인 값을 덮어쓰지 않게 한다.
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
+
+  // 서버 목록이 바뀌면(추가·저장·상태변경) 손대지 않은 칸만 서버값으로 맞춘다.
+  // status도 키에 넣어야 다른 탭에서 출금신청이 들어온 경우 잠금이 반영된다.
+  const rowsKey = rows
+    .map((r) => `${r.dancerId}:${r.grossAmount ?? ""}:${r.status}`)
+    .join("|");
+  useEffect(() => {
+    setAmounts((prev) => {
+      const next = { ...prev };
+      for (const r of rows) {
+        if (!dirtyIds.has(r.dancerId)) next[r.dancerId] = formatWonInput(r.grossAmount);
+      }
+      return next;
+    });
+    setSelected((prev) => {
+      // 목록에서 사라졌거나 잠긴 행은 선택에서 뺀다.
+      const usable = new Set(
+        rows
+          .filter(
+            (r) =>
+              r.status !== "paid" &&
+              r.status !== "requested" &&
+              r.status !== "cancelled",
+          )
+          .map((r) => r.dancerId),
+      );
+      const next = new Set([...prev].filter((id) => usable.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+    // rowsKey로 서버 목록 변화만 추적한다(rows 배열은 매 렌더 새 참조라 제외).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowsKey]);
+
+  function setAmountFor(dancerId: string, v: string) {
+    setAmounts((prev) => ({ ...prev, [dancerId]: v }));
+    setDirtyIds((prev) => new Set(prev).add(dancerId));
+  }
+
+  const editableRows = rows.filter(
+    (r) => r.status !== "paid" && r.status !== "requested" && r.status !== "cancelled",
+  );
+  const allSelected =
+    editableRows.length > 0 && editableRows.every((r) => selected.has(r.dancerId));
+
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(editableRows.map((r) => r.dancerId)));
+  }
+
+  function applyBulkAmount() {
+    const v = formatWonInput(bulkAmount);
+    if (!v) {
+      toast.error("일괄 입력할 금액을 넣어 주세요.");
+      return;
+    }
+    if (selected.size === 0) {
+      toast.error("적용할 댄서를 선택해 주세요.");
+      return;
+    }
+    setAmounts((prev) => {
+      const next = { ...prev };
+      for (const id of selected) next[id] = v;
+      return next;
+    });
+    setDirtyIds((prev) => new Set([...prev, ...selected]));
+    toast.success(`${selected.size}명에 ${v}원을 입력했어요. 저장을 눌러 주세요.`);
+  }
+
+  // 화면에 입력된 값 중 서버와 다른 것만 모아 한 번에 저장한다.
+  function saveAll() {
+    const entries = editableRows
+      .filter((r) => {
+        if (!dirtyIds.has(r.dancerId)) return false;
+        const v = (amounts[r.dancerId] ?? "").trim();
+        return v !== "" && v !== formatWonInput(r.grossAmount);
+      })
+      .map((r) => ({ dancerId: r.dancerId, amount: amounts[r.dancerId] }));
+    if (entries.length === 0) {
+      toast.message("저장할 변경 사항이 없어요.");
+      return;
+    }
+    const fd = new FormData();
+    fd.set("project_id", projectId);
+    fd.set("entries", JSON.stringify(entries));
+    startTransition(async () => {
+      const res = await setSettlementAmountsBulkAction(fd);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      const { saved, failures } = res.data!;
+      if (failures.length > 0) {
+        // 실패가 있으면 선택·입력을 그대로 둔다 — 다시 고르게 만들면 안 된다.
+        toast.error(
+          saved > 0
+            ? `${saved}명 저장, ${failures.length}명 실패 — ${failures[0].error}`
+            : `저장하지 못했어요 — ${failures[0].error}`,
+        );
+        if (saved > 0) router.refresh();
+        return;
+      }
+      toast.success(`${saved}명의 정산 금액을 저장했어요.`);
+      setSelected(new Set());
+      setBulkAmount("");
+      setDirtyIds(new Set());
+      router.refresh();
+    });
+  }
 
   const totalGross = rows.reduce((sum, r) => sum + (r.grossAmount ?? 0), 0);
   const margin =
@@ -221,18 +338,81 @@ export function OwnerSettlementConsole({
             보내 정산 정보를 받아 보세요.
           </div>
         ) : (
-          <ul className="flex flex-col gap-3">
-            {rows.map((r) => (
-              <DancerRow
-                key={r.id}
-                projectId={projectId}
-                row={r}
-                busy={busy}
-                startTransition={startTransition}
-                onDone={() => router.refresh()}
-              />
-            ))}
-          </ul>
+          <>
+            {/* 여러 명 금액을 한 번에 넣고 한 번에 저장 — 7명짜리 프로젝트에서
+                한 명씩 저장하면 화면이 새로 그려져 나머지 입력이 날아갔다. */}
+            {editableRows.length > 1 ? (
+              <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-ink-2">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      className="h-4 w-4 accent-[var(--primary)]"
+                    />
+                    전체 선택 ({editableRows.length}명)
+                  </label>
+                  <span className="text-[11px] text-ink-3">
+                    {selected.size > 0 ? `${selected.size}명 선택됨` : "선택 없음"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    inputMode="numeric"
+                    value={bulkAmount}
+                    onChange={(e) => setBulkAmount(formatWonInput(e.target.value))}
+                    placeholder="선택한 인원에 넣을 금액 (원)"
+                    disabled={busy}
+                    className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyBulkAmount}
+                    disabled={busy}
+                    className="shrink-0 rounded-xl border border-border px-3 py-2 text-xs font-semibold text-ink-2 active:bg-secondary disabled:opacity-50"
+                  >
+                    일괄 입력
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={saveAll}
+                  disabled={busy}
+                  className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground active:opacity-80 disabled:opacity-50"
+                >
+                  {busy ? "저장 중…" : "전체 저장"}
+                </button>
+                <p className="text-[11px] text-ink-3">
+                  일괄 입력은 칸을 채우기만 해요. 개별로 고친 뒤 ‘전체 저장’을 누르면
+                  바뀐 금액만 한 번에 저장됩니다.
+                </p>
+              </div>
+            ) : null}
+            <ul className="flex flex-col gap-3">
+              {rows.map((r) => (
+                <DancerRow
+                  key={r.id}
+                  projectId={projectId}
+                  row={r}
+                  busy={busy}
+                  amount={amounts[r.dancerId] ?? ""}
+                  onAmountChange={(v) => setAmountFor(r.dancerId, v)}
+                  selected={selected.has(r.dancerId)}
+                  onToggle={() =>
+                    setSelected((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(r.dancerId)) next.delete(r.dancerId);
+                      else next.add(r.dancerId);
+                      return next;
+                    })
+                  }
+                  startTransition={startTransition}
+                  onDone={() => router.refresh()}
+                />
+              ))}
+            </ul>
+          </>
         )}
       </section>
 
@@ -342,17 +522,25 @@ function DancerRow({
   projectId,
   row,
   busy,
+  amount,
+  onAmountChange,
+  selected,
+  onToggle,
   startTransition,
   onDone,
 }: {
   projectId: string;
   row: OwnerSettlementRow;
   busy: boolean;
+  /** 금액은 상위에서 보관한다 — 일괄 입력·일괄 저장이 같은 값을 공유해야 하므로. */
+  amount: string;
+  onAmountChange: (v: string) => void;
+  selected: boolean;
+  onToggle: () => void;
   startTransition: (cb: () => void) => void;
   onDone: () => void;
 }) {
-  const [amount, setAmount] = useState(formatWonInput(row.grossAmount));
-  const locked = row.status === "paid";
+  const locked = row.status === "paid" || row.status === "requested" || row.status === "cancelled";
   const calc =
     row.grossAmount != null ? calcSettlement(row.grossAmount, row.rate) : null;
 
@@ -375,6 +563,15 @@ function DancerRow({
   return (
     <li className="flex flex-col gap-2.5 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-1 items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggle}
+            disabled={locked}
+            aria-label={`${row.dancerName} 선택`}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)] disabled:opacity-40"
+          />
         <div className="flex flex-col gap-1">
           <span className="text-sm font-semibold">{row.dancerName}</span>
           <div className="flex flex-wrap items-center gap-1">
@@ -403,6 +600,7 @@ function DancerRow({
             </span>
           </div>
         </div>
+        </div>
         <span className="shrink-0 rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold text-ink-2">
           {settlementStageLabel(row.status, row.grossAmount)}
         </span>
@@ -416,7 +614,7 @@ function DancerRow({
           <input
             inputMode="numeric"
             value={amount}
-            onChange={(e) => setAmount(formatWonInput(e.target.value))}
+            onChange={(e) => onAmountChange(formatWonInput(e.target.value))}
             placeholder="원"
             disabled={busy || locked}
             className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-60"
