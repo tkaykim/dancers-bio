@@ -1,7 +1,6 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { canManageProject, requireUser } from "@/lib/auth/guard";
 import type { ActionResult } from "@/app/actions/auth";
 
@@ -28,20 +27,38 @@ export type PastProject = {
   createdAt: string;
 };
 
-/** 내가 관리하는 프로젝트 id 목록 (현재 프로젝트 제외). */
+/**
+ * 내가 **관리하는** 프로젝트 id 목록 (현재 프로젝트 제외).
+ *
+ * ⚠ `projects` RLS는 공개 공고 *열람*을 허용하므로 여기에 기대면 남의 프로젝트까지
+ * 딸려온다. 소유자 + 공동관리자를 명시적으로 조회해야 한다(canManageProject와 동일 기준).
+ */
 async function myManagedProjectIds(
+  userId: string,
   excludeProjectId: string,
 ): Promise<string[]> {
-  const supabase = await createClient();
-  // RLS가 이미 "내가 관리 가능한 프로젝트"만 노출하므로 여기서 별도 필터가 필요 없다.
-  const { data } = await supabase
-    .from("projects")
-    .select("id")
-    .is("deleted_at", null)
-    .neq("id", excludeProjectId)
-    .order("created_at", { ascending: false })
-    .limit(300);
-  return (data ?? []).map((p) => p.id as string);
+  const admin = createAdminClient();
+  const [{ data: owned }, { data: managed }] = await Promise.all([
+    admin
+      .from("projects")
+      .select("id")
+      .eq("owner_id", userId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(300),
+    admin
+      .from("project_managers")
+      .select("project_id")
+      .eq("profile_id", userId)
+      .limit(300),
+  ]);
+
+  const ids = new Set<string>();
+  for (const p of (owned ?? []) as Array<{ id: string }>) ids.add(p.id);
+  for (const m of (managed ?? []) as Array<{ project_id: string }>)
+    ids.add(m.project_id);
+  ids.delete(excludeProjectId);
+  return [...ids];
 }
 
 /**
@@ -51,11 +68,11 @@ async function myManagedProjectIds(
 export async function frequentDancersAction(
   projectId: string,
 ): Promise<ActionResult<{ dancers: RosterDancer[] }>> {
-  await requireUser();
+  const user = await requireUser();
   if (!(await canManageProject(projectId)))
     return { ok: false, error: "권한이 없습니다." };
 
-  const projectIds = await myManagedProjectIds(projectId);
+  const projectIds = await myManagedProjectIds(user.id, projectId);
   if (projectIds.length === 0) return { ok: true, data: { dancers: [] } };
 
   const admin = createAdminClient();
@@ -127,11 +144,11 @@ export async function frequentDancersAction(
 export async function pastProjectsAction(
   projectId: string,
 ): Promise<ActionResult<{ projects: PastProject[] }>> {
-  await requireUser();
+  const user = await requireUser();
   if (!(await canManageProject(projectId)))
     return { ok: false, error: "권한이 없습니다." };
 
-  const projectIds = await myManagedProjectIds(projectId);
+  const projectIds = await myManagedProjectIds(user.id, projectId);
   if (projectIds.length === 0) return { ok: true, data: { projects: [] } };
 
   const admin = createAdminClient();
