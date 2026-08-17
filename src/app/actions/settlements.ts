@@ -748,6 +748,20 @@ export async function saveResidentNumberAction(
 export async function requestWithdrawalAction(
   fd: FormData,
 ): Promise<ActionResult> {
+  // ⛔ 정산 건별 출금은 신규 신청을 받지 않는다(잔액 출금으로 일원화).
+  // 두 경로를 함께 열어두면 같은 돈이 정산 출금과 잔액 출금으로 각각 지급되는
+  // 이중 지급이 가능하다. 이미 신청된 기존 건은 관리자 화면에서 그대로 소진한다.
+  return {
+    ok: false,
+    error:
+      "출금 방식이 잔액 출금으로 바뀌었어요. ‘출금하기’에서 원하는 금액을 신청해 주세요.",
+  };
+}
+
+/** @deprecated 잔액 출금으로 대체됨. 기존 신청 건 처리 참고용으로 보존. */
+async function requestWithdrawalActionLegacy(
+  fd: FormData,
+): Promise<ActionResult> {
   const user = await requireUser();
   const settlementId = (fd.get("settlement_id") ?? "").toString().trim();
   if (!settlementId) return { ok: false, error: "잘못된 요청입니다." };
@@ -763,6 +777,7 @@ export async function requestWithdrawalAction(
   const mine = await myDancerIds(user.id);
   if (!mine.has(s.dancer_id as string))
     return { ok: false, error: "본인 정산 건만 출금 신청할 수 있습니다." };
+
   if (s.status === "paid")
     return { ok: false, error: "이미 입금완료된 건입니다." };
   if (s.status === "requested")

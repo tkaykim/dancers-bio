@@ -3,6 +3,10 @@ import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  BalanceWithdrawalQueue,
+  type BalanceWithdrawalRow,
+} from "@/components/admin/BalanceWithdrawalQueue";
+import {
   WithdrawalRequests,
   type WithdrawalRow,
 } from "@/components/admin/WithdrawalRequests";
@@ -124,6 +128,52 @@ export default async function AdminSettlementsPage() {
     };
   });
 
+  // 잔액 기반 부분 출금 신청 큐 (기존 정산 건별 출금과 별개 경로).
+  const svcAdmin = createAdminClient();
+  const { data: wrRows } = await svcAdmin
+    .from("withdrawal_requests")
+    .select("id, dancer_id, amount, requested_at, bank_name, bank_account_number, bank_account_holder")
+    .eq("status", "requested")
+    .order("requested_at", { ascending: true });
+  const wrDancerIds = [
+    ...new Set(((wrRows ?? []) as Array<{ dancer_id: string }>).map((r) => r.dancer_id)),
+  ];
+  const wrNameById = new Map<string, string>();
+  if (wrDancerIds.length > 0) {
+    const { data: dRows } = await svcAdmin
+      .from("dancers")
+      .select("id, stage_name, korean_name")
+      .in("id", wrDancerIds);
+    for (const d of (dRows ?? []) as Array<{
+      id: string;
+      stage_name: string | null;
+      korean_name: string | null;
+    }>) {
+      const stage = d.stage_name ?? "댄서";
+      wrNameById.set(
+        d.id,
+        d.korean_name && d.korean_name !== stage ? `${stage} (${d.korean_name})` : stage,
+      );
+    }
+  }
+  const balanceRows: BalanceWithdrawalRow[] = ((wrRows ?? []) as Array<{
+    id: string;
+    dancer_id: string;
+    amount: number;
+    requested_at: string;
+    bank_name: string | null;
+    bank_account_number: string | null;
+    bank_account_holder: string | null;
+  }>).map((r) => ({
+    id: r.id,
+    dancerName: wrNameById.get(r.dancer_id) ?? "댄서",
+    amount: Number(r.amount),
+    requestedAt: r.requested_at,
+    bankName: r.bank_name,
+    accountNumber: r.bank_account_number,
+    accountHolder: r.bank_account_holder,
+  }));
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
@@ -147,6 +197,7 @@ export default async function AdminSettlementsPage() {
           아니라 국세청에 납부되는 세금(소득세 3% + 지방소득세 0.3%)입니다.
         </p>
       </header>
+      <BalanceWithdrawalQueue rows={balanceRows} />
       <WithdrawalRequests rows={list} />
     </div>
   );
