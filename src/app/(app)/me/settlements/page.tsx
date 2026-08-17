@@ -4,6 +4,11 @@ import { requireUser } from "@/lib/auth/guard";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { BRAND_META } from "@/lib/brand";
 import { brandMetadata, getBrand } from "@/lib/brand-server";
+import {
+  BalanceWithdraw,
+  type PendingWithdrawal,
+} from "@/components/settlement/BalanceWithdraw";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   MySettlements,
@@ -123,6 +128,53 @@ export default async function MySettlementsPage() {
     }
   }
 
+  // 잔액 원장 기반 부분 출금 데이터.
+  // 잔액은 이미 세후이므로 여기서 추가 공제가 없다.
+  const balanceByDancer: Record<string, { balance: number; available: number }> = {};
+  const pendingByDancer: Record<string, PendingWithdrawal[]> = {};
+  if (dancerIds.length > 0) {
+    const svc = createAdminClient();
+    const [{ data: ledgerRows }, { data: wrRows }] = await Promise.all([
+      svc.from("dancer_ledger_entries").select("dancer_id, amount").in("dancer_id", dancerIds),
+      svc
+        .from("withdrawal_requests")
+        .select("id, dancer_id, amount, requested_at, bank_name, bank_account_number, status")
+        .in("dancer_id", dancerIds)
+        .eq("status", "requested")
+        .order("requested_at", { ascending: false }),
+    ]);
+    for (const id of dancerIds) {
+      const bal = (ledgerRows ?? [])
+        .filter((r) => (r as { dancer_id: string }).dancer_id === id)
+        .reduce((sum, r) => sum + Number((r as { amount: number }).amount), 0);
+      const reqs = (wrRows ?? []).filter(
+        (r) => (r as { dancer_id: string }).dancer_id === id,
+      );
+      const held = reqs.reduce(
+        (sum, r) => sum + Number((r as { amount: number }).amount),
+        0,
+      );
+      balanceByDancer[id] = { balance: bal, available: bal - held };
+      pendingByDancer[id] = reqs.map((r) => {
+        const row = r as {
+          id: string;
+          amount: number;
+          requested_at: string;
+          bank_name: string | null;
+          bank_account_number: string | null;
+        };
+        const no = row.bank_account_number ?? "";
+        return {
+          id: row.id,
+          amount: Number(row.amount),
+          requestedAt: row.requested_at,
+          bankName: row.bank_name,
+          accountTail: no ? `***${no.slice(-4)}` : null,
+        };
+      });
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6 px-6 pb-10 pt-8">
       <header className="flex flex-col gap-1">
@@ -143,6 +195,19 @@ export default async function MySettlementsPage() {
         </p>
       </header>
 
+      {dancerIds.map((id) => (
+        <BalanceWithdraw
+          key={id}
+          dancerId={id}
+          dancerName={nameById.get(id) ?? "내 프로필"}
+          balance={balanceByDancer[id]?.balance ?? 0}
+          available={balanceByDancer[id]?.available ?? 0}
+          pending={pendingByDancer[id] ?? []}
+          payoutReady={payoutReady[id] ?? false}
+          brandName={BRAND_META[brand].orgName}
+        />
+      ))}
+
       {dancerIds.length === 0 ? (
         <div className="rounded-2xl border border-border bg-card p-5 text-sm text-ink-3">
           댄서 포트폴리오가 있어야 정산을 받을 수 있어요.{" "}
@@ -159,6 +224,7 @@ export default async function MySettlementsPage() {
           docs={docs}
           dancerNames={Object.fromEntries(nameById)}
           brandName={BRAND_META[brand].orgName}
+          hideWithdrawUI
         />
       )}
     </div>

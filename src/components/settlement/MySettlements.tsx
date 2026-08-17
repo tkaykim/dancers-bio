@@ -64,6 +64,10 @@ export function MySettlements({
   dancerNames,
   // 화이트라벨(/w GRIGO 호스트)에서 원천징수 주체 표기를 브랜드에 맞추기 위한 표시명.
   brandName = "deetz",
+  // 출금이 잔액(원장) 기반으로 옮겨간 화면에서는 여기의 출금 UI를 숨긴다.
+  // 두 곳에 서로 다른 기준(세전/세후)의 '출금 가능 금액'이 함께 보이면 혼란스럽고,
+  // 정산 건별 출금은 서버에서 이미 차단돼 눌러도 실패한다.
+  hideWithdrawUI = false,
 }: {
   settlements: MySettlementRow[];
   accounts: Record<string, PayoutAccount | null>;
@@ -72,6 +76,7 @@ export function MySettlements({
   docs: Record<string, DancerDocsState>;
   dancerNames: Record<string, string>;
   brandName?: string;
+  hideWithdrawUI?: boolean;
 }) {
   const router = useRouter();
   const [confirm, setConfirm] = useState<MySettlementRow | null>(null);
@@ -108,7 +113,12 @@ export function MySettlements({
   return (
     <div className="flex flex-col gap-6">
       {/* 출금 가능 잔액 + 올해 받은 정산 요약 */}
-      <section className="grid grid-cols-2 gap-2">
+      <section
+        className={
+          hideWithdrawUI ? "grid grid-cols-1 gap-2" : "grid grid-cols-2 gap-2"
+        }
+      >
+        {hideWithdrawUI ? null : (
         <div className="flex flex-col gap-1 rounded-2xl border border-border bg-gradient-to-br from-primary/10 to-card p-4">
           <span className="text-[11px] font-medium text-ink-3">출금 가능 금액</span>
           <span className="text-2xl font-extrabold tracking-tight text-foreground">
@@ -118,6 +128,7 @@ export function MySettlements({
             정산완료 {pendingRows.length}건 · 출금 시 3.3% 세금 공제
           </span>
         </div>
+        )}
         <div className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center justify-between gap-1">
             <span className="text-[11px] font-medium text-ink-3">받은 정산</span>
@@ -262,7 +273,7 @@ export function MySettlements({
                     </p>
                   </div>
 
-                  {s.status === "pending" ? (
+                  {s.status === "pending" && !hideWithdrawUI ? (
                     hasPayoutInfo ? (
                       <button
                         type="button"
