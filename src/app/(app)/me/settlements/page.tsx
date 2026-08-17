@@ -16,7 +16,7 @@ import {
   type PayoutAccount,
 } from "@/components/settlement/MySettlements";
 import type { DancerDocsState } from "@/components/settlement/DancerDocuments";
-import type { SettlementStatus } from "@/lib/settlement";
+import { calcSettlement, type SettlementStatus } from "@/lib/settlement";
 import {
   isPayoutAccountValid,
   isPayoutInfoComplete,
@@ -154,7 +154,19 @@ export default async function MySettlementsPage() {
         (sum, r) => sum + Number((r as { amount: number }).amount),
         0,
       );
-      balanceByDancer[id] = { balance: bal, available: bal - held };
+      // ⚠ 이행기: 잔액 출금으로 일원화하기 전에 이미 '출금신청'된 정산 건이
+      // 관리자 큐에서 이체를 기다리고 있다. 그 금액도 예약으로 빼지 않으면
+      // 같은 돈을 잔액에서 또 신청할 수 있다(구 경로 + 신 경로 = 이중 지급).
+      const legacyHeld = settlements
+        .filter((x) => x.dancerId === id && x.status === "requested")
+        .reduce(
+          (sum, x) => sum + calcSettlement(x.grossAmount ?? 0, x.rate).net,
+          0,
+        );
+      balanceByDancer[id] = {
+        balance: bal,
+        available: bal - held - legacyHeld,
+      };
       pendingByDancer[id] = reqs.map((r) => {
         const row = r as {
           id: string;
