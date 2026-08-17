@@ -23,7 +23,8 @@
 --   · 금액확정(gross>0, status≠cancelled) → earn 1줄(세후액) 보장, 금액 변경 시 갱신
 --   · paid → withdraw 1줄(−세후액) 보장 / paid 해제 → withdraw 삭제
 --   · 취소·금액소멸·행삭제 → 그 정산에서 나온 줄 전부 삭제
--- 앱의 사후 sync 호출은 멱등이라 그대로 둬도 무해하다(같은 상태로 수렴).
+-- (라운드2 갱신) 앱의 사후 sync는 stale snapshot 경쟁 위험이 있어 전부 제거했다 —
+-- 원장 미러의 유일한 주체는 이 트리거다. src/lib/ledger.ts는 삭제됨.
 --
 -- SECURITY DEFINER 필수: 일괄 금액 저장은 관리권한자의 user 클라이언트로
 -- settlements를 UPDATE하는데(RLS settlements_manage), 그 사용자는 원장 테이블에

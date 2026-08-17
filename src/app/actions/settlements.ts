@@ -756,65 +756,6 @@ export async function requestWithdrawalAction(
   };
 }
 
-/** @deprecated 잔액 출금으로 대체됨. 기존 신청 건 처리 참고용으로 보존. */
-async function requestWithdrawalActionLegacy(
-  fd: FormData,
-): Promise<ActionResult> {
-  const user = await requireUser();
-  const settlementId = (fd.get("settlement_id") ?? "").toString().trim();
-  if (!settlementId) return { ok: false, error: "잘못된 요청입니다." };
-
-  const admin = createAdminClient();
-  const { data: s } = await admin
-    .from("settlements")
-    .select("id, dancer_id, status")
-    .eq("id", settlementId)
-    .maybeSingle();
-  if (!s) return { ok: false, error: "정산 내역을 찾을 수 없습니다." };
-
-  const mine = await myDancerIds(user.id);
-  if (!mine.has(s.dancer_id as string))
-    return { ok: false, error: "본인 정산 건만 출금 신청할 수 있습니다." };
-
-  if (s.status === "paid")
-    return { ok: false, error: "이미 입금완료된 건입니다." };
-  if (s.status === "requested")
-    return { ok: false, error: "이미 출금 신청한 건입니다." };
-  if (s.status !== "pending")
-    return { ok: false, error: "출금 신청할 수 없는 상태입니다." };
-
-  // 계좌 등록 확인
-  const { data: pi } = await admin
-    .from("dancer_private_info")
-    .select(
-      "bank_name, bank_account_number, bank_account_holder, resident_registration_number",
-    )
-    .eq("dancer_id", s.dancer_id)
-    .maybeSingle();
-  if (!isPayoutInfoComplete(pi))
-    return {
-      ok: false,
-      error: "출금 신청 전에 유효한 입금 계좌와 주민(외국인)등록번호를 모두 등록해 주세요.",
-    };
-
-  const { data: updated, error } = await admin
-    .from("settlements")
-    .update({ status: "requested", requested_at: new Date().toISOString() })
-    .eq("id", settlementId)
-    .eq("status", "pending")
-    .select("id")
-    .maybeSingle();
-  if (error) return { ok: false, error: "신청에 실패했습니다. 다시 시도해 주세요." };
-  if (!updated)
-    return { ok: false, error: "상태가 변경되었습니다. 새로고침 후 다시 시도해 주세요." };
-
-  // 경영지원실(슈퍼관리자)에게 출금신청 접수 알림 (비치명적).
-  await notifyAdminsWithdrawalRequested(settlementId);
-
-  revalidatePath("/me/settlements");
-  revalidatePath("/admin/settlements");
-  return { ok: true };
-}
 
 // ── 관리자: 미지급 정산 취소 (pending/requested → cancelled) ──────────────
 // 테스트 제출·중복·지급 대상 아님을 확인한 건을 대기열에서 제외한다.
