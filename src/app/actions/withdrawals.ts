@@ -30,49 +30,6 @@ async function myDancerIds(userId: string): Promise<string[]> {
   return (data ?? []).map((d) => d.id as string);
 }
 
-export type BalanceSummary = {
-  dancerId: string;
-  balance: number;
-  /** 지금 신청 가능한 금액 = 잔액 − 신청중 합계 */
-  available: number;
-  pendingRequested: number;
-};
-
-/** 본인 잔액·가용잔액 조회. */
-export async function myBalanceAction(): Promise<
-  ActionResult<{ balances: BalanceSummary[] }>
-> {
-  const user = await requireUser();
-  const ids = await myDancerIds(user.id);
-  if (ids.length === 0) return { ok: true, data: { balances: [] } };
-
-  const admin = createAdminClient();
-  const [{ data: ledger }, { data: reqs }] = await Promise.all([
-    admin.from("dancer_ledger_entries").select("dancer_id, amount").in("dancer_id", ids),
-    admin
-      .from("withdrawal_requests")
-      .select("dancer_id, amount")
-      .in("dancer_id", ids)
-      .eq("status", "requested"),
-  ]);
-
-  const balances: BalanceSummary[] = ids.map((id) => {
-    const balance = (ledger ?? [])
-      .filter((r) => (r as { dancer_id: string }).dancer_id === id)
-      .reduce((s, r) => s + Number((r as { amount: number }).amount), 0);
-    const pendingRequested = (reqs ?? [])
-      .filter((r) => (r as { dancer_id: string }).dancer_id === id)
-      .reduce((s, r) => s + Number((r as { amount: number }).amount), 0);
-    return {
-      dancerId: id,
-      balance,
-      pendingRequested,
-      available: balance - pendingRequested,
-    };
-  });
-  return { ok: true, data: { balances } };
-}
-
 const requestSchema = z.object({
   dancerId: z.string().uuid(),
   amount: z.number().int().positive().max(1_000_000_000),

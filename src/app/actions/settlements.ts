@@ -10,7 +10,6 @@ import { DEFAULT_WITHHOLDING_RATE, calcSettlement, formatWon } from "@/lib/settl
 import { sendGmailEmail } from "@/lib/gmail";
 import { buildWithdrawalRequestEmail } from "@/lib/notify/settlement-mail";
 import { notify } from "@/lib/notify";
-import { syncSettlementLedger } from "@/lib/ledger";
 import {
   isPayoutInfoComplete,
   isResidentNumberValid,
@@ -351,7 +350,6 @@ export async function setSettlementAmountAction(
   // (알림 실패는 비치명적 — 금액 저장 자체는 성공으로 돌려준다)
   if (shouldNotify) await notifyDancerSettlement(id, "confirmed");
   // 금액이 확정되면 그 순간부터 댄서의 잔액이다(세후 기준, 멱등).
-  await syncSettlementLedger(id);
 
   revalidatePath(`/projects/${projectId}/applicants`);
   revalidatePath(`/projects/${projectId}/settlements`);
@@ -506,7 +504,6 @@ export async function setSettlementAmountsBulkAction(
   for (let i = 0; i < notifyIds.length; i += CONCURRENCY) {
     const chunk = notifyIds.slice(i, i + CONCURRENCY);
     await Promise.all(chunk.map((id) => notifyDancerSettlement(id, "confirmed")));
-    await Promise.all(chunk.map((id) => syncSettlementLedger(id)));
   }
 
   revalidatePath(`/projects/${projectId}/settlements`);
@@ -854,7 +851,6 @@ export async function cancelSettlementAction(
     return { ok: false, error: "상태가 변경되었습니다. 새로고침 후 다시 시도해 주세요." };
 
   // 취소된 정산은 잔액에서도 빠져야 한다.
-  await syncSettlementLedger(settlementId);
 
   revalidatePath("/admin/settlements");
   revalidatePath("/me/settlements");
@@ -900,8 +896,6 @@ export async function markSettlementPaidAction(
 
   // 입금완료 알림 — 인앱 + 웹푸시 + 알림톡(게이트).
   await notifyDancerSettlement(settlementId, "paid");
-  // 실제 이체가 끝났으므로 잔액에서 빠진다.
-  await syncSettlementLedger(settlementId);
 
   revalidatePath("/admin/settlements");
   revalidatePath("/me/settlements");
@@ -938,7 +932,6 @@ export async function markSettlementsPaidAction(
   // 입금완료 알림 — 실제로 paid 전환된 건만 (인앱 + 웹푸시 + 알림톡 게이트).
   for (const row of (data ?? []) as Array<{ id: string }>) {
     await notifyDancerSettlement(row.id as string, "paid");
-    await syncSettlementLedger(row.id as string);
   }
 
   revalidatePath("/admin/settlements");
