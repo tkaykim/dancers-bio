@@ -1,6 +1,7 @@
 "use server";
 
 import * as XLSX from "xlsx";
+import { matchBank } from "@/lib/banks";
 import { revalidatePath } from "next/cache";
 import { canManageProject, requireAdmin, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
@@ -1049,8 +1050,11 @@ export async function buildTransferFileAction(
     const proj = Array.isArray(s.project) ? s.project[0] ?? null : s.project;
     const projectTitle = (proj?.title as string) ?? "";
     const dancerName = nameById.get(s.dancer_id as string) ?? "";
+    // 앱 표시명("농협은행")을 그대로 넣으면 은행에서 반려된다 — 업로드 양식 표기("농협")로 정규화.
+    const bank =
+      matchBank(acct.bank_name as string)?.transfer ?? (acct.bank_name as string);
     rows.push([
-      acct.bank_name as string, // A 입금은행
+      bank, // A 입금은행
       accountNumber, // B 입금계좌번호 (숫자만, 문자열 — 앞 0 보존)
       net, // C 이체금액 = 실수령액(세전−3.3%)
       transferMemo(dancerName, projectTitle), // D 보내는분 통장표시
