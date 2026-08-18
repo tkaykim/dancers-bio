@@ -27,7 +27,10 @@ export default async function SignupPage() {
           시작해 봅시다
         </h1>
         <p className="text-sm text-ink-2">
-          이메일과 비밀번호로 가입하세요.
+          Create your deetz account
+        </p>
+        <p className="text-sm text-ink-3">
+          이메일과 비밀번호로 가입하세요. / Sign up with your email and password.
         </p>
       </div>
 

@@ -8,6 +8,7 @@ import { suggestEmailCorrection } from "@/lib/utils/email-typo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { InternationalPhoneField } from "@/components/auth/InternationalPhoneField";
 
 export function SignupForm() {
   const router = useRouter();
@@ -45,34 +46,23 @@ export function SignupForm() {
       className="flex flex-col gap-4"
     >
       <div className="flex flex-col gap-2">
-        <Label htmlFor="display_name">이름</Label>
+        <Label htmlFor="display_name">
+          이름 <span className="font-normal text-ink-3">/ Name</span>
+        </Label>
         <Input
           id="display_name"
           name="display_name"
           required
           maxLength={50}
-          placeholder="활동명 또는 본명"
+          placeholder="활동명 또는 본명 / Stage or legal name"
           autoComplete="name"
         />
       </div>
+      <InternationalPhoneField idPrefix="signup" />
       <div className="flex flex-col gap-2">
-        <Label htmlFor="phone">휴대폰 번호</Label>
-        <Input
-          id="phone"
-          name="phone"
-          type="tel"
-          required
-          inputMode="tel"
-          autoComplete="tel"
-          maxLength={20}
-          placeholder="010-1234-5678"
-        />
-        <p className="text-xs text-muted-foreground">
-          캐스팅 섭외 연락에 사용됩니다.
-        </p>
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="email">이메일</Label>
+        <Label htmlFor="email">
+          이메일 <span className="font-normal text-ink-3">/ Email</span>
+        </Label>
         <Input
           id="email"
           name="email"
@@ -98,7 +88,9 @@ export function SignupForm() {
         ) : null}
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">비밀번호</Label>
+        <Label htmlFor="password">
+          비밀번호 <span className="font-normal text-ink-3">/ Password</span>
+        </Label>
         <Input
           id="password"
           name="password"
@@ -107,7 +99,7 @@ export function SignupForm() {
           minLength={8}
           autoComplete="new-password"
         />
-        <p className="text-xs text-muted-foreground">8자 이상</p>
+        <p className="text-xs text-muted-foreground">8자 이상 / At least 8 characters</p>
       </div>
       {error ? (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -115,19 +107,20 @@ export function SignupForm() {
         </p>
       ) : null}
       <Button type="submit" disabled={pending} className="w-full">
-        {pending ? "가입하는 중..." : "가입하기"}
+        {pending ? "가입하는 중... / Signing up..." : "가입하기 / Sign up"}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
-        이미 계정이 있으신가요?{" "}
+        <span className="block">이미 계정이 있으신가요?</span>
+        <span className="block text-xs">Already have an account?</span>
         <Link
           href={
             redirectParam
               ? `/login?redirect=${encodeURIComponent(redirectParam)}`
               : "/login"
           }
-          className="font-medium text-foreground underline"
+          className="mt-1 inline-block font-medium text-foreground underline"
         >
-          로그인
+          로그인 / Log in
         </Link>
       </p>
     </form>

@@ -15,6 +15,8 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
     password: formData.get("password"),
     display_name: formData.get("display_name"),
     phone: formData.get("phone"),
+    phone_country: formData.get("phone_country"),
+    phone_unavailable: formData.get("phone_unavailable"),
   });
   if (!parsed.success) {
     return {
@@ -23,21 +25,17 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
     };
   }
 
-  // 숫자만 들어온 전화번호를 010-1234-5678 형태로 정규화해 저장.
-  const digits = parsed.data.phone;
-  const phone =
-    digits.length === 11
-      ? `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
-      : digits.length === 10
-        ? `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
-        : digits;
-
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
-      data: { display_name: parsed.data.display_name, phone },
+      data: {
+        display_name: parsed.data.display_name,
+        phone: parsed.data.phone ?? "",
+        phone_unavailable: parsed.data.phone_unavailable,
+        phone_country: parsed.data.phone_country,
+      },
     },
   });
   if (error) {
