@@ -10,6 +10,7 @@ import {
   EMPTY_CASTING_APPLICATION_DEFAULTS,
   type CastingApplicationDefaults,
 } from "@/lib/casting-application-details";
+import type { NationalityOption } from "@/lib/nationality";
 
 // Lite: 본인 own dancer 1개로만 지원. dancer 없으면 onboarding 유도.
 const FEE_CURRENCIES = ["KRW", "USD", "JPY", "EUR"] as const;
@@ -25,6 +26,7 @@ export function ApplyForm({
   recruitmentChannelId,
   recruitmentChannelName,
   recruitmentChannelCode,
+  nationalityOptions = [],
 }: {
   /** UUID — server action에 전달되는 canonical id. */
   projectId: string;
@@ -40,6 +42,8 @@ export function ApplyForm({
   recruitmentChannelId?: string | null;
   recruitmentChannelName?: string | null;
   recruitmentChannelCode?: string | null;
+  /** 공개 프로필에는 노출하지 않고, 지원서별 동의 시 담당자에게만 공개할 국적 목록. */
+  nationalityOptions?: NationalityOption[];
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
@@ -51,6 +55,8 @@ export function ApplyForm({
   const [feeCurrency, setFeeCurrency] = useState<string>("KRW");
   const [feeUnit, setFeeUnit] = useState<string>("회당");
   const [feeNegotiable, setFeeNegotiable] = useState(false);
+  const [nationalityDisclosureConsent, setNationalityDisclosureConsent] =
+    useState(false);
 
   function onFeeAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/[^\d]/g, "").slice(0, 10);
@@ -302,6 +308,40 @@ export function ApplyForm({
             입력한 금액을 기준으로 세부 조건은 협의 가능합니다.
           </label>
         </div>
+      ) : null}
+
+      {nationalityOptions.length > 0 ? (
+        <fieldset className="flex flex-col gap-2 rounded-lg border border-border bg-secondary/30 p-3">
+          <legend className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-ink-3">
+            국적 공개 동의 (선택)
+          </legend>
+          <p className="text-xs leading-relaxed text-ink-3">
+            공개 프로필에는 표시되지 않습니다. 이 지원서의 프로젝트 담당자에게만 아래 국적을 공개합니다.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {nationalityOptions.map((item) => (
+              <span
+                key={item.code}
+                className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
+              >
+                {item.label}
+              </span>
+            ))}
+          </div>
+          <label className="flex items-start gap-2 text-xs leading-relaxed text-ink-2">
+            <input
+              type="checkbox"
+              name="nationality_disclosure_consent"
+              value="true"
+              checked={nationalityDisclosureConsent}
+              onChange={(event) =>
+                setNationalityDisclosureConsent(event.target.checked)
+              }
+              className="mt-0.5 size-4 shrink-0"
+            />
+            <span>이 지원서의 담당자에게 국적을 공개하는 데 동의합니다.</span>
+          </label>
+        </fieldset>
       ) : null}
 
       {message ? (

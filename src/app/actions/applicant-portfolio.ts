@@ -3,6 +3,10 @@
 import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  normalizeNationalityOptions,
+  type NationalityOption,
+} from "@/lib/nationality";
 import type { ActionResult } from "./auth";
 
 export type PortfolioCareer = {
@@ -37,6 +41,8 @@ export type ApplicantPortfolio = {
   shoe_size_mm: number | null;
   contactEmail: string | null;
   contactPhone: string | null;
+  /** 지원서에서 공개 동의한 국적만 반환한다. */
+  disclosedNationalities: NationalityOption[];
   // 정산 — 이 프로젝트×댄서의 확정 금액/상태 (없으면 null)
   settlement: { gross_amount: number; status: string } | null;
 };
@@ -46,33 +52,32 @@ export type ApplicantPortfolio = {
 export async function getApplicantPortfolioAction(
   projectId: string,
   dancerId: string,
+  applicationId: string,
 ): Promise<ActionResult<ApplicantPortfolio>> {
   await requireUser();
-  if (!projectId || !dancerId) return { ok: false, error: "잘못된 요청입니다." };
+  if (!projectId || !dancerId || !applicationId)
+    return { ok: false, error: "잘못된 요청입니다." };
 
   const supabase = await createClient();
   const canManageWholeProject = await canManageProject(projectId);
   let canViewChannelApplicant = false;
   if (!canManageWholeProject) {
-    const { data: visibleApps } = await supabase
+    const { data: visibleApp } = await supabase
       .from("applications")
       .select("id, project_id, recruitment_channel_id")
+      .eq("id", applicationId)
+      .eq("project_id", projectId)
       .eq("dancer_id", dancerId)
       .not("recruitment_channel_id", "is", null)
       .is("archived_at", null)
-      .limit(20);
-    const channelIds = Array.from(
-      new Set(
-        ((visibleApps ?? []) as Array<{ recruitment_channel_id: string | null }>)
-          .map((app) => app.recruitment_channel_id)
-          .filter((id): id is string => !!id),
-      ),
-    );
-    if (channelIds.length > 0) {
+      .maybeSingle();
+    const channelId =
+      (visibleApp?.recruitment_channel_id as string | null) ?? null;
+    if (channelId) {
       const { data: visibleChannels } = await supabase
         .from("recruitment_channels")
         .select("id")
-        .in("id", channelIds)
+        .eq("id", channelId)
         .eq("project_id", projectId)
         .limit(1);
       canViewChannelApplicant = (visibleChannels?.length ?? 0) > 0;
@@ -133,8 +138,24 @@ export async function getApplicantPortfolioAction(
   let shoe_size_mm: number | null = null;
   let contactEmail: string | null = null;
   let contactPhone: string | null = null;
+  let disclosedNationalities: NationalityOption[] = [];
   let settlement: { gross_amount: number; status: string } | null = null;
   try {
+    const applicationQuery = admin
+      .from("applications")
+      .select("id, project_id, dancer_id, nationality_disclosure_consent, disclosed_nationalities")
+      .eq("id", applicationId)
+      .eq("project_id", projectId)
+      .eq("dancer_id", dancerId)
+      .is("archived_at", null)
+      .limit(1);
+    const { data: application } = await applicationQuery.maybeSingle();
+    if (application?.nationality_disclosure_consent === true) {
+      disclosedNationalities = normalizeNationalityOptions(
+        application.disclosed_nationalities,
+      );
+    }
+
     const { data: st } = await admin
       .from("settlements")
       .select("gross_amount, status")
@@ -161,9 +182,9 @@ export async function getApplicantPortfolioAction(
     const { data: app } = await admin
       .from("applications")
       .select("applicant_id")
+      .eq("id", applicationId)
       .eq("project_id", projectId)
       .eq("dancer_id", dancerId)
-      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     const acctId = (app?.applicant_id as string | null) ?? null;
@@ -193,6 +214,7 @@ export async function getApplicantPortfolioAction(
       shoe_size_mm,
       contactEmail,
       contactPhone,
+      disclosedNationalities,
       settlement,
     },
   };

@@ -21,6 +21,7 @@ import {
   EMPTY_CASTING_APPLICATION_DEFAULTS,
   type CastingApplicationDefaults,
 } from "@/lib/casting-application-details";
+import { normalizeNationalityOptions, type NationalityOption } from "@/lib/nationality";
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://deetz.kr").replace(
   /\/$/,
@@ -305,7 +306,9 @@ export default async function ProjectDetailPage({
           .maybeSingle(),
         admin
           .from("dancer_private_info")
-          .select("birth_date, height_cm")
+          .select(
+            "birth_date, height_cm, nationalities, nationality_code, nationality",
+          )
           .eq("dancer_id", ownDancerId)
           .maybeSingle(),
         admin
@@ -341,6 +344,7 @@ export default async function ProjectDetailPage({
       : dancer
         ? `${SITE_URL}/d/${dancer.slug ?? dancer.id}`
         : "";
+    const storedNationalities = normalizeNationalityOptions(privateInfo?.nationalities);
     castingDefaults = {
       applicant_name:
         ((dancer?.korean_name as string | null) ?? "").trim() ||
@@ -355,7 +359,36 @@ export default async function ProjectDetailPage({
       dance_video_url: danceVideo ?? "",
       backup_dancer_history: backupHistory,
       personal_profile_url: profileUrl,
+      nationality_options:
+        storedNationalities.length > 0
+          ? storedNationalities
+          : privateInfo?.nationality_code && privateInfo?.nationality
+            ? [
+                {
+                  code: String(privateInfo.nationality_code).trim().toUpperCase(),
+                  label: String(privateInfo.nationality).trim(),
+                } satisfies NationalityOption,
+              ]
+            : [],
     };
+  } else if (user && ownDancerId) {
+    const { data: privateInfo } = await admin
+      .from("dancer_private_info")
+      .select("nationalities, nationality_code, nationality")
+      .eq("dancer_id", ownDancerId)
+      .maybeSingle();
+    const stored = normalizeNationalityOptions(privateInfo?.nationalities);
+    castingDefaults.nationality_options =
+      stored.length > 0
+        ? stored
+        : privateInfo?.nationality_code && privateInfo?.nationality
+          ? [
+              {
+                code: String(privateInfo.nationality_code).trim().toUpperCase(),
+                label: String(privateInfo.nationality).trim(),
+              } satisfies NationalityOption,
+            ]
+          : [];
   }
 
   const sessions = (sessionsData ?? []) as SessionRow[];
@@ -656,6 +689,7 @@ export default async function ProjectDetailPage({
               collectFee={!!p.collect_applicant_fee}
               collectCastingDetails={!!p.collect_casting_details}
               castingDefaults={castingDefaults}
+              nationalityOptions={castingDefaults.nationality_options}
               recruitmentChannelId={activeRecruitmentChannel?.id ?? null}
               recruitmentChannelName={activeRecruitmentChannel?.name ?? null}
               recruitmentChannelCode={activeRecruitmentChannel?.share_code ?? null}

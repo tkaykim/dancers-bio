@@ -222,8 +222,11 @@ export function ApplicantPortfolioSheet({
     onDecide(target); // 대기/거절 — 서버가 확정도 함께 해제
   }
 
+  // 상세 시트가 열리거나 지원자가 바뀔 때 서버 데이터를 초기화하고 다시 읽는 의도적인 동기화 효과.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (!open || !dancerId) {
+    const applicationId = applicant?.applicationId;
+    if (!open || !dancerId || !applicationId) {
       setData(null);
       setError(null);
       return;
@@ -232,7 +235,7 @@ export function ApplicantPortfolioSheet({
     setLoading(true);
     setError(null);
     setData(null);
-    getApplicantPortfolioAction(projectId, dancerId).then((r) => {
+    getApplicantPortfolioAction(projectId, dancerId, applicationId).then((r) => {
       if (cancelled) return;
       setLoading(false);
       if (!r.ok) {
@@ -244,7 +247,8 @@ export function ApplicantPortfolioSheet({
     return () => {
       cancelled = true;
     };
-  }, [open, dancerId, projectId]);
+  }, [open, dancerId, projectId, applicant?.applicationId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const d = data?.dancer ?? null;
   const genreSet = new Set((d?.genres ?? []).map((g) => g.trim().toLowerCase()));
@@ -271,6 +275,7 @@ export function ApplicantPortfolioSheet({
   const shoeMm = data?.shoe_size_mm ?? null;
   const cEmail = data?.contactEmail ?? null;
   const cPhone = data?.contactPhone ?? null;
+  const disclosedNationalities = data?.disclosedNationalities ?? [];
   const submitted = applicant?.castingDetails ?? null;
   const hasSubmittedCastingDetails = submitted
     ? Object.values(submitted).some((value) => value != null && value !== "")
@@ -381,6 +386,20 @@ export function ApplicantPortfolioSheet({
               </p>
             ) : null}
           </div>
+        ) : null}
+
+        {disclosedNationalities.length > 0 ? (
+          <section className="rounded-xl border border-primary/25 bg-primary/5 p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">
+              지원자 공개 동의 국적
+            </p>
+            <p className="mt-1 text-sm font-medium">
+              {disclosedNationalities.map((item) => item.label).join(" · ")}
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-ink-3">
+              이 지원서에서 공개에 동의한 국적만 표시됩니다.
+            </p>
+          </section>
         ) : null}
 
         {hasSubmittedCastingDetails && submitted ? (
