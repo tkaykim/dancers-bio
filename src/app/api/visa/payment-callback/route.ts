@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
   const { data: current, error: readError } = await admin
     .from("dancer_visa_applications")
-    .select("id, payment_status, payment_order_no")
+    .select("id, email, payment_status, payment_order_no")
     .eq("id", applicationId)
     .maybeSingle();
 
@@ -78,10 +78,62 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  // ── 귀속 대상 결정 ──────────────────────────────────────────────────────
+  // 링크(ref 토큰)는 "발급받은 사람"을 가리키지만, 링크가 공유되면 다른 사람이 결제할 수 있다.
+  // 실제로 2026-08-18 Maia 앞으로 발급된 링크로 치나가 결제해, 돈 낸 사람이 미결제로
+  // 남는 사고가 있었다. 그래서 결제자 이메일(meta.customerEmail)을 우선한다:
+  //   - 결제자 이메일이 다른 케이스의 이메일과 일치하면 → 그 케이스에 귀속
+  //   - 어떤 케이스와도 일치하지 않으면 → 토큰 케이스에 붙이되 불일치를 남겨 확인을 요구
+  const payerEmail =
+    typeof meta?.customerEmail === "string" && meta.customerEmail.trim()
+      ? meta.customerEmail.trim().toLowerCase()
+      : null;
+
+  let target = current;
+  let payerMismatch = false;
+
+  if (event === "paid" && payerEmail && payerEmail !== (current.email ?? "").toLowerCase()) {
+    const { data: byEmail } = await admin
+      .from("dancer_visa_applications")
+      .select("id, email, payment_status, payment_order_no")
+      .ilike("email", payerEmail)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (byEmail) {
+      console.warn("[visa/payment-callback] payer email differs — rerouting", {
+        orderNo,
+        tokenCase: current.id,
+        payerCase: byEmail.id,
+      });
+      target = byEmail;
+    } else {
+      payerMismatch = true;
+    }
+  }
+
+  // 환불은 그 주문을 실제로 들고 있는 케이스를 뒤집어야 한다(귀속 변경 이후에도 정확하게).
+  if (event === "refunded") {
+    const { data: holder } = await admin
+      .from("dancer_visa_applications")
+      .select("id, email, payment_status, payment_order_no")
+      .eq("payment_order_no", orderNo)
+      .limit(1)
+      .maybeSingle();
+    if (holder) target = holder;
+  }
+
   // 같은 주문의 같은 이벤트가 재전송되면 조용히 성공 처리한다 (webhook 재시도 대비).
-  if (current.payment_status === event && current.payment_order_no === orderNo) {
+  if (target.payment_status === event && target.payment_order_no === orderNo) {
     return NextResponse.json({ ok: true, deduped: true });
   }
+
+  const enrichedMeta = {
+    ...(meta ?? {}),
+    ...(payerEmail ? { payer_email: payerEmail } : {}),
+    ...(target.id !== current.id ? { rerouted_from_case: current.id } : {}),
+    ...(payerMismatch ? { payer_email_mismatch: true } : {}),
+  };
 
   const patch =
     event === "paid"
@@ -92,22 +144,24 @@ export async function POST(request: NextRequest) {
           payment_amount_krw: amountKrw,
           paid_at: occurredAt,
           payment_refunded_at: null,
-          payment_meta: meta ?? {},
-          next_action: "결제 완료 — 다음 단계 안내",
+          payment_meta: enrichedMeta,
+          next_action: payerMismatch
+            ? "결제 완료 — 결제자 이메일이 케이스와 달라 확인 필요"
+            : "결제 완료 — 다음 단계 안내",
         }
       : {
           payment_status: "refunded",
           payment_order_no: orderNo,
           payment_provider: provider,
           payment_refunded_at: occurredAt,
-          payment_meta: meta ?? {},
+          payment_meta: enrichedMeta,
           next_action: "결제 취소·환불됨 — 확인 필요",
         };
 
   const { error: updateError } = await admin
     .from("dancer_visa_applications")
     .update(patch)
-    .eq("id", applicationId);
+    .eq("id", target.id);
 
   if (updateError) {
     console.error("[visa/payment-callback] update failed", updateError);
