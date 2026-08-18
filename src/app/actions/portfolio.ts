@@ -15,6 +15,11 @@ import {
 } from "@/lib/storage/dancer-portfolio-file";
 import { slugify } from "@/lib/utils/slug";
 import { buildSocialUrl } from "@/lib/utils/social";
+import { COUNTRIES, countryLabel } from "@/lib/data/countries";
+import {
+  normalizeNationalityOptions,
+  type NationalityOption,
+} from "@/lib/nationality";
 import {
   dancerOnboardingSchema,
   dancerProfileSchema,
@@ -179,9 +184,34 @@ function measurementsFromForm(formData: FormData) {
 // 국적·비자 — 폼에 nationality_code가 있을 때만 반영.
 // 한국 국적이면 비자 필드는 null로 정리. 외국인+비자있음일 때만 종류·만료 저장.
 function nationalityVisaPatchFromForm(formData: FormData): Record<string, unknown> {
-  const code = strOrNull(formData, "nationality_code");
-  if (!code) return {};
-  const isKorean = (formData.get("is_korean_national") ?? "").toString() === "true";
+  const rawList = (formData.get("nationalities_json") ?? "").toString().trim();
+  let parsedList: unknown = null;
+  if (rawList) {
+    try {
+      parsedList = JSON.parse(rawList);
+    } catch {
+      parsedList = null;
+    }
+  }
+  const allowedCodes = new Set(COUNTRIES.map((country) => country.code));
+  const nationalities: NationalityOption[] = normalizeNationalityOptions(
+    parsedList,
+  )
+    .filter((item) => allowedCodes.has(item.code))
+    .map((item) => ({
+      code: item.code,
+      label: countryLabel(item.code, "ko") || item.label,
+    }));
+  const fallbackCode = strOrNull(formData, "nationality_code")?.toUpperCase() ?? null;
+  if (nationalities.length === 0 && fallbackCode && allowedCodes.has(fallbackCode)) {
+    nationalities.push({
+      code: fallbackCode,
+      label: countryLabel(fallbackCode, "ko") || strOrNull(formData, "nationality") || fallbackCode,
+    });
+  }
+  if (nationalities.length === 0) return {};
+  const first = nationalities[0];
+  const isKorean = nationalities.some((item) => item.code === "KR");
   const hasVisaRaw = (formData.get("has_visa") ?? "").toString();
   const hasVisa = hasVisaRaw === "true" ? true : hasVisaRaw === "false" ? false : null;
   const visaType = isKorean ? null : strOrNull(formData, "visa_type");
@@ -193,8 +223,9 @@ function nationalityVisaPatchFromForm(formData: FormData): Record<string, unknow
       ? expiry
       : null;
   return {
-    nationality_code: code,
-    nationality: strOrNull(formData, "nationality"),
+    nationalities,
+    nationality_code: first.code,
+    nationality: first.label,
     is_korean_national: isKorean,
     has_visa: isKorean ? null : hasVisa,
     visa_type: visaType,

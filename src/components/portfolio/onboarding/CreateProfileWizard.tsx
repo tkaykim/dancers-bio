@@ -174,6 +174,7 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
       if (data.shoe_size_mm) fd.set("shoe_size_mm", data.shoe_size_mm);
       // 국적·비자 (대한민국 기본). 외국 국적이면 비자 정보 동반.
       const nv = data.nationalityVisa;
+      fd.set("nationalities_json", JSON.stringify(nv.nationalities));
       fd.set("nationality_code", nv.nationality_code);
       fd.set("nationality", nv.nationality);
       fd.set("is_korean_national", nv.is_korean_national ? "true" : "false");
@@ -486,7 +487,7 @@ function StepBasic({
             />
           </div>
           <p className="mt-1.5 text-xs text-ink-3">
-            입력하면 캐스팅 매칭·섭외 확률이 올라가요. 키 등 신체정보는 본인과 관리자에게만 보입니다.
+            입력하면 캐스팅 매칭·섭외 확률이 올라가요. 국적·신체정보는 본인과 관리자에게만 보이며, 지원할 때 별도로 공개 동의를 받습니다.
           </p>
         </Field>
 

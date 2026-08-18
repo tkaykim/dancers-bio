@@ -6,6 +6,7 @@ import { DancerProfileForm } from "@/components/portfolio/DancerProfileForm";
 import { CareersNavLink } from "@/components/portfolio/CareersNavLink";
 import { PortfolioFileUploader } from "@/components/portfolio/PortfolioFileUploader";
 import { extractSocialHandle } from "@/lib/utils/social";
+import type { NationalityOption } from "@/lib/nationality";
 
 export default async function MyPortfolioEditPage({
   params,
@@ -29,7 +30,7 @@ export default async function MyPortfolioEditPage({
   const { data: priv } = await supabase
     .from("dancer_private_info")
     .select(
-      "height_cm, shoe_size_mm, nationality_code, nationality, is_korean_national, has_visa, visa_type, visa_type_other, visa_expiry",
+      "height_cm, shoe_size_mm, nationalities, nationality_code, nationality, is_korean_national, has_visa, visa_type, visa_type_other, visa_expiry",
     )
     .eq("dancer_id", dancer.id)
     .maybeSingle();
@@ -101,6 +102,9 @@ export default async function MyPortfolioEditPage({
           height_cm: priv?.height_cm != null ? String(priv.height_cm) : "",
           shoe_size_mm: priv?.shoe_size_mm != null ? String(priv.shoe_size_mm) : "",
           nationalityVisa: {
+            nationalities: Array.isArray(priv?.nationalities)
+              ? (priv.nationalities as NationalityOption[])
+              : undefined,
             nationality_code: (priv?.nationality_code as string | null) ?? undefined,
             nationality: (priv?.nationality as string | null) ?? undefined,
             is_korean_national:

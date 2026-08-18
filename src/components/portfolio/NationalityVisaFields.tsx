@@ -8,11 +8,18 @@ import {
   countryLabel,
 } from "@/lib/data/countries";
 import { KOREA_VISAS } from "@/lib/data/korea-visas";
+import {
+  normalizeNationalityOptions,
+  MAX_NATIONALITIES,
+  type NationalityOption,
+} from "@/lib/nationality";
 import { cn } from "@/lib/utils";
 
 export type NationalityVisaValue = {
+  nationalities: NationalityOption[];
+  /** 하위 호환용 첫 번째 국적 코드 */
   nationality_code: string;
-  /** 표시용 라벨 (한글) — 서버에서 nationality 컬럼으로 저장 */
+  /** 하위 호환용 첫 번째 국적 라벨 */
   nationality: string;
   is_korean_national: boolean;
   has_visa: boolean | null;
@@ -37,12 +44,26 @@ const VISA_OPTIONS: SearchableOption[] = KOREA_VISAS.map((v) => ({
 export function buildNationalityVisaValue(
   partial?: Partial<NationalityVisaValue>,
 ): NationalityVisaValue {
-  const code = partial?.nationality_code || DEFAULT_COUNTRY_CODE;
+  const fromList = normalizeNationalityOptions(partial?.nationalities);
+  const legacyCode = partial?.nationality_code?.trim().toUpperCase() || DEFAULT_COUNTRY_CODE;
+  const nationalities =
+    fromList.length > 0
+      ? fromList
+      : [
+          {
+            code: legacyCode,
+            label:
+              partial?.nationality ||
+              countryLabel(legacyCode, "ko"),
+          },
+        ];
+  const code = nationalities[0]?.code || DEFAULT_COUNTRY_CODE;
   return {
+    nationalities,
     nationality_code: code,
-    nationality: partial?.nationality || countryLabel(code, "ko"),
+    nationality: nationalities[0]?.label || countryLabel(code, "ko"),
     is_korean_national:
-      partial?.is_korean_national ?? code === DEFAULT_COUNTRY_CODE,
+      nationalities.some((item) => item.code === DEFAULT_COUNTRY_CODE),
     has_visa: partial?.has_visa ?? null,
     visa_type: partial?.visa_type ?? "",
     visa_type_other: partial?.visa_type_other ?? "",
@@ -90,18 +111,49 @@ export function NationalityVisaFields({
 
   const setCountry = (code: string) => {
     const next = code || DEFAULT_COUNTRY_CODE;
-    const isKorean = next === DEFAULT_COUNTRY_CODE;
-    setState((prev) => ({
-      ...prev,
-      nationality_code: next,
-      nationality: countryLabel(next, "ko"),
-      is_korean_national: isKorean,
-      // 한국으로 바꾸면 비자 입력 초기화
-      has_visa: isKorean ? null : prev.has_visa,
-      visa_type: isKorean ? "" : prev.visa_type,
-      visa_type_other: isKorean ? "" : prev.visa_type_other,
-      visa_expiry: isKorean ? "" : prev.visa_expiry,
-    }));
+    setState((prev) => {
+      if (prev.nationalities.some((item) => item.code === next)) return prev;
+      const nationalities = [
+        ...prev.nationalities,
+        { code: next, label: countryLabel(next, "ko") },
+      ];
+      const isKorean = nationalities.some(
+        (item) => item.code === DEFAULT_COUNTRY_CODE,
+      );
+      return {
+        ...prev,
+        nationalities,
+        nationality_code: nationalities[0].code,
+        nationality: nationalities[0].label,
+        is_korean_national: isKorean,
+        // 한국 국적을 하나라도 가지면 한국 비자는 묻지 않는다.
+        has_visa: isKorean ? null : prev.has_visa,
+        visa_type: isKorean ? "" : prev.visa_type,
+        visa_type_other: isKorean ? "" : prev.visa_type_other,
+        visa_expiry: isKorean ? "" : prev.visa_expiry,
+      };
+    });
+  };
+
+  const removeCountry = (code: string) => {
+    setState((prev) => {
+      if (prev.nationalities.length <= 1) return prev;
+      const nationalities = prev.nationalities.filter((item) => item.code !== code);
+      const isKorean = nationalities.some(
+        (item) => item.code === DEFAULT_COUNTRY_CODE,
+      );
+      return {
+        ...prev,
+        nationalities,
+        nationality_code: nationalities[0].code,
+        nationality: nationalities[0].label,
+        is_korean_national: isKorean,
+        has_visa: isKorean ? null : prev.has_visa,
+        visa_type: isKorean ? "" : prev.visa_type,
+        visa_type_other: isKorean ? "" : prev.visa_type_other,
+        visa_expiry: isKorean ? "" : prev.visa_expiry,
+      };
+    });
   };
 
   const setHasVisa = (val: boolean) => {
@@ -124,6 +176,7 @@ export function NationalityVisaFields({
   };
 
   const isForeign = !state.is_korean_national;
+  const reachedNationalityLimit = state.nationalities.length >= MAX_NATIONALITIES;
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
@@ -132,16 +185,44 @@ export function NationalityVisaFields({
         <label className="text-sm font-medium text-ink-2">
           국적<span className="ml-1 text-destructive">*</span>
         </label>
-        <SearchableSelect
-          options={COUNTRY_OPTIONS}
-          value={state.nationality_code}
-          onChange={setCountry}
-          ariaLabel="국적 선택"
-          placeholder="국적 선택"
-          searchPlaceholder="국가명 검색 (한글/영문)"
-        />
+        <div className="flex flex-wrap gap-1.5">
+          {state.nationalities.map((item) => (
+            <span
+              key={item.code}
+              className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
+            >
+              {item.label}
+              {state.nationalities.length > 1 ? (
+                <button
+                  type="button"
+                  aria-label={`${item.label} 삭제`}
+                  onClick={() => removeCountry(item.code)}
+                  className="text-primary/70 hover:text-primary"
+                >
+                  ×
+                </button>
+              ) : null}
+            </span>
+          ))}
+        </div>
+        {reachedNationalityLimit ? (
+          <p className="rounded-lg border border-hairline-2 bg-secondary/50 px-3 py-2 text-xs text-ink-3">
+            국적은 최대 {MAX_NATIONALITIES}개까지 저장할 수 있습니다.
+          </p>
+        ) : (
+          <SearchableSelect
+            options={COUNTRY_OPTIONS.filter(
+              (option) => !state.nationalities.some((item) => item.code === option.value),
+            )}
+            value={null}
+            onChange={setCountry}
+            ariaLabel="국적 선택"
+            placeholder="국적 추가"
+            searchPlaceholder="국가명 검색 (한글/영문)"
+          />
+        )}
         <p className="text-xs text-ink-3">
-          기본값은 대한민국입니다. 다른 국적이면 검색해서 선택하세요.
+          복수 국적이면 모두 선택할 수 있습니다. 국적은 공개 프로필에 표시되지 않습니다.
         </p>
       </div>
 
@@ -226,6 +307,11 @@ export function NationalityVisaFields({
       {/* form action 용 hidden inputs */}
       {emitHiddenInputs ? (
         <>
+          <input
+            type="hidden"
+            name="nationalities_json"
+            value={JSON.stringify(state.nationalities)}
+          />
           <input type="hidden" name="nationality_code" value={state.nationality_code} />
           <input type="hidden" name="nationality" value={state.nationality} />
           <input

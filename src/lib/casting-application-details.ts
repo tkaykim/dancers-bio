@@ -1,3 +1,5 @@
+import type { NationalityOption } from "@/lib/nationality";
+
 export type CastingApplicationDefaults = {
   applicant_name: string;
   birth_year: string;
@@ -6,6 +8,7 @@ export type CastingApplicationDefaults = {
   dance_video_url: string;
   backup_dancer_history: string;
   personal_profile_url: string;
+  nationality_options: NationalityOption[];
 };
 
 export type SubmittedCastingDetails = {
@@ -26,4 +29,5 @@ export const EMPTY_CASTING_APPLICATION_DEFAULTS: CastingApplicationDefaults = {
   dance_video_url: "",
   backup_dancer_history: "",
   personal_profile_url: "",
+  nationality_options: [],
 };

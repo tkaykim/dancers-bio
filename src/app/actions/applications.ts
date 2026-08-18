@@ -11,6 +11,10 @@ import { isExpired } from "@/lib/utils/deadline";
 import { castingApplicationDetailsSchema } from "@/lib/validation/application-details";
 import { getRoundMessage, normalizeRounds } from "@/lib/application-stage";
 import { closeGmailPool, isFatalSmtpError } from "@/lib/gmail";
+import {
+  normalizeNationalityOptions,
+  type NationalityOption,
+} from "@/lib/nationality";
 import type { ActionResult } from "./auth";
 
 // Lite MVP: 1계정 = 1댄서 가정. team apply / manager-as-actor 분기 모두 제거.
@@ -83,6 +87,38 @@ export async function applyToProjectAction(
   const dancerId = ownDancers?.[0]?.id as string | undefined;
   if (!dancerId) {
     return { ok: false, error: NEEDS_DANCER_ERROR };
+  }
+
+  // 공개 동의는 지원서 단위로만 기록한다. 국적 목록은 클라이언트 값을 믿지 않고
+  // 본인 dancer_private_info에서 다시 읽어, 동의한 당시의 스냅샷으로 저장한다.
+  const requestedNationalityConsent =
+    formData.get("nationality_disclosure_consent") === "true";
+  let nationality_disclosure_consent = false;
+  let disclosed_nationalities: NationalityOption[] | null = null;
+  if (requestedNationalityConsent) {
+    const admin = createAdminClient();
+    const { data: privateInfo, error: privateInfoError } = await admin
+      .from("dancer_private_info")
+      .select("nationalities, nationality_code, nationality")
+      .eq("dancer_id", dancerId)
+      .maybeSingle();
+    if (privateInfoError) {
+      return { ok: false, error: "국적 정보를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요." };
+    }
+    const stored = normalizeNationalityOptions(privateInfo?.nationalities);
+    const fallbackCode = String(privateInfo?.nationality_code ?? "")
+      .trim()
+      .toUpperCase();
+    const fallbackLabel = String(privateInfo?.nationality ?? "").trim();
+    const nationalities =
+      stored.length > 0 || !fallbackCode || !fallbackLabel
+        ? stored
+        : [{ code: fallbackCode, label: fallbackLabel }];
+    if (nationalities.length === 0) {
+      return { ok: false, error: "프로필에 국적을 먼저 등록해 주세요." };
+    }
+    nationality_disclosure_consent = true;
+    disclosed_nationalities = nationalities;
   }
 
   // 단가(견적) — collect_applicant_fee 공고에서만 수집. 그 외엔 모두 null.
@@ -164,6 +200,8 @@ export async function applyToProjectAction(
     dance_video_url,
     backup_dancer_history,
     personal_profile_url,
+    nationality_disclosure_consent,
+    disclosed_nationalities,
   });
 
   if (error) {
