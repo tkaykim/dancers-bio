@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { profileUpdateSchema } from "@/lib/validation/profile";
+import { parseInternationalPhone } from "@/lib/phone";
 import type { ActionResult } from "./auth";
 
 export async function updateProfileAction(formData: FormData): Promise<ActionResult> {
@@ -22,20 +23,19 @@ export async function updateProfileAction(formData: FormData): Promise<ActionRes
     };
   }
 
-  // 전화번호(선택): 입력하면 검증·정규화해 저장, 비우면 변경하지 않음.
-  const digits = (formData.get("phone") ?? "").toString().replace(/[^0-9]/g, "");
-  let phoneUpdate: { phone?: string } = {};
-  if (digits) {
-    if (!/^01[016789]\d{7,8}$/.test(digits))
-      return {
-        ok: false,
-        error: "올바른 휴대폰 번호를 입력해 주세요. (예: 010-1234-5678)",
-      };
-    const phone =
-      digits.length === 11
-        ? `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
-        : `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-    phoneUpdate = { phone };
+  const phoneUnavailable = ["true", "on"].includes(
+    (formData.get("phone_unavailable") ?? "").toString(),
+  );
+  let phone: string | null = null;
+  if (!phoneUnavailable) {
+    const parsedPhone = parseInternationalPhone(
+      (formData.get("phone") ?? "").toString(),
+      (formData.get("phone_country") ?? "KR").toString(),
+    );
+    if (!parsedPhone.ok) {
+      return { ok: false, error: parsedPhone.error };
+    }
+    phone = parsedPhone.e164;
   }
 
   const supabase = await createClient();
@@ -45,7 +45,7 @@ export async function updateProfileAction(formData: FormData): Promise<ActionRes
       display_name: parsed.data.display_name,
       bio: parsed.data.bio ?? null,
       ...(parsed.data.avatar_url ? { avatar_url: parsed.data.avatar_url } : {}),
-      ...phoneUpdate,
+      phone,
     })
     .eq("id", user.id);
 

@@ -7,6 +7,7 @@ import { uploadAvatarFromBrowser } from "@/lib/storage/upload-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { InternationalPhoneField } from "@/components/auth/InternationalPhoneField";
 
 type Props = {
   userId: string;
@@ -67,21 +68,12 @@ export function ProfileEditForm({ userId, defaultValues, onSaved }: Props) {
         />
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="phone">휴대폰 번호</Label>
-        <Input
-          id="phone"
-          name="phone"
-          type="tel"
-          inputMode="numeric"
-          defaultValue={defaultValues.phone ?? ""}
-          placeholder="010-1234-5678"
-          maxLength={20}
-        />
-        <p className="text-xs text-muted-foreground">
-          섭외·정산 연락용. 입력하면 매니저에게만 보입니다.
-        </p>
-      </div>
+      <InternationalPhoneField
+        idPrefix="profile"
+        defaultValue={defaultValues.phone}
+        defaultUnavailable={!defaultValues.phone}
+        privacyHint
+      />
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="bio">소개</Label>
