@@ -2,6 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEventOrderOpsMail, sendEventOrderReceiptEmail } from "@/lib/notify/workshop-mails";
+import { PAYPAL_SUPPORTED_CURRENCIES } from "@/lib/workshops/event-shared";
 
 // 행사 주문 결제 — 예약금(payments.ts)에서 검증한 패턴의 행사판.
 //   · 상태 전이는 mark_event_order_paid() 가 원자적으로 1회만 성공 (recorded/already_recorded/recovery_required)
@@ -12,7 +13,7 @@ import { sendEventOrderOpsMail, sendEventOrderReceiptEmail } from "@/lib/notify/
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://deetz.kr";
 
 export type EventConfirmResult =
-  | { ok: true; orderNo: string; eventSlug: string | null; amountKrw: number; chargedLabel: string | null; idempotent: boolean }
+  | { ok: true; orderNo: string; eventSlug: string | null; amountKrw: number | null; chargedLabel: string | null; idempotent: boolean }
   | { ok: false; recovery: true; orderNo: string | null; error: string }
   | { ok: false; recovery?: false; error: string };
 
@@ -21,8 +22,9 @@ type OrderRow = {
   event_id: string;
   order_no: string;
   status: string;
-  amount_krw: number;
-  amount_thb: number | null;
+  currency: string | null;
+  amount_local: number | null;
+  amount_krw: number | null;
   amount_usd: number | null;
   customer_name: string;
   customer_email: string;
@@ -44,7 +46,7 @@ async function loadOrder(pgOrderId: string): Promise<{ order: OrderRow | null; e
   const { data: order } = await admin
     .from("workshop_event_orders")
     .select(
-      "id, event_id, order_no, status, amount_krw, amount_thb, amount_usd, customer_name, customer_email, customer_phone, lang",
+      "id, event_id, order_no, status, currency, amount_local, amount_krw, amount_usd, customer_name, customer_email, customer_phone, lang",
     )
     .eq("pg_order_id", pgOrderId)
     .maybeSingle();
@@ -155,7 +157,7 @@ async function finalizeEventPaid(params: {
       customerName: params.order.customer_name,
       customerEmail: params.order.customer_email,
       chargedLabel: chargedLabel(params.chargedCurrency, params.chargedAmount) ?? `${params.chargedAmount}`,
-      amountKrw: params.order.amount_krw,
+      amountKrw: params.order.amount_krw ?? null,
       provider: params.provider,
     });
   } catch (e) {
@@ -183,7 +185,7 @@ async function alertEventRecovery(
       artistName: "(행사 주문)",
       customerName: params.order.customer_name,
       customerEmail: params.order.customer_email,
-      amount: params.order.amount_krw,
+      amount: params.order.amount_krw ?? 0,
       provider: params.provider,
       paymentKey: params.paymentKey,
     });
@@ -224,9 +226,13 @@ export async function confirmEventTossPayment(params: {
       orderNo: order.order_no,
       eventSlug: event?.slug ?? null,
       amountKrw: order.amount_krw,
-      chargedLabel: `₩${order.amount_krw.toLocaleString("ko-KR")}`,
+      chargedLabel: order.amount_krw !== null ? `₩${order.amount_krw.toLocaleString("ko-KR")}` : null,
       idempotent: true,
     };
+  }
+  // KRW 가격이 없는 행사는 Toss 로 결제할 수 없다(UI 에서 숨기지만 방어).
+  if (order.amount_krw === null) {
+    return { ok: false, error: "이 행사는 원화 결제를 지원하지 않습니다." };
   }
   if (order.amount_krw !== amount) {
     console.error("[event-pay/toss] amount mismatch", { expected: order.amount_krw, received: amount });
@@ -317,14 +323,18 @@ export async function createEventPaypalOrder(params: {
   if (!order) return { ok: false, error: "Order not found." };
   if (order.status !== "pending") return { ok: false, error: "This order is already processed." };
 
-  // 청구 통화: 바트 총액이 있으면 THB 먼저, 없거나 거부되면 USD.
-  const thb = order.amount_thb === null ? null : Number(order.amount_thb);
+  // 청구 통화: 행사 통화(PayPal 지원 시) 우선, 아니면(또는 판매자 계정이 거부하면) USD 폴백.
+  const eventCcy = (order.currency ?? "USD").toUpperCase();
+  const local =
+    order.amount_local !== null && PAYPAL_SUPPORTED_CURRENCIES.has(eventCcy)
+      ? Number(order.amount_local)
+      : null;
   const usd = order.amount_usd === null ? null : Number(order.amount_usd);
-  if (thb === null && usd === null) return { ok: false, error: "Pricing is not configured." };
+  if (local === null && usd === null) return { ok: false, error: "Pricing is not configured." };
 
   try {
     const accessToken = await getPaypalAccessToken();
-    const createWith = async (currency: "THB" | "USD", value: number) => {
+    const createWith = async (currency: string, value: number) => {
       const response = await fetch(`${PAYPAL_API_URL}/v2/checkout/orders`, {
         method: "POST",
         headers: {
@@ -353,13 +363,13 @@ export async function createEventPaypalOrder(params: {
       return { response, body: await response.json() };
     };
 
-    let currency: "THB" | "USD" = thb !== null ? "THB" : "USD";
-    let value = currency === "THB" ? (thb as number) : (usd as number);
+    let currency = local !== null ? eventCcy : "USD";
+    let value = local !== null ? local : (usd as number);
     let attempt = await createWith(currency, value);
 
-    // 판매자 계정이 THB 를 거부하면 USD 로 1회 폴백한다.
-    if (!attempt.response.ok && currency === "THB" && usd !== null) {
-      console.warn("[event-pay/paypal] THB rejected, retrying in USD:", attempt.body);
+    // 판매자 계정이 행사 통화를 거부하면 USD 로 1회 폴백한다.
+    if (!attempt.response.ok && currency !== "USD" && usd !== null) {
+      console.warn(`[event-pay/paypal] ${currency} rejected, retrying in USD:`, attempt.body);
       currency = "USD";
       value = usd;
       attempt = await createWith(currency, value);

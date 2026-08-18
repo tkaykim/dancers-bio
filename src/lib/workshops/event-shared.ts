@@ -14,6 +14,10 @@ export type PublicEvent = {
   subtitle: string | null;
   description: string | null;
   poster_url: string | null;
+  country_code: string | null;
+  city: string | null;
+  /** 행사 통화 — 참가자 표시·PayPal 청구 통화. */
+  currency: string;
   venue_name: string | null;
   venue_address: string | null;
   venue_map_url: string | null;
@@ -37,8 +41,10 @@ export type PublicEventSession = {
   instructor_image_url: string | null;
   dancer_slug: string | null;
   level: string | null;
-  price_krw: number;
-  price_thb: number | null;
+  /** 행사 통화 기준 가격(정본). */
+  price_local: number | null;
+  /** Toss(한국 카드)용 — null 이면 해당 행사에서 Toss 옵션이 숨는다. */
+  price_krw: number | null;
   price_usd: number | null;
   venue_override: string | null;
   /** 정원 도달 또는 수동 마감 — 숫자는 절대 내려보내지 않는다. */
@@ -54,6 +60,51 @@ export const EVENT_ORDER_STATUS_LABEL: Record<EventOrderStatus, string> = {
   refunded: "환불 완료",
   recovery_required: "확인 필요 (결제됨)",
 };
+
+// ── 통화 ────────────────────────────────────────────────────────────────────
+
+/** PayPal 이 주문 통화로 받는 통화들(2026 기준 주요만). 여기 없으면 USD 폴백. */
+export const PAYPAL_SUPPORTED_CURRENCIES = new Set([
+  "AUD","BRL","CAD","CNY","CZK","DKK","EUR","HKD","HUF","ILS","JPY","MYR","MXN",
+  "TWD","NZD","NOK","PHP","PLN","GBP","SGD","SEK","CHF","THB","USD",
+]);
+
+/** 통화 표기 — 기호·소수점 자리. 없는 통화는 "CODE 1,234" 로. */
+const CURRENCY_INFO: Record<string, { symbol: string; decimals: number }> = {
+  KRW: { symbol: "₩", decimals: 0 },
+  THB: { symbol: "฿", decimals: 0 },
+  USD: { symbol: "$", decimals: 0 },
+  JPY: { symbol: "¥", decimals: 0 },
+  EUR: { symbol: "€", decimals: 0 },
+  TWD: { symbol: "NT$", decimals: 0 },
+  HKD: { symbol: "HK$", decimals: 0 },
+  SGD: { symbol: "S$", decimals: 0 },
+  PHP: { symbol: "₱", decimals: 0 },
+  CNY: { symbol: "¥", decimals: 0 },
+  GBP: { symbol: "£", decimals: 0 },
+};
+
+export function formatMoney(currency: string, amount: number): string {
+  const info = CURRENCY_INFO[currency];
+  const n = Number(amount).toLocaleString("en-US", {
+    maximumFractionDigits: info?.decimals ?? 2,
+  });
+  return info ? `${info.symbol}${n}` : `${currency} ${n}`;
+}
+
+/** 개최 국가 → 통화 자동 제안 (어드민 행사 생성 폼용). */
+export const CURRENCY_BY_COUNTRY: Record<string, string> = {
+  KR: "KRW", TH: "THB", JP: "JPY", US: "USD", TW: "TWD", HK: "HKD", SG: "SGD",
+  PH: "PHP", CN: "CNY", GB: "GBP", FR: "EUR", DE: "EUR", ES: "EUR", IT: "EUR",
+  VN: "USD", ID: "USD", MY: "MYR", AU: "AUD", CA: "CAD", MX: "MXN", BR: "BRL",
+};
+
+/** 주요 타임존 (어드민 select 용). */
+export const EVENT_TIMEZONES = [
+  "Asia/Seoul", "Asia/Bangkok", "Asia/Tokyo", "Asia/Taipei", "Asia/Hong_Kong",
+  "Asia/Singapore", "Asia/Manila", "Asia/Ho_Chi_Minh", "Asia/Jakarta", "Asia/Shanghai",
+  "America/Los_Angeles", "America/New_York", "Europe/London", "Europe/Paris", "Australia/Sydney",
+];
 
 /** "15:00:00" → "15:00" */
 export function hhmm(t: string): string {

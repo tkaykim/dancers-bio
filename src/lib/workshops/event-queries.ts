@@ -8,7 +8,7 @@ import type { PublicEvent, PublicEventSession } from "@/lib/workshops/event-shar
 //    공개 타입으로 변환할 때 "is_closed" 불리언으로 바꿔서 숫자를 절대 응답에 싣지 않는다.
 
 const EVENT_COLUMNS =
-  "id, slug, title, subtitle, description, poster_url, venue_name, venue_address, venue_map_url, timezone, starts_on, ends_on, apply_deadline, status, default_lang";
+  "id, slug, title, subtitle, description, poster_url, country_code, city, currency, venue_name, venue_address, venue_map_url, timezone, starts_on, ends_on, apply_deadline, status, default_lang";
 
 type SessionRow = PublicEventSession & { capacity: number; status: "open" | "closed" | "hidden" };
 
@@ -17,7 +17,7 @@ async function loadSessions(eventId: string): Promise<SessionRow[]> {
   const { data } = await admin
     .from("workshop_event_sessions")
     .select(
-      "id, sort, session_date, start_time, end_time, title, instructor_name, instructor_instagram, instructor_image_url, dancer_slug, level, capacity, price_krw, price_thb, price_usd, venue_override, status",
+      "id, sort, session_date, start_time, end_time, title, instructor_name, instructor_instagram, instructor_image_url, dancer_slug, level, capacity, price_local, price_krw, price_usd, venue_override, status",
     )
     .eq("event_id", eventId)
     .neq("status", "hidden")
@@ -76,8 +76,8 @@ export async function getPublicEventBySlug(
     instructor_image_url: s.instructor_image_url,
     dancer_slug: s.dancer_slug,
     level: s.level,
+    price_local: s.price_local === null ? null : Number(s.price_local),
     price_krw: s.price_krw,
-    price_thb: s.price_thb === null ? null : Number(s.price_thb),
     price_usd: s.price_usd === null ? null : Number(s.price_usd),
     venue_override: s.venue_override,
     // capacity 는 여기서 소멸한다 — 공개 응답엔 마감 여부만.
@@ -178,7 +178,7 @@ export async function getAdminEventDetail(eventId: string): Promise<{
   return {
     sessions: rows.map((s) => ({
       ...s,
-      price_thb: s.price_thb === null ? null : Number(s.price_thb),
+      price_local: s.price_local === null ? null : Number(s.price_local),
       price_usd: s.price_usd === null ? null : Number(s.price_usd),
       active_count: counts.get(s.id) ?? 0,
       paid_count: paidCounts.get(s.id) ?? 0,
@@ -195,16 +195,30 @@ export type AdminEventListRow = {
   id: string;
   slug: string;
   title: string;
+  subtitle: string | null;
+  description: string | null;
+  poster_url: string | null;
+  country_code: string | null;
+  city: string | null;
+  currency: string;
   status: string;
   starts_on: string;
+  ends_on: string;
+  apply_deadline: string | null;
+  timezone: string;
+  default_lang: string;
   venue_name: string | null;
+  venue_address: string | null;
+  venue_map_url: string | null;
 };
 
 export async function listAdminEvents(): Promise<AdminEventListRow[]> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("workshop_events")
-    .select("id, slug, title, status, starts_on, venue_name")
+    .select(
+      "id, slug, title, subtitle, description, poster_url, country_code, city, currency, status, starts_on, ends_on, apply_deadline, timezone, default_lang, venue_name, venue_address, venue_map_url",
+    )
     .order("starts_on", { ascending: false })
     .limit(100);
   return (data ?? []) as AdminEventListRow[];

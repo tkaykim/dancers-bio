@@ -82,8 +82,9 @@ export function EventAdminConsole({
             </div>
             <p className="mt-0.5 text-[12px] text-ink-3">
               {s.instructor_name}
-              {s.level ? ` · ${s.level}` : ""} · ₩{s.price_krw.toLocaleString("ko-KR")}
-              {s.price_thb ? ` / ฿${Number(s.price_thb).toLocaleString("en-US")}` : ""}
+              {s.level ? ` · ${s.level}` : ""}
+              {s.price_local !== null ? ` · ${Number(s.price_local).toLocaleString("en-US")}` : ""}
+              {s.price_krw !== null ? ` / ₩${s.price_krw.toLocaleString("ko-KR")}` : ""}
             </p>
             <div className="mt-2.5 flex items-center gap-2">
               <span

@@ -15,8 +15,8 @@ import {
 import { cn } from "@/lib/utils";
 import {
   ET,
-  formatBaht,
   formatKrw,
+  formatMoney,
   hhmm,
   type EventLang,
   type PublicEvent,
@@ -74,9 +74,11 @@ export function EventRegisterClient({
   }, [sessions]);
 
   const chosen = sessions.filter((s) => selected.has(s.id));
-  const totalKrw = chosen.reduce((sum, s) => sum + s.price_krw, 0);
-  const totalThb = chosen.every((s) => s.price_thb !== null)
-    ? chosen.reduce((sum, s) => sum + (s.price_thb ?? 0), 0)
+  const totalLocal = chosen.every((s) => s.price_local !== null)
+    ? chosen.reduce((sum, s) => sum + (s.price_local ?? 0), 0)
+    : null;
+  const totalKrw = chosen.every((s) => s.price_krw !== null)
+    ? chosen.reduce((sum, s) => sum + (s.price_krw ?? 0), 0)
     : null;
 
   const toggle = (s: PublicEventSession) => {
@@ -134,6 +136,7 @@ export function EventRegisterClient({
   const requestToss = useCallback(
     async (method: "CARD" | "TRANSFER") => {
       if (!session || !tossClientKey || requesting) return;
+      if (session.amountKrw === null) return;
       setRequesting(true);
       setError(null);
       try {
@@ -141,7 +144,7 @@ export function EventRegisterClient({
         const toss = await loadTossPayments(tossClientKey);
         const payment = toss.payment({ customerKey: session.customerKey ?? ANONYMOUS });
         const common = {
-          amount: { currency: "KRW" as const, value: session.amountKrw },
+          amount: { currency: "KRW" as const, value: session.amountKrw as number },
           orderId: session.pgOrderId,
           orderName: `${event.title} (${session.sessionCount})`,
           successUrl: `${origin}/workshops/e/pay/success?slug=${encodeURIComponent(event.slug)}&lang=${lang}`,
@@ -230,10 +233,16 @@ export function EventRegisterClient({
                         ) : (
                           <>
                             <p className="text-[14px] font-bold text-foreground">
-                              {s.price_thb !== null ? formatBaht(s.price_thb) : formatKrw(s.price_krw)}
+                              {s.price_local !== null
+                                ? formatMoney(event.currency, s.price_local)
+                                : s.price_krw !== null
+                                  ? formatKrw(s.price_krw)
+                                  : ""}
                             </p>
                             <p className="text-[10.5px] text-ink-4">
-                              {s.price_thb !== null ? formatKrw(s.price_krw) : t.perClass}
+                              {s.price_local !== null && s.price_krw !== null && event.currency !== "KRW"
+                                ? formatKrw(s.price_krw)
+                                : t.perClass}
                             </p>
                             <span
                               className={cn(
@@ -264,8 +273,12 @@ export function EventRegisterClient({
           <div>
             <p className="text-[12px] text-ink-3">{t.totalLabel(selected.size)}</p>
             <p className="text-lg font-bold tracking-tight">
-              {totalThb !== null ? formatBaht(totalThb) : formatKrw(totalKrw)}
-              {totalThb !== null ? (
+              {totalLocal !== null
+                ? formatMoney(event.currency, totalLocal)
+                : totalKrw !== null
+                  ? formatKrw(totalKrw)
+                  : ""}
+              {totalLocal !== null && totalKrw !== null && event.currency !== "KRW" ? (
                 <span className="ml-1.5 text-[12px] font-normal text-ink-3">{formatKrw(totalKrw)}</span>
               ) : null}
             </p>
@@ -369,13 +382,19 @@ export function EventRegisterClient({
             <div className="text-right">
               <p className="text-[12px] text-ink-3">{t.totalLabel(session.sessionCount)}</p>
               <p className="text-base font-bold">
-                {session.amountThb !== null ? formatBaht(session.amountThb) : formatKrw(session.amountKrw)}
+                {session.amountLocal !== null
+                  ? formatMoney(session.currency, session.amountLocal)
+                  : session.amountKrw !== null
+                    ? formatKrw(session.amountKrw)
+                    : ""}
               </p>
             </div>
           </div>
 
           {error ? <p className="mb-3 text-[13px] text-red-600">{error}</p> : null}
 
+          {session.amountLocal !== null || session.amountUsd !== null ? (
+            <>
           <p className="mb-1.5 text-[13px] font-bold">{t.payPaypal}</p>
           <p className="mb-3 text-[12px] leading-relaxed text-ink-4">{t.paypalNote}</p>
           <EventPayPal
@@ -394,7 +413,10 @@ export function EventRegisterClient({
             }}
             onError={(m) => setError(m)}
           />
+            </>
+          ) : null}
 
+          {session.amountKrw !== null ? (
           <div className="mt-4 border-t border-hairline-2 pt-4">
             <button
               type="button"
@@ -425,6 +447,7 @@ export function EventRegisterClient({
               </div>
             ) : null}
           </div>
+          ) : null}
 
           <button
             type="button"
@@ -461,7 +484,10 @@ function EventPayPal(props: EventPayPalProps) {
       </div>
     );
   }
-  const currency = props.session.amountThb !== null ? "THB" : "USD";
+  const currency =
+    props.session.amountLocal !== null && props.session.currency !== "KRW"
+      ? props.session.currency
+      : "USD";
   return (
     <PayPalScriptProvider options={{ clientId: paypalClientId, currency, intent: "capture" }}>
       <EventPayPalInner {...props} />

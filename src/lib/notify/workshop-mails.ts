@@ -305,7 +305,7 @@ export async function sendEventOrderOpsMail(input: {
   customerName: string;
   customerEmail: string;
   chargedLabel: string;
-  amountKrw: number;
+  amountKrw: number | null;
   provider: "toss" | "paypal";
 }): Promise<void> {
   const html = `<div style="font-family:'Apple SD Gothic Neo','Malgun Gothic',Helvetica,Arial,sans-serif;font-size:14px;color:#111;max-width:560px;word-break:keep-all;">
@@ -314,7 +314,7 @@ export async function sendEventOrderOpsMail(input: {
 ${line("행사", escapeHtml(input.eventTitle))}
 ${line("주문번호", `<span style="font-family:monospace;">${escapeHtml(input.orderNo)}</span>`)}
 ${line("신청자", `${escapeHtml(input.customerName)} &lt;${escapeHtml(input.customerEmail)}&gt;`)}
-${line("결제", `<strong>${escapeHtml(input.chargedLabel)}</strong> (₩${input.amountKrw.toLocaleString("ko-KR")} 상당)`)}
+${line("결제", `<strong>${escapeHtml(input.chargedLabel)}</strong>${input.amountKrw !== null ? ` (₩${input.amountKrw.toLocaleString("ko-KR")} 상당)` : ""}`)}
 ${line("PG", input.provider === "paypal" ? "PayPal" : "토스페이먼츠")}
 </table>
 <p style="margin:16px 0 0;font-size:13px;color:#6b7280;line-height:1.8;">
