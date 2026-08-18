@@ -15,10 +15,23 @@ import { VoteBox } from "./VoteBox";
 /** '다른 댄서들이 희망한 안무가' — suggested 카드의 공개 최소 정보. */
 export type WorkshopWish = { name: string; instagram_handle: string; demand_count: number };
 
+/** 개설 행사 카드 — event-queries.listOpenEvents 의 결과. */
+export type OpenEvent = {
+  slug: string;
+  title: string;
+  subtitle: string | null;
+  poster_url: string | null;
+  venue_name: string | null;
+  starts_on: string;
+  ends_on: string;
+  session_count: number;
+};
+
 export function WorkshopsLanding({
   recruiting,
   candidates,
   wishes,
+  openEvents,
   isLoggedIn,
   initialLang = "ko",
   lockLang = false,
@@ -26,6 +39,7 @@ export function WorkshopsLanding({
   recruiting: WorkshopArtistPublic[];
   candidates: WorkshopArtistPublic[];
   wishes: WorkshopWish[];
+  openEvents: OpenEvent[];
   isLoggedIn: boolean;
   initialLang?: Lang;
   lockLang?: boolean;
@@ -141,6 +155,44 @@ export function WorkshopsLanding({
           {c.ctaBrowse}
         </a>
       </div>
+
+      {/* 열린 워크샵 (개설 행사) */}
+      {openEvents.length > 0 ? (
+        <>
+          <SectionTitle>{c.eventsTitle}</SectionTitle>
+          <Lines text={c.eventsSub} className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl" />
+          <div className="flex flex-col gap-4">
+            {openEvents.map((ev) => (
+              <Link
+                key={ev.slug}
+                href={`/workshops/e/${ev.slug}${lang !== "ko" ? `?lang=en` : ""}`}
+                className="group overflow-hidden rounded-xl border-2 border-foreground bg-card transition-colors hover:bg-secondary/30"
+              >
+                {ev.poster_url ? (
+                  <div className="aspect-[16/7] overflow-hidden bg-secondary">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={ev.poster_url} alt={ev.title} className="size-full object-cover" />
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-between gap-3 p-4 md:p-5">
+                  <div className="min-w-0">
+                    <p className="truncate text-lg font-bold tracking-tight text-foreground">{ev.title}</p>
+                    <p className="truncate text-[12.5px] text-ink-3">
+                      {ev.starts_on === ev.ends_on ? ev.starts_on : `${ev.starts_on} – ${ev.ends_on}`}
+                      {ev.venue_name ? ` · ${ev.venue_name}` : ""} · {c.eventsClasses(ev.session_count)}
+                    </p>
+                    {ev.subtitle ? <p className="mt-0.5 truncate text-[12px] text-ink-4">{ev.subtitle}</p> : null}
+                  </div>
+                  <span className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-[13px] font-bold text-primary-foreground">
+                    {c.eventsView}
+                    <ArrowRight className="size-3.5" />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </>
+      ) : null}
 
       {/* 지금 모집 중 */}
       {recruiting.length > 0 ? (

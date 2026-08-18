@@ -50,6 +50,11 @@ export type WorkshopCopy = {
   ctaBrowse: string;
   loginLabel: string;
 
+  eventsTitle: string;
+  eventsSub: string;
+  eventsView: string;
+  eventsClasses: (n: number) => string;
+
   recruitingTitle: string;
   recruitingBadge: string;
   deadlineToday: string;
@@ -131,6 +136,11 @@ export const T: Record<Lang, WorkshopCopy> = {
     ctaNominate: "안무가 제안하기",
     ctaBrowse: "후보 카드 보기",
     loginLabel: "로그인",
+
+    eventsTitle: "열린 워크샵",
+    eventsSub: "일정과 강사가 확정된 워크샵입니다. 클래스를 골라 바로 신청할 수 있어요.",
+    eventsView: "시간표 보기 · 신청",
+    eventsClasses: (n) => `클래스 ${n}개`,
 
     recruitingTitle: "지금 모집 중",
     recruitingBadge: "모집 중",
@@ -232,6 +242,11 @@ export const T: Record<Lang, WorkshopCopy> = {
     ctaBrowse: "See candidates",
     loginLabel: "Log in",
 
+    eventsTitle: "Upcoming workshops",
+    eventsSub: "Confirmed dates and instructors. Pick your classes and register.",
+    eventsView: "See schedule · Register",
+    eventsClasses: (n) => `${n} ${n === 1 ? "class" : "classes"}`,
+
     recruitingTitle: "Recruiting now",
     recruitingBadge: "Recruiting",
     deadlineToday: "Closes today",
@@ -331,6 +346,11 @@ export const T: Record<Lang, WorkshopCopy> = {
     ctaNominate: "振付師を提案する",
     ctaBrowse: "候補を見る",
     loginLabel: "ログイン",
+
+    eventsTitle: "開催予定のワークショップ",
+    eventsSub: "日程と講師が確定したワークショップです。クラスを選んで申し込めます。",
+    eventsView: "タイムテーブル · 申込",
+    eventsClasses: (n) => `クラス${n}件`,
 
     recruitingTitle: "現在募集中",
     recruitingBadge: "募集中",

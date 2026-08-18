@@ -196,3 +196,136 @@ ${line("모집 현황", escapeHtml(progress))}
     replyTo: input.customerEmail,
   });
 }
+
+// ── 행사(Event) 주문 메일 ───────────────────────────────────────────────────
+// 해외 행사(방콕 등)는 구매자가 외국인일 수 있어 EN/KO 2개 언어만 지원한다.
+
+type EventSessionLine = {
+  title: string;
+  instructor_name: string;
+  session_date: string;
+  start_time: string;
+  end_time: string;
+};
+
+const EVENT_RECEIPT_COPY = {
+  en: {
+    subject: (orderNo: string) => `[deetz] Your class registration is confirmed (${orderNo})`,
+    pill: "Registration confirmed",
+    heading: (name: string) => `${escapeHtml(name)}, you're in!`,
+    body: [
+      "Your payment went through and your spot is confirmed.",
+      "Show this email at the door on class day.",
+    ],
+    orderNo: "Order",
+    eventLabel: "Event",
+    venueLabel: "Venue",
+    classesLabel: "Classes",
+    paidLabel: "Paid",
+    receipt: "View receipt",
+    cta: "View event page",
+    footer: "Questions? Just reply to this email.",
+  },
+  ko: {
+    subject: (orderNo: string) => `[deetz] 클래스 신청이 확정되었습니다 (${orderNo})`,
+    pill: "신청 확정",
+    heading: (name: string) => `${escapeHtml(name)}님, 신청이 확정되었습니다!`,
+    body: ["결제가 완료되어 자리가 확정되었습니다.", "수업 당일 입장 시 이 메일을 보여주세요."],
+    orderNo: "주문번호",
+    eventLabel: "행사",
+    venueLabel: "장소",
+    classesLabel: "클래스",
+    paidLabel: "결제 금액",
+    receipt: "영수증 보기",
+    cta: "행사 페이지 보기",
+    footer: "문의는 이 메일에 그대로 회신해 주세요.",
+  },
+} as const;
+
+export async function sendEventOrderReceiptEmail(input: {
+  to: string;
+  lang: "en" | "ko";
+  customerName: string;
+  orderNo: string;
+  eventTitle: string;
+  venue: string | null;
+  sessions: EventSessionLine[];
+  chargedLabel: string;
+  receiptUrl: string | null;
+  detailUrl: string;
+}): Promise<void> {
+  const c = EVENT_RECEIPT_COPY[input.lang];
+  const sessionsHtml = input.sessions
+    .map(
+      (s) =>
+        `${escapeHtml(s.session_date)} ${escapeHtml(s.start_time.slice(0, 5))}–${escapeHtml(s.end_time.slice(0, 5))} · <b>${escapeHtml(s.title)}</b> (${escapeHtml(s.instructor_name)})`,
+    )
+    .join("<br>");
+
+  const html = renderDeetzMail({
+    pill: c.pill,
+    pillTone: "ok",
+    heading: c.heading(input.customerName),
+    bodyLines: [...c.body],
+    infoRows: [
+      { label: c.orderNo, value: `<span style="font-family:monospace;">${escapeHtml(input.orderNo)}</span>` },
+      { label: c.eventLabel, value: escapeHtml(input.eventTitle) },
+      ...(input.venue ? [{ label: c.venueLabel, value: escapeHtml(input.venue) }] : []),
+      { label: c.classesLabel, value: sessionsHtml },
+      { label: c.paidLabel, value: escapeHtml(input.chargedLabel), strong: true },
+      ...(input.receiptUrl
+        ? [{ label: c.receipt, value: `<a href="${escapeHtml(input.receiptUrl)}">${escapeHtml(c.receipt)}</a>` }]
+        : []),
+    ],
+    cta: { label: c.cta, href: input.detailUrl },
+    footerLines: [c.footer],
+  });
+
+  await sendGmailEmail({
+    to: input.to,
+    subject: c.subject(input.orderNo),
+    text: [
+      c.pill,
+      `${c.orderNo}: ${input.orderNo}`,
+      `${c.eventLabel}: ${input.eventTitle}`,
+      ...input.sessions.map(
+        (s) => `- ${s.session_date} ${s.start_time.slice(0, 5)}-${s.end_time.slice(0, 5)} ${s.title} (${s.instructor_name})`,
+      ),
+      `${c.paidLabel}: ${input.chargedLabel}`,
+      "",
+      input.detailUrl,
+    ].join("\n"),
+    html,
+  });
+}
+
+export async function sendEventOrderOpsMail(input: {
+  orderNo: string;
+  eventTitle: string;
+  customerName: string;
+  customerEmail: string;
+  chargedLabel: string;
+  amountKrw: number;
+  provider: "toss" | "paypal";
+}): Promise<void> {
+  const html = `<div style="font-family:'Apple SD Gothic Neo','Malgun Gothic',Helvetica,Arial,sans-serif;font-size:14px;color:#111;max-width:560px;word-break:keep-all;">
+<p style="margin:0 0 14px;font-size:16px;font-weight:700;">워크샵 클래스 신청·결제가 들어왔습니다.</p>
+<table role="presentation" cellpadding="0" cellspacing="0">
+${line("행사", escapeHtml(input.eventTitle))}
+${line("주문번호", `<span style="font-family:monospace;">${escapeHtml(input.orderNo)}</span>`)}
+${line("신청자", `${escapeHtml(input.customerName)} &lt;${escapeHtml(input.customerEmail)}&gt;`)}
+${line("결제", `<strong>${escapeHtml(input.chargedLabel)}</strong> (₩${input.amountKrw.toLocaleString("ko-KR")} 상당)`)}
+${line("PG", input.provider === "paypal" ? "PayPal" : "토스페이먼츠")}
+</table>
+<p style="margin:16px 0 0;font-size:13px;color:#6b7280;line-height:1.8;">
+신청자 명단은 <a href="https://deetz.kr/admin/workshops/events">행사 관리</a>에서 확인하세요.
+</p></div>`;
+
+  await sendGmailEmail({
+    to: OPS_TO,
+    subject: `[Workshop 신청] ${input.chargedLabel} · ${input.eventTitle} · ${input.customerName}`,
+    text: `행사 신청 결제\n${input.eventTitle} / ${input.customerName} <${input.customerEmail}>\n${input.chargedLabel} (${input.provider})`,
+    html,
+    replyTo: input.customerEmail,
+  });
+}

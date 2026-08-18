@@ -4,6 +4,7 @@ import { WorkshopsLanding } from "@/components/workshops/WorkshopsLanding";
 import type { Lang } from "@/components/workshops/copy";
 import { getUser } from "@/lib/auth/guard";
 import { listPublicWorkshopArtists, listWorkshopWishes } from "@/lib/workshops/queries";
+import { listOpenEvents } from "@/lib/workshops/event-queries";
 
 // deetz Workshop — 수요 기반 안무가 초청 (ko/en/ja).
 // village 와 같은 셸 없는 풀블리드 랜딩. 공개 카드는 anon+RLS, 희망 목록은 최소 필드만 서버에서 내려준다.
@@ -26,9 +27,10 @@ export default async function WorkshopsPage({
   const explicit = lang === "ko" || lang === "en" || lang === "ja";
   const initialLang: Lang = explicit ? (lang as Lang) : "ko";
 
-  const [artists, wishes, user] = await Promise.all([
+  const [artists, wishes, openEvents, user] = await Promise.all([
     listPublicWorkshopArtists(),
     listWorkshopWishes(),
+    listOpenEvents(),
     getUser(),
   ]);
   const recruiting = artists.filter((a) => a.status === "recruiting");
@@ -39,6 +41,7 @@ export default async function WorkshopsPage({
       recruiting={recruiting}
       candidates={candidates}
       wishes={wishes}
+      openEvents={openEvents}
       isLoggedIn={!!user}
       initialLang={initialLang}
       lockLang={explicit}
