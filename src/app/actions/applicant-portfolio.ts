@@ -7,6 +7,10 @@ import {
   normalizeNationalityOptions,
   type NationalityOption,
 } from "@/lib/nationality";
+import {
+  resolveApplicantNationalityAccess,
+  type ApplicantNationalityAccess,
+} from "@/lib/applicant-nationality-visibility";
 import type { ActionResult } from "./auth";
 
 export type PortfolioCareer = {
@@ -41,8 +45,10 @@ export type ApplicantPortfolio = {
   shoe_size_mm: number | null;
   contactEmail: string | null;
   contactPhone: string | null;
-  /** 지원서에서 공개 동의한 국적만 반환한다. */
+  /** 동의 스냅샷 또는 플랫폼 슈퍼관리자 전용 현재 국적을 반환한다. */
   disclosedNationalities: NationalityOption[];
+  /** 동의 스냅샷·플랫폼 관리자 전용 현재값·미공개를 UI에서 구분한다. */
+  nationalityAccess: ApplicantNationalityAccess;
   // 정산 — 이 프로젝트×댄서의 확정 금액/상태 (없으면 null)
   settlement: { gross_amount: number; status: string } | null;
 };
@@ -54,11 +60,17 @@ export async function getApplicantPortfolioAction(
   dancerId: string,
   applicationId: string,
 ): Promise<ActionResult<ApplicantPortfolio>> {
-  await requireUser();
+  const user = await requireUser();
   if (!projectId || !dancerId || !applicationId)
     return { ok: false, error: "잘못된 요청입니다." };
 
   const supabase = await createClient();
+  const { data: viewerProfile } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .maybeSingle();
+  const isPlatformAdmin = viewerProfile?.is_admin === true;
   const canManageWholeProject = await canManageProject(projectId);
   let canViewChannelApplicant = false;
   if (!canManageWholeProject) {
@@ -131,14 +143,15 @@ export async function getApplicantPortfolioAction(
     is_representative: !!r.is_representative,
   }));
 
-  // 출생연도·키만 service-role로 읽어 매니저에게 노출. 연락처·국적·비자 등 나머지
-  // 민감정보는 절대 반환하지 않는다. (canManageProject 게이트는 위에서 통과 확인됨)
+  // 출생연도·키·연락처는 매니저에게 노출한다. 국적은 지원서 동의 스냅샷을
+  // 우선하고, 미동의·레거시 지원서는 플랫폼 슈퍼관리자에게만 현재값을 반환한다.
   let birth_year: number | null = null;
   let height_cm: number | null = null;
   let shoe_size_mm: number | null = null;
   let contactEmail: string | null = null;
   let contactPhone: string | null = null;
   let disclosedNationalities: NationalityOption[] = [];
+  let nationalityAccess: ApplicantNationalityAccess = "not_disclosed";
   let settlement: { gross_amount: number; status: string } | null = null;
   try {
     const applicationQuery = admin
@@ -150,9 +163,13 @@ export async function getApplicantPortfolioAction(
       .is("archived_at", null)
       .limit(1);
     const { data: application } = await applicationQuery.maybeSingle();
-    if (application?.nationality_disclosure_consent === true) {
+    nationalityAccess = resolveApplicantNationalityAccess(
+      application?.nationality_disclosure_consent === true,
+      isPlatformAdmin,
+    );
+    if (nationalityAccess === "consented") {
       disclosedNationalities = normalizeNationalityOptions(
-        application.disclosed_nationalities,
+        application?.disclosed_nationalities,
       );
     }
 
@@ -167,7 +184,7 @@ export async function getApplicantPortfolioAction(
       : null;
     const { data: priv } = await admin
       .from("dancer_private_info")
-      .select("birth_date, height_cm, shoe_size_mm, email, phone")
+      .select("birth_date, height_cm, shoe_size_mm, email, phone, nationalities")
       .eq("dancer_id", dancerId)
       .maybeSingle();
     birth_year = priv?.birth_date
@@ -177,6 +194,9 @@ export async function getApplicantPortfolioAction(
     shoe_size_mm = (priv?.shoe_size_mm as number | null) ?? null;
     contactEmail = (priv?.email as string | null) ?? null;
     contactPhone = (priv?.phone as string | null) ?? null;
+    if (nationalityAccess === "platform_admin") {
+      disclosedNationalities = normalizeNationalityOptions(priv?.nationalities);
+    }
 
     // 실제 지원 계정의 이메일·전화 (가장 정확) — 이 프로젝트에 지원한 행 기준
     const { data: app } = await admin
@@ -215,6 +235,7 @@ export async function getApplicantPortfolioAction(
       contactEmail,
       contactPhone,
       disclosedNationalities,
+      nationalityAccess,
       settlement,
     },
   };

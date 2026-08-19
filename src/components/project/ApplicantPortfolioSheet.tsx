@@ -276,6 +276,7 @@ export function ApplicantPortfolioSheet({
   const cEmail = data?.contactEmail ?? null;
   const cPhone = data?.contactPhone ?? null;
   const disclosedNationalities = data?.disclosedNationalities ?? [];
+  const nationalityAccess = data?.nationalityAccess ?? "not_disclosed";
   const submitted = applicant?.castingDetails ?? null;
   const hasSubmittedCastingDetails = submitted
     ? Object.values(submitted).some((value) => value != null && value !== "")
@@ -388,19 +389,27 @@ export function ApplicantPortfolioSheet({
           </div>
         ) : null}
 
-        {disclosedNationalities.length > 0 ? (
-          <section className="rounded-xl border border-primary/25 bg-primary/5 p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">
-              지원자 공개 동의 국적
-            </p>
-            <p className="mt-1 text-sm font-medium">
-              {disclosedNationalities.map((item) => item.label).join(" · ")}
-            </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-ink-3">
-              이 지원서에서 공개에 동의한 국적만 표시됩니다.
-            </p>
-          </section>
-        ) : null}
+        <section className="rounded-xl border border-primary/25 bg-primary/5 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">
+            {nationalityAccess === "platform_admin"
+              ? "국적 (플랫폼 관리자 전용)"
+              : "지원자 공개 동의 국적"}
+          </p>
+          <p className="mt-1 text-sm font-medium">
+            {disclosedNationalities.length > 0
+              ? disclosedNationalities.map((item) => item.label).join(" · ")
+              : nationalityAccess === "platform_admin"
+                ? "프로필에 입력된 국적 정보 없음"
+                : "미공개"}
+          </p>
+          <p className="mt-1 text-[11px] leading-relaxed text-ink-3">
+            {nationalityAccess === "consented"
+              ? "이 지원서에서 공개에 동의한 제출 당시 국적입니다."
+              : nationalityAccess === "platform_admin"
+                ? "지원자의 현재 비공개 프로필 국적이며 플랫폼 슈퍼관리자에게만 표시됩니다."
+                : "지원자가 공개에 동의하지 않았거나 국적 동의 기능 도입 전에 제출한 지원서입니다."}
+          </p>
+        </section>
 
         {hasSubmittedCastingDetails && submitted ? (
           <section className="flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary/5 p-3">
