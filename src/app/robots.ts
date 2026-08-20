@@ -18,6 +18,8 @@ const DISALLOW = [
   "/sz", // 의상 사이즈 취합표 공유 링크 — 검색 비노출
   "/fr", // 사이즈 입력 공유링크
   "/fit", // 사이즈 입력 개인 매직링크
+  "/visa/case", // 지원자 개인 케이스 링크 — 검색 비노출
+  "/visa/next", // 통과자 절차 안내 개인 링크 — 검색 비노출
 ];
 
 export default function robots(): MetadataRoute.Robots {
