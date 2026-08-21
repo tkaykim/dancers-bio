@@ -652,7 +652,10 @@ export default async function ProjectDetailPage({
               로그인·회원가입을 먼저 요구하면 그 단계에서 이탈한다.
               계정이 있는 사람은 아래 로그인 경로로 기존 지원 이력과 이어서 쓴다.
             */}
-            {p.visibility === "public" && p.short_code ? (
+            {p.visibility === "public" &&
+            p.short_code &&
+            !p.collect_casting_details &&
+            !p.collect_applicant_fee ? (
               <>
                 <p className="text-sm text-ink-2">
                   회원가입 없이 이름과 연락처만으로 바로 접수할 수 있어요.

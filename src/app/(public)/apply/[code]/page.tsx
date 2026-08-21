@@ -19,7 +19,7 @@ async function loadProject(code: string) {
   const { data } = await admin
     .from("projects")
     .select(
-      "id, title, description, status, visibility, application_deadline, pay_amount, pay_type, region_text, recruitment_count, deleted_at",
+      "id, short_code, title, description, status, visibility, application_deadline, pay_amount, pay_type, region_text, recruitment_count, deleted_at, collect_casting_details, collect_applicant_fee",
     )
     .eq("short_code", code)
     .maybeSingle();
@@ -60,6 +60,11 @@ export default async function QuickApplyPage({
     project.status !== "open" ||
     (project.application_deadline && new Date(project.application_deadline) < new Date());
 
+  // 상세 지원서·희망 단가를 받는 공고는 간편 접수 폼으로 담을 수 없다(서버 액션도 거부한다).
+  // 폼을 보여주고 제출 뒤에 실패시키면 지원자는 이유도 모르고 이탈한다.
+  const needsFullForm =
+    !!project.collect_casting_details || !!project.collect_applicant_fee;
+
   const deadlineLabel = project.application_deadline
     ? new Intl.DateTimeFormat("ko-KR", {
         month: "long",
@@ -95,6 +100,20 @@ export default async function QuickApplyPage({
         <p className="mt-8 rounded-xl bg-red-50 px-4 py-6 text-center text-base font-bold text-red-600">
           접수가 마감되었습니다.
         </p>
+      ) : needsFullForm ? (
+        <div className="mt-8 rounded-2xl bg-neutral-50 px-5 py-6 text-sm leading-relaxed text-neutral-700">
+          <p className="font-bold text-neutral-900">이 공고는 상세 지원서를 받습니다.</p>
+          <p className="mt-2">
+            키·생년·장르·댄스 영상 링크 등을 함께 제출해야 해서 간편 접수로는 지원할 수 없습니다.
+          </p>
+          <p className="mt-1">아래에서 로그인하신 뒤 지원해 주세요.</p>
+          <a
+            href={`/login?redirect=${encodeURIComponent(`/projects/${project.short_code}?apply=1`)}`}
+            className="mt-5 block rounded-xl bg-neutral-900 px-4 py-3 text-center text-sm font-bold text-white"
+          >
+            로그인하고 지원하기 →
+          </a>
+        </div>
       ) : (
         <div className="mt-8">
           <QuickApplyForm code={code} channel={channel} />
