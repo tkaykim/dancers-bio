@@ -41,7 +41,7 @@ const SITE = "https://www.deetz.kr";
 const GUIDE_URL =
   "https://brief-blouse-1fb.notion.site/LG-_-dee-tz-3bcce086cc1880af9b10cd1a190ffe4a";
 const CONFIRM = "CHALLENGE_REMINDER";
-const DEADLINE = "8월 18일(화)";
+const DEADLINE = "8월 23일(일) 23:59";
 
 const argv = process.argv.slice(2);
 const LIVE = argv.includes("--send");
@@ -80,12 +80,19 @@ function trackingPixel(email) {
 
 // ── 본문 ─────────────────────────────────────────────────────────
 // 리마인드라 짧게 간다. 전체 가이드를 다시 붙이지 않고 링크로 보낸다.
+// 톤 원칙(대표 지시 2026-08-17): 미제출을 지적하거나 눈치 주지 않는다.
+// 준비 기간이 실제로 짧았고 그건 참여자 잘못이 아니다.
+// 감사 먼저, 그리고 "못 하겠으면 알려달라"를 명확히 — 그래야 우리가 인원을 정확히 파악한다.
 const BODY_LINES = [
-  "릴스 챌린지 영상 제출 마감이 다가와 다시 안내드립니다.",
-  `영상 원본 제출 마감은 ${DEADLINE}입니다.`,
+  "촉박한 일정에도 챌린지를 준비해 주셔서 감사합니다.",
   "",
-  "아직 제출 전이신 것으로 확인되어 업로드 링크를 다시 보내드립니다.",
-  "촬영을 마치셨다면 아래 버튼으로 올려주세요.",
+  "1차 제출일이 지났지만 아직 검수를 진행 중이라, 늦게 제출해 주시는 영상도 최대한 받아보려 합니다.",
+  "제출 기한이 8월 23일(일) 밤 11시 59분까지로 연장되었습니다.",
+  "새벽에 작업하시는 분들을 위해 아침까지 열어두었습니다.",
+  "이번이 마지막 연장이라 이후에는 접수가 어려울 수 있습니다.",
+  "",
+  "일정이 지났다고 포기하지 마시고, 늦게라도 가급적 빨리 제출 부탁드립니다.",
+  "준비되신 분은 아래 버튼으로 바로 올려주세요.",
 ];
 
 const CHECK_LINES = [
@@ -94,14 +101,23 @@ const CHECK_LINES = [
   "1. 인스타그램 오디오 탭에서 공식 음원을 직접 선택 (곡명 AI-DOL I Wash)",
   "2. 음원 볼륨 1 이상 — 0이면 공식 음원이 연결되지 않습니다",
   "3. 필수 해시태그 #광고 #iwash #aidol 와 브랜드 계정 태그 @awc.ent",
+  "4. 인스타그램 게시는 8월 24일(월) — 검수 일정에 따라 8월 25일(화)로 변경될 수 있습니다",
   "",
   "전체 가이드는 아래에서 다시 확인하실 수 있습니다.",
   GUIDE_URL,
 ];
 
 const CLOSING = [
-  "일정상 참여가 어려우시면 이 메일로 회신 주시면 됩니다.",
-  "미리 알려주시면 다른 분으로 조정하겠습니다.",
+  "이번에는 참여가 어려우신 경우에도 꼭 알려주세요.",
+  "",
+  "deetz 웹사이트 [내 지원 내역]에서 참여 포기 버튼을 누르시거나,",
+  "이 메일로 회신해 주시면 됩니다.",
+  `${SITE}/applications`,
+  "",
+  "정확한 참여 인원을 파악해야 남은 자리를 조정할 수 있어 부탁드립니다.",
+  "참여가 어렵다고 알려주시는 데 어떤 불이익도 없습니다.",
+  "",
+  "짧은 일정에 함께해 주셔서 다시 한번 감사드립니다.",
 ];
 
 function lines(arr) {
@@ -134,7 +150,7 @@ function buildHtml(name, handle, token, email) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 12px;"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border:1px solid #ececef;border-radius:18px;overflow:hidden;font-family:'Apple SD Gothic Neo','Malgun Gothic',Helvetica,Arial,sans-serif;">
 <tr><td style="padding:28px 32px 18px;border-bottom:1px solid #ececef;"><div style="font-size:26px;font-weight:800;color:#111;line-height:1;">deetz<span style="color:#d4d4d8;">.</span></div><div style="font-size:12px;color:#6b7280;margin-top:6px;">댄서 매거진 &amp; 캐스팅 플랫폼</div></td></tr>
-<tr><td style="padding:30px 32px 28px;color:#111;"><span style="display:inline-block;background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;">제출 마감 안내</span>${intro}${uploadBox}${check}${closing}</td></tr>
+<tr><td style="padding:30px 32px 28px;color:#111;"><span style="display:inline-block;background:#dcfce7;color:#166534;font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;">제출 기한 연장</span>${intro}${uploadBox}${check}${closing}</td></tr>
 <tr><td style="padding:22px 32px 28px;border-top:1px solid #ececef;background:#fafafa;"><div style="font-size:16px;font-weight:800;color:#111;">deetz<span style="color:#d4d4d8;">.</span></div>
 <div style="font-size:12px;color:#6b7280;line-height:1.9;margin-top:10px;"><a href="https://deetz.kr" style="color:#44474d;text-decoration:none;">deetz.kr</a> &nbsp;·&nbsp; <a href="mailto:contact@deetz.kr" style="color:#44474d;text-decoration:none;">contact@deetz.kr</a></div>
 <div style="font-size:11px;color:#a1a1aa;margin-top:12px;">© 2026 deetz. All rights reserved.</div></td></tr>
@@ -266,7 +282,7 @@ const transporter = nodemailer.createTransport({
   rateLimit: 1,
 });
 
-const SUBJECT = `[deetz] 영상 제출 마감 안내 — ${DEADLINE}까지`;
+const SUBJECT = "[deetz] 릴스 챌린지 — 늦은 제출도 받습니다 (8/19까지)";
 let sent = 0;
 for (const t of batch) {
   try {
