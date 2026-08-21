@@ -72,13 +72,25 @@ export async function quickApplyAction(
   // ── 공고 확인 ────────────────────────────────────────────────
   const { data: project } = await admin
     .from("projects")
-    .select("id, status, visibility, application_deadline, recruitment_count, deleted_at")
+    .select(
+      "id, status, visibility, application_deadline, recruitment_count, deleted_at, collect_casting_details, collect_applicant_fee",
+    )
     .eq("short_code", shortCode)
     .maybeSingle();
 
   if (!project || project.deleted_at) return { ok: false, error: "공고를 찾을 수 없습니다." };
   if (project.status !== "open") return { ok: false, error: "마감된 공고입니다." };
   if (project.visibility !== "public") return { ok: false, error: "공개 공고가 아닙니다." };
+  // 상세 지원서(키·생년·장르·영상 링크…)나 희망 단가를 받는 공고는 간편 접수로 담을 수 없다.
+  // 그대로 진행하면 DB 트리거 applications_casting_details_guard 가 insert 를 거부해
+  // 계정·프로필·댄서만 만들어지고 "접수 처리 중 문제가 생겼습니다."로 끝난다(실제로 발생).
+  // 막다른 길을 만들지 말고 로그인 지원 흐름으로 돌려보낸다.
+  if (project.collect_casting_details || project.collect_applicant_fee) {
+    return {
+      ok: false,
+      error: "이 공고는 상세 지원서 작성이 필요해 간편 접수를 사용할 수 없습니다. 로그인 후 지원해 주세요.",
+    };
+  }
   if (project.application_deadline && new Date(project.application_deadline) < new Date()) {
     return { ok: false, error: "지원 마감일이 지났습니다." };
   }
