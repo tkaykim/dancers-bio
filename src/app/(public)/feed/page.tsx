@@ -72,7 +72,11 @@ export default async function FeedPage() {
        genre:genres ( label_ko ),
        region:regions ( label_ko )`,
     )
-    .eq("status", "open")
+    // open 만 가져오면 '마감된 공고 포함' 토글을 켜도 닫힌 공고가 안 나온다.
+    // deetz 에서 "마감"은 두 가지다 — ① 마감일 경과 ② 운영자가 공고를 닫음(status=closed).
+    // 토글이 ①만 덮고 있었고 ②는 클라이언트로 아예 내려오지 않아 영원히 볼 수 없었다.
+    // draft·cancelled 는 공개 대상이 아니므로 계속 제외한다.
+    .in("status", ["open", "closed"])
     .is("deleted_at", null)
     // 최신순으로 가져온다. 만료 공고가 ascending deadline 정렬로 상단을 차지해
     // limit을 잠식하지 않도록(클라이언트가 마감순 재정렬). 기본 노출에서 만료는 제외.
@@ -116,6 +120,7 @@ export default async function FeedPage() {
       id: p.id,
       short_code: revealDetails ? p.short_code : null,
       visibility: p.visibility,
+      status: p.status,
       title: revealDetails ? p.title : "비공개 공고",
       category: revealDetails ? p.category : null,
       pay_amount: revealDetails ? p.pay_amount : null,
@@ -133,9 +138,11 @@ export default async function FeedPage() {
   });
 
   const canCreate = profile?.can_create_project || profile?.is_admin;
-  // 헤더 "모집 중" 카운트는 만료되지 않은 공고 기준 (만료는 기본 숨김).
+  // 헤더 "모집 중" 카운트는 실제로 지금 지원할 수 있는 공고 기준.
+  // 마감일이 지났거나 공고가 닫혔으면 모집 중이 아니다.
   const activeCount = enriched.filter(
-    (p) => !isExpired(p.application_deadline, p.is_standing_pool),
+    (p) =>
+      p.status === "open" && !isExpired(p.application_deadline, p.is_standing_pool),
   ).length;
 
   return (

@@ -23,6 +23,7 @@ export type ListProject = {
   id: string;
   short_code: string | null;
   visibility: "public" | "private";
+  status: string;
   title: string;
   category: ProjectCategory | null;
   pay_amount: number | null;
@@ -59,6 +60,18 @@ const CATEGORY_ORDER: ProjectCategory[] = [
   "video",
   "other",
 ];
+
+/**
+ * 목록에서 "마감"으로 다룰지.
+ *
+ * 두 가지를 하나로 본다 — 마감일이 지났거나(①), 운영자가 공고를 닫았거나(②).
+ * 예전엔 ①만 봤고 ②는 서버 쿼리에서 통째로 빠져 있어서, 닫힌 공고는
+ * '마감된 공고 포함'을 켜도 나타나지 않았다.
+ */
+export function isListClosed(p: ListProject): boolean {
+  if (p.status !== "open") return true;
+  return isExpired(p.application_deadline, p.is_standing_pool);
+}
 
 function formatPayShort(p: ListProject): string {
   if (p.pay_type === "negotiable") return "협의";
@@ -100,14 +113,11 @@ export function ProjectListView({
   const [region, setRegion] = useState<string>("");
   const [sort, setSort] = useState<SortKey>("deadline");
   const [filterOpen, setFilterOpen] = useState(false);
-  // 마감 지난 공고는 기본 숨김. 토글로 노출.
+  // 마감된 공고는 기본 숨김. 토글로 노출.
   const [showExpired, setShowExpired] = useState(false);
 
   const expiredCount = useMemo(
-    () =>
-      projects.filter((p) =>
-        isExpired(p.application_deadline, p.is_standing_pool),
-      ).length,
+    () => projects.filter(isListClosed).length,
     [projects],
   );
 
@@ -134,10 +144,9 @@ export function ProjectListView({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = projects.filter((p) => {
-      // 마감 지난 공고는 기본 숨김 (토글로 노출). 검색어가 있어도 동일하게 적용.
+      // 마감된 공고는 기본 숨김 (토글로 노출). 검색어가 있어도 동일하게 적용.
       // 상시 섭외풀은 절대 만료로 보지 않아 항상 노출.
-      if (!showExpired && isExpired(p.application_deadline, p.is_standing_pool))
-        return false;
+      if (!showExpired && isListClosed(p)) return false;
       // 비공개 공고는 admin이 아니면 카테고리/장르/지역 필터를 우회 (속성 노출 방지)
       const masked = p.visibility === "private" && !isAdmin;
       if (!masked) {
@@ -162,9 +171,9 @@ export function ProjectListView({
     const sorted = [...list];
     if (sort === "deadline") {
       sorted.sort((a, b) => {
-        // 마감 지난 공고는(토글로 노출 시) 항상 맨 뒤로.
-        const aExp = isExpired(a.application_deadline, a.is_standing_pool);
-        const bExp = isExpired(b.application_deadline, b.is_standing_pool);
+        // 마감된 공고는(토글로 노출 시) 항상 맨 뒤로.
+        const aExp = isListClosed(a);
+        const bExp = isListClosed(b);
         if (aExp !== bExp) return aExp ? 1 : -1;
         const av = a.application_deadline
           ? new Date(a.application_deadline).getTime()
@@ -323,26 +332,33 @@ export function ProjectListView({
               </select>
             </div>
 
-            {expiredCount > 0 ? (
-              <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-2">
-                <input
-                  type="checkbox"
-                  checked={showExpired}
-                  onChange={(e) => setShowExpired(e.target.checked)}
-                  className="h-3.5 w-3.5 accent-primary"
-                />
-                마감된 공고 포함 ({expiredCount})
-              </label>
-            ) : null}
           </div>
         ) : null}
       </div>
 
-      <div className="flex items-center justify-between px-1 text-[10px] text-ink-3">
-        <span>
+      <div className="flex items-center justify-between gap-2 px-1">
+        <span className="text-[10px] text-ink-3">
           {filtered.length}
           {filtered.length !== poolSize ? ` / ${poolSize}` : ""}건
         </span>
+        {/*
+          마감 공고 토글은 접이식 필터 안에 있었다. 모바일에서 두 번 접혀 있어
+          "마감된 공고를 볼 방법이 없다"는 말이 나왔다. 항상 보이는 자리로 올린다.
+        */}
+        {expiredCount > 0 ? (
+          <div
+            role="group"
+            aria-label="마감 공고 표시"
+            className="flex shrink-0 items-center gap-0.5 rounded-full border border-border bg-card p-0.5"
+          >
+            <ScopeChip active={!showExpired} onClick={() => setShowExpired(false)}>
+              모집 중
+            </ScopeChip>
+            <ScopeChip active={showExpired} onClick={() => setShowExpired(true)}>
+              마감 포함 {expiredCount}
+            </ScopeChip>
+          </div>
+        ) : null}
       </div>
 
       {/* Header row */}
@@ -384,6 +400,32 @@ function FilterGroup({
   );
 }
 
+function ScopeChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={
+        "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors " +
+        (active
+          ? "bg-primary text-primary-foreground"
+          : "text-ink-3 hover:text-foreground")
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
 function Chip({
   active,
   onClick,
@@ -418,8 +460,9 @@ function ProjectRow({
 }) {
   const standing = !!project.is_standing_pool;
   const dDay = daysUntilDeadline(project.application_deadline);
+  const closed = isListClosed(project);
   // 마감 지남(음수) 또는 3일 이내(0~3)면 강조. 상시는 마감이 없어 강조 안 함.
-  const urgent = !standing && dDay !== null && dDay <= 3;
+  const urgent = !standing && !closed && dDay !== null && dDay <= 3;
   const masked = project.visibility === "private" && !isAdmin;
 
   const rowClass =
@@ -436,9 +479,14 @@ function ProjectRow({
               비공개
             </span>
           ) : null}
-          {standing ? (
+          {standing && !closed ? (
             <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider text-primary">
               상시 모집
+            </span>
+          ) : null}
+          {closed ? (
+            <span className="shrink-0 rounded-full border border-border bg-secondary px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider text-ink-3">
+              마감
             </span>
           ) : null}
           <div className="truncate text-sm font-medium leading-tight lg:text-[15px]">
@@ -465,15 +513,17 @@ function ProjectRow({
       <span
         className={`w-10 text-right font-mono text-[11px] lg:w-[72px] lg:text-sm ${urgent ? "text-destructive" : "text-ink-3"}`}
       >
-        {standing
-          ? "상시"
-          : deadlineLabel(project.application_deadline, { none: "상시" })}
+        {closed
+          ? "마감"
+          : standing
+            ? "상시"
+            : deadlineLabel(project.application_deadline, { none: "상시" })}
       </span>
     </>
   );
 
   return (
-    <li className="border-b border-border/60">
+    <li className={`border-b border-border/60 ${closed ? "opacity-60" : ""}`}>
       {masked || !project.short_code ? (
         <div className={plainClass} aria-disabled="true">
           {inner}
