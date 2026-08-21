@@ -3,6 +3,10 @@
 import { useState, useTransition } from "react";
 import { quickApplyAction } from "@/app/actions/quick-apply";
 
+/** 제작 가이드(노션). 메일에서 쓰는 것과 같은 주소다. */
+const GUIDE_URL =
+  "https://brief-blouse-1fb.notion.site/LG-_-dee-tz-3bcce086cc1880af9b10cd1a190ffe4a";
+
 /**
  * 로그인 없는 접수 폼.
  * 성공하면 업로드 링크를 바로 화면에 띄운다 — 메일을 기다리게 하면 그 사이 이탈한다.
@@ -20,22 +24,52 @@ export function QuickApplyForm({ code }: { code: string }) {
         </p>
         <p className="mt-2 text-sm leading-relaxed text-neutral-600">
           {done.alreadyApplied
-            ? "같은 인스타그램 아이디로 접수한 내역이 있어 기존 업로드 링크를 안내드립니다."
-            : "아래 버튼으로 영상을 올려주세요. 자세한 가이드는 메일로도 보내드립니다."}
+            ? "같은 인스타그램 아이디로 접수한 내역이 있습니다."
+            : "가이드를 확인하신 뒤 촬영해 주세요."}
         </p>
 
+        {/*
+          가이드를 먼저 읽게 한다. 촬영 전에 음원·해시태그·계정 태그를 모르면
+          영상을 다시 찍어야 하고, 그게 마감을 밀리게 하는 가장 흔한 원인이다.
+          업로드는 촬영을 마친 뒤의 일이라 아래로 내린다.
+        */}
         <a
-          href={done.submitUrl}
+          href={GUIDE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
           className="mt-5 block rounded-xl bg-neutral-900 py-4 text-center text-base font-bold text-white"
         >
-          영상 올리러 가기
+          제작 가이드 먼저 확인하기
         </a>
 
-        <p className="mt-4 text-xs leading-relaxed text-neutral-500">
-          이 링크는 본인 전용입니다. 지금 올리지 않으실 거라면 링크를 저장해 두세요.
-          <br />
-          {done.submitUrl}
-        </p>
+        <div className="mt-5 rounded-xl bg-amber-50 p-4">
+          <p className="text-sm font-bold text-amber-900">촬영 전 꼭 확인</p>
+          <ul className="mt-2 space-y-1 text-sm leading-relaxed text-amber-900">
+            <li>· 음원은 인스타그램 오디오 탭에서 &lsquo;AI-DOL I Wash&rsquo; 를 직접 선택</li>
+            <li>· 해시태그 #광고 #iwash #aidol</li>
+            <li>· 계정 태그 @awc.ent</li>
+          </ul>
+          <p className="mt-2 text-xs text-amber-800">
+            하나라도 빠지면 광고 건으로 인정되지 않습니다.
+          </p>
+        </div>
+
+        <div className="mt-6 border-t border-neutral-200 pt-5">
+          <p className="text-sm font-semibold text-neutral-900">촬영을 마치셨다면</p>
+          <a
+            href={done.submitUrl}
+            className="mt-2 block rounded-xl border border-neutral-900 py-3.5 text-center text-base font-bold text-neutral-900"
+          >
+            영상 올리러 가기
+          </a>
+          <p className="mt-3 text-xs leading-relaxed text-neutral-500">
+            같은 내용을 메일로도 보내드립니다.
+            <br />
+            아래는 본인 전용 업로드 링크입니다. 나중에 올리실 거라면 저장해 두세요.
+            <br />
+            {done.submitUrl}
+          </p>
+        </div>
       </div>
     );
   }
