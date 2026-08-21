@@ -148,6 +148,12 @@ export async function quickApplyAction(
   }
 
   // ── 정원 ─────────────────────────────────────────────────────
+  // 정원은 "최종 확정(confirmed_at)" 인원으로만 센다.
+  // status='accepted' 를 세면 중간 단계 합격자(1차 합격, 확정 전)까지 정원에 들어가
+  // 확정이 1명뿐인데도 신규 접수가 "모집 정원이 마감되었습니다"로 막힌다.
+  // (실제로 4wbhr5 China Tour 공고에서 확정 1 / 1차합격 3 인 상태로 접수가 막혔다.)
+  // 운영자 콘솔 쪽 정원 집계(setApplicationRoundAction·decideApplicationAction)는
+  // 이미 confirmed_at 기준이라, 여기만 남아 기준이 갈려 있었다.
   const cap = project.recruitment_count ?? 0;
   if (cap > 0) {
     const { count } = await admin
@@ -155,6 +161,7 @@ export async function quickApplyAction(
       .select("id", { count: "exact", head: true })
       .eq("project_id", project.id)
       .eq("status", "accepted")
+      .not("confirmed_at", "is", null)
       .is("archived_at", null);
     if ((count ?? 0) >= cap) return { ok: false, error: "모집 정원이 마감되었습니다." };
   }
