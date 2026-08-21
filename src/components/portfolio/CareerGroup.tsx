@@ -22,6 +22,7 @@ type Career = {
     description?: string;
     link?: string;
     thumbnail?: string;
+    related_videos?: Array<{ title?: string; url: string }>;
   } | null;
 };
 
@@ -36,10 +37,12 @@ export function CareerGroup({
   label,
   items,
   variant = "card",
+  showCount = true,
 }: {
   label: string;
   items: Career[];
   variant?: "card" | "row" | "carousel";
+  showCount?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [selected, setSelected] = useState<Career | null>(null);
@@ -51,9 +54,11 @@ export function CareerGroup({
       <div>
         <h3 className="mb-3 flex items-baseline gap-2 text-base font-semibold">
           {label}
-          <span className="font-mono text-[11px] font-normal text-ink-2">
-            {items.length}
-          </span>
+          {showCount ? (
+            <span className="font-mono text-[11px] font-normal text-ink-2">
+              {items.length}
+            </span>
+          ) : null}
         </h3>
         <ol className="divide-y divide-hairline-2 border-y border-hairline-2">
           {items.map((c, index) => {
@@ -128,9 +133,11 @@ export function CareerGroup({
     <div>
       <h3 className="mb-3 flex items-baseline gap-2 text-base font-semibold">
         {label}
-        <span className="font-mono text-[11px] font-normal text-ink-2">
-          {items.length}
-        </span>
+        {showCount ? (
+          <span className="font-mono text-[11px] font-normal text-ink-2">
+            {items.length}
+          </span>
+        ) : null}
       </h3>
 
       {variant === "row" ? (
@@ -217,7 +224,7 @@ export function CareerGroup({
           onClick={() => setExpanded((v) => !v)}
           className="mt-3 inline-flex min-h-11 items-center gap-1 rounded-full border border-hairline-2 bg-card px-4 py-2 text-xs font-medium text-ink-2 transition-colors hover:bg-secondary"
         >
-          {expanded ? "접기" : `+ ${items.length - threshold}개 더 보기`}
+          {expanded ? "접기" : `+${items.length - threshold}개 더 보기`}
         </button>
       ) : null}
 
@@ -239,6 +246,9 @@ function CareerDetailDialog({
   const open = Boolean(career);
   const video = parseVideoUrl(career?.details?.link);
   const externalUrl = safeExternalUrl(career?.details?.link);
+  const relatedVideos = (career?.details?.related_videos ?? [])
+    .map((item) => ({ ...item, url: safeExternalUrl(item.url) }))
+    .filter((item): item is { title?: string; url: string } => Boolean(item.url));
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
@@ -259,6 +269,28 @@ function CareerDetailDialog({
             {video ? (
               <div className="mt-2">
                 <VideoEmbed url={video.url} title={career.title} />
+              </div>
+            ) : null}
+
+            {relatedVideos.length > 0 ? (
+              <div className="mt-3">
+                <p className="text-xs uppercase tracking-[0.14em] text-ink-2">
+                  관련 영상
+                </p>
+                <div className="mt-2 flex flex-col gap-1.5">
+                  {relatedVideos.map((item, index) => (
+                    <a
+                      key={`${item.url}-${index}`}
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-between rounded-md border border-hairline-2 bg-card px-3 py-2 text-xs font-medium text-ink-2 transition-colors hover:bg-secondary"
+                    >
+                      <span>{item.title || `관련 영상 ${index + 1}`}</span>
+                      <span aria-hidden="true">↗</span>
+                    </a>
+                  ))}
+                </div>
               </div>
             ) : null}
 

@@ -264,15 +264,6 @@ export default async function PublicDancerPage({
     /\.(jpg|jpeg|png|gif|webp|avif)(\?|$)/i.test(item.url);
   const photos = portfolio.filter(isImageItem);
   const videos = portfolio.filter((item) => !isImageItem(item));
-  const careerYears = list
-    .map((career) => Number(career.date.slice(0, 4)))
-    .filter(Number.isFinite);
-  const yearsOnPlatform = careerYears.length
-    ? Math.max(
-        1,
-        new Date().getFullYear() - Math.min(...careerYears) + 1,
-      )
-    : 0;
   const personJsonLdString = JSON.stringify(personJsonLd).replace(
     /</g,
     "\\u003c",
@@ -322,11 +313,6 @@ export default async function PublicDancerPage({
         verified={Boolean(dancer.is_verified)}
         location={dancer.location}
         editHref={canEdit ? editHref : null}
-        stats={[
-          { value: list.length, label: "크레딧" },
-          { value: orderedTypes.length, label: "활동 분야" },
-          { value: yearsOnPlatform || "—", label: "활동 연차" },
-        ]}
       />
 
       {/* Profile summary — 히어로와 작업 목록 사이의 짧은 소개·역할 맥락 */}
@@ -372,13 +358,13 @@ export default async function PublicDancerPage({
             eyebrow="Selected work"
             title="대표 작업"
             description="이 아티스트를 가장 빠르게 이해할 수 있는 주요 크레딧입니다."
-            count={highlights.length}
           />
           <div className="mt-6 max-w-4xl">
             <CareerGroup
               label="대표 경력"
               items={highlights}
               variant="carousel"
+              showCount={false}
             />
           </div>
         </section>
@@ -422,7 +408,6 @@ export default async function PublicDancerPage({
             eyebrow="Visual portfolio"
             title="갤러리"
             description="무대와 작업의 분위기를 보여주는 대표 이미지입니다."
-            count={photos.length}
           />
           <div className="mt-6">
             <ProfileMediaGallery
@@ -439,8 +424,6 @@ export default async function PublicDancerPage({
           <ProfileSectionHeading
             eyebrow="Showreel"
             title="영상"
-            description="페이지를 벗어나지 않고 주요 퍼포먼스 영상을 확인할 수 있습니다."
-            count={videos.length}
           />
           <div className="mt-6">
             <ProfileMediaGallery
@@ -458,7 +441,6 @@ export default async function PublicDancerPage({
           eyebrow="Full credits"
           title="전체 크레딧"
           description="분야별 경력을 연도순으로 정리했습니다."
-          count={list.length}
         />
         {orderedTypes.length === 0 ? (
           <p className="mt-6 rounded-xl border border-dashed border-hairline-2 p-6 text-center text-sm text-ink-2">
@@ -478,6 +460,7 @@ export default async function PublicDancerPage({
                 }
                 items={grouped.get(type) ?? []}
                 variant="row"
+                showCount={false}
               />
             ))}
           </div>
