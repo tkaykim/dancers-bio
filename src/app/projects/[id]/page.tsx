@@ -647,23 +647,49 @@ export default async function ProjectDetailPage({
       ) : !user ? (
         applyOpen ? (
           <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
-            <p className="text-sm text-ink-2">
-              지원하려면 로그인 또는 회원가입이 필요해요.
-            </p>
-            <Link
-              href={`/login?redirect=${encodeURIComponent(applyReturnPath)}`}
-            >
-              <Button className="w-full" size="lg">
-                로그인하고 지원하기 →
-              </Button>
-            </Link>
-            <Link
-              href={`/signup?redirect=${encodeURIComponent(applyReturnPath)}`}
-            >
-              <Button variant="outline" className="w-full" size="lg">
-                회원가입
-              </Button>
-            </Link>
+            {/*
+              공개 공고는 로그인 없이도 접수할 수 있게 간편 접수를 기본 경로로 둔다.
+              로그인·회원가입을 먼저 요구하면 그 단계에서 이탈한다.
+              계정이 있는 사람은 아래 로그인 경로로 기존 지원 이력과 이어서 쓴다.
+            */}
+            {p.visibility === "public" && p.short_code ? (
+              <>
+                <p className="text-sm text-ink-2">
+                  회원가입 없이 이름과 연락처만으로 바로 접수할 수 있어요.
+                </p>
+                <Link href={`/apply/${p.short_code}`}>
+                  <Button className="w-full" size="lg">
+                    회원가입 없이 접수하기 →
+                  </Button>
+                </Link>
+                <Link
+                  href={`/login?redirect=${encodeURIComponent(applyReturnPath)}`}
+                  className="text-center text-sm text-ink-3 underline"
+                >
+                  이미 deetz 계정이 있어요
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-ink-2">
+                  지원하려면 로그인 또는 회원가입이 필요해요.
+                </p>
+                <Link
+                  href={`/login?redirect=${encodeURIComponent(applyReturnPath)}`}
+                >
+                  <Button className="w-full" size="lg">
+                    로그인하고 지원하기 →
+                  </Button>
+                </Link>
+                <Link
+                  href={`/signup?redirect=${encodeURIComponent(applyReturnPath)}`}
+                >
+                  <Button variant="outline" className="w-full" size="lg">
+                    회원가입
+                  </Button>
+                </Link>
+              </>
+            )}
           </section>
         ) : (
           <p className="rounded-xl border border-border bg-card p-4 text-sm text-ink-3">
