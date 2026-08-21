@@ -17,4 +17,11 @@ echo ===== %DATE% %TIME% ===== >> "%LOGDIR%\challenge-autopilot.log"
 
 node scripts\send-challenge-guideline.mjs --accept --send --confirm-send=CHALLENGE_GUIDELINE >> "%LOGDIR%\challenge-autopilot.log" 2>&1
 
+REM 제출자를 검수 리스트 시트에 반영한다. 담당자가 채운 검수 칸은 건드리지 않고
+REM 새 제출자만 빈 행에 붙인다. 추가할 사람이 없으면 조용히 끝난다.
+node scripts\export-submitters-csv.mjs "C:\Users\tkay\Desktop\deliverables\challenge-submitters.csv" >> "%LOGDIR%\challenge-autopilot.log" 2>&1
+pushd "C:\Users\tkay\Desktop\orchestrator-integrations"
+call npx ts-node tmp\sync-review-sheet.ts --write >> "%LOGDIR%\challenge-autopilot.log" 2>&1
+popd
+
 exit /b 0
