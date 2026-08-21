@@ -14,18 +14,26 @@ const GUIDE_URL =
 export function QuickApplyForm({ code }: { code: string }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ submitUrl: string; alreadyApplied: boolean } | null>(null);
+  const [done, setDone] = useState<{ submitUrl: string; state: "new" | "existing" | "rejoined" } | null>(
+    null,
+  );
 
   if (done) {
     return (
       <div className="rounded-2xl border border-neutral-200 bg-white p-6">
         <p className="text-lg font-bold text-neutral-900">
-          {done.alreadyApplied ? "이미 접수하셨습니다" : "접수 완료되었습니다"}
+          {done.state === "rejoined"
+            ? "다시 참여 처리되었습니다"
+            : done.state === "existing"
+              ? "이미 접수하셨습니다"
+              : "접수 완료되었습니다"}
         </p>
         <p className="mt-2 text-sm leading-relaxed text-neutral-600">
-          {done.alreadyApplied
-            ? "같은 인스타그램 아이디로 접수한 내역이 있습니다."
-            : "가이드를 확인하신 뒤 촬영해 주세요."}
+          {done.state === "rejoined"
+            ? "앞서 참여가 어렵다고 알려주셨던 건을 다시 열어드렸습니다. 가이드를 확인하신 뒤 촬영해 주세요."
+            : done.state === "existing"
+              ? "같은 인스타그램 아이디로 접수한 내역이 있습니다."
+              : "가이드를 확인하신 뒤 촬영해 주세요."}
         </p>
 
         {/*
@@ -83,7 +91,7 @@ export function QuickApplyForm({ code }: { code: string }) {
         setError(null);
         startTransition(async () => {
           const res = await quickApplyAction(code, fd);
-          if (res.ok) setDone({ submitUrl: res.submitUrl, alreadyApplied: res.alreadyApplied });
+          if (res.ok) setDone({ submitUrl: res.submitUrl, state: res.state });
           else setError(res.error);
         });
       }}

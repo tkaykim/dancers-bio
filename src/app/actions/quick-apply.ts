@@ -31,7 +31,7 @@ const Input = z.object({
 });
 
 export type QuickApplyResult =
-  | { ok: true; submitUrl: string; alreadyApplied: boolean }
+  | { ok: true; submitUrl: string; state: "new" | "existing" | "rejoined" }
   | { ok: false; error: string };
 
 /** 입력이 URL이든 @붙은 형태든 순수 핸들만 남긴다. */
@@ -88,14 +88,40 @@ export async function quickApplyAction(
   // ── 이미 접수했는지 (핸들 기준) ──────────────────────────────
   // 같은 사람이 두 번 넣으면 Drive 파일명이 겹쳐 누구 영상인지 구분할 수 없다.
   // 막기만 하면 "안 된다"만 보이므로, 기존 업로드 링크를 다시 알려준다.
+  //
+  // ⚠ 단, 지원이 accepted 일 때만 바로 돌려준다.
+  //   포기(declined)·철회(withdrawn) 상태에서 링크만 주면 제출 페이지가
+  //   "아직 참여가 확정되지 않았습니다"로 막아 막다른 길이 된다.
+  //   그 경우는 아래로 흘려보내 지원을 다시 accepted 로 되돌린다.
   const { data: dupSub } = await admin
     .from("project_submissions")
-    .select("token")
+    .select("token, application_id")
     .eq("project_id", project.id)
     .ilike("instagram_handle", handle)
     .maybeSingle();
   if (dupSub?.token) {
-    return { ok: true, submitUrl: `${siteUrl}/submit/${dupSub.token}`, alreadyApplied: true };
+    const { data: dupApp } = await admin
+      .from("applications")
+      .select("id, status, archived_at")
+      .eq("id", dupSub.application_id)
+      .maybeSingle();
+
+    if (dupApp && !dupApp.archived_at) {
+      const rejoined = dupApp.status !== "accepted";
+      if (rejoined) {
+        // 포기했다가 마음을 바꾼 경우. 새 지원을 만들면 같은 핸들의 제출 행이 둘이 되어
+        // Drive 파일명이 겹치므로, 기존 지원을 되살려 같은 토큰을 계속 쓴다.
+        await admin
+          .from("applications")
+          .update({ status: "accepted", responded_at: new Date().toISOString(), rejection_reason: null })
+          .eq("id", dupApp.id);
+      }
+      return {
+        ok: true,
+        submitUrl: `${siteUrl}/submit/${dupSub.token}`,
+        state: rejoined ? "rejoined" : "existing",
+      };
+    }
   }
 
   // ── 정원 ─────────────────────────────────────────────────────
@@ -238,7 +264,7 @@ export async function quickApplyAction(
     token = made.token;
   }
 
-  return { ok: true, submitUrl: `${siteUrl}/submit/${token}`, alreadyApplied: false };
+  return { ok: true, submitUrl: `${siteUrl}/submit/${token}`, state: "new" };
 }
 
 /** auth.users 에서 이메일로 id 를 찾는다. admin API 에 단건 조회가 없어 페이지를 훑는다. */
