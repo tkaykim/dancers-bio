@@ -43,10 +43,16 @@ export async function generateMetadata({
 
 export default async function QuickApplyPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ code: string }>;
+  searchParams: Promise<{ channel?: string | string[] }>;
 }) {
   const { code } = await params;
+  // 모집채널을 타고 들어온 경우 share_code 가 붙어 온다. 유효성은 서버 액션이 다시 본다.
+  const { channel: rawChannel } = await searchParams;
+  const channel =
+    (typeof rawChannel === "string" ? rawChannel : rawChannel?.[0])?.trim() || null;
   const project = await loadProject(code);
   if (!project) notFound();
 
@@ -91,7 +97,7 @@ export default async function QuickApplyPage({
         </p>
       ) : (
         <div className="mt-8">
-          <QuickApplyForm code={code} />
+          <QuickApplyForm code={code} channel={channel} />
         </div>
       )}
 

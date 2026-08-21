@@ -11,7 +11,7 @@ const GUIDE_URL =
  * 로그인 없는 접수 폼.
  * 성공하면 업로드 링크를 바로 화면에 띄운다 — 메일을 기다리게 하면 그 사이 이탈한다.
  */
-export function QuickApplyForm({ code }: { code: string }) {
+export function QuickApplyForm({ code, channel }: { code: string; channel?: string | null }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ submitUrl: string; state: "new" | "existing" | "rejoined" } | null>(
@@ -88,6 +88,7 @@ export function QuickApplyForm({ code }: { code: string }) {
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
+        if (channel) fd.set("channel", channel);
         setError(null);
         startTransition(async () => {
           const res = await quickApplyAction(code, fd);

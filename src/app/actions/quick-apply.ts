@@ -85,6 +85,22 @@ export async function quickApplyAction(
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.deetz.kr";
 
+  // ── 모집채널 ─────────────────────────────────────────────────
+  // 채널 링크(/c/<share_code>)를 타고 온 경우에만 붙는다.
+  // 이 값이 없으면 채널 담당자 화면(/channels/<code>/applicants)에서 유입이 통째로 빠진다.
+  // 값이 이상하면 접수 자체를 막지 않고 채널만 비운다 — 지원을 잃는 편이 더 손해다.
+  const channelCode = (formData.get("channel") ?? "").toString().trim();
+  let recruitmentChannelId: string | null = null;
+  if (channelCode) {
+    const { data: ch } = await admin
+      .from("recruitment_channels")
+      .select("id, project_id, legacy_project_id, status")
+      .eq("share_code", channelCode)
+      .maybeSingle();
+    const matches = ch && (ch.project_id === project.id || ch.legacy_project_id === project.id);
+    if (matches && ch.status === "active") recruitmentChannelId = ch.id as string;
+  }
+
   // ── 이미 접수했는지 (핸들 기준) ──────────────────────────────
   // 같은 사람이 두 번 넣으면 Drive 파일명이 겹쳐 누구 영상인지 구분할 수 없다.
   // 막기만 하면 "안 된다"만 보이므로, 기존 업로드 링크를 다시 알려준다.
@@ -102,19 +118,26 @@ export async function quickApplyAction(
   if (dupSub?.token) {
     const { data: dupApp } = await admin
       .from("applications")
-      .select("id, status, archived_at")
+      .select("id, status, archived_at, recruitment_channel_id")
       .eq("id", dupSub.application_id)
       .maybeSingle();
 
     if (dupApp && !dupApp.archived_at) {
       const rejoined = dupApp.status !== "accepted";
+      const patch: Record<string, unknown> = {};
       if (rejoined) {
         // 포기했다가 마음을 바꾼 경우. 새 지원을 만들면 같은 핸들의 제출 행이 둘이 되어
         // Drive 파일명이 겹치므로, 기존 지원을 되살려 같은 토큰을 계속 쓴다.
-        await admin
-          .from("applications")
-          .update({ status: "accepted", responded_at: new Date().toISOString(), rejection_reason: null })
-          .eq("id", dupApp.id);
+        patch.status = "accepted";
+        patch.responded_at = new Date().toISOString();
+        patch.rejection_reason = null;
+      }
+      // 채널이 비어 있을 때만 채운다. 이미 잡혀 있으면 최초 유입 채널을 유지한다.
+      if (recruitmentChannelId && !dupApp.recruitment_channel_id) {
+        patch.recruitment_channel_id = recruitmentChannelId;
+      }
+      if (Object.keys(patch).length) {
+        await admin.from("applications").update(patch).eq("id", dupApp.id);
       }
       return {
         ok: true,
@@ -208,7 +231,7 @@ export async function quickApplyAction(
   {
     const { data: existing } = await admin
       .from("applications")
-      .select("id, status")
+      .select("id, status, recruitment_channel_id")
       .eq("project_id", project.id)
       .eq("applicant_id", userId)
       .is("archived_at", null)
@@ -216,11 +239,18 @@ export async function quickApplyAction(
 
     if (existing) {
       applicationId = existing.id;
+      const patch: Record<string, unknown> = {};
       if (existing.status !== "accepted") {
-        await admin
-          .from("applications")
-          .update({ status: "accepted", responded_at: new Date().toISOString(), rejection_reason: null })
-          .eq("id", applicationId);
+        patch.status = "accepted";
+        patch.responded_at = new Date().toISOString();
+        patch.rejection_reason = null;
+      }
+      // 채널이 비어 있을 때만 채운다. 이미 잡혀 있으면 최초 유입 채널을 유지한다.
+      if (recruitmentChannelId && !existing.recruitment_channel_id) {
+        patch.recruitment_channel_id = recruitmentChannelId;
+      }
+      if (Object.keys(patch).length) {
+        await admin.from("applications").update(patch).eq("id", applicationId);
       }
     } else {
       const { data: made, error: aErr } = await admin
@@ -232,6 +262,7 @@ export async function quickApplyAction(
           source: "apply",
           status: "accepted",
           responded_at: new Date().toISOString(),
+          recruitment_channel_id: recruitmentChannelId,
         })
         .select("id")
         .single();

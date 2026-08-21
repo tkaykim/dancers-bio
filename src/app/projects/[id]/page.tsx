@@ -657,7 +657,17 @@ export default async function ProjectDetailPage({
                 <p className="text-sm text-ink-2">
                   회원가입 없이 이름과 연락처만으로 바로 접수할 수 있어요.
                 </p>
-                <Link href={`/apply/${p.short_code}`}>
+                {/*
+                  모집채널을 타고 들어왔으면 간편 접수에도 그대로 넘긴다.
+                  안 넘기면 채널 유입이 집계에서 통째로 빠져 담당자 화면이 0명으로 보인다.
+                */}
+                <Link
+                  href={
+                    activeRecruitmentChannel
+                      ? `/apply/${p.short_code}?channel=${encodeURIComponent(activeRecruitmentChannel.share_code)}`
+                      : `/apply/${p.short_code}`
+                  }
+                >
                   <Button className="w-full" size="lg">
                     회원가입 없이 접수하기 →
                   </Button>
