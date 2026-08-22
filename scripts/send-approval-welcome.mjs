@@ -20,6 +20,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
+import { listUnsubscribeHeaders } from "./lib/list-unsubscribe.mjs";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -317,6 +318,7 @@ async function main() {
       subject: `[테스트] ${MODE === "retro" ? "[deetz] 내 프로필 링크 안내" : "[deetz] 프로필이 승인되었습니다"}`,
       text: buildText(name, d.slug, d.igVerified, RETRO),
       html: buildHtml(name, d.slug, d.igVerified, `${SITE}/unsubscribe/TEST-TOKEN`, RETRO),
+      headers: listUnsubscribeHeaders("TEST-TOKEN"),
     });
     t.close();
     console.log(`테스트 1통 발송 완료 → ${testTo} (본문 기준: ${name} / ${VANITY}/${d.slug})`);
@@ -387,6 +389,8 @@ async function main() {
         subject,
         text: buildText(name, d.slug, d.igVerified, RETRO),
         html: buildHtml(name, d.slug, d.igVerified, unsubscribeUrl, RETRO),
+        // 안내성(bulk) — 본문 하단 링크와 같은 토큰으로 수신거부 헤더도 붙인다.
+        headers: listUnsubscribeHeaders(prefs?.unsubscribe_token ?? null),
       });
       await db.from("career_reminder_log").upsert(
         {

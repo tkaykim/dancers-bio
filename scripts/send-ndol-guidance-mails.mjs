@@ -4,6 +4,10 @@ import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
 import {
+  fetchUnsubscribePrefs,
+  listUnsubscribeHeaders,
+} from "./lib/list-unsubscribe.mjs";
+import {
   assertKoreanMailSafe,
   renderDeetzMail,
 } from "./lib/deetz-mail-layout.mjs";
@@ -353,6 +357,7 @@ async function getTargets(admin) {
       submitted: responded.has(dedupeKey),
       auditionWindow: canAuditionWindow(auditionResponseByTarget.get(dedupeKey)),
       dancerId: app.dancer_id,
+      recipientId,
       name: dancer.stage_name || dancer.korean_name || "지원자",
       gender: dancer.gender || "unknown",
       email,
@@ -418,6 +423,8 @@ function printSummary(groups) {
   );
 }
 
+// 지원자 대상 안내성(bulk) 메일 — 수신거부 헤더를 붙인다.
+// row.unsubscribeToken 은 발송 직전에 fetchUnsubscribePrefs 로 채운다(없으면 mailto 만).
 async function sendOne(transporter, row, type, toOverride = null) {
   const mail =
     type === "A"
@@ -432,6 +439,7 @@ async function sendOne(transporter, row, type, toOverride = null) {
     subject: mail.subject,
     text: mail.text,
     html: mail.html,
+    headers: listUnsubscribeHeaders(row.unsubscribeToken ?? null),
   });
   return { subject: mail.subject, to };
 }
@@ -497,6 +505,15 @@ async function main() {
   }
   if (SEND_LOCKED_AFTER_LOCATION_ERROR) {
     throw new Error("Actual send is locked after the 5F/3F location copy error. Review and unlock manually before any future send.");
+  }
+
+  // 수신거부 토큰 확보 — 계정 미연결 지원자는 토큰이 없어 mailto 수신거부만 붙는다.
+  const prefsByUser = await fetchUnsubscribePrefs(
+    admin,
+    selected.map((item) => item.row.recipientId),
+  );
+  for (const item of selected) {
+    item.row.unsubscribeToken = prefsByUser.get(item.row.recipientId)?.token ?? null;
   }
 
   let sent = 0;

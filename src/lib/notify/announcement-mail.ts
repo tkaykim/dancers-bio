@@ -8,6 +8,7 @@ import {
   resolveApplicantContact,
 } from "@/lib/notify/deetz-mail";
 import { toParagraphs } from "@/lib/application-stage";
+import { getOrCreatePrefs } from "@/lib/notify/notification-preferences";
 
 // 공지 메일. 단계 안내와 달리 문구가 전부 운영자 작성이라 본문을 그대로 싣는다.
 // 양식(560px 카드 + SNS 푸터)만 deetz 정본을 따른다.
@@ -77,11 +78,22 @@ export async function sendAnnouncementEmail(params: {
     `deetz.kr · contact@deetz.kr`,
   ].join("\n");
 
+  // 운영자가 쓴 브로드캐스트라 안내성(bulk)으로 본다 — 지원 결과 통지와 달리
+  // 같은 사람에게 여러 번 나가고, 내용도 수신자가 직접 일으킨 사건이 아니다.
+  let unsubscribeToken: string | null = null;
+  try {
+    unsubscribeToken = (await getOrCreatePrefs(applicantId)).unsubscribe_token;
+  } catch {
+    // 토큰을 못 얻어도 발송은 계속한다 — 그 경우 mailto 수신거부만 붙는다.
+  }
+
   const res = await sendGmailEmail({
     to: email,
     subject: `[deetz] ${titleClean || "공지"}${projectTitle ? ` - ${projectTitle}` : ""}`,
     text,
     html,
+    bulk: true,
+    unsubscribeToken,
   });
   if (!res.ok) await releaseClaim();
   return { ok: res.ok };

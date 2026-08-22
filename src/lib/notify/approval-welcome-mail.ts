@@ -3,6 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendGmailEmail } from "@/lib/gmail";
 import { getOrCreatePrefs } from "./notification-preferences";
+import { unsubscribeUrl as unsubscribeUrlFor } from "./list-unsubscribe.mjs";
 
 /**
  * 프로필 승인 완료 안내 메일.
@@ -202,6 +203,8 @@ export type PreparedMail = {
   html: string;
   slug: string;
   profileId: string | null;
+  /** 발송 스크립트가 List-Unsubscribe 헤더를 붙이는 데 쓴다. 계정 미연결이면 null. */
+  unsubscribeToken: string | null;
 };
 
 /**
@@ -230,11 +233,13 @@ export async function prepareApprovalWelcomeMail(
   const { dancer, email, igVerified } = ctx;
 
   let unsubscribeUrl: string | null = null;
+  let unsubscribeToken: string | null = null;
   if (dancer.profile_id) {
     try {
       const prefs = await getOrCreatePrefs(dancer.profile_id);
       if (prefs.email_unsubscribed_all) return { ok: false, skipped: "unsubscribed" };
-      unsubscribeUrl = `${SITE}/unsubscribe/${prefs.unsubscribe_token}`;
+      unsubscribeToken = prefs.unsubscribe_token;
+      unsubscribeUrl = unsubscribeUrlFor(unsubscribeToken);
     } catch {
       return { ok: false, skipped: "prefs_unavailable" };
     }
@@ -253,6 +258,7 @@ export async function prepareApprovalWelcomeMail(
       html: buildHtml(name, slug, igVerified, unsubscribeUrl),
       slug,
       profileId: dancer.profile_id,
+      unsubscribeToken,
     },
   };
 }
@@ -313,11 +319,13 @@ export async function sendApprovalWelcomeMail(
 
   // ② 수신거부 존중.
   let unsubscribeUrl: string | null = null;
+  let unsubscribeToken: string | null = null;
   if (dancer.profile_id) {
     try {
       const prefs = await getOrCreatePrefs(dancer.profile_id);
       if (prefs.email_unsubscribed_all) return { ok: false, skipped: "unsubscribed" };
-      unsubscribeUrl = `${SITE}/unsubscribe/${prefs.unsubscribe_token}`;
+      unsubscribeToken = prefs.unsubscribe_token;
+      unsubscribeUrl = unsubscribeUrlFor(unsubscribeToken);
     } catch {
       // 설정 조회 실패로 발송을 막지는 않되, 수신거부 링크 없이 보내지 않는다.
       return { ok: false, skipped: "prefs_unavailable" };
@@ -332,11 +340,14 @@ export async function sendApprovalWelcomeMail(
 
   if (opts.dryRun) return { ok: true, email };
 
+  // 안내성 메일 — 본문 하단 링크와 같은 토큰으로 List-Unsubscribe 헤더도 붙인다.
   const res = await sendGmailEmail({
     to: email,
     subject,
     text: buildText(name, slug, igVerified),
     html: buildHtml(name, slug, igVerified, unsubscribeUrl),
+    bulk: true,
+    unsubscribeToken,
   });
 
   // ③ 성공·실패 모두 로그. (dancer_id, stage) UNIQUE 라서 재시도는 upsert 로 덮어쓴다.
