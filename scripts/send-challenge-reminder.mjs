@@ -20,6 +20,10 @@
 
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
+import {
+  fetchUnsubscribePrefs,
+  listUnsubscribeHeaders,
+} from "./lib/list-unsubscribe.mjs";
 import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -284,6 +288,11 @@ const transporter = nodemailer.createTransport({
 
 const SUBJECT = "[deetz] 릴스 챌린지 — 늦은 제출도 받습니다 (8/19까지)";
 let sent = 0;
+// 안내성(bulk) 메일이라 수신거부 헤더를 붙인다 — 신생 도메인 평판 방어.
+// ⚠ 여기서 쓰는 토큰은 notification_preferences.unsubscribe_token 이다.
+//   본문의 t.token(개인 업로드 링크)과 다른 값이니 섞지 말 것.
+const unsubBy = await fetchUnsubscribePrefs(db, batch.map((t) => t.profileId));
+
 for (const t of batch) {
   try {
     const info = await transporter.sendMail({
@@ -292,6 +301,7 @@ for (const t of batch) {
       subject: SUBJECT,
       text: buildText(t.name, t.handle, t.token),
       html: buildHtml(t.name, t.handle, t.token, t.email),
+      headers: listUnsubscribeHeaders(unsubBy.get(t.profileId)?.token ?? null),
     });
     await db
       .from("project_notification_log")
