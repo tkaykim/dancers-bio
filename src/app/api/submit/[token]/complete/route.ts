@@ -56,6 +56,19 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "제출 기록에 실패했습니다." }, { status: 500 });
     }
 
+    // 포기했다가 영상을 낸 경우, 제출 행위를 참여 의사로 보고 지원 상태를 되돌린다.
+    // 이걸 안 하면 검수·정산 대상 집계에서 빠져 영상만 덩그러니 남는다.
+    if (sub.applicationId && sub.applicationStatus && sub.applicationStatus !== "accepted") {
+      await admin
+        .from("applications")
+        .update({
+          status: "accepted",
+          responded_at: new Date().toISOString(),
+          rejection_reason: null,
+        })
+        .eq("id", sub.applicationId);
+    }
+
     return NextResponse.json({ ok: true, fileName: meta.name });
   } catch (e) {
     const message = e instanceof Error ? e.message : "제출을 마무리하지 못했습니다.";

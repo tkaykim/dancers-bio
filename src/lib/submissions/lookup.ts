@@ -25,6 +25,9 @@ export interface SubmissionContext {
   /** 업로드 가능 여부. false 면 reason 에 사유가 담긴다. */
   open: boolean;
   reason?: string;
+  /** 연결된 지원서. 업로드 완료 시 포기 상태를 되돌리는 데 쓴다. */
+  applicationId?: string;
+  applicationStatus?: string;
 }
 
 /**
@@ -33,8 +36,16 @@ export interface SubmissionContext {
  * 게이트가 세 겹이다.
  *  1) 토큰이 존재해야 한다 (추측 불가한 16자)
  *  2) revoked_at 이 없어야 한다 (마감 후 일괄 잠금용)
- *  3) 연결된 지원서가 accepted 여야 한다 — 지원만 한 사람은 못 올린다
+ *  3) 연결된 지원서가 확정(accepted) 또는 포기(declined·withdrawn) 여야 한다
+ *     — 아직 확정 전(pending)인 사람은 못 올린다
+ *
+ * 포기했던 사람도 열어두는 이유(대표 지시 2026-08-22):
+ *   마음이 바뀌어 참여하려는 사람에게 "다시 열어달라"고 회신하게 만들면
+ *   그 왕복을 기다리다 마감을 놓친다. 제출 행위 자체를 참여 의사로 본다.
+ *   업로드가 실제로 완료되면 complete 라우트가 지원 상태를 accepted 로 되돌린다.
  */
+/** 업로드를 허용하는 지원 상태. pending 은 아직 확정 전이라 제외한다. */
+const UPLOADABLE_STATUSES = new Set(["accepted", "declined", "withdrawn"]);
 export async function loadSubmissionByToken(
   token: string,
 ): Promise<SubmissionContext | null> {
@@ -71,6 +82,7 @@ export async function loadSubmissionByToken(
     driveFileName: (sub.drive_file_name as string | null) ?? null,
     collaboratorHandles: (sub.collaborator_handles as string[] | null) ?? [],
     open: true,
+    applicationId: (sub.application_id as string | null) ?? undefined,
   };
 
   if (sub.revoked_at) {
@@ -79,12 +91,12 @@ export async function loadSubmissionByToken(
   if (!application || application.archived_at) {
     return { ...base, open: false, reason: "지원 내역을 찾을 수 없습니다." };
   }
-  if (application.status !== "accepted") {
+  if (!UPLOADABLE_STATUSES.has(application.status as string)) {
     return {
       ...base,
       open: false,
       reason: "아직 참여가 확정되지 않았습니다. 확정 안내를 받으신 뒤 이용해 주세요.",
     };
   }
-  return base;
+  return { ...base, applicationId: application.id as string, applicationStatus: application.status as string };
 }
