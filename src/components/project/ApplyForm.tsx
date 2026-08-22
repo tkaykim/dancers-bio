@@ -47,6 +47,8 @@ export function ApplyForm({
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  // 지원 직후 바로 열어볼 제작 가이드. 확정 안내 메일을 기다리는 사이 이탈하는 걸 막는다.
+  const [guideUrl, setGuideUrl] = useState<string | null>(null);
   const [needsDancer, setNeedsDancer] = useState<boolean>(!hasDancer);
   const [pending, startTransition] = useTransition();
 
@@ -119,7 +121,13 @@ export function ApplyForm({
             setMessage({ kind: "error", text: result.error });
             return;
           }
-          setMessage({ kind: "ok", text: "지원이 완료됐습니다." });
+          setGuideUrl(result.data?.guideUrl ?? null);
+          setMessage({
+            kind: "ok",
+            text: result.data?.accepted
+              ? "지원이 완료됐습니다. 바로 진행하시면 됩니다."
+              : "지원이 완료됐습니다.",
+          });
           router.refresh();
         });
       }}
@@ -357,6 +365,30 @@ export function ApplyForm({
           {message.text}
         </p>
       ) : null}
+
+      {/*
+        지원 직후 제작 가이드를 이 자리에서 바로 연다.
+        메일을 기다리게 하면 그 사이에 이탈한다.
+      */}
+      {guideUrl ? (
+        <div className="rounded-xl border border-border bg-secondary/40 p-4">
+          <p className="text-sm font-semibold text-ink-1">제작 가이드를 지금 확인하세요</p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-2">
+            음원·해시태그·계정 태그가 하나라도 빠지면 광고 건으로 인정되지 않습니다.
+            <br />
+            같은 내용을 메일로도 보내드립니다.
+          </p>
+          <a
+            href={guideUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 block rounded-lg bg-foreground px-4 py-3 text-center text-sm font-bold text-background"
+          >
+            제작 가이드 열기 →
+          </a>
+        </div>
+      ) : null}
+
       <Button type="submit" disabled={pending} className="w-full" size="lg">
         {pending ? "지원하는 중..." : "지원하기"}
       </Button>
