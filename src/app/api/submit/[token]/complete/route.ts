@@ -1,6 +1,8 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { loadSubmissionByToken, submissionAdminClient } from "@/lib/submissions/lookup";
+import { localeFor } from "@/lib/i18n/server";
+import { t } from "@/lib/i18n/messages";
 import { getDriveFile } from "@/lib/drive/resumable";
 
 export const runtime = "nodejs";
@@ -14,7 +16,10 @@ export async function POST(
     const { token } = await ctx.params;
     const sub = await loadSubmissionByToken(token);
     if (!sub) {
-      return NextResponse.json({ ok: false, error: "유효하지 않은 링크입니다." }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, error: t(await localeFor(), "submit.api.invalid_link") },
+        { status: 404 },
+      );
     }
     if (!sub.open) {
       return NextResponse.json({ ok: false, error: sub.reason }, { status: 403 });
@@ -23,7 +28,10 @@ export async function POST(
     const body = (await req.json().catch(() => ({}))) as { fileId?: string };
     const fileId = String(body.fileId ?? "").trim();
     if (!fileId) {
-      return NextResponse.json({ ok: false, error: "파일 정보를 확인할 수 없습니다." }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: t(sub.locale, "submit.api.file_info_missing") },
+        { status: 400 },
+      );
     }
 
     // 브라우저가 보낸 fileId 를 믿지 않고, 서버가 Drive 에서 직접 조회해
@@ -32,7 +40,7 @@ export async function POST(
     const meta = await getDriveFile(fileId);
     if (folderId && !(meta.parents ?? []).includes(folderId)) {
       return NextResponse.json(
-        { ok: false, error: "업로드 위치를 확인하지 못했습니다." },
+        { ok: false, error: t(sub.locale, "submit.api.upload_location") },
         { status: 400 },
       );
     }
@@ -53,7 +61,10 @@ export async function POST(
       .eq("id", sub.id);
 
     if (error) {
-      return NextResponse.json({ ok: false, error: "제출 기록에 실패했습니다." }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: t(sub.locale, "submit.api.record_failed") },
+        { status: 500 },
+      );
     }
 
     // 포기했다가 영상을 낸 경우, 제출 행위를 참여 의사로 보고 지원 상태를 되돌린다.

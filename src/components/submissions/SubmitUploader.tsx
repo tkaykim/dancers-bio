@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { translator } from "@/lib/i18n/messages";
+import type { Locale } from "@/lib/i18n/locale";
 
 type Phase = "idle" | "preparing" | "uploading" | "finishing" | "done" | "error";
 
@@ -8,11 +10,15 @@ export function SubmitUploader({
   token,
   instagramHandle,
   alreadyUploadedName,
+  locale,
 }: {
   token: string;
   instagramHandle: string;
   alreadyUploadedName: string | null;
+  locale: Locale;
 }) {
+  // upload 콜백이 매 렌더 새로 만들어지지 않게 고정한다.
+  const t = useMemo(() => translator(locale), [locale]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [percent, setPercent] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
@@ -38,7 +44,8 @@ export function SubmitUploader({
         });
         const start = await startRes.json();
         if (!startRes.ok || !start.ok) {
-          throw new Error(start.error ?? "업로드를 시작하지 못했습니다.");
+          // API 도 공고 언어로 답한다. 그쪽 문구가 오면 그대로 쓴다.
+          throw new Error(start.error ?? t("submit.upload.start_failed"));
         }
 
         // 파일은 우리 서버를 거치지 않고 구글로 바로 올라간다.
@@ -58,16 +65,16 @@ export function SubmitUploader({
               try {
                 const j = JSON.parse(xhr.responseText);
                 if (j?.id) return resolve(j.id as string);
-                reject(new Error("업로드 응답을 확인하지 못했습니다."));
+                reject(new Error(t("submit.upload.bad_response")));
               } catch {
-                reject(new Error("업로드 응답을 확인하지 못했습니다."));
+                reject(new Error(t("submit.upload.bad_response")));
               }
             } else {
-              reject(new Error(`업로드에 실패했습니다. (${xhr.status})`));
+              reject(new Error(t("submit.upload.failed_status", { status: xhr.status })));
             }
           };
-          xhr.onerror = () => reject(new Error("네트워크 오류로 업로드가 중단되었습니다."));
-          xhr.onabort = () => reject(new Error("업로드가 취소되었습니다."));
+          xhr.onerror = () => reject(new Error(t("submit.upload.network")));
+          xhr.onabort = () => reject(new Error(t("submit.upload.aborted")));
           xhr.send(file);
         });
 
@@ -79,17 +86,17 @@ export function SubmitUploader({
         });
         const done = await doneRes.json();
         if (!doneRes.ok || !done.ok) {
-          throw new Error(done.error ?? "제출을 마무리하지 못했습니다.");
+          throw new Error(done.error ?? t("submit.upload.complete_failed"));
         }
 
         setSavedName(done.fileName ?? null);
         setPhase("done");
       } catch (e) {
-        setMessage(e instanceof Error ? e.message : "업로드에 실패했습니다.");
+        setMessage(e instanceof Error ? e.message : t("submit.upload.failed"));
         setPhase("error");
       }
     },
-    [token],
+    [token, t],
   );
 
   return (
@@ -108,7 +115,7 @@ export function SubmitUploader({
 
       {savedName && phase !== "uploading" && phase !== "preparing" ? (
         <div className="text-sm leading-relaxed">
-          <p className="font-semibold">제출이 접수되었습니다.</p>
+          <p className="font-semibold">{t("submit.upload.received")}</p>
           <p className="text-muted-foreground">{savedName}</p>
         </div>
       ) : null}
@@ -120,14 +127,14 @@ export function SubmitUploader({
         className="w-full rounded-xl bg-foreground px-4 py-4 text-sm font-bold text-background disabled:opacity-60"
       >
         {phase === "preparing"
-          ? "준비 중..."
+          ? t("submit.upload.preparing")
           : phase === "uploading"
-            ? `업로드 중 ${percent}%`
+            ? t("submit.upload.uploading", { percent })
             : phase === "finishing"
-              ? "마무리 중..."
+              ? t("submit.upload.finishing")
               : savedName
-                ? "다시 올리기"
-                : "영상 파일 선택"}
+                ? t("submit.upload.reupload")
+                : t("submit.upload.choose")}
       </button>
 
       {phase === "uploading" ? (
@@ -144,10 +151,10 @@ export function SubmitUploader({
       ) : null}
 
       <div className="text-xs leading-relaxed text-muted-foreground">
-        <p>파일명은 자동으로 {instagramHandle} 으로 저장됩니다.</p>
-        <p>직접 파일 이름을 바꾸실 필요는 없습니다.</p>
-        <p className="mt-2">업로드 중에는 창을 닫지 말아 주세요.</p>
-        <p>다시 올리시면 마지막에 올린 영상이 최종 제출본이 됩니다.</p>
+        <p>{t("submit.upload.note_filename", { handle: instagramHandle })}</p>
+        <p>{t("submit.upload.note_no_rename")}</p>
+        <p className="mt-2">{t("submit.upload.note_keep_open")}</p>
+        <p>{t("submit.upload.note_last_wins")}</p>
       </div>
     </div>
   );

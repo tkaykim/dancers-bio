@@ -39,18 +39,27 @@ export function DecideButtons({
         setError(result.error);
         return;
       }
-      // Lite: 수락 후 모집 인원이 모두 찼으면 마감 여부 확인.
-      if (result.data?.quotaReached && result.data.projectId) {
-        const shouldClose = confirm(
-          "모집 인원이 모두 찼습니다. 모집을 마감할까요?\n(취소 시 그대로 모집을 계속할 수 있습니다)",
-        );
-        if (shouldClose) {
-          const cfd = new FormData();
-          cfd.set("id", result.data.projectId);
-          const closeRes = await closeProjectAction(cfd);
-          if (!closeRes.ok) {
-            setError(closeRes.error);
-            // 새로고침은 그래도 수행 (수락은 성공했으니).
+      // Lite: 수락 후 정원 상태를 알린다.
+      // 초과는 마감 제안 없이 알리기만 한다 — 대기·대체 인원 확보는 정상 운영이라
+      // 막지 않지만, 모르고 지나가면 사고가 난다(4wbhr5 China Tour 공고).
+      const quota = result.data?.quota;
+      if (quota && result.data?.projectId) {
+        if (quota.over) {
+          setError(
+            `모집 정원을 넘었습니다 — 확정 ${quota.confirmed}명 / 정원 ${quota.capacity}명. 대기·대체 인원이 아니라면 확인해 주세요.`,
+          );
+        } else if (quota.reached) {
+          const shouldClose = confirm(
+            "모집 인원이 모두 찼습니다. 모집을 마감할까요?\n(취소 시 그대로 모집을 계속할 수 있습니다)",
+          );
+          if (shouldClose) {
+            const cfd = new FormData();
+            cfd.set("id", result.data.projectId);
+            const closeRes = await closeProjectAction(cfd);
+            if (!closeRes.ok) {
+              setError(closeRes.error);
+              // 새로고침은 그래도 수행 (수락은 성공했으니).
+            }
           }
         }
       }

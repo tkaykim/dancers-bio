@@ -1,6 +1,8 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { loadSubmissionByToken } from "@/lib/submissions/lookup";
+import { localeFor } from "@/lib/i18n/server";
+import { t } from "@/lib/i18n/messages";
 import { createResumableSession } from "@/lib/drive/resumable";
 
 export const runtime = "nodejs";
@@ -45,7 +47,10 @@ export async function POST(
     const { token } = await ctx.params;
     const sub = await loadSubmissionByToken(token);
     if (!sub) {
-      return NextResponse.json({ ok: false, error: "유효하지 않은 링크입니다." }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, error: t(await localeFor(), "submit.api.invalid_link") },
+        { status: 404 },
+      );
     }
     if (!sub.open) {
       return NextResponse.json({ ok: false, error: sub.reason }, { status: 403 });
@@ -60,16 +65,19 @@ export async function POST(
 
     if (!contentType.startsWith(ALLOWED_PREFIX)) {
       return NextResponse.json(
-        { ok: false, error: "영상 파일만 올릴 수 있습니다." },
+        { ok: false, error: t(sub.locale, "submit.api.video_only") },
         { status: 400 },
       );
     }
     if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
-      return NextResponse.json({ ok: false, error: "파일 크기를 확인할 수 없습니다." }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: t(sub.locale, "submit.api.size_unknown") },
+        { status: 400 },
+      );
     }
     if (sizeBytes > MAX_BYTES) {
       return NextResponse.json(
-        { ok: false, error: "파일이 너무 큽니다. 8GB 이하로 올려 주세요." },
+        { ok: false, error: t(sub.locale, "submit.api.too_large") },
         { status: 400 },
       );
     }
@@ -77,7 +85,7 @@ export async function POST(
     const folderId = process.env.GOOGLE_DRIVE_SUBMISSION_FOLDER_ID;
     if (!folderId) {
       return NextResponse.json(
-        { ok: false, error: "서버 설정이 누락되었습니다. 관리자에게 문의해 주세요." },
+        { ok: false, error: t(sub.locale, "submit.api.server_misconfig") },
         { status: 500 },
       );
     }
