@@ -9,6 +9,8 @@ import {
 } from "@/lib/notify/deetz-mail";
 import { toParagraphs } from "@/lib/application-stage";
 import { getOrCreatePrefs } from "@/lib/notify/notification-preferences";
+import { mailTranslator } from "@/lib/i18n/mail-messages";
+import { projectLocale } from "@/lib/i18n/project-locale";
 
 // 공지 메일. 단계 안내와 달리 문구가 전부 운영자 작성이라 본문을 그대로 싣는다.
 // 양식(560px 카드 + SNS 푸터)만 deetz 정본을 따른다.
@@ -45,7 +47,11 @@ export async function sendAnnouncementEmail(params: {
       .eq("channel", channel);
   };
 
-  const { email, name } = await resolveApplicantContact(params);
+  // 본문(title/body)은 운영자가 쓴 글이라 그대로 싣는다. 껍데기만 공고 언어를 따른다.
+  const locale = await projectLocale(projectId);
+  const mt = mailTranslator(locale);
+
+  const { email, name } = await resolveApplicantContact(params, locale);
   if (!email) {
     await releaseClaim();
     return { ok: false, skipped: "no_email" };
@@ -55,27 +61,39 @@ export async function sendAnnouncementEmail(params: {
   const bodyLines = toParagraphs(body).map(escapeHtml);
 
   const html = renderDeetzMail({
-    pill: "공지",
+    locale,
+    pill: mt("mail.announce.pill"),
     pillTone: "neutral",
-    heading: titleClean ? escapeHtml(titleClean) : `${escapeHtml(name)}님께 안내드립니다.`,
-    bodyLines: bodyLines.length ? bodyLines : ["(내용 없음)"],
+    heading: escapeHtml(
+      titleClean || mt("mail.announce.heading_fallback", { name }),
+    ),
+    bodyLines: bodyLines.length ? bodyLines : [mt("mail.announce.empty")],
     infoRows: projectTitle
-      ? [{ label: "프로젝트", value: escapeHtml(projectTitle), strong: true }]
+      ? [
+          {
+            label: mt("mail.common.project"),
+            value: escapeHtml(projectTitle),
+            strong: true,
+          },
+        ]
       : [],
-    cta: { label: "내 지원 현황 보기", href: "https://deetz.kr/applications" },
+    cta: {
+      label: mt("mail.stage.cta"),
+      href: "https://deetz.kr/applications",
+    },
   });
 
   const text = [
-    `안녕하세요 ${name}님,`,
+    mt("mail.text.greeting", { name }),
     ``,
     ...(titleClean ? [`[${titleClean}]`, ``] : []),
     ...toParagraphs(body),
-    ...(projectTitle ? [``, `프로젝트: ${projectTitle}`] : []),
+    ...(projectTitle ? [``, `${mt("mail.common.project")}: ${projectTitle}`] : []),
     ``,
-    `내 지원 현황: https://deetz.kr/applications`,
+    `${mt("mail.stage.text_applications")}: https://deetz.kr/applications`,
     ``,
-    `deetz · 댄서 매거진 & 캐스팅 플랫폼`,
-    `deetz.kr · contact@deetz.kr`,
+    mt("mail.signature.line1"),
+    mt("mail.signature.line2"),
   ].join("\n");
 
   // 운영자가 쓴 브로드캐스트라 안내성(bulk)으로 본다 — 지원 결과 통지와 달리
@@ -89,7 +107,7 @@ export async function sendAnnouncementEmail(params: {
 
   const res = await sendGmailEmail({
     to: email,
-    subject: `[deetz] ${titleClean || "공지"}${projectTitle ? ` - ${projectTitle}` : ""}`,
+    subject: `[deetz] ${titleClean || mt("mail.announce.subject_fallback")}${projectTitle ? ` - ${projectTitle}` : ""}`,
     text,
     html,
     bulk: true,

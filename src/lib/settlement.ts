@@ -1,3 +1,5 @@
+import type { Locale } from "@/lib/i18n/locale";
+
 // 정산 금액 계산 유틸 (서버·클라이언트 공용, 순수 함수).
 // 원천징수 기본 3.3% (소득세 3% + 지방소득세 0.3%). 세액은 원 단위 절사(버림).
 
@@ -17,6 +19,17 @@ export function calcSettlement(
 
 export function formatWon(n: number): string {
   return `${Math.round(n || 0).toLocaleString("ko-KR")}원`;
+}
+
+/**
+ * 공고 언어에 맞춘 금액 표기. 영문 공고 참여자에게 나가는 정산 메일에 쓴다.
+ * "원"을 그대로 붙이면 영문 메일 한복판에 한글이 남는다.
+ */
+export function formatMoney(n: number, locale: Locale): string {
+  const amount = Math.round(n || 0);
+  return locale === "en"
+    ? `KRW ${amount.toLocaleString("en-US")}`
+    : `${amount.toLocaleString("ko-KR")}원`;
 }
 
 // 금액 입력용 천단위 콤마 포맷. 숫자만 남기고 콤마 삽입(예: "1000000" → "1,000,000").
