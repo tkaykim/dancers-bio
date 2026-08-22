@@ -19,7 +19,7 @@ async function loadProject(code: string) {
   const { data } = await admin
     .from("projects")
     .select(
-      "id, short_code, title, description, status, visibility, application_deadline, pay_amount, pay_type, region_text, recruitment_count, deleted_at, collect_casting_details, collect_applicant_fee",
+      "id, short_code, title, description, status, visibility, application_deadline, pay_amount, pay_type, region_text, recruitment_count, deleted_at, collect_casting_details, collect_applicant_fee, guide_url",
     )
     .eq("short_code", code)
     .maybeSingle();
@@ -116,7 +116,7 @@ export default async function QuickApplyPage({
         </div>
       ) : (
         <div className="mt-8">
-          <QuickApplyForm code={code} channel={channel} />
+          <QuickApplyForm code={code} channel={channel} guideUrl={project.guide_url ?? null} />
         </div>
       )}
 

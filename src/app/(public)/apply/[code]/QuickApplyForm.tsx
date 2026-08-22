@@ -3,15 +3,20 @@
 import { useState, useTransition } from "react";
 import { quickApplyAction } from "@/app/actions/quick-apply";
 
-/** 제작 가이드(노션). 메일에서 쓰는 것과 같은 주소다. */
-const GUIDE_URL =
-  "https://brief-blouse-1fb.notion.site/LG-_-dee-tz-3bcce086cc1880af9b10cd1a190ffe4a";
-
 /**
  * 로그인 없는 접수 폼.
  * 성공하면 업로드 링크를 바로 화면에 띄운다 — 메일을 기다리게 하면 그 사이 이탈한다.
  */
-export function QuickApplyForm({ code, channel }: { code: string; channel?: string | null }) {
+export function QuickApplyForm({
+  code,
+  channel,
+  guideUrl,
+}: {
+  code: string;
+  channel?: string | null;
+  /** 공고에 등록된 제작 가이드. 없으면 가이드 버튼을 띄우지 않는다. */
+  guideUrl?: string | null;
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ submitUrl: string; state: "new" | "existing" | "rejoined" } | null>(
@@ -41,14 +46,16 @@ export function QuickApplyForm({ code, channel }: { code: string; channel?: stri
           영상을 다시 찍어야 하고, 그게 마감을 밀리게 하는 가장 흔한 원인이다.
           업로드는 촬영을 마친 뒤의 일이라 아래로 내린다.
         */}
-        <a
-          href={GUIDE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-5 block rounded-xl bg-neutral-900 py-4 text-center text-base font-bold text-white"
-        >
-          제작 가이드 먼저 확인하기
-        </a>
+        {guideUrl ? (
+          <a
+            href={guideUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-5 block rounded-xl bg-neutral-900 py-4 text-center text-base font-bold text-white"
+          >
+            제작 가이드 먼저 확인하기
+          </a>
+        ) : null}
 
         <div className="mt-5 rounded-xl bg-amber-50 p-4">
           <p className="text-sm font-bold text-amber-900">촬영 전 꼭 확인</p>

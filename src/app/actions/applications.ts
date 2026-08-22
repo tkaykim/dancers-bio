@@ -20,9 +20,12 @@ import type { ActionResult } from "./auth";
 // Lite MVP: 1계정 = 1댄서 가정. team apply / manager-as-actor 분기 모두 제거.
 // 항상 본인 own dancer (profile_id = user.id) 중 가장 오래된 1개로 INSERT.
 // dancer가 없으면 NEEDS_DANCER sentinel 반환 → 클라이언트에서 onboarding으로 유도.
+/** 지원 직후 화면이 바로 쓸 정보. 가이드가 없는 공고면 guideUrl 은 null. */
+export type ApplyOutcome = { guideUrl: string | null; accepted: boolean };
+
 export async function applyToProjectAction(
   formData: FormData,
-): Promise<ActionResult> {
+): Promise<ActionResult<ApplyOutcome>> {
   const user = await requireUser();
   const project_id = formData.get("project_id");
   if (typeof project_id !== "string") {
@@ -36,7 +39,7 @@ export async function applyToProjectAction(
   const supabase = await createClient();
   const { data: project } = await supabase
     .from("projects")
-    .select("owner_id, status, visibility, deleted_at, application_deadline, is_standing_pool, collect_applicant_fee, collect_casting_details")
+    .select("owner_id, status, visibility, deleted_at, application_deadline, is_standing_pool, collect_applicant_fee, collect_casting_details, guide_url, auto_accept_on_apply")
     .eq("id", project_id)
     .single();
 
@@ -180,13 +183,18 @@ export async function applyToProjectAction(
     personal_profile_url = parsed.data.personal_profile_url;
   }
 
+  // 선발 없이 전원 진행하는 공고(챌린지 등)는 지원과 동시에 확정한다.
+  // 확정 안내를 기다리는 사이에 이탈이 발생해, 그 대기 자체를 없앤다.
+  const autoAccept = project.auto_accept_on_apply === true;
+
   const { error } = await supabase.from("applications").insert({
     project_id,
     applicant_id: user.id,
     dancer_id: dancerId,
     team_id: null,
     source: "apply" as const,
-    status: "pending" as const,
+    status: autoAccept ? ("accepted" as const) : ("pending" as const),
+    responded_at: autoAccept ? new Date().toISOString() : null,
     cover_message: cover_message || null,
     recruitment_channel_id,
     proposed_fee,
@@ -216,7 +224,8 @@ export async function applyToProjectAction(
 
   revalidatePath(`/projects/${project_id}`);
   revalidatePath("/applications");
-  return { ok: true };
+  // 가이드가 등록된 공고는 지원 직후 화면에서 바로 열어볼 수 있게 링크를 돌려준다.
+  return { ok: true, data: { guideUrl: (project.guide_url as string | null) ?? null, accepted: autoAccept } };
 }
 
 export async function withdrawApplicationAction(
