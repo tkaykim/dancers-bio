@@ -7,6 +7,8 @@ import {
   renderDeetzMail,
   resolveApplicantContact,
 } from "@/lib/notify/deetz-mail";
+import { mailTranslator } from "@/lib/i18n/mail-messages";
+import { projectLocale } from "@/lib/i18n/project-locale";
 
 export const REJECTION_CHANNEL = "stage_reject";
 
@@ -48,7 +50,12 @@ export async function sendApplicationRejectionEmail(params: {
       .eq("channel", REJECTION_CHANNEL);
   };
 
-  const { email, name } = await resolveApplicantContact(params);
+  // 문구 언어는 공고 본문이 정한다. 영문 공고에 한국어 안내가 나가면
+  // 지원자는 결과가 무엇인지조차 알 수 없다(4wbhr5 China Tour 에서 35통이 그렇게 나갔다).
+  const locale = await projectLocale(projectId);
+  const mt = mailTranslator(locale);
+
+  const { email, name } = await resolveApplicantContact(params, locale);
   if (!email) {
     await releaseClaim();
     return { ok: false, skipped: "no_email" };
@@ -60,64 +67,67 @@ export async function sendApplicationRejectionEmail(params: {
     .eq("id", projectId)
     .maybeSingle();
   const projectTitle = ((proj?.title as string | null) ?? "").trim();
-  const safeName = escapeHtml(name);
   const subjectSuffix = projectTitle ? ` - ${projectTitle}` : "";
 
+  const noticeText = [
+    mt("mail.reject.notice_1"),
+    mt("mail.reject.notice_2"),
+    mt("mail.reject.notice_3"),
+  ];
+  const footerText = [
+    mt("mail.reject.footer_1"),
+    mt("mail.reject.footer_2"),
+    mt("mail.reject.footer_3"),
+  ];
+  const bodyText = [mt("mail.reject.body_1"), mt("mail.reject.body_2")];
+
   const html = renderDeetzMail({
-    pill: "지원 결과 안내",
+    locale,
+    pill: mt("mail.reject.pill"),
     pillTone: "neutral",
-    heading: `${safeName}님, 안녕하세요.`,
-    bodyLines: [
-      "deetz를 통해 지원해 주셔서 진심으로 감사합니다.",
-      "신중히 검토했지만, 아쉽게도 이번 프로젝트에서는 함께하지 못하게 되었습니다.",
-    ],
+    heading: escapeHtml(mt("mail.common.hello", { name })),
+    bodyLines: bodyText.map(escapeHtml),
     infoRows: [
       {
-        label: "지원 프로젝트",
+        label: mt("mail.stage.row_project"),
         value: projectTitle ? escapeHtml(projectTitle) : "-",
         strong: true,
       },
     ],
-    noticeLines: [
-      "<strong>프로필을 채워두시면 다음 캐스팅에서 성사될 확률이 올라갑니다.</strong>",
-      "프로필 사진, 주요 경력, 춤 영상, 인스타그램 연결이 특히 큰 영향을 줍니다.",
-      "캐스팅을 의뢰하는 클라이언트가 이 정보를 보고 후보를 추리기 때문입니다.",
-    ],
-    footerLines: [
-      "직접 정리하시기 번거로우시면, 이 메일로 회신만 주셔도 됩니다.",
-      "프로필 사진, 포트폴리오 파일, 또는 경력을 정리한 텍스트를 보내주시면 저희가 프로필에 대신 업데이트해 드립니다.",
-      "보내주신 관심과 노력에 깊이 감사드리며, 더 좋은 기회로 다시 만나뵙기를 바랍니다.",
-    ],
-    cta: { label: "내 프로필 채우러 가기", href: "https://deetz.kr/me" },
+    // 첫 줄만 강조한다 — 이 메일의 핵심은 "프로필을 채우면 다음이 열린다"다.
+    noticeLines: noticeText.map((line, i) =>
+      i === 0 ? `<strong>${escapeHtml(line)}</strong>` : escapeHtml(line),
+    ),
+    footerLines: footerText.map(escapeHtml),
+    cta: { label: mt("mail.reject.cta"), href: "https://deetz.kr/me" },
   });
 
   const text = [
-    `안녕하세요 ${name}님,`,
+    mt("mail.text.greeting", { name }),
     ``,
-    `deetz를 통해 지원해 주셔서 진심으로 감사합니다.`,
-    `신중히 검토했지만, 아쉽게도 이번 프로젝트에서는 함께하지 못하게 되었습니다.`,
-    ...(projectTitle ? [``, `지원 프로젝트: ${projectTitle}`] : []),
+    ...bodyText,
+    ...(projectTitle
+      ? [``, `${mt("mail.stage.row_project")}: ${projectTitle}`]
+      : []),
     ``,
-    `프로필을 채워두시면 다음 캐스팅에서 성사될 확률이 올라갑니다.`,
-    `프로필 사진, 주요 경력, 춤 영상, 인스타그램 연결이 특히 큰 영향을 줍니다.`,
-    `캐스팅을 의뢰하는 클라이언트가 이 정보를 보고 후보를 추리기 때문입니다.`,
+    ...noticeText,
     ``,
-    `직접 정리하시기 번거로우시면, 이 메일로 회신만 주셔도 됩니다.`,
-    `프로필 사진, 포트폴리오 파일, 또는 경력을 정리한 텍스트를 보내주시면 저희가 프로필에 대신 업데이트해 드립니다.`,
+    footerText[0],
+    footerText[1],
     ``,
-    `보내주신 관심과 노력에 깊이 감사드리며, 더 좋은 기회로 다시 만나뵙기를 바랍니다.`,
+    footerText[2],
     ``,
-    `내 프로필: https://deetz.kr/me`,
-    `다른 캐스팅 둘러보기: https://deetz.kr/feed`,
+    `${mt("mail.reject.text_profile")}: https://deetz.kr/me`,
+    `${mt("mail.reject.text_feed")}: https://deetz.kr/feed`,
     ``,
-    `deetz · 댄서 매거진 & 캐스팅 플랫폼`,
-    `deetz.kr · contact@deetz.kr`,
-    `Instagram instagram.com/deetz.kr · YouTube youtube.com/@deetzmagazine`,
+    mt("mail.signature.line1"),
+    mt("mail.signature.line2"),
+    mt("mail.signature.social"),
   ].join("\n");
 
   const res = await sendGmailEmail({
     to: email,
-    subject: `[deetz] 지원 결과 안내${subjectSuffix}`,
+    subject: `${mt("mail.reject.subject")}${subjectSuffix}`,
     text,
     html,
   });

@@ -13,6 +13,9 @@
 //
 // 관련 마이그레이션: 20260815_004 / _005 / _006.
 
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
+import { t } from "@/lib/i18n/messages";
+
 export const MAX_SELECTION_ROUNDS = 3;
 
 export type ApplicationStage =
@@ -94,15 +97,19 @@ export function getApplicationStage(app: ApplicationLike): ApplicationStage {
 
 // n차 단계의 표시 이름. round_labels 가 있으면 그걸 쓰고, 없으면 기본 이름.
 // 마지막 단계는 항상 "최종 합격" 계열로 읽히게 한다.
+//
+// locale 은 영문 공고 지원자에게 나가는 메일에서만 넘긴다. 운영자 화면은 기본값(ko).
+// round_labels 는 운영자가 직접 쓴 값이라 언어와 무관하게 항상 우선한다.
 export function roundLabel(
   round: number,
   project: ProjectRoundConfig | null | undefined,
+  locale: Locale = DEFAULT_LOCALE,
 ): string {
   const total = normalizeRounds(project?.selection_rounds);
   const custom = project?.round_labels?.[round - 1]?.trim();
   if (custom) return custom;
-  if (round >= total) return "최종 합격";
-  return `${round}차 합격`;
+  if (round >= total) return t(locale, "stage.label.final");
+  return t(locale, "stage.label.round", { round });
 }
 
 // 지원자·운영자 화면에 그대로 쓰는 라벨.

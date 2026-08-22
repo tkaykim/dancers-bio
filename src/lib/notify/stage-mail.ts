@@ -12,6 +12,8 @@ import {
   roundLabel,
   toParagraphs,
 } from "@/lib/application-stage";
+import { mailTranslator } from "@/lib/i18n/mail-messages";
+import { projectLocale } from "@/lib/i18n/project-locale";
 
 type SendResult = { ok: boolean; skipped?: string; error?: string };
 
@@ -65,6 +67,9 @@ async function getProjectTitle(projectId: string | null): Promise<string> {
   return ((data?.title as string | null) ?? "").trim();
 }
 
+/** 강조는 사전이 아니라 여기서 감싼다 — 같은 문장을 HTML 과 text 양쪽에 쓰기 위해서. */
+const strong = (line: string) => `<strong>${line}</strong>`;
+
 // ───────────────────────────────────────────────────── 단계 통과 안내 (중간/최종)
 //
 // 중간 단계에서는 "아직 최종이 아니다"를 제목·pill·안내박스 세 군데에서 반복한다.
@@ -90,7 +95,12 @@ export async function sendStageEmail(params: {
     return { ok: true, skipped: "already_sent" };
   }
 
-  const { email, name } = await resolveApplicantContact(params);
+  // 문구 언어는 공고 본문이 정한다. 영문 공고에 한국어 안내가 나가면
+  // 지원자는 합격인지 아닌지조차 알 수 없다(4wbhr5 China Tour 에서 실제로 발생).
+  const locale = await projectLocale(projectId);
+  const mt = mailTranslator(locale);
+
+  const { email, name } = await resolveApplicantContact(params, locale);
   if (!email) {
     await releaseClaim(projectId, applicantId, channel);
     return { ok: false, skipped: "no_email" };
@@ -102,99 +112,103 @@ export async function sendStageEmail(params: {
     round_labels: params.roundLabels ?? null,
   };
   const isFinal = round >= total;
-  const label = roundLabel(round, cfg);
-  const nextLabel = isFinal ? null : roundLabel(round + 1, cfg);
+  const label = roundLabel(round, cfg, locale);
+  const nextLabel = isFinal ? null : roundLabel(round + 1, cfg, locale);
 
   const title = await getProjectTitle(projectId);
-  const safeName = escapeHtml(name);
   const noteClean = note?.trim() || null;
 
   // 공고별 본문이 있으면 기본 문구 대신 쓴다. 경고 박스는 아래에서 항상 붙는다.
+  // 덮어쓰기 문구는 운영자가 직접 쓴 글이라 번역하지 않고 그대로 내보낸다.
   const customBody = toParagraphs(bodyOverride);
   const defaultBody = isFinal
-    ? [
-        "모든 선발 절차가 끝나 최종 합격하셨음을 안내드립니다.",
-        "함께하게 되어 반갑습니다.",
-      ]
-    : [
-        "deetz를 통해 지원해 주셔서 감사합니다.",
-        `보내주신 프로필을 검토한 결과, ${label}하셨습니다.`,
-      ];
+    ? [mt("mail.stage.body_final_1"), mt("mail.stage.body_final_2")]
+    : [mt("mail.stage.body_round_1"), mt("mail.stage.body_round_2", { label })];
   const bodyLinesText = customBody.length ? customBody : defaultBody;
   const bodyLines = bodyLinesText.map(escapeHtml);
 
+  const stageValue = mt("mail.stage.stage_value", { label, round, total });
+  const noticeText = isFinal
+    ? [
+        mt("mail.stage.notice_final_1"),
+        mt("mail.stage.notice_final_2"),
+        mt("mail.stage.notice_final_3"),
+      ]
+    : [
+        mt("mail.stage.notice_round_1"),
+        mt("mail.stage.notice_round_2", {
+          next: nextLabel ?? label,
+        }),
+        mt("mail.stage.notice_round_3"),
+      ];
+  const footerText = isFinal
+    ? []
+    : [mt("mail.stage.footer_round_1"), mt("mail.stage.footer_round_2")];
+
   const html = renderDeetzMail({
-    pill: isFinal ? escapeHtml(label) : `${escapeHtml(label)} (최종 확정 아님)`,
+    locale,
+    pill: isFinal
+      ? escapeHtml(label)
+      : escapeHtml(mt("mail.stage.pill_not_final", { label })),
     pillTone: isFinal ? "ok" : "pending",
-    heading: isFinal
-      ? `${safeName}님, 최종 합격하셨습니다.`
-      : `${safeName}님, ${escapeHtml(label)}을 안내드립니다.`,
+    heading: escapeHtml(
+      isFinal
+        ? mt("mail.stage.heading_final", { name })
+        : mt("mail.stage.heading_round", { name, label }),
+    ),
     bodyLines,
     infoRows: [
-      { label: "지원 프로젝트", value: title ? escapeHtml(title) : "-", strong: true },
       {
-        label: "현재 단계",
-        value: escapeHtml(
-          total > 1 ? `${label} (${round}/${total}단계)` : label,
-        ),
+        label: mt("mail.stage.row_project"),
+        value: title ? escapeHtml(title) : "-",
+        strong: true,
+      },
+      {
+        label: mt("mail.stage.row_stage"),
+        value: escapeHtml(total > 1 ? stageValue : label),
       },
     ],
-    noticeLines: isFinal
-      ? [
-          "이 단계부터는 <strong>앱에서 직접 포기하실 수 없습니다.</strong>",
-          "부득이한 사정이 생기면 즉시 contact@deetz.kr 로 알려주세요.",
-          "확정 이후의 이탈은 클라이언트 일정과 다른 참여자에게 영향을 줍니다.",
-        ]
-      : [
-          "<strong>이번 안내는 최종 합격이 아닙니다.</strong>",
-          `다음 단계(${escapeHtml(nextLabel ?? "최종 합격")}) 결과에 따라 최종 진행이 되지 않을 수 있습니다.`,
-          "결과가 나오는 대로 합격·불합격 여부와 관계없이 다시 안내드립니다.",
-        ],
-    footerLines: isFinal
-      ? noteClean
-        ? [escapeHtml(noteClean)]
-        : []
-      : [
-          ...(noteClean ? [escapeHtml(noteClean)] : []),
-          "일정이나 사정상 참여가 어려우시면, 아래 <strong>내 지원 현황</strong>에서 직접 포기하실 수 있습니다.",
-          "최종 합격으로 확정된 경우에는 포기가 어려우니, 일정에 변동이 있으시다면 미리 반영 부탁드립니다.",
-        ],
-    cta: { label: "내 지원 현황 보기", href: "https://deetz.kr/applications" },
+    // 첫 줄만 강조한다 — 최종이면 "직접 포기 불가", 중간이면 "최종 아님"이 핵심이다.
+    noticeLines: noticeText.map((line, i) =>
+      i === 0 ? strong(escapeHtml(line)) : escapeHtml(line),
+    ),
+    footerLines: [
+      ...(noteClean ? [escapeHtml(noteClean)] : []),
+      ...footerText.map(escapeHtml),
+    ],
+    cta: {
+      label: mt("mail.stage.cta"),
+      href: "https://deetz.kr/applications",
+    },
   });
 
   const text = [
-    `안녕하세요 ${name}님,`,
+    mt("mail.text.greeting", { name }),
     ``,
     ...bodyLinesText,
-    ...(title ? [``, `지원 프로젝트: ${title}`] : []),
-    `현재 단계: ${total > 1 ? `${label} (${round}/${total}단계)` : label}`,
+    ...(title ? [``, `${mt("mail.stage.row_project")}: ${title}`] : []),
+    `${mt("mail.stage.row_stage")}: ${total > 1 ? stageValue : label}`,
     ``,
-    ...(isFinal
-      ? [
-          `이 단계부터는 앱에서 직접 포기하실 수 없습니다.`,
-          `부득이한 사정이 생기면 즉시 contact@deetz.kr 로 알려주세요.`,
-        ]
-      : [
-          `[중요] 이번 안내는 최종 합격이 아닙니다.`,
-          `다음 단계(${nextLabel ?? "최종 합격"}) 결과에 따라 최종 진행이 되지 않을 수 있습니다.`,
-          `결과가 나오는 대로 합격·불합격 여부와 관계없이 다시 안내드립니다.`,
-          ``,
-          `일정이나 사정상 참여가 어려우시면, 내 지원 현황에서 직접 포기하실 수 있습니다.`,
-          `최종 합격으로 확정된 경우에는 포기가 어려우니, 일정에 변동이 있으시다면 미리 반영 부탁드립니다.`,
-        ]),
+    // HTML 쪽 강조와 같은 자리에 [중요] 를 붙인다.
+    ...noticeText.map((line, i) =>
+      i === 0 && !isFinal ? `${mt("mail.text.important_prefix")}${line}` : line,
+    ),
+    ...(footerText.length ? [``, ...footerText] : []),
     ...(noteClean ? [``, noteClean] : []),
     ``,
-    `내 지원 현황: https://deetz.kr/applications`,
+    `${mt("mail.stage.text_applications")}: https://deetz.kr/applications`,
     ``,
-    `deetz · 댄서 매거진 & 캐스팅 플랫폼`,
-    `deetz.kr · contact@deetz.kr`,
+    mt("mail.signature.line1"),
+    mt("mail.signature.line2"),
   ].join("\n");
 
   const res = await sendGmailEmail({
     to: email,
-    subject: isFinal
-      ? `[deetz] 최종 합격 안내${title ? ` - ${title}` : ""}`
-      : `[deetz] ${label} 안내 (최종 확정 아님)${title ? ` - ${title}` : ""}`,
+    subject:
+      (isFinal
+        ? mt("mail.stage.subject_final")
+        : mt("mail.stage.subject_round", { label })) +
+      (title ? ` - ${title}` : ""),
     text,
     html,
   });

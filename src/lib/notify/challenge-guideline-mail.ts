@@ -19,6 +19,13 @@ import { getOrCreatePrefs } from "@/lib/notify/notification-preferences";
  *
  * ⚠ 본문 정본은 이 파일과 scripts/send-challenge-guideline.mjs 두 곳에 있다.
  *   문구를 고칠 때 한쪽만 고치면 사람마다 다른 안내를 받는다. 반드시 같이 고칠 것.
+ *
+ * ⚠ 이 메일만 한국어 고정이다(다른 지원자 메일은 @/lib/i18n 으로 공고 언어를 따라간다).
+ *   본문이 특정 캠페인 전용이라서다 — 날짜(8/24~25), 음원명(AI-DOL I Wash),
+ *   해시태그(#광고), 브랜드 계정(@awc.ent)까지 이번 건에만 맞는 값이다.
+ *   영어로 옮겨도 다음 캠페인에는 전부 틀린 문장이 된다.
+ *   제대로 고치려면 이 본문을 코드가 아니라 공고 데이터(round_messages 처럼)로
+ *   옮겨서 운영자가 공고 언어로 직접 쓰게 해야 한다. 영문 챌린지를 열기 전에 필요하다.
  */
 
 const CHANNEL = "challenge_guideline_mail";

@@ -6,9 +6,10 @@ import { revalidatePath } from "next/cache";
 import { canManageProject, requireAdmin, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { DEFAULT_WITHHOLDING_RATE, calcSettlement, formatWon } from "@/lib/settlement";
+import { DEFAULT_WITHHOLDING_RATE, calcSettlement, formatMoney, formatWon } from "@/lib/settlement";
 import { sendGmailEmail } from "@/lib/gmail";
 import { buildWithdrawalRequestEmail } from "@/lib/notify/settlement-mail";
+import { projectLocale } from "@/lib/i18n/project-locale";
 import { notify } from "@/lib/notify";
 import {
   isPayoutInfoComplete,
@@ -690,13 +691,16 @@ export async function sendWithdrawalRequestEmailAction(
     s.gross_amount as number,
     Number(s.withholding_rate),
   );
+  // 영문 공고면 정산 대상도 외국인이다 — 안내와 금액 표기를 공고 언어로 맞춘다.
+  const mailLocale = await projectLocale(s.project_id as string);
   const mail = buildWithdrawalRequestEmail({
     name,
     projectTitle,
-    grossText: formatWon(calc.gross),
-    taxText: formatWon(calc.tax),
-    netText: formatWon(calc.net),
+    grossText: formatMoney(calc.gross, mailLocale),
+    taxText: formatMoney(calc.tax, mailLocale),
+    netText: formatMoney(calc.net, mailLocale),
     url: `${SITE}/me/settlements`,
+    locale: mailLocale,
   });
   const r = await sendGmailEmail({ to: email, ...mail });
   if (!r.ok) return { ok: false, error: "메일 발송에 실패했습니다." };

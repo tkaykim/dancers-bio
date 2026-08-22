@@ -1,4 +1,5 @@
 import type { Locale } from "./locale";
+import { interpolate } from "./interpolate";
 
 /**
  * 간편 접수(/apply)·영상 제출(/submit) 흐름의 문구 사전.
@@ -17,6 +18,11 @@ import type { Locale } from "./locale";
  */
 
 const ko = {
+  // ── 선발 단계 라벨 ────────────────────────────────────────
+  // 공고에 round_labels 가 없을 때의 기본 이름. 앱 화면과 메일이 함께 쓴다.
+  "stage.label.final": "최종 합격",
+  "stage.label.round": "{round}차 합격",
+
   // ── 간편 접수: 서버 액션 에러 ──────────────────────────────
   "apply.error.name_required": "이름을 입력해 주세요.",
   "apply.error.name_too_long": "이름이 너무 깁니다.",
@@ -174,6 +180,9 @@ export type MessageKey = keyof typeof ko;
 
 /** ko 와 키가 어긋나면 여기서 타입 에러가 난다 — 번역 누락 방지. */
 const en: Record<MessageKey, string> = {
+  "stage.label.final": "Final selection",
+  "stage.label.round": "Round {round} passed",
+
   "apply.error.name_required": "Please enter your name.",
   "apply.error.name_too_long": "That name is too long.",
   "apply.error.email_invalid": "Please check your email address.",
@@ -325,17 +334,12 @@ const en: Record<MessageKey, string> = {
 
 const MESSAGES: Record<Locale, Record<MessageKey, string>> = { ko, en };
 
-/** {name} 자리를 vars 로 채운다. 채울 값이 없으면 자리표시자를 그대로 둔다. */
 export function t(
   locale: Locale,
   key: MessageKey,
   vars?: Record<string, string | number>,
 ): string {
-  const raw = MESSAGES[locale][key];
-  if (!vars) return raw;
-  return raw.replace(/\{(\w+)\}/g, (whole, name: string) =>
-    name in vars ? String(vars[name]) : whole,
-  );
+  return interpolate(MESSAGES[locale][key], vars);
 }
 
 /**
