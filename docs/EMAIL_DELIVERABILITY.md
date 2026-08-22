@@ -82,7 +82,8 @@ App Router 는 한 세그먼트에 `page` 와 `route` 를 같이 둘 수 없다.
 |---|---|---|
 | `src/lib/notify/approval-welcome-mail.ts` | 프로필 승인 안내 | 온보딩 브로드캐스트. 이미 본문에 수신거부 링크가 있었다 |
 | `src/lib/notify/announcement-mail.ts` | 프로젝트 공지 | 운영자 작성 브로드캐스트, 같은 사람에게 여러 번 나간다 |
-| `scripts/send-challenge-*.mjs` (7종) | 릴스 챌린지 안내 | 8일간 600통 — 이번 스팸 분류의 당사자 |
+| `src/lib/notify/challenge-guideline-mail.ts` | 릴스 챌린지 확정 안내 | 확정 시점 발송. 아래 스크립트와 본문 정본이 같다 |
+| `scripts/send-challenge-*.mjs` (6종) | 릴스 챌린지 안내 | 8일간 600통 — 이번 스팸 분류의 당사자 |
 | `scripts/profile-nudge.mjs` | 프로필 채우기 독려 | 마케팅성 넛지 |
 | `scripts/send-project-recommend.mjs` | 공고 추천 | 마케팅성 추천 |
 | `scripts/send-drink-challenge-recommend.mjs` | 챌린지 참여 권유 | 마케팅성 추천 |

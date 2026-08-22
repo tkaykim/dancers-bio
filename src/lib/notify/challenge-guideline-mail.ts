@@ -2,6 +2,7 @@ import "server-only";
 import { createHmac } from "node:crypto";
 import { sendGmailEmail } from "@/lib/gmail";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getOrCreatePrefs } from "@/lib/notify/notification-preferences";
 
 /**
  * 릴스 챌린지 참여 확정 안내 + 제작 가이드라인 메일.
@@ -217,11 +218,23 @@ export async function sendChallengeGuidelineMail(opts: {
   if (claimErr) return { ok: false, error: claimErr.message };
   if (!claimed?.length) return { ok: true, skipped: "already_sent" };
 
+  // 안내성(bulk) 메일 — List-Unsubscribe 헤더를 붙인다.
+  // 이 캠페인은 8일간 600통 넘게 나가면서 일부가 스팸함으로 분류됐다(docs/EMAIL_DELIVERABILITY.md).
+  // 토큰 조회가 실패해도 발송은 막지 않는다 — 그 경우 mailto 수신거부만 붙는다.
+  let unsubscribeToken: string | null = null;
+  try {
+    unsubscribeToken = (await getOrCreatePrefs(recipientId)).unsubscribe_token;
+  } catch {
+    // 무시 — 헤더 하나 때문에 확정 안내를 못 보내는 게 더 나쁘다.
+  }
+
   const res = await sendGmailEmail({
     to: email,
     subject: SUBJECT,
     text: buildText(name, instagramHandle, token, guideUrl),
     html: buildHtml(name, instagramHandle, token, guideUrl, email),
+    bulk: true,
+    unsubscribeToken,
   });
 
   if (!res.ok) {
