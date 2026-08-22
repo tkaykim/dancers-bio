@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizePhone } from "@/lib/alimtalk/solapi";
+import { sendChallengeGuidelineMail } from "@/lib/notify/challenge-guideline-mail";
 import { resolveLocale } from "@/lib/i18n/locale";
 import { acceptLanguage } from "@/lib/i18n/server";
 import { t, isMessageKey, type MessageKey } from "@/lib/i18n/messages";
@@ -68,7 +69,7 @@ export async function quickApplyAction(
   const { data: project } = await admin
     .from("projects")
     .select(
-      "id, title, description, status, visibility, application_deadline, recruitment_count, deleted_at, collect_casting_details, collect_applicant_fee",
+      "id, title, description, status, visibility, application_deadline, recruitment_count, deleted_at, collect_casting_details, collect_applicant_fee, guide_url",
     )
     .eq("short_code", shortCode)
     .maybeSingle();
@@ -235,15 +236,18 @@ export async function quickApplyAction(
   {
     const { data: existing } = await admin
       .from("dancers")
-      .select("id")
+      .select("id, social_links")
       .eq("profile_id", userId)
       .maybeSingle();
 
     if (existing) {
       dancerId = existing.id;
+      // social_links 는 통째로 덮지 않는다. 유튜브·틱톡 등 다른 링크가 함께 들어 있어
+      // 객체를 통째로 갈아끼우면 그것들이 조용히 사라진다(실제로 한 번 날렸다).
+      const prev = (existing.social_links ?? {}) as Record<string, unknown>;
       await admin
         .from("dancers")
-        .update({ social_links: { instagram: `https://www.instagram.com/${handle}` } })
+        .update({ social_links: { ...prev, instagram: `https://www.instagram.com/${handle}` } })
         .eq("id", dancerId);
     } else {
       const { data: made, error: dErr } = await admin
@@ -332,6 +336,22 @@ export async function quickApplyAction(
       .single();
     if (sErr || !made) return fail("apply.error.submit_link_failed");
     token = made.token;
+  }
+
+  // 확정과 동시에 가이드라인 메일을 보낸다.
+  // 30분 주기 오토파일럿을 기다리면 어떻게 찍어야 하는지 모른 채 대기하다 이탈한다.
+  // 실패해도 접수는 성공으로 둔다 — 오토파일럿이 다음 회차에 다시 시도한다.
+  const mail = await sendChallengeGuidelineMail({
+    projectId: project.id,
+    recipientId: userId,
+    email,
+    name,
+    instagramHandle: handle,
+    token,
+    guideUrl: (project.guide_url as string | null) ?? null,
+  });
+  if (!mail.ok && mail.error) {
+    console.error("[quick-apply] 가이드라인 메일 실패 — 오토파일럿이 재시도합니다:", mail.error);
   }
 
   return { ok: true, submitUrl: `${siteUrl}/submit/${token}`, state: "new" };
