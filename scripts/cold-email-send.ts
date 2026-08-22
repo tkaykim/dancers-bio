@@ -36,6 +36,8 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import nodemailer, { type Transporter } from "nodemailer";
 
+import { listUnsubscribeHeaders } from "./lib/list-unsubscribe.mjs";
+
 // ─────────────────────────────────────────────────────────────
 // env 로드 (.env.local — 단순 파서, dotenv 의존 회피)
 // ─────────────────────────────────────────────────────────────
@@ -317,6 +319,9 @@ async function sendGmailEmail(params: {
       replyTo: params.replyTo ?? fromEmail,
       headers: {
         "X-deetz-Campaign": "cold-email",
+        // 콜드 아웃리치 = 안내성(bulk). 수신자는 deetz 계정이 없어 토큰도 없으므로
+        // mailto 수신거부만 붙는다(원클릭은 HTTPS URI 가 있어야 선언 가능).
+        ...listUnsubscribeHeaders(null),
       },
     });
     return { ok: true, messageId: info.messageId };

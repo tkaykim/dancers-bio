@@ -3,6 +3,10 @@ import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
 import {
+  fetchUnsubscribePrefs,
+  listUnsubscribeHeaders,
+} from "./lib/list-unsubscribe.mjs";
+import {
   assertKoreanMailSafe,
   escapeHtml,
   renderDeetzMail,
@@ -248,6 +252,7 @@ async function getTargets(admin) {
       auditionWindow,
       gender: dancer.gender || "unknown",
       name: dancer.stage_name || dancer.korean_name || "지원자",
+      recipientId,
       email,
       emailOk: isValidEmail(email),
     });
@@ -268,6 +273,7 @@ function summarize(rows) {
   console.log(`  reason=${JSON.stringify(by("auditionWindow"))}`);
 }
 
+// 지원자 대상 안내성(bulk) 메일 — 수신거부 헤더를 붙인다.
 async function sendOne(transporter, row, toOverride = null) {
   const mail = buildUnavailableNoticeMail({ name: row.name });
   const to = toOverride ?? row.email;
@@ -278,6 +284,7 @@ async function sendOne(transporter, row, toOverride = null) {
     subject: mail.subject,
     text: mail.text,
     html: mail.html,
+    headers: listUnsubscribeHeaders(row.unsubscribeToken ?? null),
   });
   return { to, subject: mail.subject };
 }
@@ -326,6 +333,16 @@ async function main() {
   }
 
   const targets = rows.filter((row) => row.emailOk);
+
+  // 수신거부 토큰 확보 — 계정 미연결 지원자는 토큰이 없어 mailto 수신거부만 붙는다.
+  const prefsByUser = await fetchUnsubscribePrefs(
+    admin,
+    targets.map((row) => row.recipientId),
+  );
+  for (const row of targets) {
+    row.unsubscribeToken = prefsByUser.get(row.recipientId)?.token ?? null;
+  }
+
   let sent = 0;
   const failures = [];
   for (const row of targets) {

@@ -7,6 +7,7 @@
 // 멱등: scripts/.profile-nudge-sent.json 원장에 기록된 dancer는 재발송 안 함.
 // 양식: deetz 공식 560px 카드 + SNS 푸터 + 열람 추적 픽셀 (rejection-mail.ts 기준)
 import nodemailer from "nodemailer";
+import { listUnsubscribeHeaders } from "./lib/list-unsubscribe.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { createHmac } from "node:crypto";
 import { readFileSync, writeFileSync, existsSync, appendFileSync } from "node:fs";
@@ -287,6 +288,8 @@ async function runSend(maxN) {
         from: `"${MAIL_FROM_NAME}" <${MAIL_USER()}>`,
         replyTo: REPLY_TO,
         to: r.email, subject, text, html,
+        // 안내성(bulk) — 본문 하단 링크와 같은 토큰으로 수신거부 헤더도 붙인다.
+        headers: listUnsubscribeHeaders(r.unsubscribeToken),
       });
       ledger.sent[r.dancer_id] = { email: r.email, at: ts, score: r.score };
       saveLedger(ledger);                         // 매 통마다 저장 — 중단돼도 안전
@@ -324,6 +327,7 @@ async function main() {
       from: `"${MAIL_FROM_NAME}" <${MAIL_USER()}>`,
         replyTo: REPLY_TO,
       to: arg1, subject: `[테스트] ${subject}`, text, html,
+      headers: listUnsubscribeHeaders("00000000-0000-0000-0000-000000000000"),
     });
     console.log("sent:", info.messageId, "->", arg1);
     return;

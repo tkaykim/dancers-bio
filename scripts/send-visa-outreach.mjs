@@ -10,6 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import nodemailer from "nodemailer";
+import { listUnsubscribeHeaders } from "./lib/list-unsubscribe.mjs";
 import { createClient } from "@supabase/supabase-js";
 
 const TEST_TO = "tommy062166@gmail.com";
@@ -264,7 +265,7 @@ async function main() {
     ];
     for (const [seg, lang, name, vd] of samples) {
       const m = renderMail(seg, lang, name, vd);
-      await t.sendMail({ from, to: TEST_TO, subject: `[TEST ${seg}/${lang}] ${m.subject}`, text: m.text, html: m.html });
+      await t.sendMail({ from, to: TEST_TO, subject: `[TEST ${seg}/${lang}] ${m.subject}`, text: m.text, html: m.html, headers: listUnsubscribeHeaders(null) });
       console.log(`test ${seg}/${lang} → ${TEST_TO} ✓`);
     }
     return;
@@ -277,7 +278,9 @@ async function main() {
     for (const r of rs) {
       const m = renderMail(r.segment, r.lang, r.name, r.visaDetail);
       try {
-        await t.sendMail({ from, to: r.email, subject: m.subject, text: m.text, html: m.html });
+        // 계정 미연결 수신자가 대부분이라 토큰이 없다 → mailto 수신거부만 (원클릭 미선언).
+        // 본문 optout 문구("Reply unsubscribe")와 같은 경로다.
+        await t.sendMail({ from, to: r.email, subject: m.subject, text: m.text, html: m.html, headers: listUnsubscribeHeaders(null) });
         ok++;
         console.log(`  ✓ [${r.segment}/${r.lang}] ${r.email}`);
       } catch (e) {

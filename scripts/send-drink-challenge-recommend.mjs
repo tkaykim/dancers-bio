@@ -10,6 +10,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
+import { listUnsubscribeHeaders } from "./lib/list-unsubscribe.mjs";
 
 const envPath = existsSync(new URL("../.env.local", import.meta.url))
   ? new URL("../.env.local", import.meta.url)
@@ -75,13 +76,15 @@ function transporter() {
   });
 }
 
-async function sendOne(t, to, mail) {
+// 안내성(bulk) 메일 — 본문 하단 수신거부 링크와 같은 토큰으로 헤더도 붙인다.
+async function sendOne(t, to, mail, token) {
   await t.sendMail({
     from: `"${FROM_NAME}" <${process.env.GMAIL_USER}>`,
     to,
     subject: mail.subject,
     text: mail.text,
     html: mail.html,
+    headers: listUnsubscribeHeaders(token),
   });
 }
 
@@ -331,7 +334,7 @@ if (testEmail) {
     token: testToken,
   });
   const t = transporter();
-  await sendOne(t, testEmail, mail);
+  await sendOne(t, testEmail, mail, testToken);
   console.log(`테스트 발송 완료: ${testEmail}`);
   process.exit(0);
 }
@@ -390,7 +393,7 @@ for (const recipient of recipients) {
     token: pref?.unsubscribe_token ?? "",
   });
   try {
-    await sendOne(t, recipient.email, mail);
+    await sendOne(t, recipient.email, mail, pref?.unsubscribe_token ?? null);
     await admin
       .from("project_notification_log")
       .upsert(
