@@ -75,6 +75,9 @@ db/seeds/              — 시드
 - 컬럼: snake_case, 타입: `db:types` 자동생성 사용. 컴포넌트: PascalCase.
 - `lib/supabase/admin.ts` (service role)는 `import "server-only"`. 절대 클라이언트 번들로 새지 않게.
 - 한글 UI 라벨 OK. 코드 식별자는 영어 snake_case/camelCase.
+- **단, 간편 접수(`/apply`)·영상 제출(`/submit`)은 예외** — 외국인 지원자가 들어오는 공개 경로라
+  문구를 하드코딩하지 말고 `src/lib/i18n` 사전(`t(locale, key)`)에 키를 추가한다.
+  언어는 공고 제목·본문의 한글 비중으로 자동 판별한다(`resolveLocale`). `en` 번역이 빠지면 타입 에러로 잡힌다.
 
 ## DB / RLS 원칙
 
