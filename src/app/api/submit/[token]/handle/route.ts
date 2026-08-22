@@ -1,6 +1,8 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { loadSubmissionByToken, submissionAdminClient } from "@/lib/submissions/lookup";
+import { localeFor } from "@/lib/i18n/server";
+import { t } from "@/lib/i18n/messages";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +33,10 @@ export async function POST(
     const { token } = await ctx.params;
     const sub = await loadSubmissionByToken(token);
     if (!sub) {
-      return NextResponse.json({ ok: false, error: "유효하지 않은 링크입니다." }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, error: t(await localeFor(), "submit.api.invalid_link") },
+        { status: 404 },
+      );
     }
     if (!sub.open) {
       return NextResponse.json({ ok: false, error: sub.reason }, { status: 403 });
@@ -41,7 +46,7 @@ export async function POST(
     const handle = normalize(body.handle ?? "");
     if (!handle) {
       return NextResponse.json(
-        { ok: false, error: "인스타그램 아이디 형식이 올바르지 않습니다. 영문·숫자·마침표·밑줄만 쓸 수 있습니다." },
+        { ok: false, error: t(sub.locale, "submit.api.handle_format") },
         { status: 400 },
       );
     }
@@ -61,7 +66,7 @@ export async function POST(
       .maybeSingle();
     if (clash) {
       return NextResponse.json(
-        { ok: false, error: "이미 다른 참여자가 등록한 아이디입니다. 본인 계정이 맞다면 contact@deetz.kr 로 알려주세요." },
+        { ok: false, error: t(sub.locale, "submit.api.handle_taken") },
         { status: 409 },
       );
     }
@@ -71,7 +76,10 @@ export async function POST(
       .update({ instagram_handle: handle })
       .eq("id", sub.id);
     if (error) {
-      return NextResponse.json({ ok: false, error: "저장에 실패했습니다." }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: t(sub.locale, "submit.api.save_failed") },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({ ok: true, handle });

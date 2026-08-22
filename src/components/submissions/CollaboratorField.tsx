@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { translator } from "@/lib/i18n/messages";
+import type { Locale } from "@/lib/i18n/locale";
 
 /**
  * 함께 촬영한 사람의 인스타 아이디를 남긴다. 메모다.
@@ -9,10 +11,13 @@ import { useState } from "react";
 export function CollaboratorField({
   token,
   initial,
+  locale,
 }: {
   token: string;
   initial: string[];
+  locale: Locale;
 }) {
+  const t = translator(locale);
   const [rows, setRows] = useState<string[]>(initial.length ? initial : [""]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<string[] | null>(initial.length ? initial : null);
@@ -33,11 +38,11 @@ export function CollaboratorField({
         body: JSON.stringify({ handles: rows }),
       });
       const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.error ?? "저장하지 못했습니다.");
+      if (!res.ok || !json.ok) throw new Error(json.error ?? t("submit.collab.save_failed"));
       setSaved(json.handles);
       setRows(json.handles.length ? json.handles : [""]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "저장하지 못했습니다.");
+      setError(e instanceof Error ? e.message : t("submit.collab.save_failed"));
     } finally {
       setSaving(false);
     }
@@ -46,12 +51,9 @@ export function CollaboratorField({
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="text-sm font-semibold">함께 촬영한 분</p>
+        <p className="text-sm font-semibold">{t("submit.collab.title")}</p>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          영상에 다른 댄서가 함께 나오거나 인스타그램 공동 작업자로 올리실 예정이면
-          아이디를 남겨 주세요.
-          <br />
-          확인 후 저희가 개별로 안내드립니다.
+          {t("submit.collab.help")}
         </p>
       </div>
 
@@ -69,10 +71,10 @@ export function CollaboratorField({
             <button
               type="button"
               onClick={() => removeAt(i)}
-              aria-label={`${i + 1}번째 삭제`}
+              aria-label={t("submit.collab.remove_aria", { index: i + 1 })}
               className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground"
             >
-              삭제
+              {t("submit.collab.remove")}
             </button>
           </div>
         ))}
@@ -85,7 +87,7 @@ export function CollaboratorField({
           onClick={() => setRows((prev) => [...prev, ""])}
           className="rounded-lg border border-border px-3 py-2 text-sm font-semibold disabled:opacity-50"
         >
-          + 추가
+          {t("submit.collab.add")}
         </button>
         <button
           type="button"
@@ -93,13 +95,15 @@ export function CollaboratorField({
           onClick={() => void save()}
           className="rounded-lg bg-foreground px-4 py-2 text-sm font-bold text-background disabled:opacity-60"
         >
-          {saving ? "저장 중" : "저장"}
+          {saving ? t("submit.collab.saving") : t("submit.collab.save")}
         </button>
       </div>
 
       {saved ? (
         <p className="text-xs text-muted-foreground">
-          {saved.length ? `저장됨 — ${saved.map((h) => `@${h}`).join(", ")}` : "저장됨 — 없음"}
+          {saved.length
+            ? t("submit.collab.saved", { list: saved.map((h) => `@${h}`).join(", ") })
+            : t("submit.collab.saved_none")}
         </p>
       ) : null}
       {error ? (

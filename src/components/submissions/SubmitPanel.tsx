@@ -4,6 +4,8 @@ import { useState } from "react";
 import { HandleField } from "./HandleField";
 import { SubmitUploader } from "./SubmitUploader";
 import { CollaboratorField } from "./CollaboratorField";
+import { translator } from "@/lib/i18n/messages";
+import type { Locale } from "@/lib/i18n/locale";
 
 /**
  * 제출 화면의 상호작용 부분.
@@ -15,27 +17,33 @@ export function SubmitPanel({
   displayName,
   alreadyUploadedName,
   initialCollaborators,
+  locale,
 }: {
   token: string;
   initialHandle: string;
   displayName: string | null;
   alreadyUploadedName: string | null;
   initialCollaborators: string[];
+  locale: Locale;
 }) {
+  const t = translator(locale);
   const [handle, setHandle] = useState(initialHandle);
 
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3 rounded-xl border border-border p-4 text-sm">
         <div className="flex justify-between gap-4">
-          <span className="text-muted-foreground">제출자</span>
+          <span className="text-muted-foreground">{t("submit.panel.submitter")}</span>
           <span className="font-medium">{displayName ?? handle}</span>
         </div>
-        <HandleField token={token} initialHandle={initialHandle} onChange={setHandle} />
+        <HandleField
+          token={token}
+          initialHandle={initialHandle}
+          onChange={setHandle}
+          locale={locale}
+        />
         <p className="text-xs leading-relaxed text-muted-foreground">
-          업로드한 영상이 이 계정 기준으로 정리됩니다.
-          <br />
-          계정이 바뀌었거나 잘못 등록되어 있으면 수정해 주세요.
+          {t("submit.panel.account_note")}
         </p>
       </section>
 
@@ -43,9 +51,10 @@ export function SubmitPanel({
         token={token}
         instagramHandle={handle}
         alreadyUploadedName={alreadyUploadedName}
+        locale={locale}
       />
 
-      <CollaboratorField token={token} initial={initialCollaborators} />
+      <CollaboratorField token={token} initial={initialCollaborators} locale={locale} />
     </div>
   );
 }

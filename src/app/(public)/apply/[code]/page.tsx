@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { localeFor } from "@/lib/i18n/server";
+import { translator } from "@/lib/i18n/messages";
+import type { Locale } from "@/lib/i18n/locale";
 import { QuickApplyForm } from "./QuickApplyForm";
 
 /**
@@ -10,6 +13,8 @@ import { QuickApplyForm } from "./QuickApplyForm";
  * 공고 상세(/feed)의 일반 지원 흐름은 로그인을 요구한다. 단발성으로 사람을 많이
  * 모아야 하는 공고는 그 단계에서 유입이 깎이므로, 이 페이지로 우회한다.
  * 접수 처리는 quickApplyAction 이 한다.
+ *
+ * 화면 문구는 공고 언어를 따라간다(@/lib/i18n) — 영문 공고면 라벨·안내도 영어로 나간다.
  */
 
 export const dynamic = "force-dynamic";
@@ -34,11 +39,25 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { code } = await params;
   const project = await loadProject(code);
-  if (!project) return { title: "공고를 찾을 수 없습니다 | deetz" };
+  const t = translator(await localeFor(project?.title, project?.description));
+  if (!project) return { title: t("apply.meta.not_found") };
   return {
-    title: `${project.title} | deetz 간편 접수`,
-    description: "회원가입 없이 이름·연락처만으로 바로 접수할 수 있습니다.",
+    title: t("apply.meta.title", { title: project.title }),
+    description: t("apply.meta.description"),
   };
+}
+
+/** 마감 시각. 영문 공고에는 한국 시간이라는 걸 같이 보여준다. */
+function formatDeadline(iso: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "ko-KR", {
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Seoul",
+    ...(locale === "en" ? { timeZoneName: "short" as const } : {}),
+  }).format(new Date(iso));
 }
 
 export default async function QuickApplyPage({
@@ -56,6 +75,9 @@ export default async function QuickApplyPage({
   const project = await loadProject(code);
   if (!project) notFound();
 
+  const locale = await localeFor(project.title, project.description);
+  const t = translator(locale);
+
   const closed =
     project.status !== "open" ||
     (project.application_deadline && new Date(project.application_deadline) < new Date());
@@ -66,14 +88,7 @@ export default async function QuickApplyPage({
     !!project.collect_casting_details || !!project.collect_applicant_fee;
 
   const deadlineLabel = project.application_deadline
-    ? new Intl.DateTimeFormat("ko-KR", {
-        month: "long",
-        day: "numeric",
-        weekday: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "Asia/Seoul",
-      }).format(new Date(project.application_deadline))
+    ? formatDeadline(project.application_deadline, locale)
     : null;
 
   return (
@@ -83,46 +98,57 @@ export default async function QuickApplyPage({
       </div>
 
       <span className="mt-6 inline-block rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-600">
-        회원가입 없이 접수
+        {t("apply.badge.no_signup")}
       </span>
 
       <h1 className="mt-3 text-xl font-bold leading-snug text-neutral-900">{project.title}</h1>
 
       <dl className="mt-5 space-y-2 rounded-2xl bg-neutral-50 p-4 text-sm">
         {project.pay_amount ? (
-          <Row label="페이">{`${project.pay_amount.toLocaleString()}원`}</Row>
+          <Row label={t("apply.row.pay")}>
+            {t("apply.pay.krw", {
+              amount: project.pay_amount.toLocaleString(locale === "en" ? "en-US" : "ko-KR"),
+            })}
+          </Row>
         ) : null}
-        {deadlineLabel ? <Row label="접수 마감">{deadlineLabel}</Row> : null}
-        {project.region_text ? <Row label="지역">{project.region_text}</Row> : null}
+        {deadlineLabel ? <Row label={t("apply.row.deadline")}>{deadlineLabel}</Row> : null}
+        {project.region_text ? (
+          <Row label={t("apply.row.region")}>{project.region_text}</Row>
+        ) : null}
       </dl>
 
       {closed ? (
         <p className="mt-8 rounded-xl bg-red-50 px-4 py-6 text-center text-base font-bold text-red-600">
-          접수가 마감되었습니다.
+          {t("apply.closed")}
         </p>
       ) : needsFullForm ? (
         <div className="mt-8 rounded-2xl bg-neutral-50 px-5 py-6 text-sm leading-relaxed text-neutral-700">
-          <p className="font-bold text-neutral-900">이 공고는 상세 지원서를 받습니다.</p>
-          <p className="mt-2">
-            키·생년·장르·댄스 영상 링크 등을 함께 제출해야 해서 간편 접수로는 지원할 수 없습니다.
-          </p>
-          <p className="mt-1">아래에서 로그인하신 뒤 지원해 주세요.</p>
+          <p className="font-bold text-neutral-900">{t("apply.full_form.title")}</p>
+          <p className="mt-2">{t("apply.full_form.body")}</p>
+          <p className="mt-1">{t("apply.full_form.hint")}</p>
           <a
             href={`/login?redirect=${encodeURIComponent(`/projects/${project.short_code}?apply=1`)}`}
             className="mt-5 block rounded-xl bg-neutral-900 px-4 py-3 text-center text-sm font-bold text-white"
           >
-            로그인하고 지원하기 →
+            {t("apply.full_form.cta")}
           </a>
         </div>
       ) : (
         <div className="mt-8">
-          <QuickApplyForm code={code} channel={channel} guideUrl={project.guide_url ?? null} />
+          <QuickApplyForm
+            code={code}
+            channel={channel}
+            guideUrl={project.guide_url ?? null}
+            locale={locale}
+          />
         </div>
       )}
 
       {project.description ? (
         <section className="mt-10 border-t border-neutral-200 pt-6">
-          <h2 className="text-sm font-bold text-neutral-900">공고 내용</h2>
+          <h2 className="text-sm font-bold text-neutral-900">
+            {t("apply.description_heading")}
+          </h2>
           <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-neutral-600">
             {project.description}
           </p>

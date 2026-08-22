@@ -2,6 +2,9 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizePhone } from "@/lib/alimtalk/solapi";
+import { resolveLocale } from "@/lib/i18n/locale";
+import { acceptLanguage } from "@/lib/i18n/server";
+import { t, isMessageKey, type MessageKey } from "@/lib/i18n/messages";
 import { z } from "zod";
 
 /**
@@ -21,13 +24,23 @@ import { z } from "zod";
  *
  * 접수되면 제출 토큰까지 만들어 업로드 링크를 즉시 돌려준다.
  * 가이드라인 메일은 기존 오토파일럿이 발송한다(이미 토큰이 있으면 재생성하지 않는다).
+ *
+ * 문구는 공고 언어를 따라간다(@/lib/i18n). 영문 공고에서 한국어 에러만 돌려주면
+ * 지원자는 왜 막혔는지 모른다 — 실제로 4wbhr5 지원자가 "모집 정원이 마감되었습니다."만
+ * 보고 인스타 DM 으로 "??" 를 보냈다.
  */
 
+// message 자리에 사전 키를 담는다. 언어는 공고를 읽은 뒤에야 정해지므로
+// 여기서 완성된 문장을 만들 수 없다.
 const Input = z.object({
-  name: z.string().trim().min(1, "이름을 입력해 주세요.").max(40),
-  email: z.string().trim().toLowerCase().email("이메일 형식을 확인해 주세요."),
-  phone: z.string().trim().min(1, "전화번호를 입력해 주세요."),
-  instagram: z.string().trim().min(1, "인스타그램 아이디를 입력해 주세요."),
+  name: z
+    .string()
+    .trim()
+    .min(1, "apply.error.name_required")
+    .max(40, "apply.error.name_too_long"),
+  email: z.string().trim().toLowerCase().email("apply.error.email_invalid"),
+  phone: z.string().trim().min(1, "apply.error.phone_required"),
+  instagram: z.string().trim().min(1, "apply.error.instagram_required"),
 });
 
 export type QuickApplyResult =
@@ -48,6 +61,42 @@ export async function quickApplyAction(
   shortCode: string,
   formData: FormData,
 ): Promise<QuickApplyResult> {
+  const admin = createAdminClient();
+
+  // ── 공고 확인 ────────────────────────────────────────────────
+  // 입력 검증보다 먼저 읽는다. 에러 문구의 언어를 공고 본문에서 얻어야 하기 때문이다.
+  const { data: project } = await admin
+    .from("projects")
+    .select(
+      "id, title, description, status, visibility, application_deadline, recruitment_count, deleted_at, collect_casting_details, collect_applicant_fee",
+    )
+    .eq("short_code", shortCode)
+    .maybeSingle();
+
+  const locale = resolveLocale({
+    text: [project?.title, project?.description],
+    acceptLanguage: await acceptLanguage(),
+  });
+  const fail = (key: MessageKey): QuickApplyResult => ({
+    ok: false,
+    error: t(locale, key),
+  });
+
+  if (!project || project.deleted_at) return fail("apply.error.not_found");
+  if (project.status !== "open") return fail("apply.error.closed");
+  if (project.visibility !== "public") return fail("apply.error.not_public");
+  // 상세 지원서(키·생년·장르·영상 링크…)나 희망 단가를 받는 공고는 간편 접수로 담을 수 없다.
+  // 그대로 진행하면 DB 트리거 applications_casting_details_guard 가 insert 를 거부해
+  // 계정·프로필·댄서만 만들어지고 "접수 처리 중 문제가 생겼습니다."로 끝난다(실제로 발생).
+  // 막다른 길을 만들지 말고 로그인 지원 흐름으로 돌려보낸다.
+  if (project.collect_casting_details || project.collect_applicant_fee) {
+    return fail("apply.error.needs_full_form");
+  }
+  if (project.application_deadline && new Date(project.application_deadline) < new Date()) {
+    return fail("apply.error.deadline_passed");
+  }
+
+  // ── 입력 ─────────────────────────────────────────────────────
   const parsed = Input.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
@@ -55,45 +104,16 @@ export async function quickApplyAction(
     instagram: formData.get("instagram"),
   });
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요." };
+    const key = parsed.error.issues[0]?.message;
+    return fail(isMessageKey(key) ? key : "apply.error.invalid_input");
   }
   const { name, email } = parsed.data;
 
   const phone = normalizePhone(parsed.data.phone);
-  if (!phone) return { ok: false, error: "전화번호를 다시 확인해 주세요." };
+  if (!phone) return fail("apply.error.phone_invalid");
 
   const handle = toHandle(parsed.data.instagram);
-  if (!handle || /\s/.test(handle)) {
-    return { ok: false, error: "인스타그램 아이디를 다시 확인해 주세요." };
-  }
-
-  const admin = createAdminClient();
-
-  // ── 공고 확인 ────────────────────────────────────────────────
-  const { data: project } = await admin
-    .from("projects")
-    .select(
-      "id, status, visibility, application_deadline, recruitment_count, deleted_at, collect_casting_details, collect_applicant_fee",
-    )
-    .eq("short_code", shortCode)
-    .maybeSingle();
-
-  if (!project || project.deleted_at) return { ok: false, error: "공고를 찾을 수 없습니다." };
-  if (project.status !== "open") return { ok: false, error: "마감된 공고입니다." };
-  if (project.visibility !== "public") return { ok: false, error: "공개 공고가 아닙니다." };
-  // 상세 지원서(키·생년·장르·영상 링크…)나 희망 단가를 받는 공고는 간편 접수로 담을 수 없다.
-  // 그대로 진행하면 DB 트리거 applications_casting_details_guard 가 insert 를 거부해
-  // 계정·프로필·댄서만 만들어지고 "접수 처리 중 문제가 생겼습니다."로 끝난다(실제로 발생).
-  // 막다른 길을 만들지 말고 로그인 지원 흐름으로 돌려보낸다.
-  if (project.collect_casting_details || project.collect_applicant_fee) {
-    return {
-      ok: false,
-      error: "이 공고는 상세 지원서 작성이 필요해 간편 접수를 사용할 수 없습니다. 로그인 후 지원해 주세요.",
-    };
-  }
-  if (project.application_deadline && new Date(project.application_deadline) < new Date()) {
-    return { ok: false, error: "지원 마감일이 지났습니다." };
-  }
+  if (!handle || /\s/.test(handle)) return fail("apply.error.instagram_invalid");
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.deetz.kr";
 
@@ -175,7 +195,7 @@ export async function quickApplyAction(
       .eq("status", "accepted")
       .not("confirmed_at", "is", null)
       .is("archived_at", null);
-    if ((count ?? 0) >= cap) return { ok: false, error: "모집 정원이 마감되었습니다." };
+    if ((count ?? 0) >= cap) return fail("apply.error.quota_full");
   }
 
   // ── 계정 (없으면 만든다) ─────────────────────────────────────
@@ -194,12 +214,12 @@ export async function quickApplyAction(
     } else {
       const already = /already|exists|registered|duplicate/i.test(createErr?.message ?? "");
       if (!already) {
-        return { ok: false, error: "접수 처리 중 문제가 생겼습니다. 잠시 후 다시 시도해 주세요." };
+        return fail("apply.error.generic_retry");
       }
       // 이미 가입된 이메일이면 기존 계정을 그대로 쓴다. 새로 만들면 지원 이력이 갈린다.
       userId = await findUserIdByEmail(admin, email);
       if (!userId) {
-        return { ok: false, error: "이미 가입된 이메일입니다. 로그인 후 지원해 주세요." };
+        return fail("apply.error.email_taken");
       }
     }
   }
@@ -238,7 +258,7 @@ export async function quickApplyAction(
         })
         .select("id")
         .single();
-      if (dErr || !made) return { ok: false, error: "접수 처리 중 문제가 생겼습니다." };
+      if (dErr || !made) return fail("apply.error.generic");
       dancerId = made.id;
     }
   }
@@ -285,7 +305,7 @@ export async function quickApplyAction(
         })
         .select("id")
         .single();
-      if (aErr || !made) return { ok: false, error: "접수 처리 중 문제가 생겼습니다." };
+      if (aErr || !made) return fail("apply.error.generic");
       applicationId = made.id;
     }
   }
@@ -310,7 +330,7 @@ export async function quickApplyAction(
       })
       .select("token")
       .single();
-    if (sErr || !made) return { ok: false, error: "접수는 되었지만 업로드 링크 생성에 실패했습니다. 메일로 다시 안내드리겠습니다." };
+    if (sErr || !made) return fail("apply.error.submit_link_failed");
     token = made.token;
   }
 

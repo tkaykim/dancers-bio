@@ -275,8 +275,8 @@ export async function setApplicationRoundAction(
   ActionResult<{
     round: number;
     isFinal: boolean;
-    quotaReached?: true;
     projectId?: string;
+    quota?: QuotaSignal;
   }>
 > {
   const user = await requireUser();
@@ -357,30 +357,9 @@ export async function setApplicationRoundAction(
   }
 
   // 모집 정원은 "최종 합격" 기준으로 센다. 중간 단계 합격자는 정원에 포함하지 않는다.
-  let quotaReached = false;
-  if (isFinal) {
-    const [{ data: proj }, { count: finalCount }] = await Promise.all([
-      supabase
-        .from("projects")
-        .select("recruitment_count, status")
-        .eq("id", app.project_id as string)
-        .maybeSingle(),
-      supabase
-        .from("applications")
-        .select("id", { count: "exact", head: true })
-        .eq("project_id", app.project_id as string)
-        .eq("status", "accepted")
-        .not("confirmed_at", "is", null)
-        .is("archived_at", null),
-    ]);
-    if (
-      proj &&
-      proj.status === "open" &&
-      (finalCount ?? 0) >= (proj.recruitment_count ?? 1)
-    ) {
-      quotaReached = true;
-    }
-  }
+  const quota = isFinal
+    ? await readQuota(supabase, app.project_id as string)
+    : null;
 
   revalidatePath(`/projects/${app.project_id as string}/applicants`);
   revalidatePath(`/projects/${app.project_id as string}`);
@@ -390,9 +369,7 @@ export async function setApplicationRoundAction(
     data: {
       round: roundRaw,
       isFinal,
-      ...(quotaReached
-        ? { quotaReached: true as const, projectId: app.project_id as string }
-        : {}),
+      ...(quota ? { quota, projectId: app.project_id as string } : {}),
     },
   };
 }
@@ -595,12 +572,66 @@ export async function declineAcceptedApplicationAction(
   return { ok: true };
 }
 
-// Lite: 수락 시 acceptedCount가 recruitment_count에 도달하면 quotaReached 신호를
-// 반환해 클라이언트가 "마감할까요?" 확인 후 closeProjectAction을 직접 호출.
+/**
+ * 최종 확정 인원과 모집 정원을 함께 읽어 운영자에게 보여줄 신호를 만든다.
+ *
+ * 정원 초과를 서버에서 막지 않는 이유
+ *   대기·대체 인원을 미리 확정해 두는 건 정상 운영이다. 하드 차단하면 운영자가
+ *   정원을 임시로 부풀렸다가 되돌리는 우회를 하게 되고, 그러면 정원 숫자 자체를
+ *   믿을 수 없게 된다. 대신 초과했다는 사실을 반드시 눈에 보이게 한다.
+ *   (간편 접수 quickApplyAction 은 반대로 하드 차단한다 — 익명 접수는 스스로
+ *   accepted 로 들어오므로 상한이 없으면 무제한으로 찬다.)
+ *
+ * over 는 공고가 이미 마감(status != open)돼 있어도 알린다. 마감 뒤 확정을 더
+ * 얹는 경우가 오히려 초과를 눈치채기 어려운 상황이다.
+ */
+export type QuotaSignal = {
+  /** 확정 인원이 정원에 도달했다(마감 제안 대상). 공고가 열려 있을 때만 true. */
+  reached: boolean;
+  /** 확정 인원이 정원을 넘었다. 마감 여부와 무관하게 알린다. */
+  over: boolean;
+  confirmed: number;
+  capacity: number;
+};
+
+async function readQuota(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  projectId: string,
+): Promise<QuotaSignal | null> {
+  const [{ data: project }, { count }] = await Promise.all([
+    supabase
+      .from("projects")
+      .select("recruitment_count, status")
+      .eq("id", projectId)
+      .maybeSingle(),
+    supabase
+      .from("applications")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", projectId)
+      .eq("status", "accepted")
+      .not("confirmed_at", "is", null)
+      .is("archived_at", null),
+  ]);
+  if (!project) return null;
+
+  const capacity = project.recruitment_count ?? 1;
+  const confirmed = count ?? 0;
+  if (confirmed < capacity) return null;
+
+  return {
+    reached: project.status === "open",
+    over: confirmed > capacity,
+    confirmed,
+    capacity,
+  };
+}
+
+// Lite: 최종 확정 인원이 recruitment_count에 도달하면 quota 신호를 반환해
+// 클라이언트가 "마감할까요?" 확인 후 closeProjectAction을 직접 호출.
 // 자동 마감 트리거는 마이그레이션 20260516_004에서 제거됨.
 export async function decideApplicationAction(
   formData: FormData,
-): Promise<ActionResult<{ quotaReached?: true; projectId?: string }>> {
+): Promise<ActionResult<{ projectId?: string; quota?: QuotaSignal }>> {
   const user = await requireUser();
   const application_id = formData.get("application_id");
   const decision = formData.get("decision");
@@ -711,31 +742,11 @@ export async function decideApplicationAction(
 
   // 정원은 "최종 합격(confirmed_at)" 인원으로 센다.
   // 중간 단계 합격자까지 세면 1차 합격만으로 정원이 차버린다.
-  let quotaReached = false;
   const canManageWholeProject = await canManageProject(app.project_id as string);
-  if (decision === "accepted" && acceptIsFinal && canManageWholeProject) {
-    const [{ data: project }, { count: acceptedNow }] = await Promise.all([
-      supabase
-        .from("projects")
-        .select("recruitment_count, status")
-        .eq("id", app.project_id)
-        .maybeSingle(),
-      supabase
-        .from("applications")
-        .select("id", { count: "exact", head: true })
-        .eq("project_id", app.project_id)
-        .eq("status", "accepted")
-        .not("confirmed_at", "is", null)
-        .is("archived_at", null),
-    ]);
-    if (
-      project &&
-      project.status === "open" &&
-      (acceptedNow ?? 0) >= (project.recruitment_count ?? 1)
-    ) {
-      quotaReached = true;
-    }
-  }
+  const quota =
+    decision === "accepted" && acceptIsFinal && canManageWholeProject
+      ? await readQuota(supabase, app.project_id as string)
+      : null;
 
   revalidatePath(`/projects/${app.project_id}/applicants`);
   revalidatePath(`/projects/${app.project_id}`);
@@ -752,9 +763,7 @@ export async function decideApplicationAction(
   }
   return {
     ok: true,
-    data: quotaReached
-      ? { quotaReached: true, projectId: app.project_id as string }
-      : undefined,
+    data: quota ? { quota, projectId: app.project_id as string } : undefined,
   };
 }
 

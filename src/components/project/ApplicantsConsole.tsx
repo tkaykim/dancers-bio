@@ -325,18 +325,64 @@ export function ApplicantsConsole({
     );
   }
 
+  /**
+   * 정원 신호를 운영자에게 보여준다.
+   *
+   * 초과(over)는 마감 제안 없이 경고만 띄운다 — 정원을 넘겨 확정하는 건 운영 판단이라
+   * 막지 않지만, 모르고 지나가면 실제로 사고가 난다(4wbhr5 China Tour 공고).
+   * 정확히 도달했을 때만 "마감할까요?" 를 붙인다.
+   */
+  function notifyQuota(
+    quota: { reached: boolean; over: boolean; confirmed: number; capacity: number },
+    projectId: string,
+  ) {
+    if (quota.over) {
+      toast.warning(
+        `모집 정원을 넘었습니다 — 확정 ${quota.confirmed}명 / 정원 ${quota.capacity}명`,
+        { description: "대기·대체 인원이 아니라면 확인해 주세요." },
+      );
+      return;
+    }
+    if (!quota.reached) return;
+    toast("모집 인원이 모두 찼습니다", {
+      description: "모집을 마감할까요?",
+      action: {
+        label: "마감하기",
+        onClick: async () => {
+          const cf = new FormData();
+          // closeProjectAction 은 "id" 를 읽는다. 단계 이동 쪽에서 "project_id" 로
+          // 보내는 바람에 이 버튼이 늘 "잘못된 요청입니다."로 끝나고 있었다.
+          cf.set("id", projectId);
+          const cr = await closeProjectAction(cf);
+          if (cr.ok) {
+            toast.success("모집을 마감했습니다");
+            router.refresh();
+          } else toast.error(cr.error);
+        },
+      },
+    });
+  }
+
   // 다음 선발 단계로 올린다. 마지막 단계면 곧 최종 합격(확정)이라 한 번 더 묻는다.
   async function advanceRound(id: string, toRound: number) {
     if (!canDecide) return;
     const isFinal = toRound >= totalRounds;
     const label = roundLabel(toRound, roundConfig);
-    if (
-      isFinal &&
-      !confirm(
-        `${label}으로 확정할까요?\n확정하면 지원자가 직접 포기할 수 없게 되고, 최종 합격 안내 메일이 발송됩니다.`,
+    if (isFinal) {
+      // 이번 확정으로 정원을 넘기게 되면 그 사실을 먼저 보여준다.
+      // 대기·대체 인원을 일부러 더 확정하는 경우가 있어 막지는 않는다.
+      const already = counts.byRound.get(totalRounds) ?? 0;
+      const warning =
+        already >= recruitmentCount
+          ? `⚠ 모집 정원은 ${recruitmentCount}명인데 이미 ${already}명이 확정돼 있습니다.\n확정하면 ${already + 1}명이 됩니다.\n\n`
+          : "";
+      if (
+        !confirm(
+          `${warning}${label}으로 확정할까요?\n확정하면 지원자가 직접 포기할 수 없게 되고, 최종 합격 안내 메일이 발송됩니다.`,
+        )
       )
-    )
-      return;
+        return;
+    }
 
     setBusy(true);
     const prevItem = items.find((a) => a.id === id);
@@ -363,23 +409,8 @@ export function ApplicantsConsole({
       return;
     }
     toast.success(`${label} 처리했습니다`);
-    if (r.data?.quotaReached && r.data.projectId) {
-      const pid = r.data.projectId;
-      toast("모집 인원이 모두 찼습니다", {
-        description: "모집을 마감할까요?",
-        action: {
-          label: "마감하기",
-          onClick: async () => {
-            const cf = new FormData();
-            cf.set("project_id", pid);
-            const cr = await closeProjectAction(cf);
-            if (cr.ok) {
-              toast.success("모집을 마감했습니다");
-              router.refresh();
-            } else toast.error(cr.error);
-          },
-        },
-      });
+    if (r.data?.quota && r.data.projectId) {
+      notifyQuota(r.data.quota, r.data.projectId);
     }
     router.refresh();
   }
@@ -433,23 +464,8 @@ export function ApplicantsConsole({
           ? "거절했습니다"
           : "대기로 되돌렸습니다",
     );
-    if (r.data?.quotaReached && r.data.projectId) {
-      const pid = r.data.projectId;
-      toast("모집 인원이 모두 찼습니다", {
-        description: "모집을 마감할까요?",
-        action: {
-          label: "마감",
-          onClick: async () => {
-            const cfd = new FormData();
-            cfd.set("id", pid);
-            const cr = await closeProjectAction(cfd);
-            if (cr.ok) {
-              toast.success("모집을 마감했습니다");
-              router.refresh();
-            } else toast.error(cr.error);
-          },
-        },
-      });
+    if (r.data?.quota && r.data.projectId) {
+      notifyQuota(r.data.quota, r.data.projectId);
     }
   }
 
@@ -586,7 +602,17 @@ export function ApplicantsConsole({
         <p className="text-sm text-ink-2">
           전체 {counts.total} · 대기 {counts.pending} ·{" "}
           {roundLabel(totalRounds, roundConfig)}{" "}
-          {counts.byRound.get(totalRounds) ?? 0} / {recruitmentCount}
+          {/* 정원을 넘긴 상태는 평문으로 흘려보내면 눈에 안 띈다. */}
+          <span
+            className={
+              (counts.byRound.get(totalRounds) ?? 0) > recruitmentCount
+                ? "font-bold text-red-600"
+                : undefined
+            }
+          >
+            {counts.byRound.get(totalRounds) ?? 0} / {recruitmentCount}
+            {(counts.byRound.get(totalRounds) ?? 0) > recruitmentCount ? " 초과" : ""}
+          </span>
         </p>
       </div>
 
