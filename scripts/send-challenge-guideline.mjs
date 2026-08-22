@@ -25,6 +25,10 @@
 
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
+import {
+  fetchUnsubscribePrefs,
+  listUnsubscribeHeaders,
+} from "./lib/list-unsubscribe.mjs";
 import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -396,6 +400,11 @@ const transporter = nodemailer.createTransport({
 });
 
 let sent = 0;
+// 안내성(bulk) 메일이라 수신거부 헤더를 붙인다 — 신생 도메인 평판 방어.
+// ⚠ 여기서 쓰는 토큰은 notification_preferences.unsubscribe_token 이다.
+//   본문의 t.token(개인 업로드 링크)과 다른 값이니 섞지 말 것.
+const unsubBy = await fetchUnsubscribePrefs(db, batch.map((t) => t.profileId));
+
 for (const t of batch) {
   try {
     // 업로드 링크가 개인 전용이므로 반드시 1인 1통으로 보낸다.
@@ -405,6 +414,7 @@ for (const t of batch) {
       subject: SUBJECT,
       text: buildText(t.name, t.handle, t.token),
       html: buildHtml(t.name, t.handle, t.token, t.email),
+      headers: listUnsubscribeHeaders(unsubBy.get(t.profileId)?.token ?? null),
     });
     // 성공 즉시 기록한다. 중간에 끊겨도 여기까지는 남아 재실행 시 건너뛴다.
     await db

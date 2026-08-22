@@ -14,6 +14,10 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
+import {
+  fetchUnsubscribePrefs,
+  listUnsubscribeHeaders,
+} from "./lib/list-unsubscribe.mjs";
 import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -283,6 +287,11 @@ const tr = nodemailer.createTransport({
   rateLimit: 1,
 });
 
+// 안내성(bulk) 메일이라 수신거부 헤더를 붙인다 — 신생 도메인 평판 방어.
+// ⚠ 여기서 쓰는 토큰은 notification_preferences.unsubscribe_token 이다.
+//   본문의 t.token(개인 업로드 링크)과 다른 값이니 섞지 말 것.
+const unsubBy = await fetchUnsubscribePrefs(db, targets.map((t) => t.pid));
+
 let ok = 0;
 for (const t of targets) {
   const fixedNote = Boolean(FIXED_EMAIL) && t.email.toLowerCase() === FIXED_EMAIL.toLowerCase();
@@ -293,6 +302,7 @@ for (const t of targets) {
       subject: SUBJECT,
       text: buildText(t.name, t.handle, t.token, fixedNote),
       html: buildHtml(t.name, t.handle, t.token, t.email, fixedNote),
+      headers: listUnsubscribeHeaders(unsubBy.get(t.pid)?.token ?? null),
     });
     await db.from("project_notification_log").upsert(
       { project_id: PROJECT_ID, recipient_id: t.pid, channel: CHANNEL },
