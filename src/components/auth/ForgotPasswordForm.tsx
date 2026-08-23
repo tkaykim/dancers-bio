@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { EmailTypoHint } from "@/components/ui/EmailTypoHint";
 import { useRouter } from "next/navigation";
 import { autoClaimDancersAction } from "@/app/actions/auth";
 import { getBrowserClient } from "@/lib/supabase/browser";
@@ -128,6 +129,8 @@ export function ForgotPasswordForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="가입할 때 사용한 이메일"
             />
+            {/* 주소를 잘못 적으면 인증 메일이 반송되는데 본인은 알 방법이 없다. */}
+            <EmailTypoHint email={email} onFix={setEmail} />
           </div>
           {error ? (
             <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
