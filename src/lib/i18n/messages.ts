@@ -71,6 +71,12 @@ const ko = {
     "영상 파일과 게시물 확인에 사용됩니다. @ 없이 아이디만 적어주세요.",
   "apply.form.email": "이메일",
   "apply.form.email_hint": "가이드라인과 업로드 링크를 보내드립니다.",
+  // 이미 접수한 사람이 업로드 링크를 잃었을 때의 유일한 복구 창구.
+  // 같은 정보로 다시 넣으면 기존 링크를 돌려주는데, 그 사실을 아무도 몰라
+  // "제출 버튼을 못 찾겠다"는 문의가 나왔다.
+  "apply.form.recovery_title": "이미 접수하셨나요?",
+  "apply.form.recovery_body": "업로드 링크를 못 찾으시면, 접수하실 때 쓰신 정보를 그대로 다시 입력해 주세요.",
+  "apply.form.recovery_note": "기존 링크를 다시 보여드립니다. 중복 접수되지 않습니다.",
   "apply.form.phone": "전화번호",
   "apply.form.submit": "접수하기",
   "apply.form.submitting": "접수 중...",
@@ -230,6 +236,9 @@ const en: Record<MessageKey, string> = {
     "Used to match your video file and your post. Enter the handle only, without @.",
   "apply.form.email": "Email",
   "apply.form.email_hint": "We will send the guidelines and your upload link here.",
+  "apply.form.recovery_title": "Already applied?",
+  "apply.form.recovery_body": "If you cannot find your upload link, just enter the same details you used when applying.",
+  "apply.form.recovery_note": "We will show your existing link again. This will not create a duplicate application.",
   "apply.form.phone": "Phone number",
   "apply.form.submit": "Apply",
   "apply.form.submitting": "Submitting...",

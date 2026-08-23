@@ -110,6 +110,19 @@ export function QuickApplyForm({
         });
       }}
     >
+      {/*
+        이미 접수한 사람이 업로드 링크를 잃었을 때의 유일한 복구 창구다.
+        같은 인스타 아이디로 다시 넣으면 기존 링크를 그대로 돌려주는데,
+        그 사실을 아무도 몰라 "제출 버튼을 못 찾겠다"는 문의가 나왔다.
+      */}
+      <p className="rounded-xl bg-neutral-100 px-4 py-3 text-sm leading-relaxed text-neutral-700">
+        <b className="text-neutral-900">{t("apply.form.recovery_title")}</b>
+        <br />
+        {t("apply.form.recovery_body")}
+        <br />
+        {t("apply.form.recovery_note")}
+      </p>
+
       <Field
         name="name"
         label={t("apply.form.name")}

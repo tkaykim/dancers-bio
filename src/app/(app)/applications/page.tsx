@@ -81,6 +81,23 @@ export default async function ApplicationsPage() {
 
   const list = (rows ?? []) as unknown as Row[];
 
+  // 영상 제출을 받는 공고는 업로드 링크를 여기서도 보여준다.
+  // 지금까지 링크가 있는 곳은 안내 메일과 접수 직후 화면뿐이라,
+  // 메일을 못 찾으면 제출할 방법이 없었다("제출 버튼이 어디냐"는 문의 다수).
+  const submitTokenByApp = new Map<string, { token: string; uploaded: boolean }>();
+  if (list.length) {
+    const { data: subs } = await supabase
+      .from("project_submissions")
+      .select("application_id, token, uploaded_at")
+      .in("application_id", list.map((r) => r.id));
+    for (const sub of (subs ?? []) as Array<{ application_id: string; token: string; uploaded_at: string | null }>) {
+      submitTokenByApp.set(sub.application_id, {
+        token: sub.token,
+        uploaded: sub.uploaded_at != null,
+      });
+    }
+  }
+
   const grouped = new Map<ApplicationStage, Row[]>();
   for (const r of list) {
     const stage = getApplicationStage(r);
@@ -189,6 +206,24 @@ export default async function ApplicationsPage() {
                             로 연락해 주세요.
                           </p>
                         ) : null}
+
+                        {(() => {
+                          const sub = submitTokenByApp.get(r.id);
+                          if (!sub) return null;
+                          return (
+                            <a
+                              href={`/submit/${sub.token}`}
+                              className={
+                                "block rounded-lg px-3 py-2.5 text-center text-sm font-bold " +
+                                (sub.uploaded
+                                  ? "border border-border text-ink-2"
+                                  : "bg-foreground text-background")
+                              }
+                            >
+                              {sub.uploaded ? "제출한 영상 확인 · 다시 올리기" : "영상 제출하기 →"}
+                            </a>
+                          );
+                        })()}
 
                         {r.cover_message ? (
                           <p className="rounded-md bg-secondary/40 px-2 py-1.5 text-xs text-ink-2">
