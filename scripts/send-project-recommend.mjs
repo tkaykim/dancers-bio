@@ -13,6 +13,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
+import { listUnsubscribeHeaders } from "./lib/list-unsubscribe.mjs";
 
 for (const line of readFileSync(new URL("../.env.local", import.meta.url), "utf8").split(/\r?\n/)) {
   const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
@@ -111,13 +112,16 @@ function transporter() {
   return nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
 }
 
-async function sendOne(t, to, mail) {
+// 안내성(bulk) 메일 — 본문 하단 수신거부 링크와 같은 토큰으로 헤더도 붙인다.
+// 토큰이 없으면(테스트 등) mailto 수신거부만 붙고 원클릭은 선언되지 않는다.
+async function sendOne(t, to, mail, token) {
   await t.sendMail({
     from: `"${FROM_NAME}" <${process.env.GMAIL_USER}>`,
     to,
     subject: mail.subject,
     text: mail.text,
     html: mail.html,
+    headers: listUnsubscribeHeaders(token),
   });
 }
 
@@ -144,7 +148,7 @@ if (testEmail) {
     token: "00000000-0000-0000-0000-000000000000",
   });
   const t = transporter();
-  await sendOne(t, testEmail, mail);
+  await sendOne(t, testEmail, mail, "00000000-0000-0000-0000-000000000000");
   console.log(`✓ 테스트 발송 완료 → ${testEmail}`);
   process.exit(0);
 }
@@ -202,7 +206,7 @@ for (const r of toSend) {
   if (pref?.email_unsubscribed_all) continue; // 방어적: 사이에 수신거부한 사람 스킵
   const mail = buildEmail({ name: r.name, project, token: pref?.unsubscribe_token ?? "" });
   try {
-    await sendOne(t, r.email, mail);
+    await sendOne(t, r.email, mail, pref?.unsubscribe_token ?? null);
     sent += 1;
     if (sent % 20 === 0) console.log(`  … ${sent}/${toSend.length}`);
   } catch (e) {

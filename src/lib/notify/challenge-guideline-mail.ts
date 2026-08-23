@@ -2,6 +2,7 @@ import "server-only";
 import { createHmac } from "node:crypto";
 import { sendGmailEmail } from "@/lib/gmail";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getOrCreatePrefs } from "@/lib/notify/notification-preferences";
 
 /**
  * 릴스 챌린지 참여 확정 안내 + 제작 가이드라인 메일.
@@ -18,6 +19,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *
  * ⚠ 본문 정본은 이 파일과 scripts/send-challenge-guideline.mjs 두 곳에 있다.
  *   문구를 고칠 때 한쪽만 고치면 사람마다 다른 안내를 받는다. 반드시 같이 고칠 것.
+ *
+ * ⚠ 이 메일만 한국어 고정이다(다른 지원자 메일은 @/lib/i18n 으로 공고 언어를 따라간다).
+ *   본문이 특정 캠페인 전용이라서다 — 날짜(8/24~25), 음원명(AI-DOL I Wash),
+ *   해시태그(#광고), 브랜드 계정(@awc.ent)까지 이번 건에만 맞는 값이다.
+ *   영어로 옮겨도 다음 캠페인에는 전부 틀린 문장이 된다.
+ *   제대로 고치려면 이 본문을 코드가 아니라 공고 데이터(round_messages 처럼)로
+ *   옮겨서 운영자가 공고 언어로 직접 쓰게 해야 한다. 영문 챌린지를 열기 전에 필요하다.
  */
 
 const CHANNEL = "challenge_guideline_mail";
@@ -228,11 +236,23 @@ export async function sendChallengeGuidelineMail(opts: {
   if (claimErr) return { ok: false, error: claimErr.message };
   if (!claimed?.length) return { ok: true, skipped: "already_sent" };
 
+  // 안내성(bulk) 메일 — List-Unsubscribe 헤더를 붙인다.
+  // 이 캠페인은 8일간 600통 넘게 나가면서 일부가 스팸함으로 분류됐다(docs/EMAIL_DELIVERABILITY.md).
+  // 토큰 조회가 실패해도 발송은 막지 않는다 — 그 경우 mailto 수신거부만 붙는다.
+  let unsubscribeToken: string | null = null;
+  try {
+    unsubscribeToken = (await getOrCreatePrefs(recipientId)).unsubscribe_token;
+  } catch {
+    // 무시 — 헤더 하나 때문에 확정 안내를 못 보내는 게 더 나쁘다.
+  }
+
   const res = await sendGmailEmail({
     to: email,
     subject: SUBJECT,
     text: buildText(name, instagramHandle, token, guideUrl),
     html: buildHtml(name, instagramHandle, token, guideUrl, email),
+    bulk: true,
+    unsubscribeToken,
   });
 
   if (!res.ok) {

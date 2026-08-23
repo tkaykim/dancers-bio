@@ -26,8 +26,26 @@ const RESERVED_FIRST_SEGMENTS = new Set([
   "workshops",
 ]);
 
+// 원클릭 수신거부(RFC 8058)는 List-Unsubscribe 헤더의 URL 로 **POST** 가 온다.
+// 그 URL 은 사람이 열 때 확인 페이지를 보여줘야 해서 page.tsx 가 차지하고 있고,
+// App Router 는 한 세그먼트에 page 와 route 를 같이 둘 수 없다.
+// 그래서 POST 일 때만 API 라우트로 rewrite 한다. GET 은 그대로 페이지로 간다.
+const UNSUBSCRIBE_PATH = /^\/unsubscribe\/([^/]+)\/?$/;
+
 export async function middleware(request: NextRequest) {
   const host = (request.headers.get("host") ?? "").toLowerCase();
+
+  // ⚠ 확인 페이지의 "수신거부 확인" / "다시 메일 받기" 버튼도 서버 액션이라
+  //    같은 URL 로 POST 한다. 그건 next-action 헤더로 구분해 그대로 통과시킨다.
+  //    (이걸 빼면 페이지 버튼이 통째로 죽는다.)
+  if (request.method === "POST" && !request.headers.get("next-action")) {
+    const m = UNSUBSCRIBE_PATH.exec(request.nextUrl.pathname);
+    if (m) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/api/unsubscribe/${m[1]}`;
+      return NextResponse.rewrite(url);
+    }
+  }
 
   // GRIGO 화이트라벨 정산 호스트: 같은 배포를 GRIGO 브랜딩으로 서빙한다.
   // 루트만 회사 홈페이지로 보내고, 나머지 경로는 아래 Supabase 세션 갱신 흐름을

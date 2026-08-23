@@ -4,6 +4,10 @@ import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
 import {
+  fetchUnsubscribePrefs,
+  listUnsubscribeHeaders,
+} from "./lib/list-unsubscribe.mjs";
+import {
   assertKoreanMailSafe,
   escapeHtml,
   renderDeetzMail,
@@ -169,6 +173,7 @@ async function main() {
     targets.push({
       applicationId: app.id,
       dancerId: app.dancer_id,
+      recipientId: app.applicant_id ?? dancer.profile_id ?? null,
       name: dancer.stage_name || dancer.korean_name || "지원자",
       email,
       url: `${SITE}/s/${makeProjectSurveyToken(project.id, app.dancer_id)}`,
@@ -198,6 +203,12 @@ async function main() {
     auth: { user: requiredEnv("GMAIL_USER"), pass: requiredEnv("GMAIL_APP_PASSWORD") },
   });
 
+  // 지원자 대상 안내성(bulk) 메일 — 수신거부 헤더를 붙인다.
+  const prefsByUser = await fetchUnsubscribePrefs(
+    admin,
+    targets.map((target) => target.recipientId),
+  );
+
   const sent = [];
   for (const target of targets) {
     const mail = buildMail({ name: target.name, url: target.url });
@@ -208,6 +219,9 @@ async function main() {
       subject: mail.subject,
       text: mail.text,
       html: mail.html,
+      headers: listUnsubscribeHeaders(
+        prefsByUser.get(target.recipientId)?.token ?? null,
+      ),
     });
     sent.push({ name: target.name, email: maskEmail(target.email), messageId: info.messageId });
   }

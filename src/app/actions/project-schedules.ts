@@ -10,6 +10,7 @@ import {
   verifyProjectSurveyToken,
 } from "@/lib/quick-token";
 import { buildScheduleRequestEmail } from "@/lib/notify/schedule-mail";
+import { projectLocale } from "@/lib/i18n/project-locale";
 import {
   sendScheduleCancelAlimtalk,
   sendScheduleChangeAlimtalk,
@@ -513,6 +514,8 @@ export async function sendProjectScheduleRequestsAction(
     .eq("id", projectId)
     .maybeSingle();
   if (!project) return { ok: false, error: "프로젝트를 찾을 수 없습니다." };
+  // 영문 공고면 참여자도 외국인이다 — 안내 메일을 공고 언어로 보낸다.
+  const locale = await projectLocale(projectId);
 
   const { data: schRows } = await admin
     .from("project_schedules")
@@ -593,6 +596,7 @@ export async function sendProjectScheduleRequestsAction(
       projectTitle: project.title as string,
       schedules: mailSchedules,
       url,
+      locale,
     });
     const r = await sendGmailEmail({ to: email, ...mail });
     if (r.ok) sent++;

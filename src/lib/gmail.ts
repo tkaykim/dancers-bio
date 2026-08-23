@@ -1,6 +1,8 @@
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 
+import { listUnsubscribeHeaders } from "@/lib/notify/list-unsubscribe.mjs";
+
 // deetz 전역 표준 발신 표시 이름 (2026-07-01 확정).
 // env(GMAIL_FROM_NAME)에 옛 값이 남아 있어도 앱 발신은 항상 이 이름으로 통일.
 export const DEETZ_FROM_NAME = "deetz 에이전시 & 매거진";
@@ -12,6 +14,19 @@ interface SendGmailParams {
   html: string;
   replyTo?: string;
   messageId?: string;
+  /**
+   * 안내성(bulk) 메일이면 true — List-Unsubscribe(+원클릭) 헤더가 붙는다.
+   *
+   * 거래성(transactional) 메일에는 **붙이지 않는다.** 결제 영수증·비자 미팅 확정·
+   * 지원 결과·버그 리포트처럼 수신자가 직접 일으킨 1건의 결과 통지는 수신거부 대상이 아니고,
+   * 거기에 수신거부를 달면 필수 안내까지 끊긴다. 판단 근거는 docs/EMAIL_DELIVERABILITY.md.
+   */
+  bulk?: boolean;
+  /**
+   * notification_preferences.unsubscribe_token.
+   * bulk 일 때만 의미가 있다. 없으면 mailto 수신거부만 붙는다(원클릭은 선언하지 않음).
+   */
+  unsubscribeToken?: string | null;
 }
 
 let _transporter: Transporter | null = null;
@@ -80,6 +95,8 @@ export async function sendGmailEmail({
   html,
   replyTo,
   messageId,
+  bulk,
+  unsubscribeToken,
 }: SendGmailParams): Promise<{ ok: boolean; error?: string; messageId?: string }> {
   const t = getTransporter();
   if (!t) return { ok: false, error: "transporter_unavailable" };
@@ -94,6 +111,7 @@ export async function sendGmailEmail({
       html,
       replyTo,
       messageId,
+      headers: bulk ? listUnsubscribeHeaders(unsubscribeToken) : undefined,
     });
     return { ok: true, messageId: info.messageId };
   } catch (err) {
