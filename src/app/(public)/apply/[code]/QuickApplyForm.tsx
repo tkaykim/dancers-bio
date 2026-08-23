@@ -104,6 +104,19 @@ export function QuickApplyForm({
         });
       }}
     >
+      {/*
+        이미 접수한 사람이 업로드 링크를 잃었을 때의 유일한 복구 창구다.
+        같은 인스타 아이디로 다시 넣으면 기존 링크를 그대로 돌려주는데,
+        그 사실을 아무도 몰라 "제출 버튼을 못 찾겠다"는 문의가 나왔다.
+      */}
+      <p className="rounded-xl bg-neutral-100 px-4 py-3 text-sm leading-relaxed text-neutral-700">
+        <b className="text-neutral-900">이미 접수하셨나요?</b>
+        <br />
+        업로드 링크를 못 찾으시면, 접수하실 때 쓰신 정보를 그대로 다시 입력해 주세요.
+        <br />
+        기존 링크를 다시 보여드립니다. 중복 접수되지 않습니다.
+      </p>
+
       <Field name="name" label="이름" placeholder="홍길동" autoComplete="name" />
       <Field
         name="instagram"

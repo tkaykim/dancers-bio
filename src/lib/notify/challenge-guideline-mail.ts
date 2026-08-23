@@ -125,6 +125,9 @@ function buildText(name: string, handle: string, token: string, guideUrl: string
     "",
     "릴스 챌린지 참여가 확정되어 제작 가이드라인과 영상 업로드 방법을 안내드립니다.",
     "",
+    "영상 제출은 이 메일 맨 아래 [영상 업로드] 링크에서 하실 수 있습니다.",
+    "촬영 전에 아래 가이드를 먼저 확인해 주세요.",
+    "",
   ];
   for (const [t, b] of sections(guideUrl)) out.push(`[${t}]`, ...b, "");
   out.push(
@@ -148,6 +151,14 @@ function buildHtml(name: string, handle: string, token: string, guideUrl: string
     "촬영 전에 아래 내용을 꼭 끝까지 읽어봐 주세요.",
   ]);
 
+  // 상단에도 업로드 위치를 한 줄 알려준다.
+  // 버튼을 맨 아래에만 두니 "제출 버튼을 못 찾겠다"는 문의가 실제로 나왔다.
+  // 다만 여기서는 바로 누르는 버튼이 아니라 '어디에 있는지'만 알려, 가이드를 건너뛰지 않게 한다.
+  const uploadHint = `<div style="margin:22px 0 0;padding:14px 16px;border-radius:12px;background:#eef2ff;">
+<div style="font-size:14px;line-height:1.7;color:#3730a3;"><b>영상 제출은 이 메일 맨 아래</b> &lsquo;영상 올리러 가기&rsquo; 버튼에서 하실 수 있습니다.</div>
+<div style="font-size:13px;line-height:1.7;color:#4f46e5;margin-top:4px;">촬영 전에 아래 가이드를 먼저 확인해 주세요.</div>
+</div>`;
+
   // 업로드 버튼은 가이드·필수사항·금지사항을 전부 지난 뒤에 나온다.
   // 위에 두면 가이드를 안 읽고 올려버린다(대표 피드백 2026-08-14).
   const uploadBox = `<div style="margin:26px 0 0;padding:18px;border:1px solid #ececef;border-radius:14px;background:#fafafa;">
@@ -160,7 +171,7 @@ function buildHtml(name: string, handle: string, token: string, guideUrl: string
 </div>`;
 
   const body =
-    intro + sections(guideUrl).map(([t, b]) => section(t, b)).join("") + uploadBox + section("안내", CLOSING);
+    intro + uploadHint + sections(guideUrl).map(([t, b]) => section(t, b)).join("") + uploadBox + section("안내", CLOSING);
 
   // 외부 이미지 없음 (2026-08-06 Storage egress 사고 이후 방침)
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
