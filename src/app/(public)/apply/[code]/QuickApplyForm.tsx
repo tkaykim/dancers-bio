@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { quickApplyAction } from "@/app/actions/quick-apply";
-import { suggestEmailDomain } from "@/lib/email-domain-hint";
+import { EmailTypoHint } from "@/components/ui/EmailTypoHint";
 import { translator } from "@/lib/i18n/messages";
 import type { Locale } from "@/lib/i18n/locale";
 
@@ -28,8 +28,8 @@ export function QuickApplyForm({
   const t = translator(locale);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  // 도메인 오타 후보. 막지 않고 제안만 한다.
-  const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null);
+  // 도메인 오타 감지에 쓰는 현재 입력값. 막지 않고 제안만 한다.
+  const [email, setEmail] = useState("");
   const [done, setDone] = useState<{ submitUrl: string; state: "new" | "existing" | "rejoined" } | null>(
     null,
   );
@@ -146,29 +146,16 @@ export function QuickApplyForm({
           placeholder="dancer@example.com"
           autoComplete="email"
           hint={t("apply.form.email_hint")}
-          onBlur={(e) => setEmailSuggestion(suggestEmailDomain(e.currentTarget.value))}
-          onChange={() => setEmailSuggestion(null)}
+          value={email}
+          onChange={(e) => setEmail(e.currentTarget.value)}
         />
-        {emailSuggestion ? (
-          <div className="mt-2 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-            <span>{t("apply.form.email_typo", { suggestion: emailSuggestion })}</span>
-            <button
-              type="button"
-              className="ml-2 font-bold underline underline-offset-2"
-              onClick={(e) => {
-                const form = e.currentTarget.closest("form");
-                const input = form?.querySelector<HTMLInputElement>('input[name="email"]');
-                if (input) {
-                  input.value = emailSuggestion;
-                  input.dispatchEvent(new Event("input", { bubbles: true }));
-                }
-                setEmailSuggestion(null);
-              }}
-            >
-              {t("apply.form.email_typo_apply")}
-            </button>
-          </div>
-        ) : null}
+        <EmailTypoHint
+          email={email}
+          onFix={setEmail}
+          label={t("apply.form.email_typo_prefix")}
+          suffix={t("apply.form.email_typo_suffix")}
+          actionLabel={t("apply.form.email_typo_apply")}
+        />
       </div>
       <Field
         name="phone"

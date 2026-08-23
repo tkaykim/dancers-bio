@@ -79,7 +79,8 @@ const ko = {
   "apply.form.recovery_note": "기존 링크를 다시 보여드립니다. 중복 접수되지 않습니다.",
   // 도메인 오타 제안. 막지 않고 고칠 후보만 보여준다 — 실존 도메인을 오판해
   // 접수를 막으면 지원 자체를 잃고, 그 손해가 반송보다 크다.
-  "apply.form.email_typo": "혹시 {suggestion} 아닌가요?",
+  "apply.form.email_typo_prefix": "혹시",
+  "apply.form.email_typo_suffix": " 아닌가요?",
   "apply.form.email_typo_apply": "이걸로 고치기",
   "apply.form.phone": "전화번호",
   "apply.form.submit": "접수하기",
@@ -243,7 +244,8 @@ const en: Record<MessageKey, string> = {
   "apply.form.recovery_title": "Already applied?",
   "apply.form.recovery_body": "If you cannot find your upload link, just enter the same details you used when applying.",
   "apply.form.recovery_note": "We will show your existing link again. This will not create a duplicate application.",
-  "apply.form.email_typo": "Did you mean {suggestion}?",
+  "apply.form.email_typo_prefix": "Did you mean",
+  "apply.form.email_typo_suffix": "?",
   "apply.form.email_typo_apply": "Use this instead",
   "apply.form.phone": "Phone number",
   "apply.form.submit": "Apply",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { EmailTypoHint } from "@/components/ui/EmailTypoHint";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { loginAction } from "@/app/actions/auth";
@@ -25,6 +26,7 @@ export function LoginForm({ nextPath }: { nextPath?: string } = {}) {
     safeRedirect(searchParams.get("next"));
   const dest = nextPath ?? queryRedirect ?? "/me";
   const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
   const [pending, startTransition] = useTransition();
 
   return (
@@ -52,7 +54,11 @@ export function LoginForm({ nextPath }: { nextPath?: string } = {}) {
           required
           autoComplete="email"
           inputMode="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
         />
+        {/* 오타로 로그인이 안 되는데 본인은 비밀번호 문제로 오해하기 쉽다. */}
+        <EmailTypoHint email={email} onFix={setEmail} />
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">비밀번호</Label>
