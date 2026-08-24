@@ -16,7 +16,11 @@ import {
   type PayoutAccount,
 } from "@/components/settlement/MySettlements";
 import type { DancerDocsState } from "@/components/settlement/DancerDocuments";
-import { calcSettlement, type SettlementStatus } from "@/lib/settlement";
+import {
+  calcSettlement,
+  settlementRoleLabel,
+  type SettlementStatus,
+} from "@/lib/settlement";
 import {
   isPayoutAccountValid,
   isPayoutInfoComplete,
@@ -56,7 +60,7 @@ export default async function MySettlementsPage() {
     const { data: sRows } = await supabase
       .from("settlements")
       .select(
-        "id, dancer_id, gross_amount, withholding_rate, status, requested_at, paid_at, project:projects!settlements_project_id_fkey ( title )",
+        "id, dancer_id, role, gross_amount, withholding_rate, status, requested_at, paid_at, project:projects!settlements_project_id_fkey ( title )",
       )
       .in("dancer_id", dancerIds)
       .neq("status", "cancelled")
@@ -65,6 +69,7 @@ export default async function MySettlementsPage() {
     type Row = {
       id: string;
       dancer_id: string;
+      role: string;
       gross_amount: number;
       withholding_rate: number;
       status: SettlementStatus;
@@ -74,11 +79,16 @@ export default async function MySettlementsPage() {
     };
     settlements = ((sRows ?? []) as unknown as Row[]).map((r) => {
       const proj = Array.isArray(r.project) ? r.project[0] ?? null : r.project;
+      const baseTitle = proj?.title ?? "(공고)";
       return {
         id: r.id,
         dancerId: r.dancer_id,
         dancerName: nameById.get(r.dancer_id) ?? "내 프로필",
-        projectTitle: proj?.title ?? "(공고)",
+        // 출연료 외 role(교통비·스태프·소개비)은 제목에 구분을 붙인다.
+        projectTitle:
+          r.role === "dancer"
+            ? baseTitle
+            : `${baseTitle} · ${settlementRoleLabel(r.role)}`,
         grossAmount: r.gross_amount,
         rate: Number(r.withholding_rate),
         status: r.status,

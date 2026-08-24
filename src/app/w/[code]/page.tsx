@@ -14,7 +14,7 @@ import {
   type PayoutAccount,
 } from "@/components/settlement/MySettlements";
 import type { DancerDocsState } from "@/components/settlement/DancerDocuments";
-import type { SettlementStatus } from "@/lib/settlement";
+import { settlementRoleLabel, type SettlementStatus } from "@/lib/settlement";
 import {
   isPayoutAccountValid,
   isPayoutInfoComplete,
@@ -122,15 +122,24 @@ export default async function WithdrawSharePage({
     .maybeSingle();
   const dancerName = (d?.stage_name as string | null) ?? "내 프로필";
 
-  const { data: s } = await admin
+  // 겸직(출연료+교통비 등)이면 행이 여러 개다 — 전부 보여준다.
+  const { data: sList } = await admin
     .from("settlements")
-    .select("id, gross_amount, withholding_rate, status, paid_at")
+    .select("id, role, gross_amount, withholding_rate, status, paid_at")
     .eq("project_id", projectId)
     .eq("dancer_id", dancerId)
     .neq("status", "cancelled")
-    .maybeSingle();
+    .order("created_at", { ascending: true });
+  const sRows = (sList ?? []) as Array<{
+    id: string;
+    role: string;
+    gross_amount: number | null;
+    withholding_rate: number;
+    status: string;
+    paid_at: string | null;
+  }>;
 
-  if (!s) {
+  if (sRows.length === 0) {
     return (
       <Shell brand={brand} projectTitle={projectTitle}>
         <div className="rounded-2xl border border-border bg-card p-5 text-center text-sm text-ink-2">
@@ -153,18 +162,20 @@ export default async function WithdrawSharePage({
   const accountNumber = normalizeAccountNumber(pi?.bank_account_number);
   const hasAccount = isPayoutAccountValid(pi);
 
-  const settlements: MySettlementRow[] = [
-    {
-      id: s.id as string,
-      dancerId,
-      dancerName,
-      projectTitle,
-      grossAmount: s.gross_amount as number,
-      rate: Number(s.withholding_rate),
-      status: s.status as SettlementStatus,
-      paidAt: (s.paid_at as string | null) ?? null,
-    },
-  ];
+  const settlements: MySettlementRow[] = sRows.map((s) => ({
+    id: s.id,
+    dancerId,
+    dancerName,
+    // 출연료 외 role은 제목에 구분을 붙인다 (예: "… · 교통비").
+    projectTitle:
+      s.role === "dancer"
+        ? projectTitle
+        : `${projectTitle} · ${settlementRoleLabel(s.role)}`,
+    grossAmount: s.gross_amount as number,
+    rate: Number(s.withholding_rate),
+    status: s.status as SettlementStatus,
+    paidAt: s.paid_at,
+  }));
   const accounts: Record<string, PayoutAccount | null> = {
     [dancerId]:
       hasAccount

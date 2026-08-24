@@ -40,6 +40,45 @@ export function formatWonInput(v: string | number | null | undefined): string {
   return Number(digits).toLocaleString("ko-KR");
 }
 
+// ── 역할·세무 차원 (스태프 정산 풀 — docs/design-staff-settlement-pool.md) ──
+// dancer·travel = 직접비 / staff·referral = 풀 분배 / other = 예외.
+export type SettlementRole = "dancer" | "travel" | "staff" | "referral" | "other";
+export type SettlementTaxMode = "withholding" | "invoice";
+
+export const SETTLEMENT_ROLE_LABEL: Record<SettlementRole, string> = {
+  dancer: "출연료",
+  travel: "교통비",
+  staff: "스태프",
+  referral: "소개비",
+  other: "기타",
+};
+
+export const DIRECT_COST_ROLES: readonly SettlementRole[] = ["dancer", "travel"];
+
+export function settlementRoleLabel(role: string | null | undefined): string {
+  return SETTLEMENT_ROLE_LABEL[(role ?? "dancer") as SettlementRole] ?? "기타";
+}
+
+/**
+ * 실제 이체될 금액(현금 기준) — 원장·이체파일·알림 표시가 모두 이 값을 쓴다.
+ * withholding: 세전 − 3.3%(원단위 절사) / invoice(사업자): 세전 + 부가세(부가세 포함 전달).
+ * 풀 차감은 항상 gross(공급가) — 부가세는 매입세액공제로 회수되므로 비용이 아니다.
+ */
+export function calcPayout(input: {
+  gross: number;
+  rate?: number;
+  taxMode?: SettlementTaxMode | string | null;
+  vatAmount?: number | null;
+}): { gross: number; tax: number; vat: number; transfer: number } {
+  const g = Math.max(0, Math.round(input.gross || 0));
+  if ((input.taxMode ?? "withholding") === "invoice") {
+    const vat = Math.max(0, Math.round(input.vatAmount ?? 0));
+    return { gross: g, tax: 0, vat, transfer: g + vat };
+  }
+  const c = calcSettlement(g, input.rate ?? DEFAULT_WITHHOLDING_RATE);
+  return { gross: c.gross, tax: c.tax, vat: 0, transfer: c.net };
+}
+
 // 4단계 개념: 정산대기(금액 미입력) → 정산완료(pending+금액有) → 출금신청(requested) → 입금완료(paid)
 export const SETTLEMENT_STATUS_LABEL: Record<SettlementStatus, string> = {
   pending: "정산완료",
