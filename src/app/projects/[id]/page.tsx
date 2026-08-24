@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ApplyForm } from "@/components/project/ApplyForm";
 import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
 import { ShareButton } from "@/components/project/ShareButton";
+import { ProjectMediaGallery } from "@/components/project/ProjectMediaGallery";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 import { deadlineLabel, isExpired } from "@/lib/utils/deadline";
 import { formatBytes } from "@/lib/storage/dancer-portfolio-file";
@@ -22,6 +23,7 @@ import {
   type CastingApplicationDefaults,
 } from "@/lib/casting-application-details";
 import { normalizeNationalityOptions, type NationalityOption } from "@/lib/nationality";
+import { isProjectImage, isProjectVideo } from "@/lib/storage/project-file";
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://deetz.kr").replace(
   /\/$/,
@@ -258,6 +260,14 @@ export default async function ProjectDetailPage({
       .map(encodeURIComponent)
       .join("/")}`,
   }));
+  const mediaAttachments = attachments.filter(
+    (attachment) =>
+      isProjectImage(attachment.mime_type) || isProjectVideo(attachment.mime_type),
+  );
+  const documentAttachments = attachments.filter(
+    (attachment) =>
+      !isProjectImage(attachment.mime_type) && !isProjectVideo(attachment.mime_type),
+  );
 
   // 익명 방문자는 본인 관련 쿼리 스킵.
   type ViewerProfile = { is_admin: boolean | null };
@@ -482,6 +492,8 @@ export default async function ProjectDetailPage({
         ) : null}
       </header>
 
+      <ProjectMediaGallery attachments={mediaAttachments} />
+
       <section className="grid grid-cols-3 rounded-xl border border-border bg-card divide-x divide-border">
         <div className="flex flex-col gap-1 p-4">
           <p className="text-[10px] uppercase tracking-[0.16em] text-ink-3">페이</p>
@@ -510,13 +522,13 @@ export default async function ProjectDetailPage({
         </p>
       </section>
 
-      {attachments.length > 0 ? (
+      {documentAttachments.length > 0 ? (
         <section className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-            ↳ 참고자료 ({attachments.length})
+            ↳ 참고자료 ({documentAttachments.length})
           </p>
           <ul className="flex flex-col gap-2">
-            {attachments.map((a) => (
+            {documentAttachments.map((a) => (
               <li key={a.id}>
                 <a
                   href={a.url}

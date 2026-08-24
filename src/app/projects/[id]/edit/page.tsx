@@ -43,10 +43,14 @@ export default async function ProjectEditPage({
   // 삭제는 소유자·슈퍼관리자만.
   const canDelete = me.is_admin || project.owner_id === me.id;
 
-  const { data: genres } = await supabase
-    .from("genres")
-    .select("id, label_ko")
-    .order("sort_order");
+  const [{ data: genres }, { data: attachments }] = await Promise.all([
+    supabase.from("genres").select("id, label_ko").order("sort_order"),
+    supabase
+      .from("project_attachments")
+      .select("id, file_name, storage_path, mime_type, size_bytes")
+      .eq("project_id", project.id as string)
+      .order("sort_order"),
+  ]);
 
   const initial: ProjectEditInitial = {
     id: project.id as string,
@@ -70,6 +74,13 @@ export default async function ProjectEditPage({
     round_messages:
       (project.round_messages as ProjectEditInitial["round_messages"]) ?? null,
     posted_by_label: (project.posted_by_label as string | null) ?? null,
+    attachments: (attachments ?? []).map((attachment) => ({
+      id: attachment.id as string,
+      path: attachment.storage_path as string,
+      name: attachment.file_name as string,
+      size: Number(attachment.size_bytes ?? 0),
+      mime: (attachment.mime_type as string | null) ?? "application/octet-stream",
+    })),
   };
 
   return (
