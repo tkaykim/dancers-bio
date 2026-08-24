@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectionRoundsField } from "@/components/project/SelectionRoundsField";
+import { ProjectAttachmentsField } from "@/components/project/ProjectAttachmentsField";
 import type { RoundMessages } from "@/lib/application-stage";
+import type { ProjectAttachmentDraft } from "@/lib/storage/project-file";
 import {
   STATUS_LABELS,
   PROJECT_CATEGORY_LABELS,
@@ -37,6 +39,7 @@ export type ProjectEditInitial = {
   round_labels: string[] | null;
   round_messages: RoundMessages | null;
   posted_by_label: string | null;
+  attachments: ProjectAttachmentDraft[];
 };
 
 function toLocalInput(iso: string | null): string {
@@ -67,6 +70,7 @@ export function ProjectEditForm({
   const [collectCastingDetails, setCollectCastingDetails] = useState(
     initial.collect_casting_details,
   );
+  const [attachmentsUploading, setAttachmentsUploading] = useState(false);
 
   function onPayChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/[^\d]/g, "");
@@ -117,6 +121,12 @@ export function ProjectEditForm({
           className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
         />
       </div>
+
+      <ProjectAttachmentsField
+        initial={initial.attachments}
+        disabled={pending}
+        onUploadingChange={setAttachmentsUploading}
+      />
 
       <div className="flex flex-col gap-2">
         <Label>프로젝트 종류</Label>
@@ -337,8 +347,17 @@ export function ProjectEditForm({
         >
           취소
         </Button>
-        <Button type="submit" disabled={pending} size="lg" className="flex-1">
-          {pending ? "저장 중..." : "저장"}
+        <Button
+          type="submit"
+          disabled={pending || attachmentsUploading}
+          size="lg"
+          className="flex-1"
+        >
+          {attachmentsUploading
+            ? "파일 업로드 중..."
+            : pending
+              ? "저장 중..."
+              : "저장"}
         </Button>
       </div>
     </form>

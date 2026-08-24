@@ -10,6 +10,14 @@ import {
   requireUser,
 } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  isAllowedProjectFileMime,
+  PROJECT_FILES_BUCKET,
+  PROJECT_FILE_MAX_BYTES,
+  PROJECT_FILE_MAX_COUNT,
+  type ProjectAttachmentDraft,
+} from "@/lib/storage/project-file";
 import {
   agreedPaySchema,
   projectSchema,
@@ -65,11 +73,97 @@ function localDateTimeToIso(value: string | null): string | null {
   return d.toISOString();
 }
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function parseProjectAttachments(
+  raw: string | null,
+  actorId: string,
+  options: { allowExisting: boolean },
+):
+  | { ok: true; data: ProjectAttachmentDraft[] }
+  | { ok: false; error: string } {
+  if (!raw) return { ok: true, data: [] };
+
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return { ok: false, error: "첨부파일 정보를 읽을 수 없습니다." };
+  }
+
+  if (!Array.isArray(value)) {
+    return { ok: false, error: "첨부파일 형식이 올바르지 않습니다." };
+  }
+  if (value.length > PROJECT_FILE_MAX_COUNT) {
+    return {
+      ok: false,
+      error: `첨부파일은 최대 ${PROJECT_FILE_MAX_COUNT}개까지 등록할 수 있습니다.`,
+    };
+  }
+
+  const seen = new Set<string>();
+  const attachments: ProjectAttachmentDraft[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") {
+      return { ok: false, error: "첨부파일 형식이 올바르지 않습니다." };
+    }
+
+    const candidate = item as Partial<ProjectAttachmentDraft>;
+    const id = typeof candidate.id === "string" ? candidate.id : undefined;
+    if (id) {
+      if (!options.allowExisting || !UUID_PATTERN.test(id) || seen.has(`id:${id}`)) {
+        return { ok: false, error: "기존 첨부파일 정보가 올바르지 않습니다." };
+      }
+      seen.add(`id:${id}`);
+      attachments.push({
+        id,
+        path: "",
+        name: "",
+        size: 0,
+        mime: "",
+      });
+      continue;
+    }
+
+    const path = typeof candidate.path === "string" ? candidate.path : "";
+    const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
+    const mime = typeof candidate.mime === "string" ? candidate.mime : "";
+    const size = typeof candidate.size === "number" ? candidate.size : Number.NaN;
+    const actorPrefix = `${actorId}/`;
+    if (
+      !path.startsWith(actorPrefix) ||
+      path.length > 300 ||
+      seen.has(`path:${path}`) ||
+      !name ||
+      name.length > 200 ||
+      !Number.isInteger(size) ||
+      size <= 0 ||
+      size > PROJECT_FILE_MAX_BYTES ||
+      !isAllowedProjectFileMime(mime)
+    ) {
+      return { ok: false, error: "새 첨부파일 정보가 올바르지 않습니다." };
+    }
+
+    seen.add(`path:${path}`);
+    attachments.push({ path, name, size, mime });
+  }
+
+  return { ok: true, data: attachments };
+}
+
 export async function createProjectAction(
   formData: FormData,
 ): Promise<ActionResult<{ id: string; short_code: string }>> {
   // 프로젝트 생성 권한(can_create_project) 또는 슈퍼관리자. owner = 생성자 본인.
   const creator = await requireCreator();
+
+  const attachmentInput = parseProjectAttachments(
+    strOrNull(formData, "attachments"),
+    creator.id,
+    { allowExisting: false },
+  );
+  if (!attachmentInput.ok) return attachmentInput;
 
   const parsed = projectSchema.safeParse({
     title: formData.get("title"),
@@ -217,33 +311,17 @@ export async function createProjectAction(
   }
 
   // 참고자료 첨부 (클라이언트가 storage에 올린 메타데이터 JSON). 비치명적.
-  const attachmentsRaw = strOrNull(formData, "attachments");
-  if (attachmentsRaw) {
-    try {
-      const items = JSON.parse(attachmentsRaw) as Array<{
-        path?: string;
-        name?: string;
-        size?: number;
-        mime?: string;
-      }>;
-      const rows = items
-        .filter((a) => a && typeof a.path === "string" && typeof a.name === "string")
-        .slice(0, 10)
-        .map((a, i) => ({
-          project_id: project.id,
-          file_name: (a.name as string).slice(0, 200),
-          storage_path: a.path as string,
-          mime_type: a.mime ?? null,
-          size_bytes: typeof a.size === "number" ? a.size : null,
-          sort_order: i,
-          created_by: creator.id,
-        }));
-      if (rows.length > 0) {
-        await supabase.from("project_attachments").insert(rows);
-      }
-    } catch {
-      // malformed JSON — 무시 (프로젝트 자체는 정상 생성)
-    }
+  if (attachmentInput.data.length > 0) {
+    const rows = attachmentInput.data.map((attachment, index) => ({
+      project_id: project.id,
+      file_name: attachment.name,
+      storage_path: attachment.path,
+      mime_type: attachment.mime,
+      size_bytes: attachment.size,
+      sort_order: index,
+      created_by: creator.id,
+    }));
+    await supabase.from("project_attachments").insert(rows);
   }
 
   revalidatePath("/feed");
@@ -301,7 +379,14 @@ export async function deleteProjectAction(
 export async function updateProjectAction(
   formData: FormData,
 ): Promise<ActionResult<{ id: string }>> {
-  await requireUser();
+  const actor = await requireUser();
+
+  const attachmentInput = formData.has("attachments")
+    ? parseProjectAttachments(strOrNull(formData, "attachments"), actor.id, {
+        allowExisting: true,
+      })
+    : null;
+  if (attachmentInput && !attachmentInput.ok) return attachmentInput;
 
   const parsed = projectUpdateSchema.safeParse({
     id: formData.get("id"),
@@ -372,6 +457,29 @@ export async function updateProjectAction(
     };
   }
 
+  let existingAttachments: Array<{ id: string; storage_path: string }> = [];
+  if (attachmentInput?.ok) {
+    const { data, error: attachmentSelectError } = await supabase
+      .from("project_attachments")
+      .select("id, storage_path")
+      .eq("project_id", parsed.data.id);
+    if (attachmentSelectError) {
+      return { ok: false, error: attachmentSelectError.message };
+    }
+
+    existingAttachments = (data ?? []) as Array<{
+      id: string;
+      storage_path: string;
+    }>;
+    const existingIds = new Set(existingAttachments.map((item) => item.id));
+    const includesForeignAttachment = attachmentInput.data.some(
+      (attachment) => attachment.id && !existingIds.has(attachment.id),
+    );
+    if (includesForeignAttachment) {
+      return { ok: false, error: "이 공고에 속하지 않은 첨부파일이 포함되어 있습니다." };
+    }
+  }
+
   const updatePayload: Record<string, unknown> = {
     title: parsed.data.title,
     description: parsed.data.description,
@@ -409,6 +517,72 @@ export async function updateProjectAction(
   // ⚠ 일정은 여기서 절대 건드리지 않는다(삭제·재삽입 금지).
   // 일정 추가/삭제는 지원자 콘솔의 일정 패널에서 개별 관리 → 이미 제출된 응답 보존.
   // (이전엔 수정 시 delete+재삽입이 응답을 날릴 위험이 있었음)
+
+  if (attachmentInput?.ok) {
+    const desiredExistingIds = attachmentInput.data
+      .map((attachment) => attachment.id)
+      .filter((id): id is string => Boolean(id));
+    const desiredExistingSet = new Set(desiredExistingIds);
+    const removedAttachments = existingAttachments.filter(
+      (attachment) => !desiredExistingSet.has(attachment.id),
+    );
+    const newAttachmentRows = attachmentInput.data.flatMap(
+      (attachment, index) =>
+        attachment.id
+          ? []
+          : [
+              {
+                project_id: parsed.data.id,
+                file_name: attachment.name,
+                storage_path: attachment.path,
+                mime_type: attachment.mime,
+                size_bytes: attachment.size,
+                sort_order: index,
+                created_by: actor.id,
+              },
+            ],
+    );
+    if (newAttachmentRows.length > 0) {
+      const { error: insertError } = await supabase
+        .from("project_attachments")
+        .insert(newAttachmentRows);
+      if (insertError) return { ok: false, error: insertError.message };
+    }
+
+    const sortResults = await Promise.all(
+      attachmentInput.data.flatMap((attachment, index) =>
+        attachment.id
+          ? [
+              supabase
+                .from("project_attachments")
+                .update({ sort_order: index })
+                .eq("id", attachment.id)
+                .eq("project_id", parsed.data.id),
+            ]
+          : [],
+      ),
+    );
+    const sortError = sortResults.find((result) => result.error)?.error;
+    if (sortError) return { ok: false, error: sortError.message };
+
+    if (removedAttachments.length > 0) {
+      const { error: deleteError } = await supabase
+        .from("project_attachments")
+        .delete()
+        .in(
+          "id",
+          removedAttachments.map((attachment) => attachment.id),
+        );
+      if (deleteError) return { ok: false, error: deleteError.message };
+    }
+
+    if (removedAttachments.length > 0) {
+      const admin = createAdminClient();
+      await admin.storage.from(PROJECT_FILES_BUCKET).remove(
+        removedAttachments.map((attachment) => attachment.storage_path),
+      );
+    }
+  }
 
   revalidatePath(`/projects/${parsed.data.id}`);
   revalidatePath("/admin/projects");

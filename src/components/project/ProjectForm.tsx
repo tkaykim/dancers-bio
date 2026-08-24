@@ -7,16 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectionRoundsField } from "@/components/project/SelectionRoundsField";
+import { ProjectAttachmentsField } from "@/components/project/ProjectAttachmentsField";
 import {
   PROJECT_CATEGORY_LABELS,
   PROJECT_CATEGORY_ORDER,
   type ProjectCategory,
 } from "@/lib/validation/projects";
-import {
-  uploadProjectFileFromBrowser,
-  type UploadedProjectFile,
-} from "@/lib/storage/upload-project-file";
-import { formatBytes } from "@/lib/storage/dancer-portfolio-file";
 
 type Lookup = { id: string; label_ko: string }[];
 
@@ -51,34 +47,7 @@ export function ProjectForm({
   const [isStandingPool, setIsStandingPool] = useState(false);
   const [collectFee, setCollectFee] = useState(false);
   const [collectCastingDetails, setCollectCastingDetails] = useState(false);
-  const [attachments, setAttachments] = useState<UploadedProjectFile[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [attachError, setAttachError] = useState<string | null>(null);
-
-  async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = "";
-    if (files.length === 0) return;
-    setAttachError(null);
-    setUploading(true);
-    for (const file of files) {
-      if (attachments.length >= 10) {
-        setAttachError("첨부는 최대 10개까지 가능합니다.");
-        break;
-      }
-      const res = await uploadProjectFileFromBrowser(file);
-      if (!res.ok) {
-        setAttachError(res.error);
-        continue;
-      }
-      setAttachments((prev) => [...prev, res.file]);
-    }
-    setUploading(false);
-  }
-
-  function removeAttachment(i: number) {
-    setAttachments((prev) => prev.filter((_, idx) => idx !== i));
-  }
+  const [attachmentsUploading, setAttachmentsUploading] = useState(false);
 
   function onPayChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/[^\d]/g, "");
@@ -113,8 +82,6 @@ export function ProjectForm({
         formData.set("pay_amount", payRaw.replace(/[^\d]/g, ""));
         // attach category (chip-based state, not a native input)
         formData.set("category", category);
-        // attach uploaded reference files (metadata JSON)
-        formData.set("attachments", JSON.stringify(attachments));
         // attach schedules (모든 일정 = 가능여부 조사 대상). 시간 비우면 time_tbd(날짜만).
         const validSchedules = schedules.filter((s) => s.label.trim() && s.date);
         formData.set("schedules_count", String(validSchedules.length));
@@ -169,50 +136,10 @@ export function ProjectForm({
         />
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="project-files">참고자료 첨부 (선택)</Label>
-        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-ink-2 hover:border-foreground/40">
-          <input
-            id="project-files"
-            type="file"
-            multiple
-            accept=".pdf,image/*,video/mp4"
-            onChange={onPickFiles}
-            disabled={uploading}
-            className="hidden"
-          />
-          {uploading ? "업로드 중..." : "+ 파일 선택 (PDF·이미지·영상 · 최대 50MB)"}
-        </label>
-        {attachments.length > 0 ? (
-          <ul className="flex flex-col gap-1.5">
-            {attachments.map((a, i) => (
-              <li
-                key={i}
-                className="flex items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm"
-              >
-                <span className="leading-none">📄</span>
-                <span className="min-w-0 flex-1 truncate">{a.name}</span>
-                <span className="shrink-0 text-[11px] text-ink-3">
-                  {formatBytes(a.size)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removeAttachment(i)}
-                  className="shrink-0 text-xs text-destructive hover:underline"
-                >
-                  제거
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {attachError ? (
-          <p className="text-xs text-destructive">{attachError}</p>
-        ) : null}
-        <p className="text-xs text-muted-foreground">
-          기획안·구성안 등 참고자료를 첨부하면 공고 상세에서 바로 열람·다운로드됩니다.
-        </p>
-      </div>
+      <ProjectAttachmentsField
+        disabled={pending}
+        onUploadingChange={setAttachmentsUploading}
+      />
 
       <div className="flex flex-col gap-2">
         <Label>프로젝트 종류</Label>
@@ -497,8 +424,12 @@ export function ProjectForm({
         </p>
       ) : null}
 
-      <Button type="submit" disabled={pending} size="lg">
-        {pending ? "개설 중..." : "프로젝트 개설하기"}
+      <Button type="submit" disabled={pending || attachmentsUploading} size="lg">
+        {attachmentsUploading
+          ? "파일 업로드 중..."
+          : pending
+            ? "개설 중..."
+            : "프로젝트 개설하기"}
       </Button>
     </form>
   );
