@@ -42,6 +42,8 @@ export function OwnerSettlementConsole({
   grigoUrlBase,
   clientRevenue,
   expenseAmount,
+  // 수주액·실비·마진은 owner/admin 전용 — 공동관리자에겐 섹션 자체를 숨긴다(설계 §4.3).
+  showFinance = true,
   rows,
 }: {
   projectId: string;
@@ -51,6 +53,7 @@ export function OwnerSettlementConsole({
   grigoUrlBase?: string;
   clientRevenue: number | null;
   expenseAmount: number | null;
+  showFinance?: boolean;
   rows: OwnerSettlementRow[];
 }) {
   const router = useRouter();
@@ -310,17 +313,19 @@ export function OwnerSettlementConsole({
         )}
       </section>
 
-      {/* 2) 수익 · 마진 */}
-      <FinanceSection
-        projectId={projectId}
-        clientRevenue={clientRevenue}
-        expenseAmount={expenseAmount}
-        totalGross={totalGross}
-        margin={margin}
-        busy={busy}
-        startTransition={startTransition}
-        onDone={() => router.refresh()}
-      />
+      {/* 2) 수익 · 마진 — owner/admin 전용 */}
+      {showFinance ? (
+        <FinanceSection
+          projectId={projectId}
+          clientRevenue={clientRevenue}
+          expenseAmount={expenseAmount}
+          totalGross={totalGross}
+          margin={margin}
+          busy={busy}
+          startTransition={startTransition}
+          onDone={() => router.refresh()}
+        />
+      ) : null}
 
       {/* 3) 참여 댄서 직접 추가 — 이미 섭외가 끝난 건을 정산만 기입하는 경로 */}
       <AddSettlementDancer projectId={projectId} />
