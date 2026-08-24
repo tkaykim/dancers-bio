@@ -330,7 +330,7 @@ export async function setSettlementAmountAction(
   const supabase = await createClient();
   let existingQuery = supabase
     .from("settlements")
-    .select("id, status, gross_amount")
+    .select("id, status, gross_amount, role")
     .eq("project_id", projectId);
   existingQuery = settlementId
     ? existingQuery.eq("id", settlementId)
@@ -338,6 +338,13 @@ export async function setSettlementAmountAction(
   const { data: existing } = await existingQuery.maybeSingle();
   if (settlementId && !existing)
     return { ok: false, error: "정산 내역을 찾을 수 없습니다." };
+
+  // 매니저 경로는 직접비 role만 — 스태프·소개비 금액은 관리자 전용(설계 §4.3).
+  const effectiveRole = (existing?.role as string | undefined) ?? role;
+  if (effectiveRole !== "dancer" && effectiveRole !== "travel") {
+    if (!(await isAdmin(user.id)))
+      return { ok: false, error: "스태프·소개비 금액은 관리자만 입력할 수 있습니다." };
+  }
 
   // 금액 잠금: 입금완료뿐 아니라 출금신청·취소 건도 여기서 바꿀 수 없다.
   // 댄서가 신청 시점에 본 금액과 실제 이체 금액이 달라지는 것을 막는다.
@@ -1089,13 +1096,14 @@ export async function setSettlementCollectionAction(
   if (!(await canManageProject(projectId)))
     return { ok: false, error: "권한이 없습니다." };
 
+  // 수집 코드는 공개 projects 컬럼이 아니라 비공개 테이블에 둔다(열거 차단, 설계 §3.6).
   const admin = createAdminClient();
-  const { data: proj } = await admin
-    .from("projects")
-    .select("settlement_collect_code")
-    .eq("id", projectId)
+  const { data: existing } = await admin
+    .from("project_settlement_collections")
+    .select("collect_code")
+    .eq("project_id", projectId)
     .maybeSingle();
-  let code = (proj?.settlement_collect_code as string | null) ?? null;
+  let code = (existing?.collect_code as string | null) ?? null;
   if (!code) {
     const { data: gen } = await admin.rpc(
       "gen_project_settlement_collect_code",
@@ -1104,35 +1112,53 @@ export async function setSettlementCollectionAction(
     if (!code) return { ok: false, error: "코드 생성에 실패했습니다." };
   }
   const { error } = await admin
-    .from("projects")
-    .update({ settlement_collect_code: code, settlement_collection_open: open })
-    .eq("id", projectId);
+    .from("project_settlement_collections")
+    .upsert(
+      { project_id: projectId, collect_code: code, collection_open: open },
+      { onConflict: "project_id" },
+    );
   if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/projects/${projectId}/settlements`);
   return { ok: true, data: { code, open } };
 }
 
-// ── 소유자: 수주액·실비 저장 (마진 계산용) ──────────────────────────────────
+// ── 재무(수주액·실비) 저장 — 프로젝트 owner 또는 admin만 (공동관리자 제외, §4.3) ──
+// 값은 공개 projects 컬럼이 아니라 project_finances(RLS owner/admin)에 저장한다.
+// service-role이 아닌 사용자 클라이언트로 써서 RLS가 2차 방어선이 되게 한다.
 export async function setProjectFinanceAction(
   fd: FormData,
 ): Promise<ActionResult> {
-  await requireUser();
+  const user = await requireUser();
   const projectId = (fd.get("project_id") ?? "").toString().trim();
   const revenue = parseWon(fd.get("client_revenue"));
   const expense = parseWon(fd.get("expense_amount"));
   if (!projectId) return { ok: false, error: "잘못된 요청입니다." };
-  if (!(await canManageProject(projectId)))
-    return { ok: false, error: "권한이 없습니다." };
 
   const admin = createAdminClient();
-  const { error } = await admin
+  const { data: proj } = await admin
     .from("projects")
-    .update({ client_revenue: revenue, expense_amount: expense })
-    .eq("id", projectId);
+    .select("owner_id")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (!proj) return { ok: false, error: "프로젝트를 찾을 수 없습니다." };
+  if ((proj.owner_id as string) !== user.id && !(await isAdmin(user.id)))
+    return { ok: false, error: "수주액·실비는 프로젝트 소유자 또는 관리자만 수정할 수 있습니다." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("project_finances").upsert(
+    {
+      project_id: projectId,
+      client_revenue: revenue,
+      expense_amount: expense ?? 0,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "project_id" },
+  );
   if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/projects/${projectId}/settlements`);
+  revalidatePath(`/admin/projects/${projectId}/pool`);
   return { ok: true };
 }
 
@@ -1160,15 +1186,21 @@ export async function submitSettlementCollectionAction(
     return { ok: false, error: "계좌번호는 숫자 8~20자리로 입력해 주세요." };
 
   const admin = createAdminClient();
+  const { data: coll } = await admin
+    .from("project_settlement_collections")
+    .select("project_id, collection_open")
+    .eq("collect_code", code)
+    .maybeSingle();
+  if (!coll) return { ok: false, error: "유효하지 않은 수집 링크예요." };
+  if (coll.collection_open !== true)
+    return { ok: false, error: "정산 정보 수집이 마감되었어요." };
   const { data: proj } = await admin
     .from("projects")
-    .select("id, settlement_collection_open")
-    .eq("settlement_collect_code", code)
+    .select("id")
+    .eq("id", coll.project_id as string)
     .is("deleted_at", null)
     .maybeSingle();
   if (!proj) return { ok: false, error: "유효하지 않은 수집 링크예요." };
-  if (proj.settlement_collection_open !== true)
-    return { ok: false, error: "정산 정보 수집이 마감되었어요." };
   const projectId = proj.id as string;
 
   // 본인 댄서 식별 (로그인 세션 = 신원). 여러 프로필이면 선택 필요.

@@ -67,3 +67,31 @@ export function isPayoutInfoComplete(
     isResidentNumberValid(info?.resident_registration_number)
   );
 }
+
+// ── 수취인 세무 유형 인지 검증 (스태프 정산 풀 — 사업자는 주민번호 대신 사업자번호) ──
+
+export type PayeeTaxInfo = PayoutInfo & {
+  payee_tax_mode?: string | null;
+  business_registration_number?: string | null;
+};
+
+export function normalizeBusinessNumber(value: unknown): string | null {
+  const digits = String(value ?? "").replace(/[\s-]/g, "");
+  return /^[0-9]{10}$/.test(digits) ? digits : null;
+}
+
+/**
+ * 지급 가능 여부 — withholding(3.3%)은 계좌+주민번호, invoice(사업자)는 계좌+사업자번호.
+ * 사업자 건의 이체 조건(세금계산서 수취)은 별도(settlements.tax_invoice_received_at).
+ */
+export function isPayeePayoutReady(
+  info: PayeeTaxInfo | null | undefined,
+): boolean {
+  if ((info?.payee_tax_mode ?? "withholding") === "invoice") {
+    return (
+      isPayoutAccountValid(info) &&
+      !!normalizeBusinessNumber(info?.business_registration_number)
+    );
+  }
+  return isPayoutInfoComplete(info);
+}

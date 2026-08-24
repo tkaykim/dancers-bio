@@ -6,7 +6,7 @@ import { z } from "zod";
 import { requireAdmin, requireUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  isPayoutInfoComplete,
+  isPayeePayoutReady,
   normalizeAccountNumber,
 } from "@/lib/payout-validation";
 import { matchBank } from "@/lib/banks";
@@ -62,19 +62,20 @@ export async function requestPartialWithdrawalAction(
 
   const admin = createAdminClient();
 
-  // 지급정보(계좌·주민번호)가 없으면 이체가 불가능하므로 신청 자체를 막는다.
+  // 지급정보가 없으면 이체가 불가능하므로 신청 자체를 막는다.
+  // 개인(3.3%)=계좌+주민번호 / 사업자(invoice)=계좌+사업자등록번호.
   const { data: pi } = await admin
     .from("dancer_private_info")
     .select(
-      "bank_name, bank_account_number, bank_account_holder, resident_registration_number",
+      "bank_name, bank_account_number, bank_account_holder, resident_registration_number, payee_tax_mode, business_registration_number",
     )
     .eq("dancer_id", dancerId)
     .maybeSingle();
-  if (!isPayoutInfoComplete(pi))
+  if (!isPayeePayoutReady(pi))
     return {
       ok: false,
       error:
-        "출금 신청 전에 유효한 입금 계좌와 주민(외국인)등록번호를 모두 등록해 주세요.",
+        "출금 신청 전에 유효한 입금 계좌와 주민(외국인)등록번호(사업자는 사업자등록번호)를 모두 등록해 주세요.",
     };
 
   const { data, error } = await admin.rpc("request_withdrawal", {
@@ -294,7 +295,7 @@ export async function buildBalanceTransferFileAction(
     admin
       .from("dancer_private_info")
       .select(
-        "dancer_id, bank_name, bank_account_number, bank_account_holder, resident_registration_number",
+        "dancer_id, bank_name, bank_account_number, bank_account_holder, resident_registration_number, payee_tax_mode, business_registration_number",
       )
       .in("dancer_id", dancerIds),
   ]);
@@ -341,8 +342,12 @@ export async function buildBalanceTransferFileAction(
         null,
       // 주민번호는 스냅샷에 없다(원천징수 신고용). 지급 자격은 현재 등록분으로 본다.
       resident_registration_number: pi?.resident_registration_number ?? null,
+      // 사업자(invoice) 수취인은 주민번호 대신 사업자등록번호로 지급 자격을 본다.
+      payee_tax_mode: (pi?.payee_tax_mode as string | null) ?? null,
+      business_registration_number:
+        (pi?.business_registration_number as string | null) ?? null,
     };
-    if (!isPayoutInfoComplete(acct)) {
+    if (!isPayeePayoutReady(acct)) {
       skipped++;
       continue;
     }

@@ -214,7 +214,7 @@ settlements_event_participant_select → 기존 조건 AND role in ('dancer','tr
 
 ## 7. 장부·세무 출력
 
-- `/admin/settlements/ledger` CSV에 `role`·`tax_mode`(스냅샷)·사업자번호·세금계산서 수취일 컬럼 추가.
+- `/admin/settlements/ledger`는 `status='paid'`(레거시 경로) 기준이라 잔액 경로로 지급되는 스태프 건이 아예 안 잡힌다 — role·tax 컬럼 추가는 **출금 allocation과 함께 Phase 2**로 묶는다(1c 구현 시 확정). 스태프 지급 현황은 당장은 출금신청 큐(withdrawal_requests)와 풀 화면이 담당.
 - **원천세 신고 목록 = `tax_mode='withholding'` 행만.** invoice 행은 별도 "세금계산서 수취 대장"(수취일 관리).
 - grigo-artist outbox 연동(기존 합의안)은 sync payload에 role 전달 추가 — 스태프비의 grigo `expenses` 반영 여부는 연동 구현 시 결정.
 
