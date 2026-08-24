@@ -80,7 +80,7 @@ export async function frequentDancersAction(
   // 취소된 건과 금액이 안 정해진 건은 "함께 일했다"는 근거가 못 되므로 뺀다.
   const { data: rows } = await admin
     .from("settlements")
-    .select("dancer_id, created_at, status")
+    .select("project_id, dancer_id, created_at, status")
     .in("project_id", projectIds)
     .neq("status", "cancelled")
     .not("gross_amount", "is", null)
@@ -88,22 +88,30 @@ export async function frequentDancersAction(
     .order("created_at", { ascending: false })
     .limit(1000);
 
+  // 겸직(한 프로젝트에 role 여러 행)이 있어도 "함께 일한 횟수"는 프로젝트 단위 1회로 센다.
   const stat = new Map<string, { count: number; last: string }>();
+  const seenPair = new Set<string>();
   for (const r of (rows ?? []) as Array<{
+    project_id: string;
     dancer_id: string;
     created_at: string;
   }>) {
+    const pairKey = `${r.project_id}:${r.dancer_id}`;
+    if (seenPair.has(pairKey)) continue;
+    seenPair.add(pairKey);
     const cur = stat.get(r.dancer_id);
     if (cur) cur.count += 1;
     else stat.set(r.dancer_id, { count: 1, last: r.created_at });
   }
   if (stat.size === 0) return { ok: true, data: { dancers: [] } };
 
-  // 이미 이 프로젝트에 올라와 있는 댄서는 후보에서 뺀다.
+  // 이미 이 프로젝트에 출연료(dancer) 행이 있는 댄서만 후보에서 뺀다.
+  // 스태프·교통비 행만 있는 사람은 출연 명단 추가가 여전히 가능해야 한다(겸직).
   const { data: already } = await admin
     .from("settlements")
     .select("dancer_id")
-    .eq("project_id", projectId);
+    .eq("project_id", projectId)
+    .eq("role", "dancer");
   for (const a of (already ?? []) as Array<{ dancer_id: string }>) {
     stat.delete(a.dancer_id);
   }
@@ -167,13 +175,18 @@ export async function pastProjectsAction(
       .not("gross_amount", "is", null),
   ]);
 
-  const countByProject = new Map<string, number>();
-  for (const s of (sRows ?? []) as Array<{ project_id: string }>) {
-    countByProject.set(
-      s.project_id,
-      (countByProject.get(s.project_id) ?? 0) + 1,
-    );
+  // 인원수 = 프로젝트별 고유 댄서 수 — 겸직으로 행이 여러 개여도 한 명으로 센다.
+  const dancersByProject = new Map<string, Set<string>>();
+  for (const s of (sRows ?? []) as Array<{
+    project_id: string;
+    dancer_id: string;
+  }>) {
+    const set = dancersByProject.get(s.project_id) ?? new Set<string>();
+    set.add(s.dancer_id);
+    dancersByProject.set(s.project_id, set);
   }
+  const countByProject = new Map<string, number>();
+  for (const [pid, set] of dancersByProject) countByProject.set(pid, set.size);
 
   const projects: PastProject[] = (pRows ?? [])
     .map((p) => ({
@@ -201,13 +214,19 @@ export async function projectRosterAction(
     return { ok: false, error: "권한이 없습니다." };
 
   const admin = createAdminClient();
+  // 명단 복사는 출연(dancer) 행 기준 — 스태프·소개비 행은 출연 명단이 아니다.
   const [{ data: src }, { data: already }] = await Promise.all([
     admin
       .from("settlements")
       .select("dancer_id, created_at")
       .eq("project_id", sourceProjectId)
+      .eq("role", "dancer")
       .neq("status", "cancelled"),
-    admin.from("settlements").select("dancer_id").eq("project_id", projectId),
+    admin
+      .from("settlements")
+      .select("dancer_id")
+      .eq("project_id", projectId)
+      .eq("role", "dancer"),
   ]);
 
   const skip = new Set(

@@ -173,11 +173,13 @@ export async function getApplicantPortfolioAction(
       );
     }
 
+    // 겸직(출연료+스태프비) 도입 후에도 지원자 시트는 출연료(dancer) 행만 다룬다.
     const { data: st } = await admin
       .from("settlements")
       .select("gross_amount, status")
       .eq("project_id", projectId)
       .eq("dancer_id", dancerId)
+      .eq("role", "dancer")
       .maybeSingle();
     settlement = st
       ? { gross_amount: st.gross_amount as number, status: st.status as string }

@@ -31,16 +31,20 @@ export default async function ProjectSettlementsPage({
     .maybeSingle();
   if (!project) notFound();
 
+  // 매니저 콘솔은 직접비 role(출연료·교통비)만 다룬다 — 스태프·소개비는 admin 풀 화면 전용.
+  // service-role 조회라 RLS를 우회하므로 앱 쿼리에서 직접 제한한다(설계 §4.2).
   const { data: sRows } = await admin
     .from("settlements")
     .select(
-      "id, dancer_id, gross_amount, withholding_rate, status, origin, created_at",
+      "id, dancer_id, role, gross_amount, withholding_rate, status, origin, created_at",
     )
     .eq("project_id", projectId)
+    .in("role", ["dancer", "travel"])
     .order("created_at", { ascending: true });
   const settlements = (sRows ?? []) as Array<{
     id: string;
     dancer_id: string;
+    role: string;
     gross_amount: number | null;
     withholding_rate: number;
     status: SettlementStatus;
@@ -89,6 +93,7 @@ export default async function ProjectSettlementsPage({
     id: s.id,
     dancerId: s.dancer_id,
     dancerName: nameById.get(s.dancer_id) ?? "댄서",
+    role: s.role,
     grossAmount: s.gross_amount,
     rate: Number(s.withholding_rate),
     status: s.status,
