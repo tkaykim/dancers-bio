@@ -48,63 +48,8 @@ where application.applicant_profile_id is null
     )
   );
 
--- 로그인 후 마이페이지에 처음 들어온 기존 신청자를 안전하게 연결한다.
--- 호출자는 자기 인증 이메일과 일치하는 명시적 외국인 신청만 가져갈 수 있다.
-create or replace function public.claim_my_visa_applications()
-returns integer
-language plpgsql
-security definer
-set search_path = ''
-as $$
-declare
-  claimed_count integer := 0;
-  account_email text := '';
-begin
-  if auth.uid() is null then
-    return 0;
-  end if;
-
-  -- JWT는 이메일 변경 직후 오래된 값을 가질 수 있으므로 Auth 정본을 다시 읽는다.
-  -- 이메일 인증이 끝난 계정만 기존 신청을 연결할 수 있다.
-  select lower(coalesce(account.email, ''))
-  into account_email
-  from auth.users as account
-  where account.id = auth.uid()
-    and account.email_confirmed_at is not null;
-
-  if account_email = '' then
-    return 0;
-  end if;
-
-  update public.dancer_visa_applications as application
-  set applicant_profile_id = auth.uid()
-  where application.applicant_profile_id is null
-    and lower(application.email) = account_email
-    and exists (
-      select 1
-      from public.dancer_private_info as private_info
-      where private_info.dancer_id = application.dancer_id
-        and upper(coalesce(nullif(trim(private_info.nationality_code), ''), '')) <> 'KR'
-        and (
-          private_info.is_korean_national is false
-          or (
-            private_info.is_korean_national is null
-            and nullif(trim(private_info.nationality_code), '') is not null
-            and upper(private_info.nationality_code) <> 'KR'
-          )
-        )
-    );
-
-  get diagnostics claimed_count = row_count;
-  return claimed_count;
-end;
-$$;
-
-revoke all on function public.claim_my_visa_applications() from public, anon;
-grant execute on function public.claim_my_visa_applications() to authenticated;
-
 -- 신청 테이블은 내부 메모와 운영 메타데이터를 포함하므로 기존 RLS default deny를 유지한다.
--- 회원 화면은 인증을 확인한 서버 컴포넌트가 applicant_profile_id로 한 건만 선별한다.
+-- 회원 화면은 인증을 확인한 서버 컴포넌트가 service role로 이메일·국적을 재검증한 뒤 연결한다.
 
 comment on column public.dancer_visa_applications.applicant_profile_id is
   '로그인 회원과 연결된 외국인 비자 신청. 인증 이메일이 일치하고 구조화 국적이 외국인일 때만 claim 가능.';

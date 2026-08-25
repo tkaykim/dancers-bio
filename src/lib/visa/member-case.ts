@@ -39,13 +39,74 @@ function nationalitySignal(row: PrivateNationality | undefined): "kr" | "foreign
   return "unknown";
 }
 
+async function claimMemberVisaApplications({
+  admin,
+  userId,
+  email,
+}: {
+  admin: ReturnType<typeof createAdminClient>;
+  userId: string;
+  email: string;
+}) {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) return;
+
+  // 내부 메모가 있는 신청 테이블에 회원 SELECT 정책을 열지 않는다.
+  // 서버에서 미연결 후보의 최소 컬럼만 읽고 이메일은 JS에서 완전 일치로 비교한다.
+  const { data: candidatesRaw } = await admin
+    .from("dancer_visa_applications")
+    .select("id, email, dancer_id")
+    .is("applicant_profile_id", null)
+    .order("created_at", { ascending: false })
+    .limit(1000);
+  const candidates = (candidatesRaw ?? []) as unknown as Array<{
+    id: string;
+    email: string;
+    dancer_id: string | null;
+  }>;
+  const emailMatches = candidates.filter(
+    (application) => application.email.trim().toLowerCase() === normalizedEmail,
+  );
+  const dancerIds = Array.from(new Set(
+    emailMatches.map((application) => application.dancer_id).filter((id): id is string => Boolean(id)),
+  ));
+  if (dancerIds.length === 0) return;
+
+  const { data: privateRowsRaw } = await admin
+    .from("dancer_private_info")
+    .select("dancer_id, nationality_code, is_korean_national")
+    .in("dancer_id", dancerIds);
+  const privateRows = (privateRowsRaw ?? []) as unknown as PrivateNationality[];
+  const foreignDancerIds = new Set(
+    privateRows
+      .filter((row) => nationalitySignal(row) === "foreign")
+      .map((row) => row.dancer_id),
+  );
+  const applicationIds = emailMatches
+    .filter((application) => application.dancer_id && foreignDancerIds.has(application.dancer_id))
+    .map((application) => application.id);
+  if (applicationIds.length === 0) return;
+
+  await admin
+    .from("dancer_visa_applications")
+    .update({ applicant_profile_id: userId })
+    .in("id", applicationIds)
+    .is("applicant_profile_id", null);
+}
+
 export async function loadMemberVisaAccess(userId: string): Promise<MemberVisaAccess> {
   const supabase = await createClient();
-  // 기존 공개 신청과 새 로그인 계정을 인증 이메일로 연결한다.
-  // RPC는 명시적 외국인 신청만 현재 auth.uid()에 연결한다.
-  await supabase.rpc("claim_my_visa_applications");
-
   const admin = createAdminClient();
+  const { data: authData } = await supabase.auth.getUser();
+  const account = authData.user;
+  if (
+    account?.id === userId &&
+    account.email &&
+    account.email_confirmed_at
+  ) {
+    await claimMemberVisaApplications({ admin, userId, email: account.email });
+  }
+
   const [{ data: applicationsRaw }, { data: ownedDancersRaw }] = await Promise.all([
     admin
       .from("dancer_visa_applications")
