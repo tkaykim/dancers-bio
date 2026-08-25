@@ -12,13 +12,22 @@
 
 import type { DemandBand } from "@/lib/workshops/shared";
 
-export type Lang = "ko" | "en" | "ja";
+export type Lang = "ko" | "en" | "ja" | "th";
 
 export const LANGS: { code: Lang; label: string }[] = [
   { code: "ko", label: "한국어" },
   { code: "en", label: "EN" },
   { code: "ja", label: "日本語" },
+  { code: "th", label: "ไทย" },
 ];
+
+/** 폼 거주지 기본값 — 언어가 곧 1차 타깃 지역이다 (th=방콕 캠페인). ko/en 은 기존 결정(KR/서울) 유지. */
+export const DEFAULT_COUNTRY_BY_LANG: Record<Lang, string> = {
+  ko: "KR",
+  en: "KR",
+  ja: "JP",
+  th: "TH",
+};
 
 /** 사용자가 고른 언어를 기억해 다음 방문에 다시 감지하지 않는다. */
 export const LANG_STORAGE_KEY = "deetz_ws_lang";
@@ -84,6 +93,8 @@ export type WorkshopCopy = {
   searchManualCta: string;
   searchStatusListed: string;
   searchStatusSuggested: string;
+  /** deetz 댄서 풀에서 온 검색 결과 뱃지 (한국 안무가 — 태국 역방향 수요조사의 핵심 공급) */
+  searchStatusDancer: string;
   shareCta: string;
   shareText: string;
   shareCopied: string;
@@ -186,6 +197,7 @@ export const T: Record<Lang, WorkshopCopy> = {
     searchManualCta: "찾는 안무가가 없나요? 직접 제안하기",
     searchStatusListed: "후보 공개",
     searchStatusSuggested: "제안됨",
+    searchStatusDancer: "deetz 댄서",
     shareCta: "친구에게 알리기",
     shareText: "deetz 워크샵 — 배우고 싶은 안무가에게 투표하면 초청이 추진돼요.",
     shareCopied: "링크를 복사했어요",
@@ -307,6 +319,7 @@ export const T: Record<Lang, WorkshopCopy> = {
     searchManualCta: "Can't find them? Suggest manually",
     searchStatusListed: "Candidate",
     searchStatusSuggested: "Suggested",
+    searchStatusDancer: "deetz dancer",
     shareCta: "Share with friends",
     shareText: "deetz Workshops — vote for the choreographer you want to learn from.",
     shareCopied: "Link copied",
@@ -428,6 +441,7 @@ export const T: Record<Lang, WorkshopCopy> = {
     searchManualCta: "見つからない場合は直接提案する",
     searchStatusListed: "候補公開",
     searchStatusSuggested: "提案済み",
+    searchStatusDancer: "deetzダンサー",
     shareCta: "友達に知らせる",
     shareText: "deetz ワークショップ — 習いたい振付師にリクエストしよう。",
     shareCopied: "リンクをコピーしました",
@@ -500,5 +514,128 @@ export const T: Record<Lang, WorkshopCopy> = {
     ],
     disclaimer:
       "候補カードはリクエスト確認のためのものであり、公開＝来韓確定ではありません。交渉や日程は協議により変更される場合があります。",
+  },
+
+  // 태국 — 역방향 수요조사(태국 댄서 → 한국 안무가)의 1차 타깃. 카피 방향도 "한국 안무가를 당신의 도시로".
+  // 태국어는 마침표를 잘 쓰지 않으므로 문장 구분은 \n (splitSentences 가 \n 도 분리한다).
+  th: {
+    badge: "เวิร์กช็อปตามคำขอของคุณ",
+    title1: "เวิร์กช็อปครั้งต่อไป",
+    title2: "อยากเรียนกับโคริโอกราเฟอร์คนไหน?",
+    sub: "deetz จัดเวิร์กช็อปกับโคริโอกราเฟอร์ชั้นนำจากเกาหลีอย่างต่อเนื่อง\nบอกเราว่าคุณอยากเรียนกับใคร\nคำขอของคุณจะเป็นตัวกำหนดไลน์อัพเวิร์กช็อปครั้งต่อไปในเมืองของคุณ",
+    heroNote: "การเสนอชื่อและการลงคะแนนฟรีทั้งหมด\nค่ามัดจำจะเก็บเฉพาะเวิร์กช็อปที่เปิดรับสมัครแล้ว และคืนเต็มจำนวนหากผู้เข้าร่วมไม่ครบตามขั้นต่ำ",
+    ctaNominate: "เสนอชื่อโคริโอกราเฟอร์",
+    ctaBrowse: "ดูรายชื่อผู้เข้าชิง",
+    loginLabel: "เข้าสู่ระบบ",
+
+    eventsTitle: "เวิร์กช็อปที่เปิดรับสมัคร",
+    eventsSub: "เวิร์กช็อปที่ยืนยันวันและผู้สอนแล้ว\nเลือกคลาสและสมัครได้เลย",
+    eventsView: "ดูตาราง · สมัคร",
+    eventsClasses: (n) => `${n} คลาส`,
+
+    recruitingTitle: "กำลังเปิดรับสมัคร",
+    recruitingBadge: "เปิดรับสมัคร",
+    deadlineToday: "ปิดรับวันนี้",
+    closedLabel: "ปิดรับแล้ว",
+    reservedProgress: (r, m) => `จองแล้ว ${r} คน${m > 0 ? ` / ขั้นต่ำ ${m} คน` : ""}`,
+    remainingToMin: (n) => `อีก ${n} คนจะยืนยันการจัด`,
+    minReached: "ครบขั้นต่ำแล้ว — กำลังเตรียมยืนยัน",
+    depositLabel: (a) => `มัดจำ ${a}`,
+
+    candidatesTitle: "โคริโอกราเฟอร์ผู้เข้าชิง",
+    candidatesSub: "ยิ่งมีคำขอมาก deetz ยิ่งติดต่อเชิญเร็วขึ้น\nถ้าไม่เจอคนที่ตามหา เสนอชื่อได้เลย",
+    candidatesEmpty: "ยังไม่มีผู้เข้าชิง มาเป็นคนแรกที่เสนอชื่อกัน",
+    confirmedBadge: "ยืนยันแล้ว",
+    completedBadge: "จัดเสร็จแล้ว",
+    demandBand: {
+      lt10: "กำลังรวบรวมคำขอ",
+      "10+": "10+ คนกำลังรอ",
+      "30+": "30+ คนกำลังรอ",
+      "50+": "50+ คนกำลังรอ",
+      "100+": "100+ คนกำลังรอ",
+    },
+
+    wishesTitle: "โคริโอกราเฟอร์ที่นักเต้นคนอื่นเสนอชื่อ",
+    wishesSub: "รายชื่อที่ถูกเสนอล่าสุด\nเมื่อมีคำขอมากพอจะเปิดเป็นการ์ดผู้เข้าชิงและเริ่มการเชิญ",
+    wishesMergeNote: "อยากเรียนกับคนเดียวกัน? ค้นหาแล้วกด \"ฉันก็อยากเรียน\" — คำขอจะรวมกันอัตโนมัติ",
+
+    searchPh: "ชื่อ หรือ @instagram",
+    searchSearching: "กำลังค้นหา…",
+    searchEmpty: "ยังไม่มีการ์ดของคนนี้ เสนอชื่อได้ด้านล่างเลย",
+    searchManualCta: "หาไม่เจอ? เสนอชื่อเอง",
+    searchStatusListed: "ผู้เข้าชิง",
+    searchStatusSuggested: "ถูกเสนอชื่อแล้ว",
+    searchStatusDancer: "นักเต้น deetz",
+    shareCta: "ชวนเพื่อน",
+    shareText: "deetz Workshops — โหวตโคริโอกราเฟอร์เกาหลีที่คุณอยากเรียนด้วย",
+    shareCopied: "คัดลอกลิงก์แล้ว",
+
+    voteCta: "ฉันก็อยากเรียน",
+    votedLabel: "ลงคะแนนแล้ว",
+    voteSubmitting: "กำลังบันทึก…",
+    voteContactPrompt: "เราต้องมีช่องทางติดต่อเพื่อแจ้งข่าว\nกรอกอีเมลหรือ Instagram อย่างใดอย่างหนึ่ง",
+    voteEmailPh: "อีเมล",
+    voteInstaPh: "Instagram (ไม่ต้องใส่ @)",
+    voteClose: "ปิด",
+    voteSubmit: "ลงคะแนน",
+    voteNeedContact: "กรุณากรอกอีเมลหรือ Instagram",
+    howTitle: "ขั้นตอนการทำงาน",
+    howSteps: [
+      { title: "เสนอชื่อ", body: "บอกชื่อและ Instagram ของโคริโอกราเฟอร์ที่อยากเรียนด้วย\nคำขอสำหรับคนเดียวกันจะรวมเป็นการ์ดเดียว" },
+      { title: "รวบรวมคำขอ", body: "กด \"ฉันก็อยากเรียน\" บนการ์ดผู้เข้าชิง\ndeetz จะเริ่มติดต่อคนที่มีคำขอมากที่สุดก่อน" },
+      { title: "เปิดรับสมัคร", body: "เมื่อการเจรจาคืบหน้า จะเปิดรับมัดจำ\nมัดจำคือส่วนหนึ่งของค่าเรียนและเป็นการยืนยันที่นั่งของคุณ" },
+      { title: "ยืนยันการจัด", body: "เมื่อครบจำนวนขั้นต่ำ เวิร์กช็อปจะถูกยืนยัน\nเราจะแจ้งตารางและวิธีชำระส่วนที่เหลือ" },
+    ],
+
+    nominateTitle: "เสนอชื่อโคริโอกราเฟอร์",
+    nominateSub: "ลองค้นหาก่อน\nถ้ามีการ์ดอยู่แล้ว แตะครั้งเดียวคำขอจะรวมกัน\nถ้าไม่มี เสนอชื่อเองได้เลย",
+    fArtistName: "ชื่อโคริโอกราเฟอร์",
+    fArtistNamePh: "เช่น RIEHATA",
+    fInstagram: "Instagram",
+    fInstagramPh: "@handle หรือลิงก์โปรไฟล์",
+    fComment: "คอมเมนต์",
+    fCommentPh: "อยากเรียนสไตล์ไหนหรือเพลงอะไร บอกเราได้ ช่วยในการติดต่อเชิญ",
+    fCountry: "ประเทศที่อาศัย",
+    fCity: "เมือง",
+    fCityDefault: "กรุงเทพฯ",
+    fLocationNote: "รู้ว่าคำขอมาจากที่ไหน ช่วยให้เราเลือกเมืองที่จะจัดได้",
+    fMyEmail: "อีเมลของคุณ",
+    fMyEmailPh: "อีเมลสำหรับรับข่าว",
+    fMyInsta: "Instagram ของคุณ",
+    fMyInstaPh: "ไม่ต้องใส่ @",
+    fContactNote: "กรอกอย่างใดอย่างหนึ่งก็พอ\nใช้เพื่อแจ้งการเปิดรับสมัครและการยืนยันเท่านั้น",
+    fSubmit: "เสนอชื่อ",
+    fSubmitting: "กำลังส่ง…",
+    fFreeNote: "การเสนอชื่อฟรี\nทีม deetz จะตรวจสอบก่อนเปิดการ์ดและเริ่มการติดต่อ",
+    errNeedNameInsta: "กรุณากรอกชื่อและ Instagram ของโคริโอกราเฟอร์",
+    errNeedContact: "กรุณากรอกอีเมลหรือ Instagram เพื่อรับข่าว",
+    errGeneric: "เกิดข้อผิดพลาด กรุณาลองใหม่",
+    doneTitle: "รับคำเสนอแล้ว",
+    doneAlreadyTitle: "คุณลงคะแนนไว้แล้ว",
+    doneBody: "เมื่อมีคนอยากเรียนกับโคริโอกราเฟอร์คนเดียวกันมากพอ deetz จะเริ่มติดต่อเชิญ\nเราจะแจ้งคุณเมื่อเปิดรับสมัคร",
+    doneAgain: "เสนอชื่อคนอื่นด้วย",
+    requiredMark: "*",
+    optionalMark: "(ไม่บังคับ)",
+
+    policyTitle: "มัดจำและการคืนเงิน",
+    policyRows: [
+      "มัดจำคือส่วนหนึ่งของค่าเรียน เมื่อยืนยันการจัดจะแจ้งวิธีชำระส่วนที่เหลือ",
+      "หากเวิร์กช็อปไม่ได้จัดเพราะผู้เข้าร่วมไม่ครบหรือเหตุจากผู้จัด คืนมัดจำเต็มจำนวน",
+      "ก่อนยืนยันการจัด ยกเลิกด้วยเหตุส่วนตัวได้ คืนเต็มจำนวน",
+      "หลังยืนยันการจัด การยกเลิกด้วยเหตุส่วนตัวอาจถูกจำกัด เพราะการเชิญและที่นั่งถูกยืนยันแล้ว",
+      "สิทธิ์ตามกฎหมายและกรณีความรับผิดของผู้จัดไม่ถูกจำกัด",
+      "การยกเลิกหรือโอนสิทธิ์ ทีมงานจะตรวจสอบก่อน — ตอบกลับอีเมลยืนยันการชำระเงินได้เลย",
+    ],
+    faqTitle: "คำถามที่พบบ่อย",
+    faqs: [
+      { q: "เสนอชื่อมีค่าใช้จ่ายไหม?", a: "ไม่มี การเสนอชื่อและการลงคะแนนฟรีทั้งหมด\nจ่ายมัดจำเฉพาะตอนจองที่นั่งในเวิร์กช็อปที่เปิดรับสมัครแล้ว" },
+      { q: "ลงคะแนนแล้วจะได้รับข่าวอะไรบ้าง?", a: "เมื่อเปิดรับสมัครหรือยืนยันการจัด เราจะติดต่อผ่านอีเมลหรือบัญชี deetz ที่คุณให้ไว้" },
+      { q: "จ่ายมัดจำแล้วแต่คนไม่ครบ?", a: "เวิร์กช็อปจะไม่ถูกจัดและคืนมัดจำเต็มจำนวน" },
+      { q: "deetz เชิญโคริโอกราเฟอร์อย่างไร?", a: "ติดต่อโดยตรงผ่านเครือข่ายของ deetz และ GRIGO Entertainment ในเกาหลี\nข้อมูลคำขอช่วยให้การเจรจาเร็วขึ้นมาก" },
+      { q: "อยู่นอกกรุงเทพฯ เสนอได้ไหม?", a: "ได้ กรอกประเทศและเมืองของคุณมาด้วย\nถ้าคำขอในเมืองของคุณมากพอ เราจะพิจารณาจัดที่นั่น" },
+      { q: "ชื่อของฉันอยู่ในรายชื่อ ขอลบได้ไหม?", a: "โคริโอกราเฟอร์ที่ไม่ต้องการให้แสดงชื่อ ติดต่อ contact@deetz.kr เราจะลบให้ทันทีหลังตรวจสอบ" },
+    ],
+    disclaimer:
+      "การ์ดผู้เข้าชิงมีไว้เพื่อสำรวจความต้องการ การเปิดการ์ดไม่ได้แปลว่าการมาสอนถูกยืนยันแล้ว\nการเชิญและตารางอาจเปลี่ยนแปลงตามการเจรจา",
   },
 };

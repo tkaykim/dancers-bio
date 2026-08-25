@@ -119,7 +119,8 @@ function SearchResultRow({
   lang: Lang;
 }) {
   const c = T[lang];
-  const listed = result.status !== "suggested" && result.slug;
+  const isDancer = result.source === "dancer";
+  const listed = !isDancer && result.status !== "suggested" && result.slug;
   const genres = (result.genres ?? []).slice(0, 3);
 
   return (
@@ -150,10 +151,10 @@ function SearchResultRow({
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-[10px] font-bold",
-                listed ? "bg-primary/10 text-primary" : "bg-secondary text-ink-3",
+                listed || isDancer ? "bg-primary/10 text-primary" : "bg-secondary text-ink-3",
               )}
             >
-              {listed ? c.searchStatusListed : c.searchStatusSuggested}
+              {isDancer ? c.searchStatusDancer : listed ? c.searchStatusListed : c.searchStatusSuggested}
             </span>
           </div>
           <p className="flex flex-wrap items-center gap-x-2 text-[12px] text-ink-3">
@@ -168,7 +169,17 @@ function SearchResultRow({
           ) : null}
         </div>
       </div>
-      <VoteBox artistId={result.id} isLoggedIn={isLoggedIn} lang={lang} className="mt-2.5" />
+      {isDancer ? (
+        // deetz 댄서 풀 결과 — 카드가 아직 없으므로 nominate 경로로 제출(서버가 카드 생성·수요 합산)
+        <VoteBox
+          nominate={{ name: result.name, instagramHandle: result.instagram_handle }}
+          isLoggedIn={isLoggedIn}
+          lang={lang}
+          className="mt-2.5"
+        />
+      ) : (
+        <VoteBox artistId={result.id} isLoggedIn={isLoggedIn} lang={lang} className="mt-2.5" />
+      )}
     </div>
   );
 }

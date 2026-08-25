@@ -78,8 +78,15 @@ export function WorkshopsLanding({
       /* ignore */
     }
     const nav = navigator.language?.toLowerCase() ?? "";
-    const detected: Lang = nav.startsWith("ja") ? "ja" : nav.startsWith("ko") ? "ko" : "en";
-    const next: Lang = saved === "ko" || saved === "en" || saved === "ja" ? (saved as Lang) : detected;
+    const detected: Lang = nav.startsWith("ja")
+      ? "ja"
+      : nav.startsWith("th")
+        ? "th"
+        : nav.startsWith("ko")
+          ? "ko"
+          : "en";
+    const next: Lang =
+      saved === "ko" || saved === "en" || saved === "ja" || saved === "th" ? (saved as Lang) : detected;
     if (next !== "ko") {
       // 클라이언트 전용 신호(localStorage·navigator)라 SSR에서 알 수 없어 마운트 후 동기화가 불가피.
       // eslint-disable-next-line react-hooks/set-state-in-effect

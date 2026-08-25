@@ -24,7 +24,7 @@ export default async function WorkshopsPage({
   searchParams: Promise<{ lang?: string }>;
 }) {
   const { lang } = await searchParams;
-  const explicit = lang === "ko" || lang === "en" || lang === "ja";
+  const explicit = lang === "ko" || lang === "en" || lang === "ja" || lang === "th";
   const initialLang: Lang = explicit ? (lang as Lang) : "ko";
 
   const [artists, wishes, openEvents, user] = await Promise.all([

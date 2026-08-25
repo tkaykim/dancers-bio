@@ -167,11 +167,40 @@ export async function submitWorkshopDemandAction(
       artistSlug = (compactMatch.slug as string) ?? null;
       artistOpsNotifiedAt = (compactMatch.ops_notified_at as string | null) ?? null;
     } else {
+      // 핸들이 deetz 댄서 풀과 매치되면 프로필을 이어받는다(사진=자사 자산이라 권리 문제 없음).
+      // 검색의 dancer 행 탭 제출뿐 아니라 직접 입력도 같은 혜택을 받는다.
+      let dancerImage: string | null = null;
+      let dancerCountry: string | null = null;
+      let dancerGenres: string[] | null = null;
+      const { data: dancerRows } = await admin
+        .from("dancers")
+        .select("stage_name, profile_img, genres, social_links")
+        .eq("approval_status", "approved")
+        .eq("is_active", true)
+        .ilike("social_links->>instagram", `%${artistHandle}%`)
+        .limit(5);
+      // ilike 는 부분일치라 오매치 가능 — 정규화 후 정확 일치만 인정한다.
+      const dancerMatch = (dancerRows ?? []).find(
+        (row) =>
+          normalizeInstagramHandle(
+            ((row.social_links as Record<string, string> | null)?.instagram as string) ?? "",
+          ) === artistHandle,
+      );
+      if (dancerMatch) {
+        dancerImage = (dancerMatch.profile_img as string | null) ?? null;
+        dancerCountry = "대한민국";
+        dancerGenres = (dancerMatch.genres as string[] | null) ?? null;
+        if (!artistName) artistName = (dancerMatch.stage_name as string) ?? artistName;
+      }
+
       const { data: created, error: createError } = await admin
         .from("workshop_artists")
         .insert({
           name: artistName,
           instagram_handle: artistHandle,
+          image_url: dancerImage,
+          country: dancerCountry,
+          genres: dancerGenres ?? [],
           status: "suggested",
           created_by: user?.id ?? null,
           // 이름만 비슷한 건 다른 사람일 수 있어 자동 합산하지 않고 표시만 한다.
@@ -468,6 +497,8 @@ export type WorkshopSearchResult = {
   status: string;
   slug: string | null;
   image_url: string | null;
+  /** 'artist' = workshop_artists 카드 / 'dancer' = deetz 댄서 풀(카드 미생성, 탭 시 nominate 경로로 생성·합산) */
+  source: "artist" | "dancer";
 };
 
 export async function searchWorkshopArtistsAction(

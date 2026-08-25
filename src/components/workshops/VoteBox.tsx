@@ -5,7 +5,7 @@ import { Check, Flame } from "lucide-react";
 
 import { submitWorkshopDemandAction } from "@/app/actions/workshops";
 import { cn } from "@/lib/utils";
-import { T, splitSentences, type Lang } from "./copy";
+import { DEFAULT_COUNTRY_BY_LANG, T, splitSentences, type Lang } from "./copy";
 import { ShareInvite } from "./ShareInvite";
 
 const inputClass =
@@ -36,14 +36,18 @@ function markVoted(artistId: string) {
 /**
  * '나도 원해요' 수요 등록.
  * 로그인 상태면 한 번에 등록되고, 아니면 이메일 또는 인스타 아이디를 받아 중복을 막는다.
+ * - artistId: 기존 workshop_artists 카드에 투표
+ * - nominate: 카드가 아직 없는 대상(deetz 댄서 풀 검색 결과 등) — 서버 nominate 경로가 카드를 만들어 합산한다.
  */
 export function VoteBox({
   artistId,
+  nominate,
   isLoggedIn,
   lang = "ko",
   className,
 }: {
-  artistId: string;
+  artistId?: string;
+  nominate?: { name: string; instagramHandle: string };
   isLoggedIn: boolean;
   lang?: Lang;
   className?: string;
@@ -57,7 +61,7 @@ export function VoteBox({
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    if (readVoted().includes(artistId)) {
+    if (artistId && readVoted().includes(artistId)) {
       // localStorage는 클라이언트 전용이라 마운트 후 동기화가 불가피.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setDone(true);
@@ -67,9 +71,19 @@ export function VoteBox({
   const submit = (payload: { contactEmail?: string; contactInstagram?: string }) => {
     setError(null);
     startTransition(async () => {
-      const res = await submitWorkshopDemandAction({ artistId, ...payload });
+      // 거주지는 보는 언어로 추정한 기본값 (th=태국/방콕) — 무조건 서울로 적히던 것보다 정확하다.
+      const locale = {
+        countryCode: DEFAULT_COUNTRY_BY_LANG[lang],
+        city: T[lang].fCityDefault,
+      };
+      const res = await submitWorkshopDemandAction(
+        artistId
+          ? { artistId, ...locale, ...payload }
+          : { artistName: nominate?.name, instagramHandle: nominate?.instagramHandle, ...locale, ...payload },
+      );
       if (res.ok) {
-        markVoted(artistId);
+        const votedId = artistId ?? res.data?.artistId;
+        if (votedId) markVoted(votedId);
         setDone(true);
         setOpen(false);
       } else {

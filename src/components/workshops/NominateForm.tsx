@@ -7,7 +7,7 @@ import { submitWorkshopDemandAction } from "@/app/actions/workshops";
 import { SearchableSelect, type SearchableOption } from "@/components/ui/searchable-select";
 import { COUNTRIES, DEFAULT_COUNTRY_CODE } from "@/lib/data/countries";
 import { cn } from "@/lib/utils";
-import { T, splitSentences, type Lang } from "./copy";
+import { DEFAULT_COUNTRY_BY_LANG, T, splitSentences, type Lang } from "./copy";
 import { ShareInvite } from "./ShareInvite";
 
 const inputClass =
@@ -37,7 +37,8 @@ export function NominateForm({
   const [name, setName] = useState(initialName);
   const [instagram, setInstagram] = useState("");
   const [comment, setComment] = useState("");
-  const [country, setCountry] = useState(DEFAULT_COUNTRY_CODE);
+  const [country, setCountry] = useState(DEFAULT_COUNTRY_BY_LANG[lang] ?? DEFAULT_COUNTRY_CODE);
+  const [countryTouched, setCountryTouched] = useState(false);
   const [city, setCity] = useState(c.fCityDefault);
   const [cityTouched, setCityTouched] = useState(false);
   const [email, setEmail] = useState("");
@@ -46,8 +47,9 @@ export function NominateForm({
   const [done, setDone] = useState<null | { already: boolean }>(null);
   const [pending, startTransition] = useTransition();
 
-  // 언어를 바꾸면 기본 도시 표기도 따라가되, 직접 입력했다면 유지한다.
+  // 언어를 바꾸면 기본 국가·도시도 따라가되(th=태국/방콕 캠페인), 직접 고른 값은 유지한다.
   const effectiveCity = cityTouched ? city : c.fCityDefault;
+  const effectiveCountry = countryTouched ? country : (DEFAULT_COUNTRY_BY_LANG[lang] ?? DEFAULT_COUNTRY_CODE);
 
   if (done) {
     return (
@@ -91,7 +93,7 @@ export function NominateForm({
         comment: comment.trim() || undefined,
         contactEmail: email.trim() || undefined,
         contactInstagram: myInstagram.trim() || undefined,
-        countryCode: country,
+        countryCode: effectiveCountry,
         city: effectiveCity.trim() || undefined,
       });
       if (res.ok) {
@@ -149,8 +151,11 @@ export function NominateForm({
           <span className="text-[13px] font-semibold text-foreground">{c.fCountry}</span>
           <SearchableSelect
             options={COUNTRY_OPTIONS}
-            value={country}
-            onChange={setCountry}
+            value={effectiveCountry}
+            onChange={(v) => {
+              setCountryTouched(true);
+              setCountry(v);
+            }}
             placeholder={c.fCountry}
           />
         </div>
