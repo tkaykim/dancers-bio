@@ -58,6 +58,9 @@ type Copy = {
   questionnaire: string;
   meeting: string;
   waiting: string;
+  notSubmitted: string;
+  notScheduled: string;
+  scheduled: string;
   meetingReviewing: string;
   meetingDone: (when: string) => string;
   meetingConfirmed: string;
@@ -115,8 +118,11 @@ const T: Record<VisaJourneyLang, Copy> = {
     preparation: "Before the program",
     application: "Application received",
     questionnaire: "Details submitted",
-    meeting: "Online meeting",
+    meeting: "Online meeting (if needed)",
     waiting: "Waiting",
+    notSubmitted: "Not submitted",
+    notScheduled: "Not scheduled",
+    scheduled: "Scheduled",
     meetingReviewing: "We are reviewing your available meeting times.",
     meetingDone: (when) => `Held on ${when}`,
     meetingConfirmed: "Your meeting is confirmed.",
@@ -189,8 +195,11 @@ const T: Record<VisaJourneyLang, Copy> = {
     preparation: "プログラム開始前",
     application: "申込受付",
     questionnaire: "追加情報提出",
-    meeting: "オンラインミーティング",
+    meeting: "オンラインミーティング（必要な場合）",
     waiting: "待機中",
+    notSubmitted: "未提出",
+    notScheduled: "未定",
+    scheduled: "日程確定",
     meetingReviewing: "ご提出いただいたミーティング候補日を確認しています。",
     meetingDone: (when) => `${when} 実施済み`,
     meetingConfirmed: "ミーティングが確定しました。",
@@ -263,8 +272,11 @@ const T: Record<VisaJourneyLang, Copy> = {
     preparation: "프로그램 시작 전",
     application: "지원서 접수",
     questionnaire: "추가 정보 제출",
-    meeting: "온라인 미팅",
+    meeting: "온라인 미팅 (필요한 경우)",
     waiting: "대기 중",
+    notSubmitted: "미제출",
+    notScheduled: "일정 없음",
+    scheduled: "일정 확정",
     meetingReviewing: "제출한 미팅 후보 일정을 확인하고 있습니다.",
     meetingDone: (when) => `${when} 진행 완료`,
     meetingConfirmed: "미팅 일정이 확정되었습니다.",
@@ -428,8 +440,8 @@ export function VisaJourneyTimeline({ data, lang, nextActionNote, caseToken }: {
         <p className="text-[11px] font-bold uppercase tracking-wider text-ink-4">{t.preparation}</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           <PreparationItem done label={t.application} detail="✓" />
-          <PreparationItem done={Boolean(data.followUpSubmittedAt)} label={t.questionnaire} detail={data.followUpSubmittedAt ? "✓" : t.waiting} />
-          <PreparationItem done={meetingHeld || progress.activeStep > 1 || auditionScheduled} label={t.meeting} detail={meetingHeld && data.meetingAt ? t.meetingDone(fmtDateTime(data.meetingAt, lang)) : t.waiting} />
+          <PreparationItem done={Boolean(data.followUpSubmittedAt)} label={t.questionnaire} detail={data.followUpSubmittedAt ? "✓" : t.notSubmitted} />
+          <PreparationItem done={meetingHeld} label={t.meeting} detail={meetingHeld && data.meetingAt ? t.meetingDone(fmtDateTime(data.meetingAt, lang)) : meetingUpcoming ? t.scheduled : t.notScheduled} />
         </div>
         {meetingUpcoming && data.meetingAt ? (
           <div className="mt-3 rounded-lg border border-primary/25 bg-background p-3">
