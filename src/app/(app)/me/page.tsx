@@ -8,7 +8,12 @@ import { ProfileCard } from "@/components/profile/ProfileCard";
 import { ProfileShareCard } from "@/components/share/ProfileShareCard";
 import { PushPrompt } from "@/components/layout/PushPrompt";
 import { BugReportRow } from "@/components/feedback/BugReport";
-import { loadMemberVisaAccess, type MemberVisaApplication } from "@/lib/visa/member-case";
+import { visaByCode } from "@/lib/data/korea-visas";
+import {
+  loadMemberVisaAccess,
+  type MemberVisaApplication,
+  type MemberVisaDetails,
+} from "@/lib/visa/member-case";
 import { deriveVisaProgress, VISA_PROGRESS_LABELS } from "@/lib/visa/progress";
 
 // Lite: 받은 제안·creator 권한 신청 CTA 제거, 관리자만 프로젝트 개설.
@@ -90,7 +95,7 @@ export default async function MePage() {
       ) : null}
 
       {visaAccess.eligible ? (
-        <VisaStatusCard application={visaAccess.application} />
+        <VisaStatusCard application={visaAccess.application} visa={visaAccess.visa} />
       ) : null}
 
       {managedProjects.length > 0 ? (
@@ -186,7 +191,28 @@ export default async function MePage() {
   );
 }
 
-function VisaStatusCard({ application }: { application: MemberVisaApplication | null }) {
+function formatVisaExpiry(value: string): string {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(
+    new Date(Date.UTC(year, month - 1, day)),
+  );
+}
+
+function visaDisplayName(visa: MemberVisaDetails): string | null {
+  if (!visa.visaType) return null;
+  if (visa.visaType === "OTHER") return visa.visaTypeOther || "Other visa";
+  const option = visaByCode(visa.visaType);
+  return option?.en ? `${option.code} · ${option.en}` : option?.code ?? visa.visaType;
+}
+
+function VisaStatusCard({
+  application,
+  visa,
+}: {
+  application: MemberVisaApplication | null;
+  visa: MemberVisaDetails | null;
+}) {
   const paymentProductSlug =
     typeof application?.payment_meta?.issued_product_slug === "string"
       ? application.payment_meta.issued_product_slug
@@ -204,6 +230,14 @@ function VisaStatusCard({ application }: { application: MemberVisaApplication | 
         visaIssuedAt: application.visa_issued_at ?? null,
       })
     : null;
+  const completedVisaName = progress?.activeStep === 5 && visa ? visaDisplayName(visa) : null;
+  const supportingText = progress
+    ? progress.nextStep
+      ? `Next: ${VISA_PROGRESS_LABELS.en[progress.nextStep - 1]}`
+      : completedVisaName && visa?.visaExpiry
+        ? `${completedVisaName} · Valid until ${formatVisaExpiry(visa.visaExpiry)}`
+        : "All program steps are complete."
+    : "See eligibility, program details, and the next action.";
 
   return (
     <section className="overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card">
@@ -219,7 +253,7 @@ function VisaStatusCard({ application }: { application: MemberVisaApplication | 
                 {progress ? VISA_PROGRESS_LABELS.en[progress.activeStep - 1] : "Explore your visa program"}
               </h2>
               <p className="mt-1 text-xs leading-relaxed text-ink-3">
-                {progress ? `Step ${progress.activeStep} of 5` : "See eligibility, program details, and the next action."}
+                {progress ? `Step ${progress.activeStep} of 5 · ${supportingText}` : supportingText}
               </p>
             </div>
           </div>

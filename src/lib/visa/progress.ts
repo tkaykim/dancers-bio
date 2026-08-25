@@ -12,6 +12,7 @@ export type VisaProgressInput = {
 
 export type VisaProgress = {
   activeStep: 1 | 2 | 3 | 4 | 5;
+  nextStep: 2 | 3 | 4 | 5 | null;
   percent: number;
   qualified: boolean;
   programPaid: boolean;
@@ -46,6 +47,7 @@ export function deriveVisaProgress(input: VisaProgressInput): VisaProgress {
 
   return {
     activeStep,
+    nextStep: activeStep === 5 ? null : (activeStep + 1) as 2 | 3 | 4 | 5,
     percent: activeStep * 20,
     qualified,
     programPaid,

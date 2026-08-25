@@ -137,6 +137,8 @@ export default async function AdminVisaPage() {
       nationality: string | null;
       has_visa: boolean | null;
       visa_type: string | null;
+      visa_type_other: string | null;
+      visa_expiry: string | null;
       is_korean_national: boolean | null;
     }
   >();
@@ -152,7 +154,7 @@ export default async function AdminVisaPage() {
       admin.from("dancers").select("id, stage_name, korean_name, slug").in("id", dancerIds),
       admin
         .from("dancer_private_info")
-        .select("dancer_id, nationality, has_visa, visa_type, nationality_code, is_korean_national")
+        .select("dancer_id, nationality, has_visa, visa_type, visa_type_other, visa_expiry, nationality_code, is_korean_national")
         .in("dancer_id", dancerIds),
     ]);
     for (const d of (dancers ?? []) as unknown as Array<{
@@ -168,6 +170,8 @@ export default async function AdminVisaPage() {
       nationality: string | null;
       has_visa: boolean | null;
       visa_type: string | null;
+      visa_type_other: string | null;
+      visa_expiry: string | null;
       nationality_code: string | null;
       is_korean_national: boolean | null;
     }>) {
@@ -175,6 +179,8 @@ export default async function AdminVisaPage() {
         nationality: p.nationality,
         has_visa: p.has_visa,
         visa_type: p.visa_type,
+        visa_type_other: p.visa_type_other,
+        visa_expiry: p.visa_expiry,
         // 한국 국적은 표시 문자열이 아니라 구조화 신호로 판정한다 (/visa/apply 차단 조건과 동일).
         is_korean_national:
           p.is_korean_national ?? (p.nationality_code ? p.nationality_code.toUpperCase() === "KR" : null),
@@ -258,7 +264,10 @@ export default async function AdminVisaPage() {
       nationality: p?.nationality ?? null,
       is_korean_national: p?.is_korean_national ?? null,
       has_visa: p?.has_visa ?? null,
-      visa_label: p?.visa_type ? visaLabel(p.visa_type) : null,
+      visa_type: p?.visa_type ?? null,
+      visa_type_other: p?.visa_type_other ?? null,
+      visa_expiry: p?.visa_expiry ?? null,
+      visa_label: p?.visa_type === "OTHER" ? p.visa_type_other : p?.visa_type ? visaLabel(p.visa_type) : null,
       case_url: `${SITE_URL}/visa/case/${makeVisaCaseToken(a.id)}`,
       case_stage: a.case_stage ?? "application_received",
       audition_at: a.audition_at ?? null,

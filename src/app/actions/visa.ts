@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { countryLabel } from "@/lib/data/countries";
-import { visaLabel } from "@/lib/data/korea-visas";
+import { KOREA_VISAS, visaLabel } from "@/lib/data/korea-visas";
 import { buildSocialUrl, type SocialPlatform } from "@/lib/utils/social";
 import { slugify } from "@/lib/utils/slug";
 import { sendVisaApplicationEmail } from "@/lib/notify/visa-application-mail";
@@ -307,6 +307,8 @@ export async function updateVisaApplicationAction(
 
 // ── 어드민: 오디션 → 조건부 트레이닝 → 월말평가 → 비자 운영 ───────────────
 
+const VISA_CODES = new Set(KOREA_VISAS.map((visa) => visa.code));
+
 const caseOperationsSchema = z.object({
   id: z.string().uuid(),
   auditionAt: z.string().datetime().nullable(),
@@ -326,9 +328,26 @@ const caseOperationsSchema = z.object({
   basicDocumentsStatus: z.enum(["not_started", "requested", "collecting", "reviewing", "complete"]),
   detailedDocumentsStatus: z.enum(["not_started", "requested", "collecting", "reviewing", "submitted"]),
   visaIssuedAt: z.string().datetime().nullable(),
+  visaType: z.string().trim().max(20).nullable(),
+  visaTypeOther: z.string().trim().max(120).nullable(),
+  visaExpiry: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   quotedPriceKrw: z.number().int().min(0).max(100_000_000).nullable(),
   quoteNote: z.string().trim().max(2000).nullable(),
   nextAction: z.string().trim().max(1000).nullable(),
+}).superRefine((data, context) => {
+  if (data.visaType && !VISA_CODES.has(data.visaType)) {
+    context.addIssue({ code: "custom", path: ["visaType"], message: "유효한 체류자격을 선택해 주세요." });
+  }
+  if (!data.visaIssuedAt) return;
+  if (!data.visaType) {
+    context.addIssue({ code: "custom", path: ["visaType"], message: "발급된 체류자격을 선택해 주세요." });
+  }
+  if (!data.visaExpiry) {
+    context.addIssue({ code: "custom", path: ["visaExpiry"], message: "비자 유효기간을 입력해 주세요." });
+  }
+  if (data.visaType === "OTHER" && !data.visaTypeOther) {
+    context.addIssue({ code: "custom", path: ["visaTypeOther"], message: "기타 체류자격을 입력해 주세요." });
+  }
 });
 
 export type VisaCaseOperationsInput = z.input<typeof caseOperationsSchema>;
@@ -366,20 +385,24 @@ export async function updateVisaCaseOperationsAction(
   };
 
   const client = createAdminClient();
-  const { data: existing } = await client
+  const { data: existing, error: existingError } = await client
     .from("dancer_visa_applications")
-    .select("payment_status, payment_meta")
+    .select("payment_status, payment_meta, dancer_id")
     .eq("id", d.id)
     .maybeSingle();
-  const paymentMeta = (existing?.payment_meta ?? {}) as Record<string, unknown>;
+  if (existingError || !existing) {
+    return { ok: false, error: existingError?.message ?? "비자 신청을 찾을 수 없습니다." };
+  }
+  const paymentMeta = (existing.payment_meta ?? {}) as Record<string, unknown>;
   const programPaid =
-    existing?.payment_status === "paid" &&
+    existing.payment_status === "paid" &&
     paymentMeta.issued_product_slug === "training-and-placement";
 
   // 세부 상태를 저장하는 순간 상위 운영 단계도 함께 이동시켜 분기 누락을 막는다.
   if (d.visaIssuedAt) {
     patch.case_stage = "complete";
     patch.status = "approved";
+    patch.next_action = null;
   } else if (d.detailedDocumentsStatus === "submitted") {
     patch.case_stage = "visa_submitted";
     patch.status = "submitted";
@@ -427,10 +450,50 @@ export async function updateVisaCaseOperationsAction(
     patch.status = "reviewing";
   }
 
+  let originalVisa: {
+    has_visa: boolean | null;
+    visa_type: string | null;
+    visa_type_other: string | null;
+    visa_expiry: string | null;
+  } | null = null;
+  if (d.visaIssuedAt) {
+    if (!existing.dancer_id) return { ok: false, error: "연결된 댄서 프로필이 없습니다." };
+    const { data: privateInfo, error: privateReadError } = await client
+      .from("dancer_private_info")
+      .select("has_visa, visa_type, visa_type_other, visa_expiry")
+      .eq("dancer_id", existing.dancer_id)
+      .maybeSingle();
+    if (privateReadError || !privateInfo) {
+      return { ok: false, error: privateReadError?.message ?? "댄서 비자 정보를 찾을 수 없습니다." };
+    }
+    originalVisa = privateInfo;
+    const { error: privateUpdateError } = await client
+      .from("dancer_private_info")
+      .update({
+        has_visa: true,
+        visa_type: d.visaType,
+        visa_type_other: d.visaType === "OTHER" ? d.visaTypeOther : null,
+        visa_expiry: d.visaExpiry,
+      })
+      .eq("dancer_id", existing.dancer_id);
+    if (privateUpdateError) return { ok: false, error: privateUpdateError.message };
+  }
+
   const { error } = await client.from("dancer_visa_applications").update(patch).eq("id", d.id);
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    if (originalVisa && existing.dancer_id) {
+      const { error: rollbackError } = await client
+        .from("dancer_private_info")
+        .update(originalVisa)
+        .eq("dancer_id", existing.dancer_id);
+      if (rollbackError) console.error("[visa operations] private info rollback failed:", rollbackError);
+    }
+    return { ok: false, error: error.message };
+  }
 
   revalidatePath("/admin/visa");
+  revalidatePath("/me");
+  revalidatePath("/me/visa");
   return { ok: true };
 }
 

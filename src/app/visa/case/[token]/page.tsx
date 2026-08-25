@@ -128,16 +128,22 @@ export default async function VisaCasePage({
   let nationality: string | null = null;
   let hasVisa: boolean | null = null;
   let currentVisaLabel: string | null = null;
+  let issuedVisaType: string | null = null;
+  let issuedVisaTypeOther: string | null = null;
+  let issuedVisaExpiry: string | null = null;
   if (row.dancer_id) {
     const [{ data: dancer }, { data: privateInfo }] = await Promise.all([
       admin.from("dancers").select("stage_name, korean_name").eq("id", row.dancer_id).maybeSingle(),
-      admin.from("dancer_private_info").select("nationality, has_visa, visa_type").eq("dancer_id", row.dancer_id).maybeSingle(),
+      admin.from("dancer_private_info").select("nationality, has_visa, visa_type, visa_type_other, visa_expiry").eq("dancer_id", row.dancer_id).maybeSingle(),
     ]);
     name = (dancer?.stage_name as string | null) || (dancer?.korean_name as string | null) || name;
     nationality = (privateInfo?.nationality as string | null) ?? null;
     hasVisa = (privateInfo?.has_visa as boolean | null) ?? null;
     const visaType = (privateInfo?.visa_type as string | null) ?? null;
     currentVisaLabel = visaType ? visaLabel(visaType) : null;
+    issuedVisaType = visaType;
+    issuedVisaTypeOther = (privateInfo?.visa_type_other as string | null) ?? null;
+    issuedVisaExpiry = (privateInfo?.visa_expiry as string | null) ?? null;
   }
 
   const initial: VisaCaseInitial = {
@@ -170,6 +176,9 @@ export default async function VisaCasePage({
     basicDocumentsStatus: row.basic_documents_status ?? "not_started",
     detailedDocumentsStatus: row.detailed_documents_status ?? "not_started",
     visaIssuedAt: row.visa_issued_at ?? null,
+    issuedVisaType,
+    issuedVisaTypeOther,
+    issuedVisaExpiry,
     nextAction: row.next_action ?? null,
     meetingAt: (meetingInvite?.meeting_at as string | null) ?? null,
     meetingUrl: (meetingInvite?.meeting_url as string | null) ?? null,
