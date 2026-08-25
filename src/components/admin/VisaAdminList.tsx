@@ -59,6 +59,9 @@ export type VisaAdminRow = {
   nationality: string | null;
   is_korean_national: boolean | null;
   has_visa: boolean | null;
+  visa_type: string | null;
+  visa_type_other: string | null;
+  visa_expiry: string | null;
   visa_label: string | null;
   case_url: string;
   case_stage: string;

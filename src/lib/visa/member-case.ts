@@ -9,6 +9,20 @@ type PrivateNationality = {
   is_korean_national: boolean | null;
 };
 
+type PrivateVisaRow = PrivateNationality & {
+  has_visa: boolean | null;
+  visa_type: string | null;
+  visa_type_other: string | null;
+  visa_expiry: string | null;
+};
+
+export type MemberVisaDetails = {
+  hasVisa: boolean | null;
+  visaType: string | null;
+  visaTypeOther: string | null;
+  visaExpiry: string | null;
+};
+
 export type MemberVisaApplication = Record<string, unknown> & {
   id: string;
   dancer_id: string | null;
@@ -29,6 +43,7 @@ export type MemberVisaAccess = {
   eligible: boolean;
   application: MemberVisaApplication | null;
   dancerName: string | null;
+  visa: MemberVisaDetails | null;
 };
 
 function nationalitySignal(row: PrivateNationality | undefined): "kr" | "foreign" | "unknown" {
@@ -133,7 +148,7 @@ export async function loadMemberVisaAccess(userId: string): Promise<MemberVisaAc
     ...applications.map((application) => application.dancer_id).filter((id): id is string => Boolean(id)),
   ]));
 
-  const privateMap = new Map<string, PrivateNationality>();
+  const privateMap = new Map<string, PrivateVisaRow>();
   const dancerNameMap = new Map<string, { stage_name: string | null; korean_name: string | null }>();
   for (const dancer of ownedDancers) {
     dancerNameMap.set(dancer.id, dancer);
@@ -142,14 +157,14 @@ export async function loadMemberVisaAccess(userId: string): Promise<MemberVisaAc
     const [{ data: privateRows }, { data: dancerRows }] = await Promise.all([
       admin
         .from("dancer_private_info")
-        .select("dancer_id, nationality_code, is_korean_national")
+        .select("dancer_id, nationality_code, is_korean_national, has_visa, visa_type, visa_type_other, visa_expiry")
         .in("dancer_id", dancerIds),
       admin
         .from("dancers")
         .select("id, stage_name, korean_name")
         .in("id", dancerIds),
     ]);
-    for (const row of (privateRows ?? []) as unknown as PrivateNationality[]) {
+    for (const row of (privateRows ?? []) as unknown as PrivateVisaRow[]) {
       privateMap.set(row.dancer_id, row);
     }
     for (const dancer of (dancerRows ?? []) as unknown as Array<{
@@ -165,7 +180,7 @@ export async function loadMemberVisaAccess(userId: string): Promise<MemberVisaAc
   const hasKoreanSignal = ownedDancers.some(
     (dancer) => nationalitySignal(privateMap.get(dancer.id)) === "kr",
   );
-  if (hasKoreanSignal) return { eligible: false, application: null, dancerName: null };
+  if (hasKoreanSignal) return { eligible: false, application: null, dancerName: null, visa: null };
 
   const application = applications.find(
     (item) => item.dancer_id && nationalitySignal(privateMap.get(item.dancer_id)) === "foreign",
@@ -177,10 +192,20 @@ export async function loadMemberVisaAccess(userId: string): Promise<MemberVisaAc
     ? dancerNameMap.get(application.dancer_id)
     : null;
   const firstDancer = applicationDancer ?? ownedDancers[0] ?? null;
+  const visaDancerId = application?.dancer_id ?? ownedDancers.find(
+    (dancer) => nationalitySignal(privateMap.get(dancer.id)) === "foreign",
+  )?.id ?? null;
+  const visaRow = visaDancerId ? privateMap.get(visaDancerId) : null;
 
   return {
     eligible: Boolean(application || hasForeignProfile),
     application,
     dancerName: firstDancer?.stage_name ?? firstDancer?.korean_name ?? null,
+    visa: visaRow ? {
+      hasVisa: visaRow.has_visa,
+      visaType: visaRow.visa_type,
+      visaTypeOther: visaRow.visa_type_other,
+      visaExpiry: visaRow.visa_expiry,
+    } : null,
   };
 }

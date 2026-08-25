@@ -5,6 +5,7 @@ import { Check, CircleDollarSign, ExternalLink, FileCheck2, Home, Video } from "
 import Link from "next/link";
 import { VisaAuditionRsvp } from "@/components/visa/VisaAuditionRsvp";
 import { VisaQuoteBuilder } from "@/components/visa/VisaQuoteBuilder";
+import { visaByCode } from "@/lib/data/korea-visas";
 import { deriveVisaProgress, VISA_PROGRESS_LABELS } from "@/lib/visa/progress";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,9 @@ export type JourneyData = {
   basicDocumentsStatus: string;
   detailedDocumentsStatus: string;
   visaIssuedAt: string | null;
+  visaType: string | null;
+  visaTypeOther: string | null;
+  visaExpiry: string | null;
   paymentStatus: string;
   paymentProductSlug: string | null;
   paymentUrl: string | null;
@@ -47,6 +51,8 @@ type Copy = {
   title: string;
   stepOf: (step: number) => string;
   progressNote: string;
+  nextMilestone: string;
+  allComplete: string;
   preparation: string;
   application: string;
   questionnaire: string;
@@ -83,7 +89,12 @@ type Copy = {
   immigrationReview: string;
   issuedPending: string;
   issuedDone: (when: string | null) => string;
-  memo: string;
+  nextAction: string;
+  currentVisa: string;
+  visaType: string;
+  validUntil: string;
+  visaDetailsPending: string;
+  renewalNote: string;
   villageTitleHousing: string;
   villageTitle: string;
   villageBody: string;
@@ -99,6 +110,8 @@ const T: Record<VisaJourneyLang, Copy> = {
     title: "Visa program progress",
     stepOf: (step) => `Step ${step} of 5`,
     progressNote: "This bar shows program milestones, not an immigration processing deadline.",
+    nextMilestone: "Next milestone",
+    allComplete: "All program steps are complete",
     preparation: "Before the program",
     application: "Application received",
     questionnaire: "Details submitted",
@@ -152,7 +165,12 @@ const T: Record<VisaJourneyLang, Copy> = {
     immigrationReview: "Korea Immigration is reviewing the application, and the final decision is made by the authorities.",
     issuedPending: "This step is completed only after the visa issuance is officially confirmed.",
     issuedDone: (when) => when ? `Visa issuance confirmed on ${when}.` : "Visa issuance is complete.",
-    memo: "Note from deetz",
+    nextAction: "Next action from deetz",
+    currentVisa: "Current Korean visa",
+    visaType: "Visa type",
+    validUntil: "Valid until",
+    visaDetailsPending: "The visa type and validity period are being recorded by deetz.",
+    renewalNote: "Renewal or extension is managed separately before this date.",
     villageTitleHousing: "You said you need housing.",
     villageTitle: "Need a place to live in Seoul?",
     villageBody: "deetz Village by GRIGO Entertainment is a dancer house we are preparing with no key-money deposit.",
@@ -166,6 +184,8 @@ const T: Record<VisaJourneyLang, Copy> = {
     title: "ビザプログラム進行状況",
     stepOf: (step) => `5段階中 ${step}段階目`,
     progressNote: "このバーはプログラムの進行項目を示すもので、出入国審査の期限を示すものではありません。",
+    nextMilestone: "次のマイルストーン",
+    allComplete: "すべてのプログラム段階が完了しました",
     preparation: "プログラム開始前",
     application: "申込受付",
     questionnaire: "追加情報提出",
@@ -219,7 +239,12 @@ const T: Record<VisaJourneyLang, Copy> = {
     immigrationReview: "韓国出入国当局が審査中であり、最終判断は当局が行います。",
     issuedPending: "正式なビザ発給確認後にのみ、この段階が完了します。",
     issuedDone: (when) => when ? `${when}にビザ発給を確認しました。` : "ビザ発給が完了しました。",
-    memo: "deetzからのメモ",
+    nextAction: "deetzからの次のご案内",
+    currentVisa: "現在の韓国ビザ",
+    visaType: "ビザの種類",
+    validUntil: "有効期限",
+    visaDetailsPending: "ビザの種類と有効期限をdeetzが登録しています。",
+    renewalNote: "更新または延長は、この日付より前に別途進めます。",
     villageTitleHousing: "住まいが必要とのことでしたね。",
     villageTitle: "ソウルでの住まいをお探しですか？",
     villageBody: "保証金なしで始められるダンサーハウス、deetz Village by GRIGO Entertainmentを準備しています。",
@@ -233,6 +258,8 @@ const T: Record<VisaJourneyLang, Copy> = {
     title: "비자 프로그램 진행 상황",
     stepOf: (step) => `5단계 중 ${step}단계`,
     progressNote: "이 진행률은 프로그램 업무 단계이며 출입국 심사 기한을 의미하지 않습니다.",
+    nextMilestone: "다음 단계",
+    allComplete: "프로그램의 모든 단계가 완료되었습니다",
     preparation: "프로그램 시작 전",
     application: "지원서 접수",
     questionnaire: "추가 정보 제출",
@@ -286,7 +313,12 @@ const T: Record<VisaJourneyLang, Copy> = {
     immigrationReview: "현재 한국 출입국 당국이 심사 중이며 최종 발급 결정은 당국이 내립니다.",
     issuedPending: "공식 발급이 확인된 뒤에만 이 단계가 완료됩니다.",
     issuedDone: (when) => when ? `${when} 비자 발급을 확인했습니다.` : "비자 발급이 완료되었습니다.",
-    memo: "deetz 메모",
+    nextAction: "deetz가 안내한 다음 할 일",
+    currentVisa: "현재 한국 비자",
+    visaType: "체류자격",
+    validUntil: "유효기간",
+    visaDetailsPending: "deetz에서 체류자격과 유효기간을 등록하고 있습니다.",
+    renewalNote: "갱신이나 연장은 이 날짜 전에 별도로 진행합니다.",
     villageTitleHousing: "숙소가 필요하다고 알려주셨습니다.",
     villageTitle: "서울에서 지낼 곳을 찾고 계신가요?",
     villageBody: "보증금 없이 시작하는 댄서 하우스, deetz Village by GRIGO Entertainment를 준비하고 있습니다.",
@@ -319,6 +351,19 @@ function fmtDate(value: string, lang: VisaJourneyLang): string {
   );
 }
 
+function visaDisplayName(
+  type: string | null,
+  other: string | null,
+  lang: VisaJourneyLang,
+): string | null {
+  if (!type) return null;
+  if (type === "OTHER") return other || (lang === "ko" ? "기타 체류자격" : "Other visa");
+  const option = visaByCode(type);
+  if (!option) return type;
+  if (lang === "ko") return option.ko;
+  return option.en ? `${option.code} · ${option.en}` : option.code;
+}
+
 function stateFor(step: number, activeStep: number, issued: boolean): StepState {
   if (step < activeStep) return "done";
   if (step === activeStep) return step === 5 && issued ? "done" : "now";
@@ -345,6 +390,7 @@ export function VisaJourneyTimeline({ data, lang, nextActionNote, caseToken }: {
   const auditionDone = data.auditionStatus === "completed" || data.auditionResult === "pass" || data.auditionResult === "training_required";
   const showVillage = auditionPaid || auditionDone || progress.activeStep > 1;
   const issued = Boolean(data.visaIssuedAt) || data.caseStage === "complete";
+  const issuedVisaName = visaDisplayName(data.visaType, data.visaTypeOther, lang);
   const basicDocumentsStatus =
     data.basicDocumentsStatus === "not_started" && ["visa_documents", "visa_documents_basic"].includes(data.caseStage)
       ? "collecting"
@@ -369,6 +415,14 @@ export function VisaJourneyTimeline({ data, lang, nextActionNote, caseToken }: {
         <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${progress.percent}%` }} />
       </div>
       <p className="mt-2 text-[11px] leading-relaxed text-ink-4">{t.progressNote}</p>
+      <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-primary">
+          {progress.nextStep ? t.nextMilestone : t.allComplete}
+        </p>
+        {progress.nextStep ? (
+          <p className="mt-1 text-sm font-bold text-foreground">{labels[progress.nextStep - 1]}</p>
+        ) : null}
+      </div>
 
       <div className="mt-5 rounded-xl bg-secondary/55 p-4">
         <p className="text-[11px] font-bold uppercase tracking-wider text-ink-4">{t.preparation}</p>
@@ -451,11 +505,30 @@ export function VisaJourneyTimeline({ data, lang, nextActionNote, caseToken }: {
         </Step>
 
         <Step state={stateFor(5, progress.activeStep, issued)} label={labels[4]} last>
-          {issued ? <StatusLine tone="success">{t.issuedDone(data.visaIssuedAt ? fmtDate(data.visaIssuedAt.slice(0, 10), lang) : null)}</StatusLine> : <p className="text-[13px] text-ink-3">{t.issuedPending}</p>}
+          {issued ? (
+            <>
+              <StatusLine tone="success">{t.issuedDone(data.visaIssuedAt ? fmtDate(data.visaIssuedAt.slice(0, 10), lang) : null)}</StatusLine>
+              {issuedVisaName && data.visaExpiry ? (
+                <div className="mt-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
+                  <p className="flex items-center gap-2 text-[13px] font-bold text-emerald-700 dark:text-emerald-300">
+                    <FileCheck2 className="size-4" />
+                    {t.currentVisa}
+                  </p>
+                  <dl className="mt-3 grid gap-2 text-[13px] sm:grid-cols-2">
+                    <div><dt className="text-[11px] text-ink-3">{t.visaType}</dt><dd className="mt-0.5 font-bold">{issuedVisaName}</dd></div>
+                    <div><dt className="text-[11px] text-ink-3">{t.validUntil}</dt><dd className="mt-0.5 font-bold">{fmtDate(data.visaExpiry, lang)}</dd></div>
+                  </dl>
+                  <p className="mt-3 text-[11px] leading-relaxed text-ink-3">{t.renewalNote}</p>
+                </div>
+              ) : (
+                <p className="mt-2 text-[12px] text-ink-3">{t.visaDetailsPending}</p>
+              )}
+            </>
+          ) : <p className="text-[13px] text-ink-3">{t.issuedPending}</p>}
         </Step>
       </ol>
 
-      {nextActionNote ? <div className="mt-4 rounded-lg bg-secondary/60 px-3.5 py-2.5"><p className="text-[11px] font-semibold uppercase tracking-wider text-ink-4">{t.memo}</p><p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{nextActionNote}</p></div> : null}
+      {nextActionNote ? <div className="mt-4 rounded-lg bg-secondary/60 px-3.5 py-2.5"><p className="text-[11px] font-semibold uppercase tracking-wider text-ink-4">{t.nextAction}</p><p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{nextActionNote}</p></div> : null}
 
       {showVillage && data.villageDepositStatus === "paid" ? (
         <div className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">

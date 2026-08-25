@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Clipboard, ExternalLink, Loader2, Route } from "lucide-react";
 import { updateVisaCaseOperationsAction } from "@/app/actions/visa";
 import type { VisaAdminRow } from "@/components/admin/VisaAdminList";
+import { KOREA_VISAS } from "@/lib/data/korea-visas";
 import { hasThreeUniqueConsultationSlots } from "@/lib/visa/consultation-slots";
 
 const ANSWER_LABELS: Record<string, string> = {
@@ -168,6 +169,9 @@ export function VisaCaseOpsEditor({ row }: { row: VisaAdminRow }) {
   const [basicDocumentsStatus, setBasicDocumentsStatus] = useState(row.basic_documents_status);
   const [detailedDocumentsStatus, setDetailedDocumentsStatus] = useState(row.detailed_documents_status);
   const [visaIssuedAt, setVisaIssuedAt] = useState(toLocalDateTime(row.visa_issued_at));
+  const [visaType, setVisaType] = useState(row.visa_type ?? "");
+  const [visaTypeOther, setVisaTypeOther] = useState(row.visa_type_other ?? "");
+  const [visaExpiry, setVisaExpiry] = useState(row.visa_expiry ?? "");
   const [quotedPrice, setQuotedPrice] = useState(row.quoted_price_krw == null ? "" : String(row.quoted_price_krw));
   const [quoteNote, setQuoteNote] = useState(row.quote_note ?? "");
   const [nextAction, setNextAction] = useState(row.next_action ?? "");
@@ -210,6 +214,9 @@ export function VisaCaseOpsEditor({ row }: { row: VisaAdminRow }) {
         basicDocumentsStatus: basicDocumentsStatus as "not_started" | "requested" | "collecting" | "reviewing" | "complete",
         detailedDocumentsStatus: detailedDocumentsStatus as "not_started" | "requested" | "collecting" | "reviewing" | "submitted",
         visaIssuedAt: toIso(visaIssuedAt),
+        visaType: nullable(visaType),
+        visaTypeOther: nullable(visaTypeOther),
+        visaExpiry: visaExpiry || null,
         quotedPriceKrw: parsedPrice,
         quoteNote: nullable(quoteNote),
         nextAction: nullable(nextAction),
@@ -313,7 +320,11 @@ export function VisaCaseOpsEditor({ row }: { row: VisaAdminRow }) {
           <Input label="1차 기본 서류"><select value={basicDocumentsStatus} onChange={(e) => setBasicDocumentsStatus(e.target.value)} className="admin-input"><option value="not_started">시작 전</option><option value="requested">목록 전달</option><option value="collecting">수집 중</option><option value="reviewing">검토 중</option><option value="complete">완료</option></select></Input>
           <Input label="2차 세부 서류"><select value={detailedDocumentsStatus} onChange={(e) => setDetailedDocumentsStatus(e.target.value)} className="admin-input"><option value="not_started">시작 전</option><option value="requested">목록 전달</option><option value="collecting">수집 중</option><option value="reviewing">검토 중</option><option value="submitted">출입국 접수</option></select></Input>
           <Input label="비자 발급 확인 시각"><input type="datetime-local" value={visaIssuedAt} onChange={(e) => setVisaIssuedAt(e.target.value)} className="admin-input" /></Input>
+          <Input label="발급된 체류자격"><select value={visaType} onChange={(e) => setVisaType(e.target.value)} className="admin-input"><option value="">선택</option>{KOREA_VISAS.map((visa) => <option key={visa.code} value={visa.code}>{visa.ko}</option>)}</select></Input>
+          <Input label="비자 유효기간"><input type="date" value={visaExpiry} onChange={(e) => setVisaExpiry(e.target.value)} className="admin-input" /></Input>
+          {visaType === "OTHER" ? <Input label="기타 체류자격" full><input value={visaTypeOther} onChange={(e) => setVisaTypeOther(e.target.value)} placeholder="체류자격을 직접 입력해 주세요" className="admin-input" /></Input> : null}
         </div>
+        <p className="mt-2 text-xs leading-relaxed text-ink-3">발급 완료 처리 시 체류자격과 유효기간을 함께 저장하면 지원자 마이페이지에 즉시 표시됩니다.</p>
       </OpsGroup>
 
       <OpsGroup title="5. 비용 안내">
