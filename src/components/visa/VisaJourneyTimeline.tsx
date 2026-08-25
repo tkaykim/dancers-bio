@@ -1,590 +1,492 @@
 "use client";
 
 import { useState } from "react";
-import { Check, CircleDollarSign, ExternalLink, Home, Video } from "lucide-react";
+import { Check, CircleDollarSign, ExternalLink, FileCheck2, Home, Video } from "lucide-react";
 import Link from "next/link";
 import { VisaAuditionRsvp } from "@/components/visa/VisaAuditionRsvp";
 import { VisaQuoteBuilder } from "@/components/visa/VisaQuoteBuilder";
+import { deriveVisaProgress, VISA_PROGRESS_LABELS } from "@/lib/visa/progress";
 import { cn } from "@/lib/utils";
 
-// 비자 프로그램 케이스 포털의 "내 여정" 타임라인.
-//
-// 설계 원칙 (2026-08-16 대표 확정):
-// - 정본 화면은 케이스 포털 하나. 미팅 확정·오디션 일정·결제가 전부 여기 보인다.
-// - 정보를 잠그지 않는다 — 오디션 일시·장소는 입력되는 대로 공개한다.
-//   참가비는 정보 열람 대가가 아니라 "참석 확정 + 노쇼 방지" 장치다.
-// - 결제까지 가는 길이 귀찮아지면 안 된다: 현재 단계 카드에 버튼 1개, 설명은 3문장 이내.
-// - 완료 단계는 한 줄로 접고, 미래 단계는 제목만 보여준다.
-
-type Lang = "en" | "ja" | "ko";
+export type VisaJourneyLang = "en" | "ja" | "ko";
 
 export type JourneyData = {
   followUpSubmittedAt: string | null;
   caseStage: string;
-  // 미팅 (visa_meeting_invites 최신 sent 행)
   meetingAt: string | null;
   meetingUrl: string | null;
-  // 오디션
   auditionAt: string | null;
   auditionLocation: string | null;
   auditionStatus: string;
   auditionResult: string;
   auditionEndsAt: string | null;
   auditionRsvp: string | null;
-  // 트레이닝 분기
   trainingRequired: boolean | null;
   trainingPartner: string | null;
   trainingStartDate: string | null;
   trainingEndDate: string | null;
   monthlyEvaluationAt: string | null;
   monthlyEvaluationResult: string;
-  // 결제 (grigoent 미러링)
+  contractStatus: string;
+  basicDocumentsStatus: string;
+  detailedDocumentsStatus: string;
+  visaIssuedAt: string | null;
   paymentStatus: string;
   paymentProductSlug: string | null;
   paymentUrl: string | null;
   paymentAmountKrw: number | null;
   paidAt: string | null;
-  // Village 개인화·사전예약
   wantsHousing: boolean;
   villageDepositStatus: string;
   villageDepositPaidAt: string | null;
 };
 
-// 금액 상수는 선택형 견적(VisaQuoteBuilder)이 정본으로 들고 있다.
-
 type StepState = "done" | "now" | "todo";
 
 type Copy = {
   title: string;
-  steps: {
-    apply: string;
-    info: string;
-    meeting: string;
-    audition: string;
-    levelTest: string;
-    visaDocs: string;
-  };
-  infoNow: string;
+  stepOf: (step: number) => string;
+  progressNote: string;
+  preparation: string;
+  application: string;
+  questionnaire: string;
+  meeting: string;
+  waiting: string;
   meetingReviewing: string;
   meetingDone: (when: string) => string;
-  meetingJoin: string;
   meetingConfirmed: string;
-  auditionFeeTitle: string;
-  auditionFeePurpose: string;
-  auditionFeeDeduct: string;
-  auditionFeePay: string;
+  meetingJoin: string;
+  auditionWhen: string;
+  auditionWhere: string;
+  auditionScheduledNote: string;
   auditionConfirmed: string;
   auditionConfirmedThanks: string;
   auditionDeductRemind: string;
-  auditionScheduledNote: string;
-  auditionWhen: string;
-  auditionWhere: string;
-  programPayTitle: string;
-  programPayBody: string;
-  programPayDeduct: string;
-  programPay: string;
+  levelPending: string;
   levelPass: string;
   levelTraining: string;
   trainingPartner: string;
   trainingPeriod: string;
   evaluationNext: string;
-  docsNow: string;
-  docsSubmitted: string;
-  done: string;
+  contractIntro: string;
+  contractLabels: Record<string, string>;
+  programUnpaid: string;
+  programPaid: string;
+  programPayTitle: string;
+  programPayBody: string;
+  programPayDeduct: string;
+  programPay: string;
+  basicLabels: Record<string, string>;
+  basicBody: string;
+  detailedLabels: Record<string, string>;
+  detailedBody: string;
+  immigrationReview: string;
+  issuedPending: string;
+  issuedDone: (when: string | null) => string;
+  memo: string;
   villageTitleHousing: string;
   villageTitle: string;
   villageBody: string;
   villagePrice: string;
   villageCta: string;
-  memo: string;
   villageReserved: string;
   villageReservedBody: string;
   villageSeePage: string;
 };
 
-const T: Record<Lang, Copy> = {
+const T: Record<VisaJourneyLang, Copy> = {
   en: {
-    title: "Your journey",
-    steps: {
-      apply: "Application received",
-      info: "Details & meeting times",
-      meeting: "Online meeting",
-      audition: "Audition seat",
-      levelTest: "Audition · level test",
-      visaDocs: "Visa documents & application",
-    },
-    infoNow: "Please fill in the questionnaire below.",
-    meetingReviewing: "We are reviewing your time options. You will see the confirmed time here and by email.",
+    title: "Visa program progress",
+    stepOf: (step) => `Step ${step} of 5`,
+    progressNote: "This bar shows program milestones, not an immigration processing deadline.",
+    preparation: "Before the program",
+    application: "Application received",
+    questionnaire: "Details submitted",
+    meeting: "Online meeting",
+    waiting: "Waiting",
+    meetingReviewing: "We are reviewing your available meeting times.",
     meetingDone: (when) => `Held on ${when}`,
-    meetingJoin: "Join the meeting",
     meetingConfirmed: "Your meeting is confirmed.",
-    auditionFeeTitle: "Audition attendance fee",
-    auditionFeePurpose: "This fee confirms your seat and prevents no-shows.",
-    auditionFeeDeduct: "This fee is part of the program cost — you pay 100,000 KRW less when you join.",
-    auditionFeePay: "Pay and confirm my seat",
-    auditionConfirmed: "Your seat is confirmed",
-    auditionConfirmedThanks: "Thank you — see you at the audition.",
-    auditionDeductRemind: "This fee is part of the program cost, so you pay 100,000 KRW less when you join.",
-    auditionScheduledNote: "Details may be updated — check this page before the day.",
+    meetingJoin: "Join the meeting",
     auditionWhen: "Date & time",
     auditionWhere: "Venue",
-    programPayTitle: "Program payment",
-    programPayBody: "Please pay the amount we shared with you to start your program.",
-    programPayDeduct: "Your audition fee of ₩100,000 is already discounted from this amount.",
-    programPay: "Go to payment",
-    levelPass: "Passed — ready for visa preparation",
-    levelTraining: "Training first, then a monthly review",
+    auditionScheduledNote: "Details may be updated, so please check this page before the day.",
+    auditionConfirmed: "Your audition seat is confirmed.",
+    auditionConfirmedThanks: "Thank you, and we will see you at the audition.",
+    auditionDeductRemind: "The 100,000 KRW attendance fee is deducted from your program payment.",
+    levelPending: "Your audition and level-test result will appear here.",
+    levelPass: "Passed and ready for the contract stage.",
+    levelTraining: "Training is required before the next monthly review.",
     trainingPartner: "Training partner",
     trainingPeriod: "Period",
     evaluationNext: "Next review",
-    docsNow: "We are guiding you through the required documents.",
-    docsSubmitted: "Your application is under review by Korea Immigration.",
-    done: "Complete",
+    contractIntro: "We prepare the exclusive agreement and complete program registration after signing and payment.",
+    contractLabels: {
+      not_started: "Contract preparation has not started.",
+      preparing: "deetz is preparing the contract.",
+      sent: "The contract was sent for review and signature.",
+      signed: "The contract has been signed.",
+    },
+    programUnpaid: "Program payment has not been confirmed.",
+    programPaid: "Program registration payment is complete.",
+    programPayTitle: "Complete your program payment",
+    programPayBody: "Pay the amount shared with you to complete registration.",
+    programPayDeduct: "The 100,000 KRW audition fee is already deducted.",
+    programPay: "Go to payment",
+    basicLabels: {
+      not_started: "Document collection has not started.",
+      requested: "The basic document checklist was sent.",
+      collecting: "We are collecting your basic documents.",
+      reviewing: "deetz is reviewing the basic documents.",
+      complete: "The basic document review is complete.",
+    },
+    basicBody: "This stage covers the initial identity, passport, and career evidence required for your case.",
+    detailedLabels: {
+      not_started: "Detailed document work has not started.",
+      requested: "The detailed document checklist was sent.",
+      collecting: "We are collecting the detailed documents.",
+      reviewing: "The detailed documents are under review.",
+      submitted: "The visa application was submitted to Korea Immigration.",
+    },
+    detailedBody: "Requirements can differ by case, so deetz will send only the documents assigned to you.",
+    immigrationReview: "Korea Immigration is reviewing the application, and the final decision is made by the authorities.",
+    issuedPending: "This step is completed only after the visa issuance is officially confirmed.",
+    issuedDone: (when) => when ? `Visa issuance confirmed on ${when}.` : "Visa issuance is complete.",
+    memo: "Note from deetz",
     villageTitleHousing: "You said you need housing.",
     villageTitle: "Need a place to live in Seoul?",
-    villageBody: "deetz Village by GRIGO Entertainment is a dancer house we are preparing — no key money deposit.",
-    villagePrice: "₩500,000–600,000 / month · deposit ₩0 · pre-registration open",
-    villageCta: "See details & join the waitlist",
-    memo: "Note from deetz",
+    villageBody: "deetz Village by GRIGO Entertainment is a dancer house we are preparing with no key-money deposit.",
+    villagePrice: "₩500,000–600,000 per month · deposit ₩0 · pre-registration open",
+    villageCta: "See details and join the waitlist",
     villageReserved: "deetz Village is reserved",
     villageReservedBody: "We will contact you first with photos, the exact address, and move-in dates.",
     villageSeePage: "See the Village page",
   },
   ja: {
-    title: "あなたの進行状況",
-    steps: {
-      apply: "申込受付",
-      info: "追加情報・ミーティング日程",
-      meeting: "オンラインミーティング",
-      audition: "オーディション参加確定",
-      levelTest: "オーディション・レベルテスト",
-      visaDocs: "ビザ書類・申請",
-    },
-    infoNow: "下の質問フォームにご記入ください。",
-    meetingReviewing: "ご提出いただいた候補日程を確認しています。確定次第、こことメールでお知らせします。",
+    title: "ビザプログラム進行状況",
+    stepOf: (step) => `5段階中 ${step}段階目`,
+    progressNote: "このバーはプログラムの進行項目を示すもので、出入国審査の期限を示すものではありません。",
+    preparation: "プログラム開始前",
+    application: "申込受付",
+    questionnaire: "追加情報提出",
+    meeting: "オンラインミーティング",
+    waiting: "待機中",
+    meetingReviewing: "ご提出いただいたミーティング候補日を確認しています。",
     meetingDone: (when) => `${when} 実施済み`,
-    meetingJoin: "ミーティングに参加",
     meetingConfirmed: "ミーティングが確定しました。",
-    auditionFeeTitle: "オーディション参加確定費",
-    auditionFeePurpose: "参加確定と無断欠席防止のための費用です。",
-    auditionFeeDeduct: "この費用はプログラム費用に含まれており、参加時は10万ウォン割引されます。",
-    auditionFeePay: "支払って参加を確定する",
-    auditionConfirmed: "参加が確定しました",
-    auditionConfirmedThanks: "お支払いありがとうございます。当日お会いしましょう。",
-    auditionDeductRemind: "この費用はプログラム費用に含まれており、参加時は10万ウォン割引された金額のお支払いとなります。",
-    auditionScheduledNote: "詳細は更新される場合があります。当日前にこのページをご確認ください。",
+    meetingJoin: "ミーティングに参加",
     auditionWhen: "日時",
     auditionWhere: "会場",
-    programPayTitle: "プログラム決済",
-    programPayBody: "ご案内した金額のお支払いでプログラムが始まります。",
-    programPayDeduct: "オーディション参加費10万ウォンは、この金額からすでに割引されています。",
-    programPay: "決済ページへ",
-    levelPass: "合格 — ビザ準備へ進めます",
-    levelTraining: "まずトレーニング、その後月末評価",
+    auditionScheduledNote: "詳細が変更される場合がありますので、当日前にこのページをご確認ください。",
+    auditionConfirmed: "オーディション参加が確定しました。",
+    auditionConfirmedThanks: "ありがとうございます。オーディション当日にお会いしましょう。",
+    auditionDeductRemind: "参加費10万ウォンはプログラム決済金額から差し引かれます。",
+    levelPending: "オーディションとレベルテストの結果がここに表示されます。",
+    levelPass: "合格し、契約段階へ進む準備が整いました。",
+    levelTraining: "次回の月末評価までトレーニングが必要です。",
     trainingPartner: "提携トレーニング先",
     trainingPeriod: "期間",
     evaluationNext: "次回評価",
-    docsNow: "必要書類をご案内しています。",
-    docsSubmitted: "韓国出入国当局で審査中です。",
-    done: "完了",
+    contractIntro: "専属契約書を準備し、署名と決済の完了後にプログラム登録が完了します。",
+    contractLabels: {
+      not_started: "契約書の準備前です。",
+      preparing: "deetzが契約書を準備しています。",
+      sent: "契約書を確認と署名のためにお送りしました。",
+      signed: "契約書への署名が完了しました。",
+    },
+    programUnpaid: "プログラム決済はまだ確認されていません。",
+    programPaid: "プログラム登録決済が完了しました。",
+    programPayTitle: "プログラム決済を完了してください",
+    programPayBody: "ご案内した金額を決済すると登録が完了します。",
+    programPayDeduct: "オーディション参加費10万ウォンはすでに差し引かれています。",
+    programPay: "決済ページへ",
+    basicLabels: {
+      not_started: "基本書類の収集前です。",
+      requested: "基本書類チェックリストをお送りしました。",
+      collecting: "基本書類を収集中です。",
+      reviewing: "deetzが基本書類を確認しています。",
+      complete: "基本書類の確認が完了しました。",
+    },
+    basicBody: "この段階では、本人確認、パスポート、経歴証明などの基本書類を準備します。",
+    detailedLabels: {
+      not_started: "詳細書類の準備前です。",
+      requested: "詳細書類チェックリストをお送りしました。",
+      collecting: "詳細書類を収集中です。",
+      reviewing: "詳細書類を確認しています。",
+      submitted: "韓国出入国当局へビザ申請を提出しました。",
+    },
+    detailedBody: "必要書類はケースごとに異なるため、deetzが個別に割り当てた書類のみをご案内します。",
+    immigrationReview: "韓国出入国当局が審査中であり、最終判断は当局が行います。",
+    issuedPending: "正式なビザ発給確認後にのみ、この段階が完了します。",
+    issuedDone: (when) => when ? `${when}にビザ発給を確認しました。` : "ビザ発給が完了しました。",
+    memo: "deetzからのメモ",
     villageTitleHousing: "住まいが必要とのことでしたね。",
     villageTitle: "ソウルでの住まいをお探しですか？",
-    villageBody: "保証金なしで始められるダンサーハウス、deetz Village by GRIGO Entertainment を準備しています。",
+    villageBody: "保証金なしで始められるダンサーハウス、deetz Village by GRIGO Entertainmentを準備しています。",
     villagePrice: "月50万〜60万ウォン · 保証金0円 · 事前登録受付中",
     villageCta: "詳しく見て関心登録する",
-    memo: "deetzからのメモ",
-    villageReserved: "deetz Village を予約済みです",
-    villageReservedBody: "写真・正確な住所・入居可能日を最初にご連絡します。",
+    villageReserved: "deetz Villageを予約済みです",
+    villageReservedBody: "写真、正確な住所、入居可能日を優先してご連絡します。",
     villageSeePage: "Villageのページを見る",
   },
   ko: {
-    title: "나의 진행 상황",
-    steps: {
-      apply: "지원서 접수",
-      info: "추가 정보·미팅 일정",
-      meeting: "온라인 미팅",
-      audition: "오디션 참석 확정",
-      levelTest: "오디션·레벨테스트",
-      visaDocs: "비자 서류·신청",
-    },
-    infoNow: "아래 질문지를 작성해 주세요.",
-    meetingReviewing: "제출하신 후보 일정을 확인하고 있어요. 확정되면 이곳과 이메일로 안내드립니다.",
+    title: "비자 프로그램 진행 상황",
+    stepOf: (step) => `5단계 중 ${step}단계`,
+    progressNote: "이 진행률은 프로그램 업무 단계이며 출입국 심사 기한을 의미하지 않습니다.",
+    preparation: "프로그램 시작 전",
+    application: "지원서 접수",
+    questionnaire: "추가 정보 제출",
+    meeting: "온라인 미팅",
+    waiting: "대기 중",
+    meetingReviewing: "제출한 미팅 후보 일정을 확인하고 있습니다.",
     meetingDone: (when) => `${when} 진행 완료`,
+    meetingConfirmed: "미팅 일정이 확정되었습니다.",
     meetingJoin: "미팅 참여하기",
-    meetingConfirmed: "미팅이 확정됐어요.",
-    auditionFeeTitle: "오디션 참석 확정비",
-    auditionFeePurpose: "참석 확정과 노쇼 방지를 위한 비용입니다.",
-    auditionFeeDeduct: "이 비용은 프로그램 비용에 포함되어 있어, 진행 시 10만원 할인된 금액으로 결제하시게 됩니다.",
-    auditionFeePay: "결제하고 참석 확정하기",
-    auditionConfirmed: "참석이 확정됐어요",
-    auditionConfirmedThanks: "결제해 주셔서 감사합니다. 오디션에서 뵙겠습니다.",
-    auditionDeductRemind: "이 비용은 프로그램 비용에 포함되어 있어, 진행 시 10만원 할인된 금액으로 결제하시게 됩니다.",
-    auditionScheduledNote: "세부 내용이 바뀔 수 있으니 당일 전에 이 페이지를 확인해 주세요.",
     auditionWhen: "일시",
     auditionWhere: "장소",
-    programPayTitle: "프로그램 결제",
-    programPayBody: "안내드린 금액을 결제하시면 프로그램이 시작됩니다.",
-    programPayDeduct: "오디션 참가비 10만원은 이 금액에서 이미 할인되어 있습니다.",
-    programPay: "결제 페이지로 이동",
-    levelPass: "통과 — 비자 준비를 진행할 수 있어요",
-    levelTraining: "트레이닝을 먼저 진행하고 월말평가로 확인해요",
+    auditionScheduledNote: "세부 내용이 바뀔 수 있으니 당일 전에 이 페이지를 확인해 주세요.",
+    auditionConfirmed: "오디션 참석이 확정되었습니다.",
+    auditionConfirmedThanks: "감사합니다. 오디션 당일에 뵙겠습니다.",
+    auditionDeductRemind: "참석비 10만 원은 프로그램 등록 결제 금액에서 차감됩니다.",
+    levelPending: "오디션과 레벨테스트 결과가 이곳에 표시됩니다.",
+    levelPass: "평가를 통과해 계약 단계로 진행합니다.",
+    levelTraining: "다음 월말평가 전까지 트레이닝이 필요합니다.",
     trainingPartner: "연계 트레이닝 기관",
     trainingPeriod: "기간",
     evaluationNext: "다음 평가",
-    docsNow: "필요한 서류를 안내드리고 있어요.",
-    docsSubmitted: "한국 출입국 당국에서 심사 중이에요.",
-    done: "완료",
-    villageTitleHousing: "숙소가 필요하다고 하셨죠.",
-    villageTitle: "서울에서 지낼 곳을 찾고 계신가요?",
-    villageBody: "보증금 없이 시작하는 댄서 하우스, deetz Village by GRIGO Entertainment 를 준비하고 있습니다.",
-    villagePrice: "월 50만~60만원 · 보증금 0원 · 사전 등록 진행 중",
-    villageCta: "자세히 보고 관심 등록하기",
+    contractIntro: "전속계약서를 작성하고 서명과 결제가 끝나면 프로그램 등록이 완료됩니다.",
+    contractLabels: {
+      not_started: "계약서 작성 전입니다.",
+      preparing: "deetz에서 계약서를 작성하고 있습니다.",
+      sent: "검토와 서명을 위해 계약서를 전달했습니다.",
+      signed: "계약서 서명이 완료되었습니다.",
+    },
+    programUnpaid: "프로그램 등록 결제가 아직 확인되지 않았습니다.",
+    programPaid: "프로그램 등록 결제가 완료되었습니다.",
+    programPayTitle: "프로그램 등록 결제를 완료해 주세요",
+    programPayBody: "안내한 금액을 결제하면 프로그램 등록이 완료됩니다.",
+    programPayDeduct: "오디션 참석비 10만 원은 이미 차감되어 있습니다.",
+    programPay: "결제 페이지로 이동",
+    basicLabels: {
+      not_started: "기본 서류 수집 전입니다.",
+      requested: "기본 서류 목록을 전달했습니다.",
+      collecting: "기본 서류를 수집하고 있습니다.",
+      reviewing: "deetz에서 기본 서류를 검토하고 있습니다.",
+      complete: "기본 서류 검토가 끝났습니다.",
+    },
+    basicBody: "이 단계에서는 신원, 여권, 경력 증빙 등 케이스의 기본 서류를 준비합니다.",
+    detailedLabels: {
+      not_started: "세부 서류 작업 전입니다.",
+      requested: "세부 서류 목록을 전달했습니다.",
+      collecting: "세부 서류를 수집하고 있습니다.",
+      reviewing: "세부 서류를 검토하고 있습니다.",
+      submitted: "한국 출입국 당국에 비자 신청을 접수했습니다.",
+    },
+    detailedBody: "필요한 서류는 케이스마다 달라 deetz가 배정한 항목만 개별 안내합니다.",
+    immigrationReview: "현재 한국 출입국 당국이 심사 중이며 최종 발급 결정은 당국이 내립니다.",
+    issuedPending: "공식 발급이 확인된 뒤에만 이 단계가 완료됩니다.",
+    issuedDone: (when) => when ? `${when} 비자 발급을 확인했습니다.` : "비자 발급이 완료되었습니다.",
     memo: "deetz 메모",
-    villageReserved: "deetz Village 예약이 완료됐어요",
-    villageReservedBody: "사진, 정확한 주소, 입주 가능일을 가장 먼저 연락드립니다.",
+    villageTitleHousing: "숙소가 필요하다고 알려주셨습니다.",
+    villageTitle: "서울에서 지낼 곳을 찾고 계신가요?",
+    villageBody: "보증금 없이 시작하는 댄서 하우스, deetz Village by GRIGO Entertainment를 준비하고 있습니다.",
+    villagePrice: "월 50만~60만 원 · 보증금 0원 · 사전 등록 진행 중",
+    villageCta: "자세히 보고 관심 등록하기",
+    villageReserved: "deetz Village 예약이 완료되었습니다",
+    villageReservedBody: "사진, 정확한 주소, 입주 가능일을 우선 안내합니다.",
     villageSeePage: "Village 페이지 보기",
   },
 };
 
-const LOCALE: Record<Lang, string> = { en: "en-US", ja: "ja-JP", ko: "ko-KR" };
+const LOCALE: Record<VisaJourneyLang, string> = { en: "en-US", ja: "ja-JP", ko: "ko-KR" };
 
-function fmtDateTime(value: string, lang: Lang): string {
+function fmtDateTime(value: string, lang: VisaJourneyLang): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  const text = new Intl.DateTimeFormat(LOCALE[lang], {
+  const formatted = new Intl.DateTimeFormat(LOCALE[lang], {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone: "Asia/Seoul",
   }).format(date);
-  // 해외 지원자가 자기 시간대로 오해하지 않게 KST를 명시한다.
-  return lang === "ko" ? text : `${text} (KST)`;
+  return lang === "ko" ? formatted : `${formatted} (KST)`;
 }
 
-function fmtDate(value: string, lang: Lang): string {
-  const [y, m, d] = value.split("-").map(Number);
-  if (!y || !m || !d) return value;
+function fmtDate(value: string, lang: VisaJourneyLang): string {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
   return new Intl.DateTimeFormat(LOCALE[lang], { dateStyle: "medium", timeZone: "UTC" }).format(
-    new Date(Date.UTC(y, m - 1, d)),
+    new Date(Date.UTC(year, month - 1, day)),
   );
 }
 
-const POST_AUDITION_STAGES = new Set([
-  "training",
-  "monthly_evaluation",
-  "visa_documents",
-  "visa_submitted",
-  "complete",
-]);
+function stateFor(step: number, activeStep: number, issued: boolean): StepState {
+  if (step < activeStep) return "done";
+  if (step === activeStep) return step === 5 && issued ? "done" : "now";
+  return "todo";
+}
 
-export function VisaJourneyTimeline({
-  data,
-  lang,
-  nextActionNote,
-  caseToken,
-}: {
+export function VisaJourneyTimeline({ data, lang, nextActionNote, caseToken }: {
   data: JourneyData;
-  lang: Lang;
-  /** 관리자가 next_action 에 직접 적은 안내 (일반 문구는 걸러진 상태로 전달됨) */
+  lang: VisaJourneyLang;
   nextActionNote: string | null;
   caseToken: string;
 }) {
   const t = T[lang];
-  // "미팅이 지났는가" 판정 기준 시각. 렌더 순수성을 위해 마운트 시 1회만 고정한다.
+  const labels = VISA_PROGRESS_LABELS[lang];
   const [now] = useState(() => Date.now());
-
-  const infoDone = Boolean(data.followUpSubmittedAt);
+  const progress = deriveVisaProgress(data);
   const meetingUpcoming = data.meetingAt ? new Date(data.meetingAt).getTime() > now : false;
   const meetingHeld = data.meetingAt ? new Date(data.meetingAt).getTime() <= now : false;
-
   const isAuditionFee = data.paymentProductSlug !== "training-and-placement";
   const auditionPaid = data.paymentStatus === "paid" && isAuditionFee;
   const auditionPayable = data.paymentStatus === "link_sent" && isAuditionFee && Boolean(data.paymentUrl);
-  const programPayable =
-    data.paymentStatus === "link_sent" && data.paymentProductSlug === "training-and-placement" && Boolean(data.paymentUrl);
-
+  const programPayable = data.paymentStatus === "link_sent" && data.paymentProductSlug === "training-and-placement" && Boolean(data.paymentUrl);
   const auditionScheduled = Boolean(data.auditionAt || data.auditionLocation) || data.auditionStatus === "scheduled";
   const auditionDone = data.auditionStatus === "completed" || data.auditionResult === "pass" || data.auditionResult === "training_required";
-  const pastAudition = POST_AUDITION_STAGES.has(data.caseStage) || data.auditionResult === "pass" || data.auditionResult === "training_required";
+  const showVillage = auditionPaid || auditionDone || progress.activeStep > 1;
+  const issued = Boolean(data.visaIssuedAt) || data.caseStage === "complete";
+  const basicDocumentsStatus =
+    data.basicDocumentsStatus === "not_started" && ["visa_documents", "visa_documents_basic"].includes(data.caseStage)
+      ? "collecting"
+      : data.basicDocumentsStatus;
+  const detailedDocumentsStatus =
+    data.detailedDocumentsStatus === "not_started" && data.caseStage === "visa_submitted"
+      ? "submitted"
+      : data.detailedDocumentsStatus === "not_started" && data.caseStage === "visa_documents_detailed"
+        ? "reviewing"
+        : data.detailedDocumentsStatus;
 
-  // ── 단계 상태 계산 ────────────────────────────────────────────────────────
-  const meetingState: StepState = meetingHeld || pastAudition || auditionScheduled || auditionPayable || auditionPaid
-    ? "done"
-    : meetingUpcoming
-      ? "now"
-      : infoDone
-        ? "now"
-        : "todo";
-
-  const auditionSeatState: StepState = auditionPaid || auditionDone || pastAudition
-    ? "done"
-    : auditionPayable || auditionScheduled
-      ? "now"
-      : "todo";
-
-  const levelState: StepState = data.auditionResult === "pass"
-    ? "done"
-    : data.auditionResult === "training_required" || data.caseStage === "training" || data.caseStage === "monthly_evaluation"
-      ? "now"
-      : auditionSeatState === "done"
-        ? "now"
-        : "todo";
-
-  const docsState: StepState = data.caseStage === "complete"
-    ? "done"
-    : data.caseStage === "visa_documents" || data.caseStage === "visa_submitted"
-      ? "now"
-      : "todo";
-
-  const showVillage = auditionPaid || pastAudition;
-
-  // ── 렌더 ─────────────────────────────────────────────────────────────────
   return (
     <section className="mt-6 rounded-2xl border border-hairline-2 bg-card p-5 md:p-6">
-      <h2 className="text-sm font-bold uppercase tracking-wider text-ink-3">{t.title}</h2>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-ink-3">{t.title}</h2>
+          <p className="mt-1 text-xl font-bold tracking-tight">{t.stepOf(progress.activeStep)}</p>
+        </div>
+        <span className="text-sm font-bold text-primary">{progress.percent}%</span>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}>
+        <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${progress.percent}%` }} />
+      </div>
+      <p className="mt-2 text-[11px] leading-relaxed text-ink-4">{t.progressNote}</p>
 
-      <ol className="mt-4">
-        {/* 1. 접수 */}
-        <Step state="done" label={t.steps.apply} last={false} />
+      <div className="mt-5 rounded-xl bg-secondary/55 p-4">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-ink-4">{t.preparation}</p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <PreparationItem done label={t.application} detail="✓" />
+          <PreparationItem done={Boolean(data.followUpSubmittedAt)} label={t.questionnaire} detail={data.followUpSubmittedAt ? "✓" : t.waiting} />
+          <PreparationItem done={meetingHeld || progress.activeStep > 1 || auditionScheduled} label={t.meeting} detail={meetingHeld && data.meetingAt ? t.meetingDone(fmtDateTime(data.meetingAt, lang)) : t.waiting} />
+        </div>
+        {meetingUpcoming && data.meetingAt ? (
+          <div className="mt-3 rounded-lg border border-primary/25 bg-background p-3">
+            <p className="text-xs font-semibold">{t.meetingConfirmed}</p>
+            <p className="mt-1 text-sm font-bold">{fmtDateTime(data.meetingAt, lang)}</p>
+            {data.meetingUrl ? (
+              <a href={data.meetingUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground">
+                <Video className="size-3.5" />
+                {t.meetingJoin}
+              </a>
+            ) : null}
+          </div>
+        ) : data.followUpSubmittedAt && !meetingHeld && !auditionScheduled ? (
+          <p className="mt-3 text-xs text-ink-3">{t.meetingReviewing}</p>
+        ) : null}
+      </div>
 
-        {/* 2. 추가 정보·일정 */}
-        <Step state={infoDone ? "done" : "now"} label={t.steps.info} last={false}>
-          {!infoDone ? <p className="text-[13px] text-ink-2">{t.infoNow}</p> : null}
-        </Step>
-
-        {/* 3. 온라인 미팅 */}
-        <Step state={meetingState} label={t.steps.meeting} last={false}>
-          {meetingUpcoming && data.meetingAt ? (
-            <div className="mt-1 rounded-xl border border-primary/30 bg-primary/5 p-4">
-              <p className="text-[13px] font-semibold text-foreground">{t.meetingConfirmed}</p>
-              <p className="mt-1 text-lg font-bold tracking-tight text-foreground">
-                {fmtDateTime(data.meetingAt, lang)}
-              </p>
-              {data.meetingUrl ? (
-                <a
-                  href={data.meetingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground hover:bg-primary/90"
-                >
-                  <Video className="size-4" />
-                  {t.meetingJoin}
-                </a>
-              ) : null}
-            </div>
-          ) : meetingHeld && data.meetingAt ? (
-            <p className="text-[12.5px] text-ink-3">{t.meetingDone(fmtDateTime(data.meetingAt, lang))}</p>
-          ) : meetingState === "now" ? (
-            <p className="text-[13px] text-ink-2">{t.meetingReviewing}</p>
-          ) : null}
-        </Step>
-
-        {/* 4. 오디션 참석 확정 */}
-        <Step state={auditionSeatState} label={t.steps.audition} last={false}>
-          {/* 일시·장소는 입력되는 대로 공개한다 — 결제로 잠그지 않는다(대표 결정). */}
+      <ol className="mt-6">
+        <Step state={stateFor(1, progress.activeStep, issued)} label={labels[0]} last={false}>
           {(auditionScheduled || auditionPaid) && (data.auditionAt || data.auditionLocation) ? (
-            <dl className="mt-1 grid gap-1 text-[13px]">
-              {data.auditionAt ? (
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-ink-3">{t.auditionWhen}</dt>
-                  <dd className="font-semibold text-foreground">{fmtDateTime(data.auditionAt, lang)}</dd>
-                </div>
-              ) : null}
-              {data.auditionLocation ? (
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-ink-3">{t.auditionWhere}</dt>
-                  <dd className="font-semibold text-foreground">{data.auditionLocation}</dd>
-                </div>
-              ) : null}
+            <dl className="grid gap-1 text-[13px]">
+              {data.auditionAt ? <div className="flex gap-2"><dt className="shrink-0 text-ink-3">{t.auditionWhen}</dt><dd className="font-semibold">{fmtDateTime(data.auditionAt, lang)}</dd></div> : null}
+              {data.auditionLocation ? <div className="flex gap-2"><dt className="shrink-0 text-ink-3">{t.auditionWhere}</dt><dd className="font-semibold">{data.auditionLocation}</dd></div> : null}
             </dl>
           ) : null}
-
-          {/* 오디션 일정이 잡혔으면 먼저 참석 여부를 묻는다 — 결제보다 앞선다. */}
-          {auditionScheduled && !auditionPaid ? (
-            <VisaAuditionRsvp
-              lang={lang}
-              token={caseToken}
-              initialRsvp={data.auditionRsvp}
-              paymentUrl={data.paymentStatus === "link_sent" ? data.paymentUrl : null}
-              feeLabel={lang === "en" ? "₩100,000" : lang === "ja" ? "10万ウォン" : "10만원"}
-              paid={auditionPaid}
-            />
+          {auditionScheduled && !auditionPaid && !auditionDone ? (
+            <VisaAuditionRsvp lang={lang} token={caseToken} initialRsvp={data.auditionRsvp} paymentUrl={data.paymentStatus === "link_sent" ? data.paymentUrl : null} feeLabel={lang === "en" ? "₩100,000" : lang === "ja" ? "10万ウォン" : "10만 원"} paid={auditionPaid} />
           ) : null}
-
-          {auditionPayable && data.auditionRsvp !== "unavailable" ? (
-            <VisaQuoteBuilder
-              lang={lang}
-              caseToken={caseToken}
-              auditionPayable
-              auditionPaid={false}
-              auditionPaymentUrl={data.paymentUrl}
-              villageDepositStatus={data.villageDepositStatus}
-            />
-          ) : auditionPaid ? (
+          {auditionPayable && !auditionDone && data.auditionRsvp !== "unavailable" ? (
+            <VisaQuoteBuilder lang={lang} caseToken={caseToken} auditionPayable auditionPaid={false} auditionPaymentUrl={data.paymentUrl} villageDepositStatus={data.villageDepositStatus} />
+          ) : auditionPaid && !auditionDone ? (
             <div className="mt-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
-              <p className="flex items-center gap-1.5 text-[13px] font-bold text-emerald-700 dark:text-emerald-400">
-                <Check className="size-4" />
-                {t.auditionConfirmed}
-              </p>
-              <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{t.auditionConfirmedThanks}</p>
-              <p className="mt-1 text-[12px] leading-relaxed text-ink-3">{t.auditionDeductRemind}</p>
+              <p className="flex items-center gap-1.5 text-[13px] font-bold text-emerald-700 dark:text-emerald-400"><Check className="size-4" />{t.auditionConfirmed}</p>
+              <p className="mt-1 text-[13px] text-ink-2">{t.auditionConfirmedThanks}</p>
+              <p className="mt-1 text-[12px] text-ink-3">{t.auditionDeductRemind}</p>
             </div>
-          ) : auditionScheduled ? (
-            <p className="mt-1 text-[12.5px] text-ink-3">{t.auditionScheduledNote}</p>
-          ) : null}
-        </Step>
-
-        {/* 5. 오디션·레벨테스트 결과 */}
-        <Step state={levelState} label={t.steps.levelTest} last={false}>
-          {data.auditionResult === "pass" ? (
-            <p className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">{t.levelPass}</p>
+          ) : auditionScheduled && !auditionDone ? <p className="mt-1 text-[12.5px] text-ink-3">{t.auditionScheduledNote}</p> : null}
+          {progress.qualified ? (
+            <StatusLine tone="success">{t.levelPass}</StatusLine>
           ) : data.auditionResult === "training_required" || data.caseStage === "training" || data.caseStage === "monthly_evaluation" ? (
-            <div className="mt-1 grid gap-1 text-[13px]">
-              <p className="text-ink-2">{t.levelTraining}</p>
-              {data.trainingPartner ? (
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-ink-3">{t.trainingPartner}</dt>
-                  <dd className="font-semibold text-foreground">{data.trainingPartner}</dd>
-                </div>
-              ) : null}
-              {data.trainingStartDate || data.trainingEndDate ? (
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-ink-3">{t.trainingPeriod}</dt>
-                  <dd className="font-semibold text-foreground">
-                    {[data.trainingStartDate, data.trainingEndDate]
-                      .map((v) => (v ? fmtDate(v, lang) : ""))
-                      .filter(Boolean)
-                      .join(" — ")}
-                  </dd>
-                </div>
-              ) : null}
-              {data.monthlyEvaluationAt ? (
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-ink-3">{t.evaluationNext}</dt>
-                  <dd className="font-semibold text-foreground">{fmtDateTime(data.monthlyEvaluationAt, lang)}</dd>
-                </div>
-              ) : null}
+            <div className="mt-2 rounded-xl bg-secondary/55 p-3 text-[13px]">
+              <p className="font-semibold">{t.levelTraining}</p>
+              {data.trainingPartner ? <p className="mt-1 text-ink-2">{t.trainingPartner}: {data.trainingPartner}</p> : null}
+              {data.trainingStartDate || data.trainingEndDate ? <p className="mt-1 text-ink-2">{t.trainingPeriod}: {[data.trainingStartDate, data.trainingEndDate].map((value) => value ? fmtDate(value, lang) : "").filter(Boolean).join(" — ")}</p> : null}
+              {data.monthlyEvaluationAt ? <p className="mt-1 text-ink-2">{t.evaluationNext}: {fmtDateTime(data.monthlyEvaluationAt, lang)}</p> : null}
             </div>
-          ) : null}
+          ) : !auditionDone ? <p className="mt-1 text-[13px] text-ink-3">{t.levelPending}</p> : null}
         </Step>
 
-        {/* 6. 비자 서류·신청 */}
-        <Step state={docsState} label={t.steps.visaDocs} last>
-          {data.caseStage === "visa_documents" ? (
-            <p className="text-[13px] text-ink-2">{t.docsNow}</p>
-          ) : data.caseStage === "visa_submitted" ? (
-            <p className="text-[13px] text-ink-2">{t.docsSubmitted}</p>
-          ) : data.caseStage === "complete" ? (
-            <p className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">{t.done}</p>
-          ) : null}
+        <Step state={stateFor(2, progress.activeStep, issued)} label={labels[1]} last={false}>
+          <p className="text-[13px] leading-relaxed text-ink-2">{t.contractIntro}</p>
+          <StatusLine tone={data.contractStatus === "signed" ? "success" : "neutral"}>{t.contractLabels[data.contractStatus] ?? t.contractLabels.not_started}</StatusLine>
+          <StatusLine tone={progress.programPaid ? "success" : "neutral"}>{progress.programPaid ? t.programPaid : t.programUnpaid}</StatusLine>
           {programPayable ? (
             <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 p-4">
-              <p className="text-[13px] font-semibold text-foreground">{t.programPayTitle}</p>
-              <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{t.programPayBody}</p>
-              <p className="text-[12px] leading-relaxed text-ink-3">{t.programPayDeduct}</p>
-              <a
-                href={data.paymentUrl!}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90"
-              >
-                <CircleDollarSign className="size-4" />
-                {t.programPay}
-              </a>
+              <p className="text-[13px] font-semibold">{t.programPayTitle}</p>
+              <p className="mt-1 text-[13px] text-ink-2">{t.programPayBody}</p>
+              <p className="text-[12px] text-ink-3">{t.programPayDeduct}</p>
+              <a href={data.paymentUrl!} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-bold text-primary-foreground"><CircleDollarSign className="size-4" />{t.programPay}</a>
             </div>
           ) : null}
+        </Step>
+
+        <Step state={stateFor(3, progress.activeStep, issued)} label={labels[2]} last={false}>
+          <p className="text-[13px] leading-relaxed text-ink-2">{t.basicBody}</p>
+          <StatusLine tone={basicDocumentsStatus === "complete" ? "success" : "neutral"}>{t.basicLabels[basicDocumentsStatus] ?? t.basicLabels.not_started}</StatusLine>
+        </Step>
+
+        <Step state={stateFor(4, progress.activeStep, issued)} label={labels[3]} last={false}>
+          <p className="text-[13px] leading-relaxed text-ink-2">{t.detailedBody}</p>
+          <StatusLine tone={detailedDocumentsStatus === "submitted" ? "success" : "neutral"}>{t.detailedLabels[detailedDocumentsStatus] ?? t.detailedLabels.not_started}</StatusLine>
+          {detailedDocumentsStatus === "submitted" ? <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-[12px] leading-relaxed text-amber-800 dark:text-amber-300">{t.immigrationReview}</p> : null}
+        </Step>
+
+        <Step state={stateFor(5, progress.activeStep, issued)} label={labels[4]} last>
+          {issued ? <StatusLine tone="success">{t.issuedDone(data.visaIssuedAt ? fmtDate(data.visaIssuedAt.slice(0, 10), lang) : null)}</StatusLine> : <p className="text-[13px] text-ink-3">{t.issuedPending}</p>}
         </Step>
       </ol>
 
-      {/* 관리자가 직접 적은 안내가 있으면 마지막에 한 줄로 보여준다. */}
-      {nextActionNote ? (
-        <div className="mt-3 rounded-lg bg-secondary/60 px-3.5 py-2.5">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-4">{t.memo}</p>
-          <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{nextActionNote}</p>
-        </div>
-      ) : null}
+      {nextActionNote ? <div className="mt-4 rounded-lg bg-secondary/60 px-3.5 py-2.5"><p className="text-[11px] font-semibold uppercase tracking-wider text-ink-4">{t.memo}</p><p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{nextActionNote}</p></div> : null}
 
-      {/* Village — 오디션 확정 이후에만, 결제 흐름을 방해하지 않게 타임라인 밖 하단 카드로. */}
       {showVillage && data.villageDepositStatus === "paid" ? (
         <div className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
-            <Home className="size-5 text-emerald-700 dark:text-emerald-400" />
-          </div>
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-sm font-bold text-emerald-700 dark:text-emerald-400">
-              <Check className="size-4" />
-              {t.villageReserved}
-            </p>
-            <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{t.villageReservedBody}</p>
-            <Link
-              href={`/village?lang=${lang}`}
-              className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-semibold text-primary"
-            >
-              {t.villageSeePage}
-              <ExternalLink className="size-3.5" />
-            </Link>
-          </div>
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10"><Home className="size-5 text-emerald-700 dark:text-emerald-400" /></div>
+          <div><p className="flex items-center gap-1.5 text-sm font-bold text-emerald-700 dark:text-emerald-400"><Check className="size-4" />{t.villageReserved}</p><p className="mt-0.5 text-[13px] text-ink-2">{t.villageReservedBody}</p><Link href={`/village?lang=${lang}`} className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-semibold text-primary">{t.villageSeePage}<ExternalLink className="size-3.5" /></Link></div>
         </div>
       ) : showVillage ? (
-        <Link
-          href={`/village?lang=${lang}`}
-          className="mt-4 flex items-start gap-3 rounded-xl border border-hairline-2 bg-secondary/40 p-4 transition-colors hover:border-foreground/30"
-        >
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-            <Home className="size-5 text-primary" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground">
-              {data.wantsHousing ? t.villageTitleHousing : t.villageTitle}
-            </p>
-            <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{t.villageBody}</p>
-            <p className="mt-0.5 text-[12px] text-ink-3">{t.villagePrice}</p>
-            <span className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-semibold text-primary">
-              {t.villageCta}
-              <ExternalLink className="size-3.5" />
-            </span>
-          </div>
+        <Link href={`/village?lang=${lang}`} className="mt-4 flex items-start gap-3 rounded-xl border border-hairline-2 bg-secondary/40 p-4 hover:border-foreground/30">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10"><Home className="size-5 text-primary" /></div>
+          <div><p className="text-sm font-bold">{data.wantsHousing ? t.villageTitleHousing : t.villageTitle}</p><p className="mt-0.5 text-[13px] text-ink-2">{t.villageBody}</p><p className="mt-0.5 text-[12px] text-ink-3">{t.villagePrice}</p><span className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-semibold text-primary">{t.villageCta}<ExternalLink className="size-3.5" /></span></div>
         </Link>
       ) : null}
     </section>
   );
 }
 
-function Step({
-  state,
-  label,
-  last,
-  children,
-}: {
-  state: StepState;
-  label: string;
-  last: boolean;
-  children?: React.ReactNode;
-}) {
+function PreparationItem({ done, label, detail }: { done: boolean; label: string; detail: string }) {
+  return <div className="rounded-lg bg-background px-3 py-2.5"><p className="flex items-center gap-1.5 text-xs font-semibold"><span className={cn("flex size-4 items-center justify-center rounded-full", done ? "bg-emerald-500/15 text-emerald-700" : "bg-secondary text-ink-4")}>{done ? <Check className="size-3" /> : "·"}</span>{label}</p><p className="mt-1 truncate text-[10px] text-ink-4">{detail}</p></div>;
+}
+
+function StatusLine({ children, tone }: { children: React.ReactNode; tone: "success" | "neutral" }) {
+  return <p className={cn("mt-2 flex items-start gap-2 rounded-lg px-3 py-2 text-[12.5px] leading-relaxed", tone === "success" ? "bg-emerald-500/8 text-emerald-700 dark:text-emerald-300" : "bg-secondary/60 text-ink-2")}><FileCheck2 className="mt-0.5 size-3.5 shrink-0" />{children}</p>;
+}
+
+function Step({ state, label, last, children }: { state: StepState; label: string; last: boolean; children?: React.ReactNode }) {
   return (
-    <li className={cn("relative pl-8", !last && "pb-5")}>
+    <li className={cn("relative pl-8", !last && "pb-6")}>
       {!last ? <span aria-hidden className="absolute bottom-0 left-[9px] top-6 w-px bg-hairline-2" /> : null}
-      <span
-        aria-hidden
-        className={cn(
-          "absolute left-0 top-0.5 flex size-[19px] items-center justify-center rounded-full text-[10px] font-bold",
-          state === "done" && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-          state === "now" && "bg-primary text-primary-foreground",
-          state === "todo" && "bg-secondary text-ink-4",
-        )}
-      >
-        {state === "done" ? <Check className="size-3" /> : state === "now" ? "●" : "○"}
-      </span>
-      <p
-        className={cn(
-          "text-sm leading-snug",
-          state === "done" && "text-ink-3",
-          state === "now" && "font-bold text-foreground",
-          state === "todo" && "text-ink-4",
-        )}
-      >
-        {label}
-      </p>
-      {children ? <div className="mt-1">{children}</div> : null}
+      <span aria-hidden className={cn("absolute left-0 top-0.5 flex size-[19px] items-center justify-center rounded-full text-[10px] font-bold", state === "done" && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", state === "now" && "bg-primary text-primary-foreground", state === "todo" && "bg-secondary text-ink-4")}>{state === "done" ? <Check className="size-3" /> : state === "now" ? "●" : "○"}</span>
+      <p className={cn("text-sm leading-snug", state === "now" && "font-bold", state === "done" && "font-semibold text-foreground", state === "todo" && "text-ink-4")}>{label}</p>
+      {children && state !== "todo" ? <div className="mt-2">{children}</div> : null}
     </li>
   );
 }

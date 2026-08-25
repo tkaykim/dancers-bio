@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight, LogOut } from "lucide-react";
+import { ChevronRight, Globe2, LogOut } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
@@ -8,6 +8,8 @@ import { ProfileCard } from "@/components/profile/ProfileCard";
 import { ProfileShareCard } from "@/components/share/ProfileShareCard";
 import { PushPrompt } from "@/components/layout/PushPrompt";
 import { BugReportRow } from "@/components/feedback/BugReport";
+import { loadMemberVisaAccess, type MemberVisaApplication } from "@/lib/visa/member-case";
+import { deriveVisaProgress, VISA_PROGRESS_LABELS } from "@/lib/visa/progress";
 
 // Lite: 받은 제안·creator 권한 신청 CTA 제거, 관리자만 프로젝트 개설.
 // 팀 기능은 재활성화됨(댄서 프로필 보유 시 "내 팀" 노출).
@@ -38,6 +40,7 @@ export default async function MePage() {
       : `https://dancers.bio/d/${ownDancer.id}`
     : null;
   const shareTitle = `${profile.display_name ?? "댄서"} | 댄서 프로필 · dancers.bio`;
+  const visaAccess = await loadMemberVisaAccess(user.id);
 
   // 공동관리자로 지정된 공고 목록.
   //
@@ -84,6 +87,10 @@ export default async function MePage() {
 
       {shareUrl ? (
         <ProfileShareCard url={shareUrl} title={shareTitle} />
+      ) : null}
+
+      {visaAccess.eligible ? (
+        <VisaStatusCard application={visaAccess.application} />
       ) : null}
 
       {managedProjects.length > 0 ? (
@@ -176,6 +183,55 @@ export default async function MePage() {
         </form>
       </section>
     </div>
+  );
+}
+
+function VisaStatusCard({ application }: { application: MemberVisaApplication | null }) {
+  const paymentProductSlug =
+    typeof application?.payment_meta?.issued_product_slug === "string"
+      ? application.payment_meta.issued_product_slug
+      : null;
+  const progress = application
+    ? deriveVisaProgress({
+        caseStage: application.case_stage ?? "application_received",
+        auditionResult: application.audition_result ?? "pending",
+        monthlyEvaluationResult: application.monthly_evaluation_result ?? "pending",
+        contractStatus: application.contract_status ?? "not_started",
+        paymentStatus: application.payment_status ?? "unpaid",
+        paymentProductSlug,
+        basicDocumentsStatus: application.basic_documents_status ?? "not_started",
+        detailedDocumentsStatus: application.detailed_documents_status ?? "not_started",
+        visaIssuedAt: application.visa_issued_at ?? null,
+      })
+    : null;
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card">
+      <Link href="/me/visa" className="block p-5 transition-colors hover:bg-primary/5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <Globe2 className="size-5" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">Visa &amp; Korea</p>
+              <h2 className="mt-1 text-base font-bold">
+                {progress ? VISA_PROGRESS_LABELS.en[progress.activeStep - 1] : "Explore your visa program"}
+              </h2>
+              <p className="mt-1 text-xs leading-relaxed text-ink-3">
+                {progress ? `Step ${progress.activeStep} of 5` : "See eligibility, program details, and the next action."}
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="mt-2 size-5 shrink-0 text-ink-3" aria-hidden />
+        </div>
+        {progress ? (
+          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-secondary">
+            <div className="h-full rounded-full bg-primary" style={{ width: `${progress.percent}%` }} />
+          </div>
+        ) : null}
+      </Link>
+    </section>
   );
 }
 

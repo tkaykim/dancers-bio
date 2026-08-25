@@ -164,6 +164,10 @@ export function VisaCaseOpsEditor({ row }: { row: VisaAdminRow }) {
   const [trainingStatus, setTrainingStatus] = useState(row.training_status);
   const [evaluationAt, setEvaluationAt] = useState(toLocalDateTime(row.monthly_evaluation_at));
   const [evaluationResult, setEvaluationResult] = useState(row.monthly_evaluation_result);
+  const [contractStatus, setContractStatus] = useState(row.contract_status);
+  const [basicDocumentsStatus, setBasicDocumentsStatus] = useState(row.basic_documents_status);
+  const [detailedDocumentsStatus, setDetailedDocumentsStatus] = useState(row.detailed_documents_status);
+  const [visaIssuedAt, setVisaIssuedAt] = useState(toLocalDateTime(row.visa_issued_at));
   const [quotedPrice, setQuotedPrice] = useState(row.quoted_price_krw == null ? "" : String(row.quoted_price_krw));
   const [quoteNote, setQuoteNote] = useState(row.quote_note ?? "");
   const [nextAction, setNextAction] = useState(row.next_action ?? "");
@@ -202,6 +206,10 @@ export function VisaCaseOpsEditor({ row }: { row: VisaAdminRow }) {
         trainingStatus: trainingStatus as "not_required" | "planned" | "in_progress" | "completed" | "paused",
         monthlyEvaluationAt: toIso(evaluationAt),
         monthlyEvaluationResult: evaluationResult as "pending" | "pass" | "continue" | "hold",
+        contractStatus: contractStatus as "not_started" | "preparing" | "sent" | "signed",
+        basicDocumentsStatus: basicDocumentsStatus as "not_started" | "requested" | "collecting" | "reviewing" | "complete",
+        detailedDocumentsStatus: detailedDocumentsStatus as "not_started" | "requested" | "collecting" | "reviewing" | "submitted",
+        visaIssuedAt: toIso(visaIssuedAt),
         quotedPriceKrw: parsedPrice,
         quoteNote: nullable(quoteNote),
         nextAction: nullable(nextAction),
@@ -299,7 +307,16 @@ export function VisaCaseOpsEditor({ row }: { row: VisaAdminRow }) {
         </div>
       </OpsGroup>
 
-      <OpsGroup title="4. 비용 안내">
+      <OpsGroup title="4. 계약·비자 서류 진행">
+        <div className="grid gap-3 md:grid-cols-2">
+          <Input label="전속계약서 상태"><select value={contractStatus} onChange={(e) => setContractStatus(e.target.value)} className="admin-input"><option value="not_started">작성 전</option><option value="preparing">작성 중</option><option value="sent">전달·서명 대기</option><option value="signed">서명 완료</option></select></Input>
+          <Input label="1차 기본 서류"><select value={basicDocumentsStatus} onChange={(e) => setBasicDocumentsStatus(e.target.value)} className="admin-input"><option value="not_started">시작 전</option><option value="requested">목록 전달</option><option value="collecting">수집 중</option><option value="reviewing">검토 중</option><option value="complete">완료</option></select></Input>
+          <Input label="2차 세부 서류"><select value={detailedDocumentsStatus} onChange={(e) => setDetailedDocumentsStatus(e.target.value)} className="admin-input"><option value="not_started">시작 전</option><option value="requested">목록 전달</option><option value="collecting">수집 중</option><option value="reviewing">검토 중</option><option value="submitted">출입국 접수</option></select></Input>
+          <Input label="비자 발급 확인 시각"><input type="datetime-local" value={visaIssuedAt} onChange={(e) => setVisaIssuedAt(e.target.value)} className="admin-input" /></Input>
+        </div>
+      </OpsGroup>
+
+      <OpsGroup title="5. 비용 안내">
         <div className="grid gap-3 md:grid-cols-2">
           <Input label="기본 안내 단가"><input readOnly value={`${row.base_price_krw.toLocaleString()}원`} className="admin-input bg-secondary/60" /></Input>
           <Input label="상담 후 최종 견적"><input inputMode="numeric" value={quotedPrice} onChange={(e) => setQuotedPrice(e.target.value.replace(/[^0-9]/g, ""))} placeholder="미확정" className="admin-input" /></Input>

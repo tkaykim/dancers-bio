@@ -322,6 +322,10 @@ const caseOperationsSchema = z.object({
   trainingStatus: z.enum(["not_required", "planned", "in_progress", "completed", "paused"]),
   monthlyEvaluationAt: z.string().datetime().nullable(),
   monthlyEvaluationResult: z.enum(["pending", "pass", "continue", "hold"]),
+  contractStatus: z.enum(["not_started", "preparing", "sent", "signed"]),
+  basicDocumentsStatus: z.enum(["not_started", "requested", "collecting", "reviewing", "complete"]),
+  detailedDocumentsStatus: z.enum(["not_started", "requested", "collecting", "reviewing", "submitted"]),
+  visaIssuedAt: z.string().datetime().nullable(),
   quotedPriceKrw: z.number().int().min(0).max(100_000_000).nullable(),
   quoteNote: z.string().trim().max(2000).nullable(),
   nextAction: z.string().trim().max(1000).nullable(),
@@ -352,15 +356,42 @@ export async function updateVisaCaseOperationsAction(
     training_status: d.trainingStatus,
     monthly_evaluation_at: d.monthlyEvaluationAt,
     monthly_evaluation_result: d.monthlyEvaluationResult,
+    contract_status: d.contractStatus,
+    basic_documents_status: d.basicDocumentsStatus,
+    detailed_documents_status: d.detailedDocumentsStatus,
+    visa_issued_at: d.visaIssuedAt,
     quoted_price_krw: d.quotedPriceKrw,
     quote_note: d.quoteNote,
     next_action: d.nextAction,
   };
 
-  // 결과를 저장하는 순간 운영 단계도 함께 이동시켜 분기 누락을 막는다.
-  if (d.monthlyEvaluationResult === "pass") {
-    patch.case_stage = "visa_documents";
+  const client = createAdminClient();
+  const { data: existing } = await client
+    .from("dancer_visa_applications")
+    .select("payment_status, payment_meta")
+    .eq("id", d.id)
+    .maybeSingle();
+  const paymentMeta = (existing?.payment_meta ?? {}) as Record<string, unknown>;
+  const programPaid =
+    existing?.payment_status === "paid" &&
+    paymentMeta.issued_product_slug === "training-and-placement";
+
+  // 세부 상태를 저장하는 순간 상위 운영 단계도 함께 이동시켜 분기 누락을 막는다.
+  if (d.visaIssuedAt) {
+    patch.case_stage = "complete";
+    patch.status = "approved";
+  } else if (d.detailedDocumentsStatus === "submitted") {
+    patch.case_stage = "visa_submitted";
+    patch.status = "submitted";
+  } else if (d.detailedDocumentsStatus !== "not_started" || d.basicDocumentsStatus === "complete") {
+    patch.case_stage = "visa_documents_detailed";
     patch.status = "documents";
+  } else if (d.basicDocumentsStatus !== "not_started" || (d.contractStatus === "signed" && programPaid)) {
+    patch.case_stage = "visa_documents_basic";
+    patch.status = "documents";
+  } else if (d.monthlyEvaluationResult === "pass") {
+    patch.case_stage = "contract_and_payment";
+    patch.status = "reviewing";
     patch.training_status = "completed";
   } else if (d.monthlyEvaluationResult === "continue") {
     patch.case_stage = "training";
@@ -373,8 +404,8 @@ export async function updateVisaCaseOperationsAction(
     patch.case_stage = "monthly_evaluation";
     patch.status = "education";
   } else if (d.auditionResult === "pass") {
-    patch.case_stage = "visa_documents";
-    patch.status = "documents";
+    patch.case_stage = "contract_and_payment";
+    patch.status = "reviewing";
     patch.training_required = false;
     patch.training_status = "not_required";
   } else if (d.auditionResult === "training_required") {
@@ -396,7 +427,6 @@ export async function updateVisaCaseOperationsAction(
     patch.status = "reviewing";
   }
 
-  const client = createAdminClient();
   const { error } = await client.from("dancer_visa_applications").update(patch).eq("id", d.id);
   if (error) return { ok: false, error: error.message };
 

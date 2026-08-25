@@ -78,6 +78,10 @@ export type VisaAdminRow = {
   training_status: string;
   monthly_evaluation_at: string | null;
   monthly_evaluation_result: string;
+  contract_status: string;
+  basic_documents_status: string;
+  detailed_documents_status: string;
+  visa_issued_at: string | null;
   base_price_krw: number;
   quoted_price_krw: number | null;
   quote_note: string | null;
