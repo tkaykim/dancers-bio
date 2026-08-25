@@ -197,6 +197,73 @@ ${line("모집 현황", escapeHtml(progress))}
   });
 }
 
+/**
+ * 모집 오픈 → 수요 등록자 일괄 안내 (D4 — 어드민 수동 트리거 전용, 자동 발송 없음).
+ * 수요를 남긴 사람에게 연락처를 받은 목적 그대로 돌려주는 메일 — 얼리버드 서사가 예약금 전환을 만든다.
+ * 수신자에 외국인이 섞일 수 있어 ko+en 병기.
+ */
+export async function sendWorkshopRecruitOpenMail(input: {
+  to: string;
+  artistName: string;
+  detailUrl: string;
+  depositAmount: number | null;
+  totalPrice: number | null;
+  expectedPeriod: string | null;
+  minHeadcount: number | null;
+  recruitDeadline: string | null;
+}): Promise<void> {
+  const deadlineLabel = input.recruitDeadline
+    ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "long" }).format(
+        new Date(input.recruitDeadline),
+      )
+    : null;
+
+  const html = renderDeetzMail({
+    pill: "모집 오픈 · Recruiting open",
+    pillTone: "ok",
+    heading: `기다리시던 ${escapeHtml(input.artistName)} 워크샵, 모집이 열렸습니다.`,
+    bodyLines: [
+      `${input.artistName} 워크샵에 수요를 남겨주셨죠. 예약금 모집이 시작되어 가장 먼저 알려드립니다.`,
+      "예약금으로 자리를 확정할 수 있고, 최소 인원 미달로 열리지 않으면 전액 환불됩니다.",
+      `You registered your demand for the ${input.artistName} workshop — deposit recruiting just opened, and you are the first to know.`,
+      "A deposit secures your seat. If the minimum headcount is not reached, it is fully refunded.",
+    ],
+    infoRows: [
+      { label: "워크샵 · Workshop", value: escapeHtml(`${input.artistName} 초청 워크샵`) },
+      ...(input.depositAmount
+        ? [{ label: "예약금 · Deposit", value: escapeHtml(won(input.depositAmount)), strong: true }]
+        : []),
+      ...(input.totalPrice
+        ? [{ label: "총 수강료 · Total", value: escapeHtml(`${won(input.totalPrice)} (예약금 차감 후 잔금)`) }]
+        : []),
+      ...(input.expectedPeriod ? [{ label: "예상 시기 · When", value: escapeHtml(input.expectedPeriod) }] : []),
+      ...(input.minHeadcount ? [{ label: "최소 인원 · Min", value: escapeHtml(`${input.minHeadcount}명`) }] : []),
+      ...(deadlineLabel ? [{ label: "모집 마감 · Deadline", value: escapeHtml(deadlineLabel) }] : []),
+    ],
+    noticeLines: [
+      "이 메일은 워크샵 수요를 등록하신 분께만 발송되었습니다.",
+      "This email was sent only to dancers who registered demand for this workshop.",
+    ],
+    cta: { label: "예약하러 가기 · Reserve a seat", href: input.detailUrl },
+    footerLines: ["문의는 이 메일에 그대로 회신해 주세요. Questions? Just reply to this email."],
+  });
+
+  await sendGmailEmail({
+    to: input.to,
+    subject: `[deetz] ${input.artistName} 워크샵 모집이 열렸어요 — 수요 등록자 선안내`,
+    text: [
+      `${input.artistName} 워크샵 예약금 모집이 시작되었습니다.`,
+      input.depositAmount ? `예약금 ${won(input.depositAmount)}` : "",
+      deadlineLabel ? `모집 마감 ${deadlineLabel}` : "",
+      "",
+      input.detailUrl,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    html,
+  });
+}
+
 // ── 행사(Event) 주문 메일 ───────────────────────────────────────────────────
 // 해외 행사(방콕 등)는 구매자가 외국인일 수 있어 EN/KO 2개 언어만 지원한다.
 

@@ -16,7 +16,7 @@ export default async function AdminWorkshopsPage() {
     admin
       .from("workshop_artists")
       .select(
-        "id, slug, name, instagram_handle, image_url, country, genres, headline, description, status, deposit_amount, total_price, min_headcount, max_headcount, expected_period, recruit_deadline, recruit_opened_at, confirmed_at, possible_duplicate_of, created_at",
+        "id, slug, name, instagram_handle, image_url, country, genres, headline, description, status, deposit_amount, total_price, min_headcount, max_headcount, expected_period, recruit_deadline, recruit_opened_at, confirmed_at, possible_duplicate_of, handle_check_status, handle_checked_at, demand_notified_at, created_at",
       )
       .order("created_at", { ascending: false })
       .limit(300),

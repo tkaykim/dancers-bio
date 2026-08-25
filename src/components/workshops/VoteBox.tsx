@@ -6,6 +6,7 @@ import { Check, Flame } from "lucide-react";
 import { submitWorkshopDemandAction } from "@/app/actions/workshops";
 import { cn } from "@/lib/utils";
 import { T, splitSentences, type Lang } from "./copy";
+import { ShareInvite } from "./ShareInvite";
 
 const inputClass =
   "w-full rounded-lg border border-hairline-2 bg-background px-3.5 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-ink-4 focus:border-foreground/40";
@@ -79,14 +80,12 @@ export function VoteBox({
 
   if (done) {
     return (
-      <div
-        className={cn(
-          "flex items-center justify-center gap-1.5 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2.5 text-[13px] font-semibold text-primary",
-          className,
-        )}
-      >
-        <Check className="size-3.5" />
-        {c.votedLabel}
+      <div className={cn("flex flex-col gap-2", className)}>
+        <div className="flex items-center justify-center gap-1.5 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2.5 text-[13px] font-semibold text-primary">
+          <Check className="size-3.5" />
+          {c.votedLabel}
+        </div>
+        <ShareInvite lang={lang} className="w-full" />
       </div>
     );
   }

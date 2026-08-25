@@ -6,7 +6,9 @@ import { ChevronDown, ExternalLink, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import {
+  adminCheckWorkshopHandleAction,
   adminMergeWorkshopArtistsAction,
+  adminNotifyWorkshopDemandersAction,
   adminSetWorkshopReservationStatusAction,
   adminUpsertWorkshopArtistAction,
 } from "@/app/actions/workshops";
@@ -45,6 +47,9 @@ export type AdminWorkshopArtist = {
   recruit_opened_at: string | null;
   confirmed_at: string | null;
   possible_duplicate_of: string | null;
+  handle_check_status: "unknown" | "ok" | "not_found";
+  handle_checked_at: string | null;
+  demand_notified_at: string | null;
   created_at: string;
 };
 
@@ -251,6 +256,11 @@ function ArtistRow({
                 중복 의심: {duplicateTarget.name}
               </span>
             ) : null}
+            {artist.handle_check_status === "not_found" ? (
+              <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">
+                핸들 없음 (404)
+              </span>
+            ) : null}
           </div>
           <p className="truncate text-[12px] text-ink-3">
             @{artist.instagram_handle} · 수요 {demands.length} · 예약 {paid.length}
@@ -263,6 +273,7 @@ function ArtistRow({
 
       {open ? (
         <div className="flex flex-col gap-4 border-t border-hairline-2 p-4">
+          <OpsToolsPanel artist={artist} demandCount={demands.length} />
           <ArtistEditor artist={artist} />
           {artist.status !== "archived" ? (
             <MergePanel artist={artist} allArtists={allArtists} suggestedTarget={duplicateTarget ?? null} />
@@ -270,6 +281,127 @@ function ArtistRow({
           {demands.length > 0 ? <DemandList demands={demands} /> : null}
           {reservations.length > 0 ? <ReservationList reservations={reservations} /> : null}
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * 운영 도구 — 인스타 핸들 존재 확인(오타 검출) + 모집 오픈 시 수요자 일괄 안내.
+ * 안내 발송은 D4 결정대로 자동화하지 않는다: 미리보기(수신자 수) → 한 번 더 눌러 발송, 카드당 1회.
+ */
+function OpsToolsPanel({ artist, demandCount }: { artist: AdminWorkshopArtist; demandCount: number }) {
+  const router = useRouter();
+  const [checking, startChecking] = useTransition();
+  const [notifying, startNotifying] = useTransition();
+  const [notifyArmed, setNotifyArmed] = useState<{ recipients: number } | null>(null);
+
+  const checkHandle = () => {
+    startChecking(async () => {
+      const res = await adminCheckWorkshopHandleAction({ artistId: artist.id });
+      if (res.ok) {
+        const s = res.data?.status;
+        toast[s === "not_found" ? "error" : "info"](
+          s === "not_found"
+            ? "핸들을 찾을 수 없습니다 (404). 오타이거나 삭제된 계정일 수 있어요."
+            : "자동으로는 판별하지 못했습니다 (인스타그램이 로그인 월을 반환). 프로필 링크로 직접 확인해 주세요.",
+        );
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    });
+  };
+
+  const notify = () => {
+    startNotifying(async () => {
+      if (!notifyArmed) {
+        const res = await adminNotifyWorkshopDemandersAction({ artistId: artist.id, preview: true });
+        if (res.ok) setNotifyArmed({ recipients: res.data?.recipients ?? 0 });
+        else toast.error(res.error);
+        return;
+      }
+      const res = await adminNotifyWorkshopDemandersAction({ artistId: artist.id });
+      if (res.ok) {
+        toast.success(`수요자 ${res.data?.sent ?? 0}명에게 모집 안내를 발송했습니다.`);
+        setNotifyArmed(null);
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    });
+  };
+
+  const handleCheckLabel =
+    artist.handle_check_status === "ok"
+      ? "존재 확인됨 (수동)"
+      : artist.handle_check_status === "not_found"
+        ? "핸들 없음 (404)"
+        : artist.handle_checked_at
+          ? "자동 판별 불가"
+          : "미확인";
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline-2 bg-secondary/30 p-3 text-[12px]">
+      <a
+        href={`https://www.instagram.com/${artist.instagram_handle}/`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 rounded-md border border-hairline-2 bg-background px-2.5 py-1.5 font-semibold text-ink-2 transition-colors hover:text-foreground"
+      >
+        인스타 프로필 <ExternalLink className="size-3" />
+      </a>
+      <button
+        type="button"
+        onClick={checkHandle}
+        disabled={checking}
+        className="rounded-md border border-hairline-2 bg-background px-2.5 py-1.5 font-semibold text-ink-2 transition-colors hover:text-foreground disabled:opacity-45"
+      >
+        {checking ? "확인 중…" : "핸들 존재 확인"}
+      </button>
+      <span
+        className={cn(
+          "rounded-full px-2 py-0.5 text-[11px] font-bold",
+          artist.handle_check_status === "ok"
+            ? "bg-ok/15 text-ok"
+            : artist.handle_check_status === "not_found"
+              ? "bg-red-100 text-red-700"
+              : "bg-secondary text-ink-3",
+        )}
+      >
+        {handleCheckLabel}
+        {artist.handle_checked_at ? ` · ${new Date(artist.handle_checked_at).toLocaleDateString("ko-KR")}` : ""}
+      </span>
+
+      {artist.status === "recruiting" ? (
+        <span className="ml-auto flex items-center gap-2">
+          {artist.demand_notified_at ? (
+            <span className="rounded-full bg-ok/15 px-2 py-0.5 text-[11px] font-bold text-ok">
+              모집 안내 발송됨 · {new Date(artist.demand_notified_at).toLocaleDateString("ko-KR")}
+            </span>
+          ) : (
+            <>
+              <span className="text-ink-4">수요 {demandCount}건</span>
+              <button
+                type="button"
+                onClick={notify}
+                disabled={notifying}
+                className={cn(
+                  "rounded-md border px-2.5 py-1.5 font-bold transition-colors disabled:opacity-45",
+                  notifyArmed
+                    ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10",
+                )}
+              >
+                {notifying
+                  ? "처리 중…"
+                  : notifyArmed
+                    ? `${notifyArmed.recipients}명에게 발송 (한 번 더)`
+                    : "수요자에게 모집 안내"}
+              </button>
+            </>
+          )}
+        </span>
       ) : null}
     </div>
   );

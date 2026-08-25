@@ -167,7 +167,7 @@ export default async function WorkshopDetailPage({
           ) : null}
           <p className="mt-4 flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
             <Users className="size-4 text-ink-3" />
-            {C.demandLabel(artist.demand_count)}
+            {C.demandBand[artist.demand_band]}
           </p>
         </div>
       </div>

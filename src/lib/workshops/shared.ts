@@ -80,9 +80,21 @@ export type WorkshopArtist = {
   created_at: string;
 };
 
-/** 공개 카드에 demand/예약 집계를 붙인 형태 */
+/**
+ * 공개 수요 구간(D1 결정 — 2026-08-26).
+ * 정확한 수요 수는 경쟁 정보라 공개 경로(RPC·화면)에는 구간만 내보낸다.
+ * 컷: 10 미만(lt10) / 10+ / 30+ / 50+ / 100+ — DB `workshop_demand_band()` 와 한 세트.
+ */
+export const DEMAND_BANDS = ["lt10", "10+", "30+", "50+", "100+"] as const;
+export type DemandBand = (typeof DEMAND_BANDS)[number];
+
+export function parseDemandBand(raw: unknown): DemandBand {
+  return DEMAND_BANDS.includes(raw as DemandBand) ? (raw as DemandBand) : "lt10";
+}
+
+/** 공개 카드에 demand/예약 집계를 붙인 형태 — 수요는 구간(band)만 싣는다. */
 export type WorkshopArtistPublic = WorkshopArtist & {
-  demand_count: number;
+  demand_band: DemandBand;
   reserved_count: number;
 };
 
@@ -97,6 +109,23 @@ export function normalizeInstagramHandle(raw: string): string {
 
 export function instagramUrl(handle: string): string {
   return `https://www.instagram.com/${normalizeInstagramHandle(handle)}/`;
+}
+
+/**
+ * 제출자 이메일 정규화 — 같은 사람이 alias 로 수요를 부풀리는 걸 막는 dedup 키.
+ * lower + plus-tag(+뒤) 제거, gmail 계열은 점(.)도 제거. DB 백필(마이그레이션 20260826_001)과 같은 규칙.
+ */
+export function normalizeContactEmail(raw: string): string {
+  const email = raw.trim().toLowerCase();
+  const at = email.indexOf("@");
+  if (at <= 0) return email;
+  let local = email.slice(0, at).split("+")[0] ?? "";
+  let domain = email.slice(at + 1);
+  if (domain === "gmail.com" || domain === "googlemail.com") {
+    local = local.replace(/\./g, "");
+    domain = "gmail.com";
+  }
+  return `${local}@${domain}`;
 }
 
 /**

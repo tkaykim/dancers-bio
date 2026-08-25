@@ -10,6 +10,8 @@
 // ⚠️ 확정 전 표현 주의: 섭외는 "예정·추진"으로 쓰고 "확정"은 confirmed 상태에서만 쓴다.
 // ⚠️ 문구를 고치면 lib/workshops/shared.ts 의 WORKSHOP_POLICY_VERSION 도 올린다.
 
+import type { DemandBand } from "@/lib/workshops/shared";
+
 export type Lang = "ko" | "en" | "ja";
 
 export const LANGS: { code: Lang; label: string }[] = [
@@ -69,12 +71,22 @@ export type WorkshopCopy = {
   candidatesEmpty: string;
   confirmedBadge: string;
   completedBadge: string;
-  demandLabel: (n: number) => string;
+  /** 수요 표시는 정확 수 대신 구간만 (D1 — 경쟁 노출 차단 + 초기 카드 썰렁함 방지). */
+  demandBand: Record<DemandBand, string>;
 
   wishesTitle: string;
   wishesSub: string;
-  wishesCount: (n: number) => string;
   wishesMergeNote: string;
+
+  searchPh: string;
+  searchSearching: string;
+  searchEmpty: string;
+  searchManualCta: string;
+  searchStatusListed: string;
+  searchStatusSuggested: string;
+  shareCta: string;
+  shareText: string;
+  shareCopied: string;
 
   voteCta: string;
   votedLabel: string;
@@ -156,12 +168,27 @@ export const T: Record<Lang, WorkshopCopy> = {
     candidatesEmpty: "아직 공개된 후보가 없습니다. 첫 번째 안무가를 제안해 주세요.",
     confirmedBadge: "초청 확정",
     completedBadge: "진행 완료",
-    demandLabel: (n) => `${n}명이 기다려요`,
+    demandBand: {
+      lt10: "수요 모으는 중",
+      "10+": "10명+ 기다려요",
+      "30+": "30명+ 기다려요",
+      "50+": "50명+ 기다려요",
+      "100+": "100명+ 기다려요",
+    },
 
     wishesTitle: "다른 댄서들은 이런 안무가를 희망했어요",
     wishesSub: "최근 제안된 안무가들입니다. 수요가 모이면 후보 카드로 공개되고 섭외가 시작됩니다.",
-    wishesCount: (n) => `${n}명`,
-    wishesMergeNote: "같은 안무가를 원하시면 아래 제안 폼에 같은 인스타그램 아이디로 제출해 주세요. 수요가 자동으로 합산됩니다.",
+    wishesMergeNote: "같은 안무가를 원하시면 검색해서 '나도 원해요'를 눌러주세요. 수요가 자동으로 합산됩니다.",
+
+    searchPh: "안무가 이름 또는 @인스타 아이디",
+    searchSearching: "검색 중…",
+    searchEmpty: "등록된 카드가 아직 없어요. 아래에서 직접 제안해 주세요.",
+    searchManualCta: "찾는 안무가가 없나요? 직접 제안하기",
+    searchStatusListed: "후보 공개",
+    searchStatusSuggested: "제안됨",
+    shareCta: "친구에게 알리기",
+    shareText: "deetz 워크샵 — 배우고 싶은 안무가에게 투표하면 초청이 추진돼요.",
+    shareCopied: "링크를 복사했어요",
 
     voteCta: "나도 원해요",
     votedLabel: "수요 등록 완료",
@@ -182,7 +209,7 @@ export const T: Record<Lang, WorkshopCopy> = {
     ],
 
     nominateTitle: "안무가 제안",
-    nominateSub: "꼭 배워보고 싶은 안무가를 알려주세요. 이름과 인스타그램만 있으면 됩니다.",
+    nominateSub: "먼저 검색해 보세요. 이미 카드가 있으면 탭 한 번으로 수요가 합산됩니다. 없으면 직접 제안해 주세요.",
     fArtistName: "안무가 이름",
     fArtistNamePh: "예: Ian Eastwood",
     fInstagram: "인스타그램",
@@ -227,6 +254,7 @@ export const T: Record<Lang, WorkshopCopy> = {
       { q: "예약금을 냈는데 최소 인원이 안 모이면요?", a: "모집 기간 내 최소 인원이 모이지 않으면 워크샵은 열리지 않고, 예약금은 전액 환불됩니다." },
       { q: "안무가는 어떻게 섭외하나요?", a: "deetz와 GRIGO Entertainment의 글로벌 네트워크로 직접 컨택합니다. 수요 데이터가 있으면 섭외 협상도 훨씬 빨라집니다." },
       { q: "해외에 살고 있어도 제안할 수 있나요?", a: "네. 거주 국가와 도시를 함께 남겨주세요. 해외 수요가 모이면 해당 지역 개최나 한국 안무가의 해외 워크샵도 검토합니다." },
+      { q: "제 이름이 후보에 올라와 있어요. 내릴 수 있나요?", a: "안무가 본인이 게시를 원치 않으시면 contact@deetz.kr 로 알려주세요. 확인 후 바로 내립니다." },
     ],
     disclaimer:
       "후보 카드는 수요 확인용이며, 카드 공개가 해당 안무가의 방한 확정을 뜻하지 않습니다. 섭외 및 일정은 협의에 따라 변경될 수 있습니다.",
@@ -261,12 +289,27 @@ export const T: Record<Lang, WorkshopCopy> = {
     candidatesEmpty: "No public candidates yet. Be the first to suggest one.",
     confirmedBadge: "Confirmed",
     completedBadge: "Completed",
-    demandLabel: (n) => `${n} ${n === 1 ? "dancer wants" : "dancers want"} this`,
+    demandBand: {
+      lt10: "Gathering demand",
+      "10+": "10+ dancers waiting",
+      "30+": "30+ dancers waiting",
+      "50+": "50+ dancers waiting",
+      "100+": "100+ dancers waiting",
+    },
 
     wishesTitle: "Choreographers other dancers wished for",
     wishesSub: "Recently suggested names. Once demand builds, they become candidate cards and outreach begins.",
-    wishesCount: (n) => `${n}`,
-    wishesMergeNote: "Want the same choreographer? Submit the form below with the same Instagram handle — demand is merged automatically.",
+    wishesMergeNote: "Want the same choreographer? Search for them and tap 'I want this too' — demand is merged automatically.",
+
+    searchPh: "Name or @instagram handle",
+    searchSearching: "Searching…",
+    searchEmpty: "No card yet. Suggest them below.",
+    searchManualCta: "Can't find them? Suggest manually",
+    searchStatusListed: "Candidate",
+    searchStatusSuggested: "Suggested",
+    shareCta: "Share with friends",
+    shareText: "deetz Workshops — vote for the choreographer you want to learn from.",
+    shareCopied: "Link copied",
 
     voteCta: "I want this too",
     votedLabel: "Registered",
@@ -287,7 +330,7 @@ export const T: Record<Lang, WorkshopCopy> = {
     ],
 
     nominateTitle: "Suggest a choreographer",
-    nominateSub: "Who do you want to learn from? A name and an Instagram handle is all it takes.",
+    nominateSub: "Search first — if a card already exists, one tap adds your demand. If not, suggest them directly.",
     fArtistName: "Choreographer name",
     fArtistNamePh: "e.g. Ian Eastwood",
     fInstagram: "Instagram",
@@ -332,6 +375,7 @@ export const T: Record<Lang, WorkshopCopy> = {
       { q: "What if the minimum is not reached?", a: "The workshop does not open and your deposit is fully refunded." },
       { q: "How does deetz invite choreographers?", a: "Directly, through the global network of deetz and GRIGO Entertainment. Demand data makes negotiations much faster." },
       { q: "Can I suggest from outside Korea?", a: "Yes. Leave your country and city — overseas demand can lead to workshops in your region or Korean choreographers touring abroad." },
+      { q: "I'm a choreographer listed here. Can I be removed?", a: "If you'd rather not be listed, email contact@deetz.kr and we'll take your card down right away." },
     ],
     disclaimer:
       "Candidate cards exist to gauge demand. A public card does not mean the choreographer's visit is confirmed. Outreach and schedules may change.",
@@ -366,12 +410,27 @@ export const T: Record<Lang, WorkshopCopy> = {
     candidatesEmpty: "まだ公開された候補がありません。最初の提案をお待ちしています。",
     confirmedBadge: "招へい確定",
     completedBadge: "開催終了",
-    demandLabel: (n) => `${n}人が待っています`,
+    demandBand: {
+      lt10: "リクエスト集め中",
+      "10+": "10人以上が待っています",
+      "30+": "30人以上が待っています",
+      "50+": "50人以上が待っています",
+      "100+": "100人以上が待っています",
+    },
 
     wishesTitle: "他のダンサーが希望した振付師",
     wishesSub: "最近提案された振付師です。リクエストが集まると候補カードとして公開され、交渉が始まります。",
-    wishesCount: (n) => `${n}人`,
-    wishesMergeNote: "同じ振付師を希望する場合は、下のフォームから同じInstagram IDで提案してください。リクエストは自動で合算されます。",
+    wishesMergeNote: "同じ振付師を希望する場合は、検索して「私も習いたい」を押してください。リクエストは自動で合算されます。",
+
+    searchPh: "名前または@Instagram ID",
+    searchSearching: "検索中…",
+    searchEmpty: "まだカードがありません。下から直接提案してください。",
+    searchManualCta: "見つからない場合は直接提案する",
+    searchStatusListed: "候補公開",
+    searchStatusSuggested: "提案済み",
+    shareCta: "友達に知らせる",
+    shareText: "deetz ワークショップ — 習いたい振付師にリクエストしよう。",
+    shareCopied: "リンクをコピーしました",
 
     voteCta: "私も習いたい",
     votedLabel: "登録済み",
@@ -392,7 +451,7 @@ export const T: Record<Lang, WorkshopCopy> = {
     ],
 
     nominateTitle: "振付師を提案",
-    nominateSub: "習ってみたい振付師を教えてください。名前とInstagramだけでOKです。",
+    nominateSub: "まず検索してみてください。カードがあればワンタップでリクエストが合算されます。なければ直接提案できます。",
     fArtistName: "振付師の名前",
     fArtistNamePh: "例: Ian Eastwood",
     fInstagram: "Instagram",
@@ -437,6 +496,7 @@ export const T: Record<Lang, WorkshopCopy> = {
       { q: "予約金を払ったのに人数が集まらなかったら？", a: "ワークショップは開催されず、予約金は全額返金されます。" },
       { q: "振付師はどうやって招へいしますか？", a: "deetzとGRIGO Entertainmentのグローバルネットワークで直接コンタクトします。リクエストのデータがあると交渉が早く進みます。" },
       { q: "海外在住でも提案できますか？", a: "はい。お住まいの国と都市もご記入ください。海外のリクエストが集まれば、その地域での開催や韓国人振付師の海外ワークショップも検討します。" },
+      { q: "自分の名前が候補に掲載されています。削除できますか？", a: "掲載を望まない振付師の方は contact@deetz.kr までご連絡ください。確認のうえすぐに削除します。" },
     ],
     disclaimer:
       "候補カードはリクエスト確認のためのものであり、公開＝来韓確定ではありません。交渉や日程は協議により変更される場合があります。",

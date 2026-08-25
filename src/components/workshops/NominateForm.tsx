@@ -8,6 +8,7 @@ import { SearchableSelect, type SearchableOption } from "@/components/ui/searcha
 import { COUNTRIES, DEFAULT_COUNTRY_CODE } from "@/lib/data/countries";
 import { cn } from "@/lib/utils";
 import { T, splitSentences, type Lang } from "./copy";
+import { ShareInvite } from "./ShareInvite";
 
 const inputClass =
   "w-full rounded-lg border border-hairline-2 bg-background px-3.5 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-ink-4 focus:border-foreground/40";
@@ -19,10 +20,21 @@ const COUNTRY_OPTIONS: SearchableOption[] = COUNTRIES.map((c) => ({
   keywords: `${c.en} ${c.ko} ${c.code}`,
 }));
 
-/** 신규 안무가 제안 폼 — 이름·인스타그램 필수, 거주 국가/도시(기본 KR/서울), 나머지 선택. */
-export function NominateForm({ isLoggedIn, lang }: { isLoggedIn: boolean; lang: Lang }) {
+/**
+ * 신규 안무가 제안 폼 — 이름·인스타그램 필수, 거주 국가/도시(기본 KR/서울), 나머지 선택.
+ * 검색 우선 플로우의 폴백 — initialName 은 검색어를 이어받는다.
+ */
+export function NominateForm({
+  isLoggedIn,
+  lang,
+  initialName = "",
+}: {
+  isLoggedIn: boolean;
+  lang: Lang;
+  initialName?: string;
+}) {
   const c = T[lang];
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName);
   const [instagram, setInstagram] = useState("");
   const [comment, setComment] = useState("");
   const [country, setCountry] = useState(DEFAULT_COUNTRY_CODE);
@@ -43,18 +55,21 @@ export function NominateForm({ isLoggedIn, lang }: { isLoggedIn: boolean; lang: 
         <PartyPopper className="size-8 text-primary" />
         <p className="text-lg font-bold tracking-tight">{done.already ? c.doneAlreadyTitle : c.doneTitle}</p>
         <Lines text={c.doneBody} className="text-[13px] leading-relaxed text-ink-2" />
-        <button
-          type="button"
-          onClick={() => {
-            setDone(null);
-            setName("");
-            setInstagram("");
-            setComment("");
-          }}
-          className="mt-1 rounded-lg border border-hairline-2 px-4 py-2 text-[13px] font-semibold text-ink-2 transition-colors hover:text-foreground"
-        >
-          {c.doneAgain}
-        </button>
+        <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+          <ShareInvite lang={lang} />
+          <button
+            type="button"
+            onClick={() => {
+              setDone(null);
+              setName("");
+              setInstagram("");
+              setComment("");
+            }}
+            className="rounded-lg border border-hairline-2 px-4 py-2 text-[13px] font-semibold text-ink-2 transition-colors hover:text-foreground"
+          >
+            {c.doneAgain}
+          </button>
+        </div>
       </div>
     );
   }

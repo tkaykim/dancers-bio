@@ -3,20 +3,28 @@ import "server-only";
 import { getUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { PUBLIC_STATUSES, type WorkshopArtist, type WorkshopArtistPublic } from "@/lib/workshops/shared";
+import {
+  DEMAND_BANDS,
+  PUBLIC_STATUSES,
+  parseDemandBand,
+  type DemandBand,
+  type WorkshopArtist,
+  type WorkshopArtistPublic,
+} from "@/lib/workshops/shared";
 
 // 공개 조회는 anon 클라이언트 + RLS 로 읽는다.
 // `workshop_artists_public_select` 정책이 published/recruiting/confirmed/completed 만 통과시키므로
 // 코드에서 상태 필터를 빠뜨려도 비공개 제안(suggested)이 새지 않는다.
-// demands·reservations 는 계속 잠겨 있고, 카드에 필요한 "수"만 `workshop_public_counts()` RPC 로 가져온다.
+// demands·reservations 는 계속 잠겨 있고, 카드에 필요한 수요는 `workshop_public_counts()` RPC 가
+// 구간(band)으로만 내보낸다 — 정확한 수요 수는 anon 경로 어디에도 싣지 않는다(D1).
 
 const ARTIST_COLUMNS =
   "id, slug, name, instagram_handle, image_url, country, genres, headline, description, status, deposit_amount, total_price, min_headcount, max_headcount, expected_period, recruit_deadline, recruit_opened_at, confirmed_at, created_at";
 
-type CountRow = { artist_id: string; demand_count: number; reserved_count: number };
+type CountRow = { artist_id: string; demand_band: string; reserved_count: number };
 
-async function loadCounts(): Promise<Map<string, { demand: number; reserved: number }>> {
-  const map = new Map<string, { demand: number; reserved: number }>();
+async function loadCounts(): Promise<Map<string, { band: DemandBand; reserved: number }>> {
+  const map = new Map<string, { band: DemandBand; reserved: number }>();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("workshop_public_counts");
   if (error) {
@@ -24,24 +32,24 @@ async function loadCounts(): Promise<Map<string, { demand: number; reserved: num
     return map;
   }
   for (const row of (data ?? []) as CountRow[]) {
-    map.set(row.artist_id, { demand: row.demand_count ?? 0, reserved: row.reserved_count ?? 0 });
+    map.set(row.artist_id, { band: parseDemandBand(row.demand_band), reserved: row.reserved_count ?? 0 });
   }
   return map;
 }
 
 function withCounts(
   artists: WorkshopArtist[],
-  counts: Map<string, { demand: number; reserved: number }>,
+  counts: Map<string, { band: DemandBand; reserved: number }>,
 ): WorkshopArtistPublic[] {
   return artists.map((a) => ({
     ...a,
     genres: a.genres ?? [],
-    demand_count: counts.get(a.id)?.demand ?? 0,
+    demand_band: counts.get(a.id)?.band ?? "lt10",
     reserved_count: counts.get(a.id)?.reserved ?? 0,
   }));
 }
 
-/** 공개 카드 목록 — 수요 많은 순, 동률이면 최신순. */
+/** 공개 카드 목록 — 수요 구간 높은 순, 같은 구간이면 최신순 (구간 내 순위는 노출하지 않는다). */
 export async function listPublicWorkshopArtists(): Promise<WorkshopArtistPublic[]> {
   const supabase = await createClient();
   // ⚠️ 관리자에게는 RLS 가 suggested·archived 까지 열어준다(관리자 정책).
@@ -58,7 +66,11 @@ export async function listPublicWorkshopArtists(): Promise<WorkshopArtistPublic[
   }
   const counts = await loadCounts();
   const rows = withCounts((data ?? []) as WorkshopArtist[], counts);
-  rows.sort((a, b) => b.demand_count - a.demand_count || b.created_at.localeCompare(a.created_at));
+  rows.sort(
+    (a, b) =>
+      DEMAND_BANDS.indexOf(b.demand_band) - DEMAND_BANDS.indexOf(a.demand_band) ||
+      b.created_at.localeCompare(a.created_at),
+  );
   return rows;
 }
 
@@ -78,42 +90,44 @@ export async function getPublicWorkshopArtistBySlug(slug: string): Promise<Works
 
 // ── '다른 댄서들이 희망한 안무가' ───────────────────────────────────────────
 // suggested 카드는 RLS 가 anon 에게 숨기므로(공개 카드 아님) 서버에서 service-role 로 읽되,
-// 이름·핸들·수요 수만 내보낸다(제출자 연락처 등은 절대 포함하지 않는다).
+// 이름·핸들만 내보낸다(제출자 연락처·수요 수는 절대 포함하지 않는다 — D1).
+// 정렬은 최신 제안순 — 수요순으로 두면 수를 지워도 순위가 새어 나간다.
+// 실제 수요가 1건 이상 붙은 카드만 노출한다 — 시드 카탈로그(검색 전용)가 위시로 새면
+// 아무도 원한 적 없는 이름이 사회적 증거처럼 보인다.
 
-export type WorkshopWishRow = { name: string; instagram_handle: string; demand_count: number };
+export type WorkshopWishRow = { name: string; instagram_handle: string };
 
 export async function listWorkshopWishes(limit = 24): Promise<WorkshopWishRow[]> {
   const admin = createAdminClient();
   const { data: artists } = await admin
     .from("workshop_artists")
-    .select("id, name, instagram_handle")
+    .select("id, name, instagram_handle, created_at")
     .eq("status", "suggested")
     .order("created_at", { ascending: false })
     .limit(200);
-  const rows = (artists ?? []) as { id: string; name: string; instagram_handle: string }[];
+  const rows = (artists ?? []) as { id: string; name: string; instagram_handle: string; created_at: string }[];
   if (rows.length === 0) return [];
 
   const { data: demands } = await admin
     .from("workshop_demands")
-    .select("artist_id")
+    .select("artist_id, created_at")
     .in(
       "artist_id",
       rows.map((r) => r.id),
     );
-  const counts = new Map<string, number>();
+  const lastDemandAt = new Map<string, string>();
   for (const d of demands ?? []) {
     const id = d.artist_id as string;
-    counts.set(id, (counts.get(id) ?? 0) + 1);
+    const at = d.created_at as string;
+    const prev = lastDemandAt.get(id);
+    if (!prev || at > prev) lastDemandAt.set(id, at);
   }
 
   return rows
-    .map((r) => ({
-      name: r.name,
-      instagram_handle: r.instagram_handle,
-      demand_count: counts.get(r.id) ?? 0,
-    }))
-    .sort((a, b) => b.demand_count - a.demand_count)
-    .slice(0, limit);
+    .filter((r) => lastDemandAt.has(r.id))
+    .sort((a, b) => (lastDemandAt.get(b.id) ?? "").localeCompare(lastDemandAt.get(a.id) ?? ""))
+    .slice(0, limit)
+    .map((r) => ({ name: r.name, instagram_handle: r.instagram_handle }));
 }
 
 // ── 내 예약 ────────────────────────────────────────────────────────────────

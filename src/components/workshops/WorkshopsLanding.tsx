@@ -7,13 +7,14 @@ import { ArrowRight, ChevronDown, Flame, Megaphone, Users } from "lucide-react";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { cn } from "@/lib/utils";
 import { instagramUrl, won, type WorkshopArtistPublic } from "@/lib/workshops/shared";
+import { ArtistSearch } from "./ArtistSearch";
 import { InstagramGlyph } from "./InstagramGlyph";
 import { LANG_STORAGE_KEY, LANGS, T, WORKSHOP_FULL_NAME, splitSentences, type Lang } from "./copy";
 import { NominateForm } from "./NominateForm";
 import { VoteBox } from "./VoteBox";
 
-/** '다른 댄서들이 희망한 안무가' — suggested 카드의 공개 최소 정보. */
-export type WorkshopWish = { name: string; instagram_handle: string; demand_count: number };
+/** '다른 댄서들이 희망한 안무가' — suggested 카드의 공개 최소 정보 (수요 수는 싣지 않는다 — D1). */
+export type WorkshopWish = { name: string; instagram_handle: string };
 
 /** 개설 행사 카드 — event-queries.listOpenEvents 의 결과. */
 export type OpenEvent = {
@@ -45,6 +46,11 @@ export function WorkshopsLanding({
   lockLang?: boolean;
 }) {
   const [lang, setLang] = useState<Lang>(initialLang);
+  // 검색 우선 플로우 — 직접 입력 폼은 검색으로 못 찾았을 때만 연다(검색어를 이름으로 이어받음).
+  const [manualForm, setManualForm] = useState<{ open: boolean; initialName: string }>({
+    open: false,
+    initialName: "",
+  });
 
   const selectLang = (l: Lang) => {
     setLang(l);
@@ -243,9 +249,6 @@ export function WorkshopsLanding({
                 >
                   @{w.instagram_handle}
                 </a>
-                <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-primary">
-                  {c.wishesCount(w.demand_count)}
-                </span>
               </span>
             ))}
           </div>
@@ -274,12 +277,26 @@ export function WorkshopsLanding({
         ))}
       </div>
 
-      {/* 안무가 제안 */}
+      {/* 안무가 제안 — 검색 먼저, 없으면 직접 입력 폴백 */}
       <div id="nominate" className="scroll-mt-20">
         <SectionTitle>{c.nominateTitle}</SectionTitle>
       </div>
       <Lines text={c.nominateSub} className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl" />
-      <NominateForm isLoggedIn={isLoggedIn} lang={lang} />
+      <ArtistSearch
+        isLoggedIn={isLoggedIn}
+        lang={lang}
+        onManualRequest={(query) => setManualForm({ open: true, initialName: query })}
+      />
+      {manualForm.open ? (
+        <div className="mt-4">
+          <NominateForm
+            key={manualForm.initialName}
+            isLoggedIn={isLoggedIn}
+            lang={lang}
+            initialName={manualForm.initialName}
+          />
+        </div>
+      ) : null}
 
       {/* 예약금·환불 규정 */}
       <SectionTitle>{c.policyTitle}</SectionTitle>
@@ -461,7 +478,7 @@ function CandidateCard({
         <div className="mt-auto flex flex-col gap-2 pt-1">
           <p className="flex items-center gap-1.5 text-[12px] font-semibold text-foreground">
             <Users className="size-3.5 text-ink-3" />
-            {c.demandLabel(artist.demand_count)}
+            {c.demandBand[artist.demand_band]}
           </p>
           {!confirmed ? <VoteBox artistId={artist.id} isLoggedIn={isLoggedIn} lang={lang} /> : null}
         </div>
