@@ -6,7 +6,14 @@ import { revalidatePath } from "next/cache";
 import { canManageProject, requireAdmin, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { DEFAULT_WITHHOLDING_RATE, calcSettlement, formatMoney, formatWon } from "@/lib/settlement";
+import {
+  DEFAULT_WITHHOLDING_RATE,
+  calcPayout,
+  calcSettlement,
+  formatMoney,
+  formatWon,
+  type SettlementRole,
+} from "@/lib/settlement";
 import { sendGmailEmail } from "@/lib/gmail";
 import { buildWithdrawalRequestEmail } from "@/lib/notify/settlement-mail";
 import { projectLocale } from "@/lib/i18n/project-locale";
@@ -83,6 +90,37 @@ async function myDancerIds(userId: string): Promise<Set<string>> {
   return new Set((data ?? []).map((d: { id: string }) => d.id as string));
 }
 
+// 정산행의 실제 이체 금액(현금 기준). withholding=세전−3.3% / invoice=세전+부가세.
+function transferAmountOf(s: {
+  gross_amount: number | null;
+  withholding_rate: number | string;
+  tax_mode?: string | null;
+  vat_amount?: number | null;
+}): number {
+  return calcPayout({
+    gross: (s.gross_amount as number) ?? 0,
+    rate: Number(s.withholding_rate),
+    taxMode: (s.tax_mode as string | null) ?? "withholding",
+    vatAmount: (s.vat_amount as number | null) ?? 0,
+  }).transfer;
+}
+
+// fd의 role 값 검증 — 알 수 없는 값은 기본 'dancer'로 취급하지 않고 거부한다.
+const SETTLEMENT_ROLES: readonly SettlementRole[] = [
+  "dancer",
+  "travel",
+  "staff",
+  "referral",
+  "other",
+];
+function parseRole(v: FormDataEntryValue | null): SettlementRole | null {
+  const t = (v ?? "").toString().trim();
+  if (!t) return "dancer";
+  return (SETTLEMENT_ROLES as readonly string[]).includes(t)
+    ? (t as SettlementRole)
+    : null;
+}
+
 // 댄서 출금신청 → 경영지원실(슈퍼관리자 전원)에게 인앱 + 웹푸시 알림 (비치명적).
 // 담당자가 코크핏을 열어보지 않아도 "처리할 출금 신청이 들어왔다"를 즉시 인지.
 async function notifyAdminsWithdrawalRequested(
@@ -92,7 +130,7 @@ async function notifyAdminsWithdrawalRequested(
     const admin = createAdminClient();
     const { data: s } = await admin
       .from("settlements")
-      .select("dancer_id, project_id, gross_amount, withholding_rate")
+      .select("dancer_id, project_id, gross_amount, withholding_rate, tax_mode, vat_amount")
       .eq("id", settlementId)
       .maybeSingle();
     if (!s) return;
@@ -107,10 +145,7 @@ async function notifyAdminsWithdrawalRequested(
 
     const name = (d?.stage_name as string) ?? "댄서";
     const title = (p?.title as string) ?? "프로젝트";
-    const net = calcSettlement(
-      s.gross_amount as number,
-      Number(s.withholding_rate),
-    ).net;
+    const net = transferAmountOf(s);
     const url = "/admin/settlements";
 
     await Promise.all(
@@ -166,7 +201,7 @@ async function notifyDancerSettlement(
     const admin = createAdminClient();
     const { data: s } = await admin
       .from("settlements")
-      .select("dancer_id, project_id, gross_amount, withholding_rate")
+      .select("dancer_id, project_id, gross_amount, withholding_rate, tax_mode, vat_amount")
       .eq("id", settlementId)
       .maybeSingle();
     if (!s) return;
@@ -181,10 +216,7 @@ async function notifyDancerSettlement(
       admin.from("projects").select("title").eq("id", s.project_id).maybeSingle(),
     ]);
     const title = (p?.title as string) ?? "프로젝트";
-    const net = calcSettlement(
-      s.gross_amount as number,
-      Number(s.withholding_rate),
-    ).net;
+    const net = transferAmountOf(s);
     const netText = formatWon(net);
     const url = "/me/settlements";
 
@@ -282,9 +314,13 @@ export async function setSettlementAmountAction(
   const user = await requireUser();
   const projectId = (fd.get("project_id") ?? "").toString().trim();
   const dancerId = (fd.get("dancer_id") ?? "").toString().trim();
+  // 겸직(한 사람이 출연료+스태프비) 도입 후 (project, dancer)만으로는 행이 특정되지 않는다.
+  // 기존 행 수정은 settlement_id로, 신규 생성은 (project, dancer, role)로 특정한다.
+  const settlementId = (fd.get("settlement_id") ?? "").toString().trim();
+  const role = parseRole(fd.get("role"));
   const gross = parseWon(fd.get("gross_amount"));
   const memo = strOrNull(fd, "memo");
-  if (!projectId || !dancerId)
+  if (!projectId || (!dancerId && !settlementId) || !role)
     return { ok: false, error: "잘못된 요청입니다." };
   if (gross == null)
     return { ok: false, error: "정산금액(세전, 원)을 숫자로 입력해 주세요." };
@@ -292,12 +328,23 @@ export async function setSettlementAmountAction(
     return { ok: false, error: "권한이 없습니다." };
 
   const supabase = await createClient();
-  const { data: existing } = await supabase
+  let existingQuery = supabase
     .from("settlements")
-    .select("id, status, gross_amount")
-    .eq("project_id", projectId)
-    .eq("dancer_id", dancerId)
-    .maybeSingle();
+    .select("id, status, gross_amount, role")
+    .eq("project_id", projectId);
+  existingQuery = settlementId
+    ? existingQuery.eq("id", settlementId)
+    : existingQuery.eq("dancer_id", dancerId).eq("role", role);
+  const { data: existing } = await existingQuery.maybeSingle();
+  if (settlementId && !existing)
+    return { ok: false, error: "정산 내역을 찾을 수 없습니다." };
+
+  // 매니저 경로는 직접비 role만 — 스태프·소개비 금액은 관리자 전용(설계 §4.3).
+  const effectiveRole = (existing?.role as string | undefined) ?? role;
+  if (effectiveRole !== "dancer" && effectiveRole !== "travel") {
+    if (!(await isAdmin(user.id)))
+      return { ok: false, error: "스태프·소개비 금액은 관리자만 입력할 수 있습니다." };
+  }
 
   // 금액 잠금: 입금완료뿐 아니라 출금신청·취소 건도 여기서 바꿀 수 없다.
   // 댄서가 신청 시점에 본 금액과 실제 이체 금액이 달라지는 것을 막는다.
@@ -335,6 +382,7 @@ export async function setSettlementAmountAction(
       .insert({
         project_id: projectId,
         dancer_id: dancerId,
+        role,
         gross_amount: gross,
         withholding_rate: DEFAULT_WITHHOLDING_RATE,
         memo,
@@ -369,10 +417,11 @@ export async function setSettlementAmountAction(
  * 상태 가드는 단건과 동일하게 행마다 적용하고, 일부가 막혀도 나머지는 저장한 뒤
  * 실패 건만 돌려준다(전부 롤백하면 오히려 다시 입력해야 한다).
  */
+// 행 특정은 settlement id 기준 — 겸직 도입 후 (project, dancer)는 유일키가 아니다.
 const bulkEntriesSchema = z
   .array(
     z.object({
-      dancerId: z.string().uuid(),
+      settlementId: z.string().uuid(),
       amount: z.string().max(20),
     }),
   )
@@ -384,10 +433,10 @@ export async function setSettlementAmountsBulkAction(
 ): Promise<
   ActionResult<{
     saved: number;
-    failures: Array<{ dancerId: string; error: string }>;
+    failures: Array<{ settlementId: string; error: string }>;
   }>
 > {
-  const user = await requireUser();
+  await requireUser();
   const projectId = (fd.get("project_id") ?? "").toString().trim();
   const raw = (fd.get("entries") ?? "").toString();
   if (!projectId) return { ok: false, error: "잘못된 요청입니다." };
@@ -406,95 +455,81 @@ export async function setSettlementAmountsBulkAction(
   if (!check.success) return { ok: false, error: "잘못된 요청입니다." };
   const entries = check.data;
 
-  // 같은 댄서가 두 번 들어오면 어느 금액이 맞는지 알 수 없으므로 요청 자체를 거부한다.
+  // 같은 행이 두 번 들어오면 어느 금액이 맞는지 알 수 없으므로 요청 자체를 거부한다.
   const seen = new Set<string>();
   for (const e of entries) {
-    if (seen.has(e.dancerId))
-      return { ok: false, error: "같은 댄서가 중복으로 들어왔습니다." };
-    seen.add(e.dancerId);
+    if (seen.has(e.settlementId))
+      return { ok: false, error: "같은 정산 건이 중복으로 들어왔습니다." };
+    seen.add(e.settlementId);
   }
 
   const supabase = await createClient();
-  const failures: Array<{ dancerId: string; error: string }> = [];
+  const failures: Array<{ settlementId: string; error: string }> = [];
   const notifyIds: string[] = [];
   let saved = 0;
 
+  // 콘솔 목록의 기존 행만 대상으로 한다 — id 특정이라 겸직(복수 role)에서도 오행 수정이 없다.
+  const { data: rowsData, error: readErr } = await supabase
+    .from("settlements")
+    .select("id, status, gross_amount")
+    .eq("project_id", projectId)
+    .in("id", entries.map((e) => e.settlementId));
+  if (readErr) return { ok: false, error: "조회에 실패했습니다." };
+  const rowById = new Map(
+    ((rowsData ?? []) as Array<{ id: string; status: string; gross_amount: number | null }>).map(
+      (r) => [r.id, r],
+    ),
+  );
+
   for (const e of entries) {
-    const dancerId = e.dancerId;
+    const settlementId = e.settlementId;
     const gross = parseWon(e.amount);
     if (gross == null || gross <= 0) {
-      failures.push({ dancerId, error: "금액을 1원 이상으로 입력해 주세요." });
+      failures.push({ settlementId, error: "금액을 1원 이상으로 입력해 주세요." });
       continue;
     }
 
-    const { data: existing, error: readErr } = await supabase
-      .from("settlements")
-      .select("id, status, gross_amount")
-      .eq("project_id", projectId)
-      .eq("dancer_id", dancerId)
-      .maybeSingle();
-    // 조회 자체가 실패하면 신규로 오인해 중복 생성될 수 있으므로 그 행은 건너뛴다.
-    if (readErr) {
-      failures.push({ dancerId, error: "조회에 실패했습니다." });
+    const existing = rowById.get(settlementId);
+    if (!existing) {
+      failures.push({ settlementId, error: "정산 내역을 찾을 수 없습니다." });
       continue;
     }
 
     // 단건 저장과 같은 잠금 규칙 — 댄서가 본 금액이 뒤에서 바뀌지 않게.
-    if (existing?.status === "paid") {
-      failures.push({ dancerId, error: "이미 입금완료된 건입니다." });
+    if (existing.status === "paid") {
+      failures.push({ settlementId, error: "이미 입금완료된 건입니다." });
       continue;
     }
-    if (existing?.status === "requested") {
-      failures.push({ dancerId, error: "이미 출금 신청한 건입니다." });
+    if (existing.status === "requested") {
+      failures.push({ settlementId, error: "이미 출금 신청한 건입니다." });
       continue;
     }
-    if (existing?.status === "cancelled") {
-      failures.push({ dancerId, error: "취소된 정산 건입니다." });
+    if (existing.status === "cancelled") {
+      failures.push({ settlementId, error: "취소된 정산 건입니다." });
       continue;
     }
 
-    if (existing) {
-      const changed = (existing.gross_amount as number | null) !== gross;
-      // status 조건을 UPDATE에 함께 걸어, 조회와 저장 사이에 댄서가 출금 신청해도
-      // 그 건을 덮어쓰지 않게 한다(0행 반환 → 실패로 처리).
-      const { data: updated, error } = await supabase
-        .from("settlements")
-        .update({ gross_amount: gross })
-        .eq("id", existing.id)
-        .eq("status", "pending")
-        .select("id");
-      if (error) {
-        failures.push({ dancerId, error: error.message });
-        continue;
-      }
-      if (!updated || updated.length === 0) {
-        failures.push({
-          dancerId,
-          error: "저장 중 상태가 바뀌었습니다. 새로고침 후 다시 시도해 주세요.",
-        });
-        continue;
-      }
-      if (changed) notifyIds.push(existing.id as string);
-    } else {
-      // RLS(settlements_manage)가 관리권한자 insert를 허용하므로 user 클라이언트로 둔다.
-      const { data, error } = await supabase
-        .from("settlements")
-        .insert({
-          project_id: projectId,
-          dancer_id: dancerId,
-          gross_amount: gross,
-          withholding_rate: DEFAULT_WITHHOLDING_RATE,
-          origin: "manager",
-          created_by: user.id,
-        })
-        .select("id")
-        .single();
-      if (error) {
-        failures.push({ dancerId, error: error.message });
-        continue;
-      }
-      notifyIds.push(data.id as string);
+    const changed = (existing.gross_amount as number | null) !== gross;
+    // status 조건을 UPDATE에 함께 걸어, 조회와 저장 사이에 댄서가 출금 신청해도
+    // 그 건을 덮어쓰지 않게 한다(0행 반환 → 실패로 처리).
+    const { data: updated, error } = await supabase
+      .from("settlements")
+      .update({ gross_amount: gross })
+      .eq("id", settlementId)
+      .eq("status", "pending")
+      .select("id");
+    if (error) {
+      failures.push({ settlementId, error: error.message });
+      continue;
     }
+    if (!updated || updated.length === 0) {
+      failures.push({
+        settlementId,
+        error: "저장 중 상태가 바뀌었습니다. 새로고침 후 다시 시도해 주세요.",
+      });
+      continue;
+    }
+    if (changed) notifyIds.push(settlementId);
     saved += 1;
   }
 
@@ -529,10 +564,21 @@ export async function addSettlementDancerAction(
   const user = await requireUser();
   const projectId = (fd.get("project_id") ?? "").toString().trim();
   const dancerId = (fd.get("dancer_id") ?? "").toString().trim();
-  if (!projectId || !dancerId)
+  const role = parseRole(fd.get("role"));
+  if (!projectId || !dancerId || !role)
     return { ok: false, error: "잘못된 요청입니다." };
   if (!(await canManageProject(projectId)))
     return { ok: false, error: "권한이 없습니다." };
+  // 매니저 경로는 직접비 role만 다룬다 — staff/referral 등록은 admin 풀 화면 전용(§4.3).
+  if (role !== "dancer" && role !== "travel") {
+    const { data: me } = await createAdminClient()
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (me?.is_admin !== true)
+      return { ok: false, error: "스태프·소개비 등록은 관리자만 할 수 있습니다." };
+  }
 
   const admin = createAdminClient();
   const { data: dancer } = await admin
@@ -542,12 +588,13 @@ export async function addSettlementDancerAction(
     .maybeSingle();
   if (!dancer) return { ok: false, error: "댄서를 찾을 수 없습니다." };
 
-  // 이미 명단에 있으면 중복 생성하지 않는다(취소된 건은 되살린다).
+  // 이미 같은 role로 명단에 있으면 중복 생성하지 않는다(취소된 건은 되살린다).
   const { data: existing } = await admin
     .from("settlements")
     .select("id, status")
     .eq("project_id", projectId)
     .eq("dancer_id", dancerId)
+    .eq("role", role)
     .maybeSingle();
 
   if (existing) {
@@ -567,6 +614,7 @@ export async function addSettlementDancerAction(
     .insert({
       project_id: projectId,
       dancer_id: dancerId,
+      role,
       gross_amount: null,
       withholding_rate: DEFAULT_WITHHOLDING_RATE,
       origin: "manager",
@@ -643,13 +691,16 @@ export async function sendWithdrawalRequestEmailAction(
   const { data: s } = await admin
     .from("settlements")
     .select(
-      "id, project_id, dancer_id, gross_amount, withholding_rate, status, project:projects!settlements_project_id_fkey ( title )",
+      "id, project_id, dancer_id, gross_amount, withholding_rate, tax_mode, status, project:projects!settlements_project_id_fkey ( title )",
     )
     .eq("id", settlementId)
     .maybeSingle();
   if (!s) return { ok: false, error: "정산 내역을 찾을 수 없습니다." };
   if (s.status !== "pending")
     return { ok: false, error: "정산완료(출금신청 전) 건만 안내를 보낼 수 있어요." };
+  // 사업자(invoice) 건은 3.3% 안내 메일 문안이 맞지 않는다 — 별도 커뮤니케이션으로.
+  if ((s.tax_mode as string) === "invoice")
+    return { ok: false, error: "사업자(세금계산서) 건은 이 안내 메일 대상이 아닙니다." };
 
   const proj = Array.isArray(s.project) ? s.project[0] ?? null : s.project;
   const projectTitle = (proj?.title as string) ?? "프로젝트";
@@ -924,7 +975,7 @@ export async function buildTransferFileAction(
   const { data: sRows } = await admin
     .from("settlements")
     .select(
-      "id, dancer_id, gross_amount, withholding_rate, status, project:projects!settlements_project_id_fkey ( title )",
+      "id, dancer_id, gross_amount, withholding_rate, tax_mode, vat_amount, tax_invoice_received_at, status, project:projects!settlements_project_id_fkey ( title )",
     )
     .in("id", ids);
   if (!sRows || sRows.length === 0)
@@ -973,6 +1024,14 @@ export async function buildTransferFileAction(
       skipped++;
       continue;
     }
+    // 사업자(invoice) 건은 세금계산서를 받은 뒤에만 이체한다(부가세 포함 전달).
+    if (
+      (s.tax_mode as string) === "invoice" &&
+      !s.tax_invoice_received_at
+    ) {
+      skipped++;
+      continue;
+    }
     const acct = acctById.get(s.dancer_id as string);
     const accountNumber = (acct?.bank_account_number ?? "")
       .toString()
@@ -981,10 +1040,7 @@ export async function buildTransferFileAction(
       skipped++;
       continue;
     }
-    const net = calcSettlement(
-      s.gross_amount as number,
-      Number(s.withholding_rate),
-    ).net;
+    const net = transferAmountOf(s);
     const proj = Array.isArray(s.project) ? s.project[0] ?? null : s.project;
     const projectTitle = (proj?.title as string) ?? "";
     const dancerName = nameById.get(s.dancer_id as string) ?? "";
@@ -1040,13 +1096,14 @@ export async function setSettlementCollectionAction(
   if (!(await canManageProject(projectId)))
     return { ok: false, error: "권한이 없습니다." };
 
+  // 수집 코드는 공개 projects 컬럼이 아니라 비공개 테이블에 둔다(열거 차단, 설계 §3.6).
   const admin = createAdminClient();
-  const { data: proj } = await admin
-    .from("projects")
-    .select("settlement_collect_code")
-    .eq("id", projectId)
+  const { data: existing } = await admin
+    .from("project_settlement_collections")
+    .select("collect_code")
+    .eq("project_id", projectId)
     .maybeSingle();
-  let code = (proj?.settlement_collect_code as string | null) ?? null;
+  let code = (existing?.collect_code as string | null) ?? null;
   if (!code) {
     const { data: gen } = await admin.rpc(
       "gen_project_settlement_collect_code",
@@ -1055,35 +1112,53 @@ export async function setSettlementCollectionAction(
     if (!code) return { ok: false, error: "코드 생성에 실패했습니다." };
   }
   const { error } = await admin
-    .from("projects")
-    .update({ settlement_collect_code: code, settlement_collection_open: open })
-    .eq("id", projectId);
+    .from("project_settlement_collections")
+    .upsert(
+      { project_id: projectId, collect_code: code, collection_open: open },
+      { onConflict: "project_id" },
+    );
   if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/projects/${projectId}/settlements`);
   return { ok: true, data: { code, open } };
 }
 
-// ── 소유자: 수주액·실비 저장 (마진 계산용) ──────────────────────────────────
+// ── 재무(수주액·실비) 저장 — 프로젝트 owner 또는 admin만 (공동관리자 제외, §4.3) ──
+// 값은 공개 projects 컬럼이 아니라 project_finances(RLS owner/admin)에 저장한다.
+// service-role이 아닌 사용자 클라이언트로 써서 RLS가 2차 방어선이 되게 한다.
 export async function setProjectFinanceAction(
   fd: FormData,
 ): Promise<ActionResult> {
-  await requireUser();
+  const user = await requireUser();
   const projectId = (fd.get("project_id") ?? "").toString().trim();
   const revenue = parseWon(fd.get("client_revenue"));
   const expense = parseWon(fd.get("expense_amount"));
   if (!projectId) return { ok: false, error: "잘못된 요청입니다." };
-  if (!(await canManageProject(projectId)))
-    return { ok: false, error: "권한이 없습니다." };
 
   const admin = createAdminClient();
-  const { error } = await admin
+  const { data: proj } = await admin
     .from("projects")
-    .update({ client_revenue: revenue, expense_amount: expense })
-    .eq("id", projectId);
+    .select("owner_id")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (!proj) return { ok: false, error: "프로젝트를 찾을 수 없습니다." };
+  if ((proj.owner_id as string) !== user.id && !(await isAdmin(user.id)))
+    return { ok: false, error: "수주액·실비는 프로젝트 소유자 또는 관리자만 수정할 수 있습니다." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("project_finances").upsert(
+    {
+      project_id: projectId,
+      client_revenue: revenue,
+      expense_amount: expense ?? 0,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "project_id" },
+  );
   if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/projects/${projectId}/settlements`);
+  revalidatePath(`/admin/projects/${projectId}/pool`);
   return { ok: true };
 }
 
@@ -1111,15 +1186,21 @@ export async function submitSettlementCollectionAction(
     return { ok: false, error: "계좌번호는 숫자 8~20자리로 입력해 주세요." };
 
   const admin = createAdminClient();
+  const { data: coll } = await admin
+    .from("project_settlement_collections")
+    .select("project_id, collection_open")
+    .eq("collect_code", code)
+    .maybeSingle();
+  if (!coll) return { ok: false, error: "유효하지 않은 수집 링크예요." };
+  if (coll.collection_open !== true)
+    return { ok: false, error: "정산 정보 수집이 마감되었어요." };
   const { data: proj } = await admin
     .from("projects")
-    .select("id, settlement_collection_open")
-    .eq("settlement_collect_code", code)
+    .select("id")
+    .eq("id", coll.project_id as string)
     .is("deleted_at", null)
     .maybeSingle();
   if (!proj) return { ok: false, error: "유효하지 않은 수집 링크예요." };
-  if (proj.settlement_collection_open !== true)
-    return { ok: false, error: "정산 정보 수집이 마감되었어요." };
   const projectId = proj.id as string;
 
   // 본인 댄서 식별 (로그인 세션 = 신원). 여러 프로필이면 선택 필요.
@@ -1166,16 +1247,19 @@ export async function submitSettlementCollectionAction(
 
   // settlements 행 보장 — 없으면 origin=self_collected, 금액 미정으로 생성.
   // 이미 있으면 금액(gross)·상태는 건드리지 않음(소유자 입력 보존, 멱등).
+  // 수집 링크 제출은 항상 출연료(dancer) 행 — 스태프·소개비는 admin 풀 화면 전용.
   const { data: existingS } = await admin
     .from("settlements")
     .select("id")
     .eq("project_id", projectId)
     .eq("dancer_id", dancerId)
+    .eq("role", "dancer")
     .maybeSingle();
   if (!existingS) {
     const { error: sErr } = await admin.from("settlements").insert({
       project_id: projectId,
       dancer_id: dancerId,
+      role: "dancer",
       gross_amount: null,
       withholding_rate: DEFAULT_WITHHOLDING_RATE,
       status: "pending",

@@ -28,14 +28,21 @@ export default async function SettlementCollectPage({
   if (!code) notFound();
 
   const admin = createAdminClient();
+  // 수집 코드는 비공개 테이블에서 조회한다(공개 projects 컬럼 열거 차단, 설계 §3.6).
+  const { data: coll } = await admin
+    .from("project_settlement_collections")
+    .select("project_id, collection_open")
+    .eq("collect_code", code)
+    .maybeSingle();
+  if (!coll) notFound();
   const { data: project } = await admin
     .from("projects")
-    .select("id, title, settlement_collection_open")
-    .eq("settlement_collect_code", code)
+    .select("id, title")
+    .eq("id", coll.project_id as string)
     .is("deleted_at", null)
     .maybeSingle();
   if (!project) notFound();
-  const open = project.settlement_collection_open === true;
+  const open = coll.collection_open === true;
   const title = (project.title as string) ?? "프로젝트";
 
   const brand = await getBrand();

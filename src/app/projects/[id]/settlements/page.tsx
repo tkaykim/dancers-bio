@@ -8,6 +8,7 @@ import {
 } from "@/components/settlement/OwnerSettlementConsole";
 import type { SettlementStatus } from "@/lib/settlement";
 import { GRIGO_SETTLE_ORIGIN } from "@/lib/brand";
+import { canManagePool, isAdminUser } from "@/lib/settlement-pool";
 
 const SITE = "https://deetz.kr";
 
@@ -17,30 +18,50 @@ export default async function ProjectSettlementsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: projectId } = await params;
-  await requireUser();
+  const user = await requireUser();
   if (!(await canManageProject(projectId))) notFound();
 
   const admin = createAdminClient();
   const { data: project } = await admin
     .from("projects")
-    .select(
-      "id, title, settlement_collect_code, settlement_collection_open, client_revenue, expense_amount",
-    )
+    .select("id, title, owner_id")
     .eq("id", projectId)
     .is("deleted_at", null)
     .maybeSingle();
   if (!project) notFound();
 
+  // 재무(수주액·실비)와 풀은 owner/admin 전용 — 공동관리자에겐 숨긴다(설계 §4.3).
+  // 값도 공개 projects 컬럼이 아니라 project_finances·collections에서 읽는다.
+  const [{ data: fin }, { data: coll }, poolAllowed] = await Promise.all([
+    admin
+      .from("project_finances")
+      .select("client_revenue, expense_amount")
+      .eq("project_id", projectId)
+      .maybeSingle(),
+    admin
+      .from("project_settlement_collections")
+      .select("collect_code, collection_open")
+      .eq("project_id", projectId)
+      .maybeSingle(),
+    canManagePool(projectId, user.id),
+  ]);
+  const showFinance =
+    (project.owner_id as string) === user.id || (await isAdminUser(user.id));
+
+  // 매니저 콘솔은 직접비 role(출연료·교통비)만 다룬다 — 스태프·소개비는 admin 풀 화면 전용.
+  // service-role 조회라 RLS를 우회하므로 앱 쿼리에서 직접 제한한다(설계 §4.2).
   const { data: sRows } = await admin
     .from("settlements")
     .select(
-      "id, dancer_id, gross_amount, withholding_rate, status, origin, created_at",
+      "id, dancer_id, role, gross_amount, withholding_rate, status, origin, created_at",
     )
     .eq("project_id", projectId)
+    .in("role", ["dancer", "travel"])
     .order("created_at", { ascending: true });
   const settlements = (sRows ?? []) as Array<{
     id: string;
     dancer_id: string;
+    role: string;
     gross_amount: number | null;
     withholding_rate: number;
     status: SettlementStatus;
@@ -89,6 +110,7 @@ export default async function ProjectSettlementsPage({
     id: s.id,
     dancerId: s.dancer_id,
     dancerName: nameById.get(s.dancer_id) ?? "댄서",
+    role: s.role,
     grossAmount: s.gross_amount,
     rate: Number(s.withholding_rate),
     status: s.status,
@@ -106,18 +128,29 @@ export default async function ProjectSettlementsPage({
         >
           ← 프로젝트
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight">정산 관리</h1>
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">정산 관리</h1>
+          {poolAllowed ? (
+            <Link
+              href={`/admin/projects/${projectId}/pool`}
+              className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-ink-2 hover:bg-secondary"
+            >
+              프로젝트 풀 →
+            </Link>
+          ) : null}
+        </div>
         <p className="text-sm text-ink-3">{project.title as string}</p>
       </header>
 
       <OwnerSettlementConsole
         projectId={projectId}
-        collectCode={(project.settlement_collect_code as string | null) ?? null}
-        collectionOpen={project.settlement_collection_open === true}
+        collectCode={(coll?.collect_code as string | null) ?? null}
+        collectionOpen={coll?.collection_open === true}
         collectUrlBase={`${SITE}/settle/`}
         grigoUrlBase={`${GRIGO_SETTLE_ORIGIN}/settle/`}
-        clientRevenue={(project.client_revenue as number | null) ?? null}
-        expenseAmount={(project.expense_amount as number | null) ?? null}
+        clientRevenue={(fin?.client_revenue as number | null) ?? null}
+        expenseAmount={(fin?.expense_amount as number | null) ?? null}
+        showFinance={showFinance}
         rows={rows}
       />
     </div>

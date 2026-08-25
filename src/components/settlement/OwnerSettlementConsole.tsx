@@ -15,6 +15,7 @@ import {
   calcSettlement,
   formatWon,
   formatWonInput,
+  settlementRoleLabel,
   settlementStageLabel,
   type SettlementStatus,
 } from "@/lib/settlement";
@@ -23,6 +24,7 @@ export type OwnerSettlementRow = {
   id: string;
   dancerId: string;
   dancerName: string;
+  role: string;
   grossAmount: number | null;
   rate: number;
   status: SettlementStatus;
@@ -40,6 +42,8 @@ export function OwnerSettlementConsole({
   grigoUrlBase,
   clientRevenue,
   expenseAmount,
+  // 수주액·실비·마진은 owner/admin 전용 — 공동관리자에겐 섹션 자체를 숨긴다(설계 §4.3).
+  showFinance = true,
   rows,
 }: {
   projectId: string;
@@ -49,6 +53,7 @@ export function OwnerSettlementConsole({
   grigoUrlBase?: string;
   clientRevenue: number | null;
   expenseAmount: number | null;
+  showFinance?: boolean;
   rows: OwnerSettlementRow[];
 }) {
   const router = useRouter();
@@ -57,8 +62,9 @@ export function OwnerSettlementConsole({
   const [copiedGrigo, setCopiedGrigo] = useState(false);
   // 금액 입력값을 상위에서 보관한다. 단건 저장마다 화면이 새로 그려지면서
   // 나머지 입력이 날아가던 문제를 없애고, 일괄 입력·일괄 저장이 같은 값을 공유한다.
+  // 키는 settlement id — 겸직(한 사람이 출연료+스태프비)에서 dancerId 키는 서로 덮어쓴다.
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
-    Object.fromEntries(rows.map((r) => [r.dancerId, formatWonInput(r.grossAmount)])),
+    Object.fromEntries(rows.map((r) => [r.id, formatWonInput(r.grossAmount)])),
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAmount, setBulkAmount] = useState("");
@@ -68,13 +74,13 @@ export function OwnerSettlementConsole({
   // 서버 목록이 바뀌면(추가·저장·상태변경) 손대지 않은 칸만 서버값으로 맞춘다.
   // status도 키에 넣어야 다른 탭에서 출금신청이 들어온 경우 잠금이 반영된다.
   const rowsKey = rows
-    .map((r) => `${r.dancerId}:${r.grossAmount ?? ""}:${r.status}`)
+    .map((r) => `${r.id}:${r.grossAmount ?? ""}:${r.status}`)
     .join("|");
   useEffect(() => {
     setAmounts((prev) => {
       const next = { ...prev };
       for (const r of rows) {
-        if (!dirtyIds.has(r.dancerId)) next[r.dancerId] = formatWonInput(r.grossAmount);
+        if (!dirtyIds.has(r.id)) next[r.id] = formatWonInput(r.grossAmount);
       }
       return next;
     });
@@ -88,7 +94,7 @@ export function OwnerSettlementConsole({
               r.status !== "requested" &&
               r.status !== "cancelled",
           )
-          .map((r) => r.dancerId),
+          .map((r) => r.id),
       );
       const next = new Set([...prev].filter((id) => usable.has(id)));
       return next.size === prev.size ? prev : next;
@@ -97,19 +103,19 @@ export function OwnerSettlementConsole({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowsKey]);
 
-  function setAmountFor(dancerId: string, v: string) {
-    setAmounts((prev) => ({ ...prev, [dancerId]: v }));
-    setDirtyIds((prev) => new Set(prev).add(dancerId));
+  function setAmountFor(settlementId: string, v: string) {
+    setAmounts((prev) => ({ ...prev, [settlementId]: v }));
+    setDirtyIds((prev) => new Set(prev).add(settlementId));
   }
 
   const editableRows = rows.filter(
     (r) => r.status !== "paid" && r.status !== "requested" && r.status !== "cancelled",
   );
   const allSelected =
-    editableRows.length > 0 && editableRows.every((r) => selected.has(r.dancerId));
+    editableRows.length > 0 && editableRows.every((r) => selected.has(r.id));
 
   function toggleAll() {
-    setSelected(allSelected ? new Set() : new Set(editableRows.map((r) => r.dancerId)));
+    setSelected(allSelected ? new Set() : new Set(editableRows.map((r) => r.id)));
   }
 
   function applyBulkAmount() {
@@ -135,11 +141,11 @@ export function OwnerSettlementConsole({
   function saveAll() {
     const entries = editableRows
       .filter((r) => {
-        if (!dirtyIds.has(r.dancerId)) return false;
-        const v = (amounts[r.dancerId] ?? "").trim();
+        if (!dirtyIds.has(r.id)) return false;
+        const v = (amounts[r.id] ?? "").trim();
         return v !== "" && v !== formatWonInput(r.grossAmount);
       })
-      .map((r) => ({ dancerId: r.dancerId, amount: amounts[r.dancerId] }));
+      .map((r) => ({ settlementId: r.id, amount: amounts[r.id] }));
     if (entries.length === 0) {
       toast.message("저장할 변경 사항이 없어요.");
       return;
@@ -307,17 +313,19 @@ export function OwnerSettlementConsole({
         )}
       </section>
 
-      {/* 2) 수익 · 마진 */}
-      <FinanceSection
-        projectId={projectId}
-        clientRevenue={clientRevenue}
-        expenseAmount={expenseAmount}
-        totalGross={totalGross}
-        margin={margin}
-        busy={busy}
-        startTransition={startTransition}
-        onDone={() => router.refresh()}
-      />
+      {/* 2) 수익 · 마진 — owner/admin 전용 */}
+      {showFinance ? (
+        <FinanceSection
+          projectId={projectId}
+          clientRevenue={clientRevenue}
+          expenseAmount={expenseAmount}
+          totalGross={totalGross}
+          margin={margin}
+          busy={busy}
+          startTransition={startTransition}
+          onDone={() => router.refresh()}
+        />
+      ) : null}
 
       {/* 3) 참여 댄서 직접 추가 — 이미 섭외가 끝난 건을 정산만 기입하는 경로 */}
       <AddSettlementDancer projectId={projectId} />
@@ -396,14 +404,14 @@ export function OwnerSettlementConsole({
                   projectId={projectId}
                   row={r}
                   busy={busy}
-                  amount={amounts[r.dancerId] ?? ""}
-                  onAmountChange={(v) => setAmountFor(r.dancerId, v)}
-                  selected={selected.has(r.dancerId)}
+                  amount={amounts[r.id] ?? ""}
+                  onAmountChange={(v) => setAmountFor(r.id, v)}
+                  selected={selected.has(r.id)}
                   onToggle={() =>
                     setSelected((prev) => {
                       const next = new Set(prev);
-                      if (next.has(r.dancerId)) next.delete(r.dancerId);
-                      else next.add(r.dancerId);
+                      if (next.has(r.id)) next.delete(r.id);
+                      else next.add(r.id);
                       return next;
                     })
                   }
@@ -548,6 +556,9 @@ function DancerRow({
     const fd = new FormData();
     fd.set("project_id", projectId);
     fd.set("dancer_id", row.dancerId);
+    // 기존 행은 id로 특정한다 — 겸직(복수 role)에서 (project, dancer)는 유일하지 않다.
+    fd.set("settlement_id", row.id);
+    fd.set("role", row.role);
     fd.set("gross_amount", amount);
     startTransition(async () => {
       const res = await setSettlementAmountAction(fd);
@@ -575,6 +586,11 @@ function DancerRow({
         <div className="flex flex-col gap-1">
           <span className="text-sm font-semibold">{row.dancerName}</span>
           <div className="flex flex-wrap items-center gap-1">
+            {row.role !== "dancer" ? (
+              <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-ink-2">
+                {settlementRoleLabel(row.role)}
+              </span>
+            ) : null}
             {row.origin === "self_collected" ? (
               <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                 셀프 제출
