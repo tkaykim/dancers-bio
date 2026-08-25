@@ -34,13 +34,24 @@ export async function issueVisaPaymentLinkAction(
 
   const { data: application } = await supabase
     .from("dancer_visa_applications")
-    .select("id, payment_status, payment_meta")
+    .select("id, payment_status, payment_meta, payment_order_no, payment_provider, payment_amount_krw, paid_at")
     .eq("id", applicationId)
     .maybeSingle();
 
   if (!application) return { ok: false, error: "지원자를 찾을 수 없습니다." };
-  if (application.payment_status === "paid") {
+  const prevMeta = (application.payment_meta ?? {}) as Record<string, unknown>;
+  const previousProduct = typeof prevMeta.issued_product_slug === "string"
+    ? prevMeta.issued_product_slug
+    : "audition-fee";
+  const movingFromPaidAuditionToProgram =
+    application.payment_status === "paid" &&
+    previousProduct === "audition-fee" &&
+    productSlug === "training-and-placement";
+  if (application.payment_status === "paid" && !movingFromPaidAuditionToProgram) {
     return { ok: false, error: "이미 결제가 완료된 건입니다." };
+  }
+  if (application.payment_status === "link_sent" && previousProduct !== productSlug) {
+    return { ok: false, error: "기존 결제 링크가 아직 대기 중입니다. 기존 결제 상태를 먼저 확인해 주세요." };
   }
 
   let url: string;
@@ -53,13 +64,40 @@ export async function issueVisaPaymentLinkAction(
 
   // 어떤 상품의 링크를 발급했는지 남긴다 — 케이스 포털이 이 값으로
   // "오디션 참가비 카드"와 "프로그램 결제 카드"를 구분해 그린다.
-  const prevMeta = (application.payment_meta ?? {}) as Record<string, unknown>;
+  const completedPayments = Array.isArray(prevMeta.completed_payments)
+    ? prevMeta.completed_payments
+    : [];
+  const archivedPayments = movingFromPaidAuditionToProgram
+    ? [
+        ...completedPayments,
+        {
+          product_slug: previousProduct,
+          status: "paid",
+          order_no: application.payment_order_no,
+          provider: application.payment_provider,
+          amount_krw: application.payment_amount_krw,
+          paid_at: application.paid_at,
+        },
+      ]
+    : completedPayments;
   const { error } = await supabase
     .from("dancer_visa_applications")
     .update({
       payment_status: "link_sent",
       payment_link_sent_at: new Date().toISOString(),
-      payment_meta: { ...prevMeta, issued_product_slug: productSlug },
+      payment_order_no: movingFromPaidAuditionToProgram ? null : application.payment_order_no,
+      payment_provider: movingFromPaidAuditionToProgram ? null : application.payment_provider,
+      payment_amount_krw: movingFromPaidAuditionToProgram ? null : application.payment_amount_krw,
+      paid_at: movingFromPaidAuditionToProgram ? null : application.paid_at,
+      payment_refunded_at: null,
+      payment_meta: {
+        ...prevMeta,
+        issued_product_slug: productSlug,
+        ...(archivedPayments.length > 0 ? { completed_payments: archivedPayments } : {}),
+      },
+      ...(productSlug === "training-and-placement"
+        ? { case_stage: "contract_and_payment", status: "reviewing" }
+        : {}),
       next_action: "결제 링크 발송 — 입금 대기",
     })
     .eq("id", applicationId);

@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
   const { data: current, error: readError } = await admin
     .from("dancer_visa_applications")
-    .select("id, email, payment_status, payment_order_no")
+    .select("id, email, payment_status, payment_order_no, payment_meta, contract_status")
     .eq("id", applicationId)
     .maybeSingle();
 
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
   if (event === "paid" && payerEmail && payerEmail !== (current.email ?? "").toLowerCase()) {
     const { data: byEmail } = await admin
       .from("dancer_visa_applications")
-      .select("id, email, payment_status, payment_order_no")
+      .select("id, email, payment_status, payment_order_no, payment_meta, contract_status")
       .ilike("email", payerEmail)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
   if (event === "refunded") {
     const { data: holder } = await admin
       .from("dancer_visa_applications")
-      .select("id, email, payment_status, payment_order_no")
+      .select("id, email, payment_status, payment_order_no, payment_meta, contract_status")
       .eq("payment_order_no", orderNo)
       .limit(1)
       .maybeSingle();
@@ -128,12 +128,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, deduped: true });
   }
 
-  const enrichedMeta = {
+  const enrichedMeta: Record<string, unknown> = {
+    ...((target.payment_meta ?? {}) as Record<string, unknown>),
     ...(meta ?? {}),
     ...(payerEmail ? { payer_email: payerEmail } : {}),
     ...(target.id !== current.id ? { rerouted_from_case: current.id } : {}),
     ...(payerMismatch ? { payer_email_mismatch: true } : {}),
   };
+  const isProgramPayment = enrichedMeta.issued_product_slug === "training-and-placement";
 
   const patch =
     event === "paid"
@@ -145,9 +147,14 @@ export async function POST(request: NextRequest) {
           paid_at: occurredAt,
           payment_refunded_at: null,
           payment_meta: enrichedMeta,
+          ...(isProgramPayment && target.contract_status === "signed"
+            ? { case_stage: "visa_documents_basic", status: "documents" }
+            : {}),
           next_action: payerMismatch
             ? "결제 완료 — 결제자 이메일이 케이스와 달라 확인 필요"
-            : "결제 완료 — 다음 단계 안내",
+            : isProgramPayment
+              ? "프로그램 등록 결제 완료 — 계약 상태 확인"
+              : "오디션 참석비 결제 완료 — 다음 단계 안내",
         }
       : {
           payment_status: "refunded",

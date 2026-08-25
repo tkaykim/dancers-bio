@@ -37,6 +37,10 @@ type CaseRow = {
   training_status?: string | null;
   monthly_evaluation_at?: string | null;
   monthly_evaluation_result?: string | null;
+  contract_status?: string | null;
+  basic_documents_status?: string | null;
+  detailed_documents_status?: string | null;
+  visa_issued_at?: string | null;
   next_action?: string | null;
   base_price_krw?: number | null;
   quoted_price_krw?: number | null;
@@ -162,6 +166,10 @@ export default async function VisaCasePage({
     trainingStatus: row.training_status ?? "not_required",
     monthlyEvaluationAt: row.monthly_evaluation_at ?? null,
     monthlyEvaluationResult: row.monthly_evaluation_result ?? "pending",
+    contractStatus: row.contract_status ?? "not_started",
+    basicDocumentsStatus: row.basic_documents_status ?? "not_started",
+    detailedDocumentsStatus: row.detailed_documents_status ?? "not_started",
+    visaIssuedAt: row.visa_issued_at ?? null,
     nextAction: row.next_action ?? null,
     meetingAt: (meetingInvite?.meeting_at as string | null) ?? null,
     meetingUrl: (meetingInvite?.meeting_url as string | null) ?? null,

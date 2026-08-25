@@ -43,6 +43,10 @@ type AppRow = {
   training_status?: string | null;
   monthly_evaluation_at?: string | null;
   monthly_evaluation_result?: string | null;
+  contract_status?: string | null;
+  basic_documents_status?: string | null;
+  detailed_documents_status?: string | null;
+  visa_issued_at?: string | null;
   base_price_krw?: number | null;
   quoted_price_krw?: number | null;
   quote_note?: string | null;
@@ -270,6 +274,10 @@ export default async function AdminVisaPage() {
       training_status: a.training_status ?? "not_required",
       monthly_evaluation_at: a.monthly_evaluation_at ?? null,
       monthly_evaluation_result: a.monthly_evaluation_result ?? "pending",
+      contract_status: a.contract_status ?? "not_started",
+      basic_documents_status: a.basic_documents_status ?? "not_started",
+      detailed_documents_status: a.detailed_documents_status ?? "not_started",
+      visa_issued_at: a.visa_issued_at ?? null,
       base_price_krw: a.base_price_krw ?? 4_000_000,
       quoted_price_krw: a.quoted_price_krw ?? null,
       quote_note: a.quote_note ?? null,

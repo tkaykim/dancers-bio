@@ -60,6 +60,10 @@ export type VisaCaseInitial = {
   trainingStatus: string;
   monthlyEvaluationAt: string | null;
   monthlyEvaluationResult: string;
+  contractStatus: string;
+  basicDocumentsStatus: string;
+  detailedDocumentsStatus: string;
+  visaIssuedAt: string | null;
   nextAction: string | null;
   // 확정된 온라인 미팅 (visa_meeting_invites 최신 sent 행)
   meetingAt: string | null;
@@ -851,6 +855,10 @@ export function VisaCasePortal({
           trainingEndDate: initial.trainingEndDate,
           monthlyEvaluationAt: initial.monthlyEvaluationAt,
           monthlyEvaluationResult: initial.monthlyEvaluationResult,
+          contractStatus: initial.contractStatus,
+          basicDocumentsStatus: initial.basicDocumentsStatus,
+          detailedDocumentsStatus: initial.detailedDocumentsStatus,
+          visaIssuedAt: initial.visaIssuedAt,
           paymentStatus: initial.paymentStatus,
           paymentProductSlug: initial.paymentProductSlug,
           paymentUrl: initial.paymentUrl,
