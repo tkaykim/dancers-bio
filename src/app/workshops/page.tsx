@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { WorkshopsLanding } from "@/components/workshops/WorkshopsLanding";
 import type { Lang } from "@/components/workshops/copy";
 import { getUser } from "@/lib/auth/guard";
-import { listPublicWorkshopArtists, listWorkshopWishes } from "@/lib/workshops/queries";
+import { listPublicWorkshopArtists, listRequestedArtists } from "@/lib/workshops/queries";
 import { listOpenEvents } from "@/lib/workshops/event-queries";
 
 // deetz Workshop — 수요 기반 안무가 초청 (ko/en/ja).
@@ -27,20 +27,18 @@ export default async function WorkshopsPage({
   const explicit = lang === "ko" || lang === "en" || lang === "ja" || lang === "th";
   const initialLang: Lang = explicit ? (lang as Lang) : "ko";
 
-  const [artists, wishes, openEvents, user] = await Promise.all([
+  const [artists, requested, openEvents, user] = await Promise.all([
     listPublicWorkshopArtists(),
-    listWorkshopWishes(),
+    listRequestedArtists(),
     listOpenEvents(),
     getUser(),
   ]);
   const recruiting = artists.filter((a) => a.status === "recruiting");
-  const candidates = artists.filter((a) => a.status !== "recruiting");
 
   return (
     <WorkshopsLanding
       recruiting={recruiting}
-      candidates={candidates}
-      wishes={wishes}
+      requested={requested}
       openEvents={openEvents}
       isLoggedIn={!!user}
       initialLang={initialLang}

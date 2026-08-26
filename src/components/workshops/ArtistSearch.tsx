@@ -1,14 +1,41 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { Search } from "lucide-react";
 
 import { searchWorkshopArtistsAction, type WorkshopSearchResult } from "@/app/actions/workshops";
 import { cn } from "@/lib/utils";
+import type { ProfileTarget } from "./ArtistProfileModal";
 import { InstagramGlyph } from "./InstagramGlyph";
 import { T, type Lang } from "./copy";
 import { VoteBox } from "./VoteBox";
+
+/** 검색 결과 → 프로필 모달 타깃 매핑. 검색 응답에는 수요 수가 없으므로(D1) 구간도 싣지 않는다. */
+export function searchResultToProfile(r: WorkshopSearchResult): ProfileTarget {
+  const isDancer = r.source === "dancer";
+  const listedBadge =
+    r.status === "published"
+      ? ("official" as const)
+      : r.status === "confirmed"
+        ? ("confirmed" as const)
+        : r.status === "completed"
+          ? ("completed" as const)
+          : null;
+  return {
+    artistId: isDancer ? undefined : r.id,
+    nominate: isDancer ? { name: r.name, instagramHandle: r.instagram_handle } : undefined,
+    name: r.name,
+    instagram_handle: r.instagram_handle,
+    genres: r.genres ?? [],
+    country: r.country,
+    headline: r.headline,
+    image_url: r.image_url,
+    badge: isDancer ? "dancer" : listedBadge,
+    demand_band: null,
+    slug: !isDancer && r.status !== "suggested" ? r.slug : null,
+    dancerSlug: isDancer ? r.slug : null,
+  };
+}
 
 const inputClass =
   "w-full rounded-lg border border-hairline-2 bg-background py-3 pl-10 pr-3.5 text-sm text-foreground outline-none transition-colors placeholder:text-ink-4 focus:border-foreground/40";
@@ -22,10 +49,12 @@ export function ArtistSearch({
   isLoggedIn,
   lang,
   onManualRequest,
+  onOpenProfile,
 }: {
   isLoggedIn: boolean;
   lang: Lang;
   onManualRequest: (query: string) => void;
+  onOpenProfile: (target: ProfileTarget) => void;
 }) {
   const c = T[lang];
   const [q, setQ] = useState("");
@@ -79,12 +108,36 @@ export function ArtistSearch({
         />
       </div>
 
+      {!q.trim() ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-[12px] font-semibold text-ink-3">{c.chipsTitle}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {c.chips.map((chip) => (
+              <button
+                key={chip.label}
+                type="button"
+                onClick={() => onQueryChange(chip.q)}
+                className="rounded-full border border-hairline-2 bg-card px-3 py-1.5 text-[12.5px] font-semibold text-ink-2 transition-colors hover:border-foreground/40 hover:text-foreground"
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {searching ? <p className="text-[12px] text-ink-4">{c.searchSearching}</p> : null}
 
       {results.length > 0 ? (
         <div className="flex flex-col gap-2">
           {results.map((r) => (
-            <SearchResultRow key={r.id} result={r} isLoggedIn={isLoggedIn} lang={lang} />
+            <SearchResultRow
+              key={r.id}
+              result={r}
+              isLoggedIn={isLoggedIn}
+              lang={lang}
+              onOpen={() => onOpenProfile(searchResultToProfile(r))}
+            />
           ))}
         </div>
       ) : null}
@@ -113,10 +166,12 @@ function SearchResultRow({
   result,
   isLoggedIn,
   lang,
+  onOpen,
 }: {
   result: WorkshopSearchResult;
   isLoggedIn: boolean;
   lang: Lang;
+  onOpen: () => void;
 }) {
   const c = T[lang];
   const isDancer = result.source === "dancer";
@@ -125,7 +180,8 @@ function SearchResultRow({
 
   return (
     <div className="rounded-xl border border-hairline-2 bg-card p-3">
-      <div className="flex items-center gap-3">
+      {/* 행 클릭 = deetz 프로필 모달 (인스타 이탈 아님) */}
+      <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 text-left">
         <div className="size-11 shrink-0 overflow-hidden rounded-lg bg-secondary">
           {result.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -138,16 +194,7 @@ function SearchResultRow({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            {listed ? (
-              <Link
-                href={`/workshops/${result.slug}`}
-                className="truncate text-sm font-bold text-foreground hover:underline"
-              >
-                {result.name}
-              </Link>
-            ) : (
-              <span className="truncate text-sm font-bold text-foreground">{result.name}</span>
-            )}
+            <span className="truncate text-sm font-bold text-foreground">{result.name}</span>
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-[10px] font-bold",
@@ -168,7 +215,7 @@ function SearchResultRow({
             <p className="mt-0.5 truncate text-[11.5px] text-ink-4">{result.headline}</p>
           ) : null}
         </div>
-      </div>
+      </button>
       {isDancer ? (
         // deetz 댄서 풀 결과 — 카드가 아직 없으므로 nominate 경로로 제출(서버가 카드 생성·수요 합산)
         <VoteBox

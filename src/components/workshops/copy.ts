@@ -75,17 +75,31 @@ export type WorkshopCopy = {
   minReached: string;
   depositLabel: (amount: string) => string;
 
-  candidatesTitle: string;
-  candidatesSub: string;
-  candidatesEmpty: string;
+  /**
+   * 크라우드펀딩식 단일 그리드 — 유저 요청(suggested·실수요 1+)과 운영 발행(published+)을
+   * 한 리스트로 합치고 단계는 뱃지로만 구분한다. 카드 클릭 = deetz 프로필 모달(인스타 이탈 아님).
+   */
+  requestedTitle: string;
+  requestedSub: string;
+  requestedEmpty: string;
+  /** published 이상 = deetz 가 검토·섭외 착수한 카드 표시. */
+  officialBadge: string;
   confirmedBadge: string;
   completedBadge: string;
   /** 수요 표시는 정확 수 대신 구간만 (D1 — 경쟁 노출 차단 + 초기 카드 썰렁함 방지). */
   demandBand: Record<DemandBand, string>;
 
-  wishesTitle: string;
-  wishesSub: string;
-  wishesMergeNote: string;
+  /** 콜드스타트 탐색 보조 — 검색창 아래 추천 검색 칩. */
+  chipsTitle: string;
+  chips: Array<{ label: string; q: string }>;
+
+  /** 프로필 모달 */
+  modalInsta: string;
+  modalDeetzProfile: string;
+  modalGoDetail: string;
+
+  /** 수요 0 → 1 첫 요청 축하 (콜드스타트 동기 부여) */
+  firstVoteNote: string;
 
   searchPh: string;
   searchSearching: string;
@@ -157,7 +171,7 @@ export const T: Record<Lang, WorkshopCopy> = {
     sub: "deetz는 주기적으로 워크샵을 운영합니다. 배우고 싶은 안무가, 한국에 꼭 왔으면 하는 안무가가 있다면 알려주세요. 여러분의 수요를 확인해 다음 워크샵 라인업을 구상하는 데 참고합니다.",
     heroNote: "제안과 수요 등록은 무료입니다. 예약금은 모집이 열린 워크샵에만 받고, 최소 인원 미달로 열리지 않으면 전액 환불됩니다.",
     ctaNominate: "안무가 제안하기",
-    ctaBrowse: "후보 카드 보기",
+    ctaBrowse: "요청 현황 보기",
     loginLabel: "로그인",
 
     eventsTitle: "열린 워크샵",
@@ -174,9 +188,10 @@ export const T: Record<Lang, WorkshopCopy> = {
     minReached: "최소 인원 달성 — 확정 준비 중입니다.",
     depositLabel: (a) => `예약금 ${a}`,
 
-    candidatesTitle: "후보 안무가",
-    candidatesSub: "수요가 모일수록 섭외 우선순위가 올라갑니다. 찾는 안무가가 없다면 직접 제안해 주세요.",
-    candidatesEmpty: "아직 공개된 후보가 없습니다. 첫 번째 안무가를 제안해 주세요.",
+    requestedTitle: "지금 요청되고 있는 안무가",
+    requestedSub: "카드를 누르면 프로필을 볼 수 있어요. 수요가 모이면 deetz가 섭외를 시작하고, 협의가 진행되면 예약 모집이 열립니다.",
+    requestedEmpty: "아직 요청된 안무가가 없어요. 위 검색창에서 첫 번째로 요청해 보세요.",
+    officialBadge: "공식 후보",
     confirmedBadge: "초청 확정",
     completedBadge: "진행 완료",
     demandBand: {
@@ -187,9 +202,23 @@ export const T: Record<Lang, WorkshopCopy> = {
       "100+": "100명+ 기다려요",
     },
 
-    wishesTitle: "다른 댄서들은 이런 안무가를 희망했어요",
-    wishesSub: "최근 제안된 안무가들입니다. 수요가 모이면 후보 카드로 공개되고 섭외가 시작됩니다.",
-    wishesMergeNote: "같은 안무가를 원하시면 검색해서 '나도 원해요'를 눌러주세요. 수요가 자동으로 합산됩니다.",
+    chipsTitle: "이런 안무가·장르로 찾아보세요",
+    chips: [
+      { label: "RIEHATA", q: "riehata" },
+      { label: "Kyle Hanagami", q: "kyle hanagami" },
+      { label: "Bailey Sok", q: "bailey sok" },
+      { label: "Parris Goebel", q: "parris" },
+      { label: "Heels", q: "heels" },
+      { label: "Breaking", q: "breaking" },
+      { label: "Popping", q: "popping" },
+      { label: "K-Pop", q: "k-pop" },
+    ],
+
+    modalInsta: "인스타그램에서 보기",
+    modalDeetzProfile: "deetz 프로필 보기",
+    modalGoDetail: "모집 페이지 보기",
+
+    firstVoteNote: "첫 번째 요청이에요! 수요의 시작을 만드셨어요.",
 
     searchPh: "안무가 이름 또는 @인스타 아이디",
     searchSearching: "검색 중…",
@@ -279,7 +308,7 @@ export const T: Record<Lang, WorkshopCopy> = {
     sub: "deetz runs workshops on a regular basis. Tell us which choreographer you want to learn from. Your demand shapes the next workshop lineup.",
     heroNote: "Suggesting and voting are free. Deposits are only collected once recruiting opens, and are fully refunded if the minimum headcount is not reached.",
     ctaNominate: "Suggest a choreographer",
-    ctaBrowse: "See candidates",
+    ctaBrowse: "See requests",
     loginLabel: "Log in",
 
     eventsTitle: "Upcoming workshops",
@@ -296,9 +325,10 @@ export const T: Record<Lang, WorkshopCopy> = {
     minReached: "Minimum reached — confirming soon.",
     depositLabel: (a) => `Deposit ${a}`,
 
-    candidatesTitle: "Candidates",
-    candidatesSub: "More demand moves a choreographer up the outreach list. Not seeing yours? Suggest them.",
-    candidatesEmpty: "No public candidates yet. Be the first to suggest one.",
+    requestedTitle: "Choreographers being requested",
+    requestedSub: "Tap a card to see the profile. Once demand builds, deetz starts outreach — and recruiting opens when terms are agreed.",
+    requestedEmpty: "No requests yet. Be the first — search above.",
+    officialBadge: "Official candidate",
     confirmedBadge: "Confirmed",
     completedBadge: "Completed",
     demandBand: {
@@ -309,9 +339,23 @@ export const T: Record<Lang, WorkshopCopy> = {
       "100+": "100+ dancers waiting",
     },
 
-    wishesTitle: "Choreographers other dancers wished for",
-    wishesSub: "Recently suggested names. Once demand builds, they become candidate cards and outreach begins.",
-    wishesMergeNote: "Want the same choreographer? Search for them and tap 'I want this too' — demand is merged automatically.",
+    chipsTitle: "Try these names & styles",
+    chips: [
+      { label: "RIEHATA", q: "riehata" },
+      { label: "Kyle Hanagami", q: "kyle hanagami" },
+      { label: "Bailey Sok", q: "bailey sok" },
+      { label: "Parris Goebel", q: "parris" },
+      { label: "Heels", q: "heels" },
+      { label: "Breaking", q: "breaking" },
+      { label: "Popping", q: "popping" },
+      { label: "K-Pop", q: "k-pop" },
+    ],
+
+    modalInsta: "View on Instagram",
+    modalDeetzProfile: "View deetz profile",
+    modalGoDetail: "Go to recruiting page",
+
+    firstVoteNote: "You're the first to request them!",
 
     searchPh: "Name or @instagram handle",
     searchSearching: "Searching…",
@@ -401,7 +445,7 @@ export const T: Record<Lang, WorkshopCopy> = {
     sub: "deetzは定期的にワークショップを開催しています。習ってみたい振付師を教えてください。皆さんのリクエストを次のラインナップづくりの参考にします。",
     heroNote: "提案とリクエスト登録は無料です。予約金は募集が始まったワークショップのみで、最少人数に達しない場合は全額返金されます。",
     ctaNominate: "振付師を提案する",
-    ctaBrowse: "候補を見る",
+    ctaBrowse: "リクエスト状況を見る",
     loginLabel: "ログイン",
 
     eventsTitle: "開催予定のワークショップ",
@@ -418,9 +462,10 @@ export const T: Record<Lang, WorkshopCopy> = {
     minReached: "最少人数に到達 — 確定準備中です。",
     depositLabel: (a) => `予約金 ${a}`,
 
-    candidatesTitle: "候補の振付師",
-    candidatesSub: "リクエストが集まるほど交渉の優先度が上がります。見つからない場合は直接提案してください。",
-    candidatesEmpty: "まだ公開された候補がありません。最初の提案をお待ちしています。",
+    requestedTitle: "リクエスト中の振付師",
+    requestedSub: "カードをタップするとプロフィールが見られます。リクエストが集まるとdeetzが交渉を始め、条件がまとまると募集が開かれます。",
+    requestedEmpty: "まだリクエストがありません。上の検索から最初のリクエストをどうぞ。",
+    officialBadge: "公式候補",
     confirmedBadge: "招へい確定",
     completedBadge: "開催終了",
     demandBand: {
@@ -431,9 +476,23 @@ export const T: Record<Lang, WorkshopCopy> = {
       "100+": "100人以上が待っています",
     },
 
-    wishesTitle: "他のダンサーが希望した振付師",
-    wishesSub: "最近提案された振付師です。リクエストが集まると候補カードとして公開され、交渉が始まります。",
-    wishesMergeNote: "同じ振付師を希望する場合は、検索して「私も習いたい」を押してください。リクエストは自動で合算されます。",
+    chipsTitle: "こんな名前・スタイルで探せます",
+    chips: [
+      { label: "RIEHATA", q: "riehata" },
+      { label: "Kyle Hanagami", q: "kyle hanagami" },
+      { label: "Bailey Sok", q: "bailey sok" },
+      { label: "Parris Goebel", q: "parris" },
+      { label: "Heels", q: "heels" },
+      { label: "Breaking", q: "breaking" },
+      { label: "Popping", q: "popping" },
+      { label: "K-Pop", q: "k-pop" },
+    ],
+
+    modalInsta: "Instagramで見る",
+    modalDeetzProfile: "deetzプロフィールを見る",
+    modalGoDetail: "募集ページへ",
+
+    firstVoteNote: "最初のリクエストです！",
 
     searchPh: "名前または@Instagram ID",
     searchSearching: "検索中…",
@@ -525,7 +584,7 @@ export const T: Record<Lang, WorkshopCopy> = {
     sub: "deetz จัดเวิร์กช็อปกับโคริโอกราเฟอร์ชั้นนำจากเกาหลีอย่างต่อเนื่อง\nบอกเราว่าคุณอยากเรียนกับใคร\nคำขอของคุณจะเป็นตัวกำหนดไลน์อัพเวิร์กช็อปครั้งต่อไปในเมืองของคุณ",
     heroNote: "การเสนอชื่อและการลงคะแนนฟรีทั้งหมด\nค่ามัดจำจะเก็บเฉพาะเวิร์กช็อปที่เปิดรับสมัครแล้ว และคืนเต็มจำนวนหากผู้เข้าร่วมไม่ครบตามขั้นต่ำ",
     ctaNominate: "เสนอชื่อโคริโอกราเฟอร์",
-    ctaBrowse: "ดูรายชื่อผู้เข้าชิง",
+    ctaBrowse: "ดูรายชื่อที่ถูกเสนอ",
     loginLabel: "เข้าสู่ระบบ",
 
     eventsTitle: "เวิร์กช็อปที่เปิดรับสมัคร",
@@ -542,9 +601,10 @@ export const T: Record<Lang, WorkshopCopy> = {
     minReached: "ครบขั้นต่ำแล้ว — กำลังเตรียมยืนยัน",
     depositLabel: (a) => `มัดจำ ${a}`,
 
-    candidatesTitle: "โคริโอกราเฟอร์ผู้เข้าชิง",
-    candidatesSub: "ยิ่งมีคำขอมาก deetz ยิ่งติดต่อเชิญเร็วขึ้น\nถ้าไม่เจอคนที่ตามหา เสนอชื่อได้เลย",
-    candidatesEmpty: "ยังไม่มีผู้เข้าชิง มาเป็นคนแรกที่เสนอชื่อกัน",
+    requestedTitle: "โคริโอกราเฟอร์ที่กำลังถูกเสนอชื่อ",
+    requestedSub: "แตะการ์ดเพื่อดูโปรไฟล์\nเมื่อคำขอมากพอ deetz จะเริ่มติดต่อ และเปิดรับสมัครเมื่อตกลงเงื่อนไขได้",
+    requestedEmpty: "ยังไม่มีการเสนอชื่อ มาเป็นคนแรกได้เลย — ค้นหาด้านบน",
+    officialBadge: "ผู้เข้าชิงอย่างเป็นทางการ",
     confirmedBadge: "ยืนยันแล้ว",
     completedBadge: "จัดเสร็จแล้ว",
     demandBand: {
@@ -555,9 +615,21 @@ export const T: Record<Lang, WorkshopCopy> = {
       "100+": "100+ คนกำลังรอ",
     },
 
-    wishesTitle: "โคริโอกราเฟอร์ที่นักเต้นคนอื่นเสนอชื่อ",
-    wishesSub: "รายชื่อที่ถูกเสนอล่าสุด\nเมื่อมีคำขอมากพอจะเปิดเป็นการ์ดผู้เข้าชิงและเริ่มการเชิญ",
-    wishesMergeNote: "อยากเรียนกับคนเดียวกัน? ค้นหาแล้วกด \"ฉันก็อยากเรียน\" — คำขอจะรวมกันอัตโนมัติ",
+    chipsTitle: "ลองค้นหาชื่อหรือสไตล์เหล่านี้",
+    chips: [
+      { label: "J HO", q: "j ho" },
+      { label: "Emily", q: "emily" },
+      { label: "K-Pop", q: "k-pop" },
+      { label: "Hip Hop", q: "hip hop" },
+      { label: "Choreography", q: "choreography" },
+      { label: "Heels", q: "heels" },
+    ],
+
+    modalInsta: "ดูใน Instagram",
+    modalDeetzProfile: "ดูโปรไฟล์ deetz",
+    modalGoDetail: "ไปหน้ารับสมัคร",
+
+    firstVoteNote: "คุณคือคนแรกที่เสนอชื่อเขา!",
 
     searchPh: "ชื่อ หรือ @instagram",
     searchSearching: "กำลังค้นหา…",

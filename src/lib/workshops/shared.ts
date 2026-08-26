@@ -92,6 +92,15 @@ export function parseDemandBand(raw: unknown): DemandBand {
   return DEMAND_BANDS.includes(raw as DemandBand) ? (raw as DemandBand) : "lt10";
 }
 
+/** 수 → 구간. DB `workshop_demand_band()` 와 같은 컷 — 서버에서 수를 세고 구간만 내보낼 때 쓴다. */
+export function demandBandOf(n: number): DemandBand {
+  if (n >= 100) return "100+";
+  if (n >= 50) return "50+";
+  if (n >= 30) return "30+";
+  if (n >= 10) return "10+";
+  return "lt10";
+}
+
 /** 공개 카드에 demand/예약 집계를 붙인 형태 — 수요는 구간(band)만 싣는다. */
 export type WorkshopArtistPublic = WorkshopArtist & {
   demand_band: DemandBand;

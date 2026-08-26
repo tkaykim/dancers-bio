@@ -77,7 +77,7 @@ export type WorkshopDemandInput = z.input<typeof demandSchema>;
  */
 export async function submitWorkshopDemandAction(
   input: WorkshopDemandInput,
-): Promise<ActionResult<{ artistId: string; already: boolean }>> {
+): Promise<ActionResult<{ artistId: string; already: boolean; isFirst: boolean }>> {
   const parsed = demandSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요." };
@@ -258,19 +258,23 @@ export async function submitWorkshopDemandAction(
     }
   }
 
-  // 3) 운영자 알림 (신규 수요만, 비치명적) — 안무가 단위 30분 스로틀.
+  // 3) 첫 요청 판정 + 운영자 알림 (신규 수요만, 비치명적) — 메일은 안무가 단위 30분 스로틀.
   //    홍보가 터져 수요가 몰릴 때 건당 1통이면 메일함이 마비된다. 스킵된 건은 다음 메일의 누적 수로 확인된다.
+  let isFirst = false;
   if (!already) {
+    const { count } = await admin
+      .from("workshop_demands")
+      .select("id", { count: "exact", head: true })
+      .eq("artist_id", artistId);
+    const demandCount = count ?? 1;
+    isFirst = demandCount === 1;
+
     const throttled =
       !isNewArtist &&
       !!artistOpsNotifiedAt &&
       Date.now() - new Date(artistOpsNotifiedAt).getTime() < OPS_MAIL_THROTTLE_MIN * 60_000;
     if (!throttled) {
       try {
-        const { count } = await admin
-          .from("workshop_demands")
-          .select("id", { count: "exact", head: true })
-          .eq("artist_id", artistId);
         await sendWorkshopNominationOpsMail({
           artistName,
           instagramHandle: artistHandle || normalizeInstagramHandle(d.instagramHandle ?? ""),
@@ -279,7 +283,7 @@ export async function submitWorkshopDemandAction(
           comment: d.comment?.trim() || null,
           contactEmail,
           contactInstagram,
-          demandCount: count ?? 1,
+          demandCount,
         });
         await admin
           .from("workshop_artists")
@@ -292,7 +296,7 @@ export async function submitWorkshopDemandAction(
   }
 
   revalidateWorkshops(artistSlug);
-  return { ok: true, data: { artistId: artistId!, already } };
+  return { ok: true, data: { artistId: artistId!, already, isFirst } };
 }
 
 // ── 어드민: 카드 생성·수정·상태 전환 ────────────────────────────────────────

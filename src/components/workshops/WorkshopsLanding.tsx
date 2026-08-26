@@ -2,19 +2,41 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ChevronDown, Flame, Megaphone, Users } from "lucide-react";
+import { ArrowRight, ChevronDown, Flame, Megaphone } from "lucide-react";
 
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { cn } from "@/lib/utils";
-import { instagramUrl, won, type WorkshopArtistPublic } from "@/lib/workshops/shared";
+import { won, type WorkshopArtistPublic } from "@/lib/workshops/shared";
+import type { RequestedArtist } from "@/lib/workshops/queries";
+import { ArtistProfileModal, type ProfileTarget } from "./ArtistProfileModal";
 import { ArtistSearch } from "./ArtistSearch";
-import { InstagramGlyph } from "./InstagramGlyph";
 import { LANG_STORAGE_KEY, LANGS, T, WORKSHOP_FULL_NAME, splitSentences, type Lang } from "./copy";
 import { NominateForm } from "./NominateForm";
 import { VoteBox } from "./VoteBox";
 
-/** '다른 댄서들이 희망한 안무가' — suggested 카드의 공개 최소 정보 (수요 수는 싣지 않는다 — D1). */
-export type WorkshopWish = { name: string; instagram_handle: string };
+/** 그리드 카드 → 프로필 모달 타깃 매핑. */
+function requestedToProfile(a: RequestedArtist): ProfileTarget {
+  return {
+    artistId: a.id,
+    name: a.name,
+    instagram_handle: a.instagram_handle,
+    genres: a.genres,
+    country: a.country,
+    headline: a.headline,
+    image_url: a.image_url,
+    badge:
+      a.status === "published"
+        ? "official"
+        : a.status === "confirmed"
+          ? "confirmed"
+          : a.status === "completed"
+            ? "completed"
+            : null,
+    demand_band: a.demand_band,
+    slug: a.status !== "suggested" ? a.slug : null,
+    dancerSlug: null,
+  };
+}
 
 /** 개설 행사 카드 — event-queries.listOpenEvents 의 결과. */
 export type OpenEvent = {
@@ -30,16 +52,14 @@ export type OpenEvent = {
 
 export function WorkshopsLanding({
   recruiting,
-  candidates,
-  wishes,
+  requested,
   openEvents,
   isLoggedIn,
   initialLang = "ko",
   lockLang = false,
 }: {
   recruiting: WorkshopArtistPublic[];
-  candidates: WorkshopArtistPublic[];
-  wishes: WorkshopWish[];
+  requested: RequestedArtist[];
   openEvents: OpenEvent[];
   isLoggedIn: boolean;
   initialLang?: Lang;
@@ -51,6 +71,8 @@ export function WorkshopsLanding({
     open: false,
     initialName: "",
   });
+  // 안무가 클릭 = 사이트 안 프로필 모달 (인스타 이탈 아님 — 대표 지시).
+  const [profileTarget, setProfileTarget] = useState<ProfileTarget | null>(null);
 
   const selectLang = (l: Lang) => {
     setLang(l);
@@ -162,7 +184,7 @@ export function WorkshopsLanding({
           <ArrowRight className="size-4" />
         </a>
         <a
-          href="#candidates"
+          href="#requested"
           className="flex items-center justify-center gap-2 rounded-lg border border-hairline-2 px-5 py-4 text-sm font-bold text-foreground transition-colors hover:bg-secondary/50 md:px-10"
         >
           {c.ctaBrowse}
@@ -219,49 +241,50 @@ export function WorkshopsLanding({
         </>
       ) : null}
 
-      {/* 후보 안무가 */}
-      <div id="candidates" className="scroll-mt-20">
-        <SectionTitle>{c.candidatesTitle}</SectionTitle>
+      {/* 안무가 제안 — 검색이 1순위 행동 (콜드스타트: 보여줄 것보다 하게 할 것을 앞에) */}
+      <div id="nominate" className="scroll-mt-20">
+        <SectionTitle>{c.nominateTitle}</SectionTitle>
       </div>
-      <Lines text={c.candidatesSub} className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl" />
-      {candidates.length === 0 && recruiting.length === 0 ? (
+      <Lines text={c.nominateSub} className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl" />
+      <ArtistSearch
+        isLoggedIn={isLoggedIn}
+        lang={lang}
+        onManualRequest={(query) => setManualForm({ open: true, initialName: query })}
+        onOpenProfile={setProfileTarget}
+      />
+      {manualForm.open ? (
+        <div className="mt-4">
+          <NominateForm
+            key={manualForm.initialName}
+            isLoggedIn={isLoggedIn}
+            lang={lang}
+            initialName={manualForm.initialName}
+          />
+        </div>
+      ) : null}
+
+      {/* 지금 요청되고 있는 안무가 — 유저 요청과 공식 후보를 한 그리드로 (크라우드펀딩식 단계 뱃지) */}
+      <div id="requested" className="scroll-mt-20">
+        <SectionTitle>{c.requestedTitle}</SectionTitle>
+      </div>
+      <Lines text={c.requestedSub} className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl" />
+      {requested.length === 0 ? (
         <div className="rounded-xl border border-dashed border-hairline-2 p-8 text-center text-[13px] text-ink-3">
-          {c.candidatesEmpty}
+          {c.requestedEmpty}
         </div>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
-          {candidates.map((a) => (
-            <CandidateCard key={a.id} artist={a} isLoggedIn={isLoggedIn} lang={lang} />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          {requested.map((a) => (
+            <RequestedCard
+              key={a.id}
+              artist={a}
+              isLoggedIn={isLoggedIn}
+              lang={lang}
+              onOpen={() => setProfileTarget(requestedToProfile(a))}
+            />
           ))}
         </div>
       )}
-
-      {/* 다른 댄서들이 희망한 안무가 */}
-      {wishes.length > 0 ? (
-        <>
-          <SectionTitle>{c.wishesTitle}</SectionTitle>
-          <Lines text={c.wishesSub} className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl" />
-          <div className="flex flex-wrap gap-2">
-            {wishes.map((w) => (
-              <span
-                key={w.instagram_handle}
-                className="inline-flex items-center gap-1.5 rounded-full border border-hairline-2 bg-card px-3.5 py-2 text-[13px]"
-              >
-                <span className="font-semibold text-foreground">{w.name}</span>
-                <a
-                  href={instagramUrl(w.instagram_handle)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-ink-3 transition-colors hover:text-foreground"
-                >
-                  @{w.instagram_handle}
-                </a>
-              </span>
-            ))}
-          </div>
-          <Lines text={c.wishesMergeNote} className="mt-3 text-[12px] leading-relaxed text-ink-4" />
-        </>
-      ) : null}
 
       {/* 진행 방식 */}
       <SectionTitle>{c.howTitle}</SectionTitle>
@@ -283,27 +306,6 @@ export function WorkshopsLanding({
           </div>
         ))}
       </div>
-
-      {/* 안무가 제안 — 검색 먼저, 없으면 직접 입력 폴백 */}
-      <div id="nominate" className="scroll-mt-20">
-        <SectionTitle>{c.nominateTitle}</SectionTitle>
-      </div>
-      <Lines text={c.nominateSub} className="mb-4 text-[13px] leading-relaxed text-ink-2 md:max-w-2xl" />
-      <ArtistSearch
-        isLoggedIn={isLoggedIn}
-        lang={lang}
-        onManualRequest={(query) => setManualForm({ open: true, initialName: query })}
-      />
-      {manualForm.open ? (
-        <div className="mt-4">
-          <NominateForm
-            key={manualForm.initialName}
-            isLoggedIn={isLoggedIn}
-            lang={lang}
-            initialName={manualForm.initialName}
-          />
-        </div>
-      ) : null}
 
       {/* 예약금·환불 규정 */}
       <SectionTitle>{c.policyTitle}</SectionTitle>
@@ -331,6 +333,15 @@ export function WorkshopsLanding({
       </div>
 
       <Lines text={c.disclaimer} className="mt-10 text-[11px] leading-relaxed text-ink-4" />
+
+      {profileTarget ? (
+        <ArtistProfileModal
+          target={profileTarget}
+          isLoggedIn={isLoggedIn}
+          lang={lang}
+          onClose={() => setProfileTarget(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -421,74 +432,63 @@ function RecruitingCard({ artist, lang }: { artist: WorkshopArtistPublic; lang: 
   );
 }
 
-/** 후보 카드 — 수요 수 + '나도 원해요'. */
-function CandidateCard({
+/**
+ * 요청 그리드 카드 — 유저 요청과 공식 후보를 같은 카드로, 단계는 뱃지로만 구분.
+ * 카드(이미지·이름) 클릭 = deetz 프로필 모달. 투표 버튼은 카드 안에서 바로.
+ */
+function RequestedCard({
   artist,
   isLoggedIn,
   lang,
+  onOpen,
 }: {
-  artist: WorkshopArtistPublic;
+  artist: RequestedArtist;
   isLoggedIn: boolean;
   lang: Lang;
+  onOpen: () => void;
 }) {
   const c = T[lang];
-  const href = artist.slug ? `/workshops/${artist.slug}` : null;
   const confirmed = artist.status === "confirmed" || artist.status === "completed";
+  const badge =
+    artist.status === "published"
+      ? c.officialBadge
+      : artist.status === "confirmed"
+        ? c.confirmedBadge
+        : artist.status === "completed"
+          ? c.completedBadge
+          : null;
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-hairline-2 bg-card">
-      <div className="relative aspect-[4/3] overflow-hidden">
-        {href ? (
-          <Link href={href} className="absolute inset-0">
-            <ArtistImage artist={artist} />
-          </Link>
-        ) : (
-          <ArtistImage artist={artist} />
-        )}
-        {confirmed ? (
-          <span className="absolute left-3 top-3 rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
-            {artist.status === "completed" ? c.completedBadge : c.confirmedBadge}
-          </span>
-        ) : null}
-      </div>
-      <div className="flex flex-1 flex-col gap-2.5 p-4">
-        <div>
-          <div className="flex items-baseline justify-between gap-2">
-            {href ? (
-              <Link href={href} className="truncate text-base font-bold tracking-tight text-foreground hover:underline">
-                {artist.name}
-              </Link>
-            ) : (
-              <p className="truncate text-base font-bold tracking-tight text-foreground">{artist.name}</p>
-            )}
-            {artist.country ? <span className="shrink-0 text-[11px] text-ink-4">{artist.country}</span> : null}
-          </div>
-          <a
-            href={instagramUrl(artist.instagram_handle)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-0.5 inline-flex items-center gap-1 text-[12px] text-ink-3 transition-colors hover:text-foreground"
-          >
-            <InstagramGlyph className="size-3" />@{artist.instagram_handle}
-          </a>
-        </div>
-        {artist.genres.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {artist.genres.slice(0, 4).map((g) => (
-              <span key={g} className="rounded-full bg-secondary px-2 py-0.5 text-[11px] text-ink-2">
-                {g}
+      <button type="button" onClick={onOpen} className="text-left">
+        <div className="relative aspect-square overflow-hidden bg-secondary">
+          {artist.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={artist.image_url} alt={artist.name} className="size-full object-cover" loading="lazy" />
+          ) : (
+            <div className="flex size-full items-center justify-center">
+              <span className="text-3xl font-bold tracking-tight text-ink-4">
+                {artist.name.trim().charAt(0).toUpperCase()}
               </span>
-            ))}
-          </div>
-        ) : null}
-        {artist.headline ? <p className="line-clamp-2 text-[12px] leading-relaxed text-ink-3">{artist.headline}</p> : null}
-        <div className="mt-auto flex flex-col gap-2 pt-1">
-          <p className="flex items-center gap-1.5 text-[12px] font-semibold text-foreground">
-            <Users className="size-3.5 text-ink-3" />
-            {c.demandBand[artist.demand_band]}
-          </p>
-          {!confirmed ? <VoteBox artistId={artist.id} isLoggedIn={isLoggedIn} lang={lang} /> : null}
+            </div>
+          )}
+          {badge ? (
+            <span className="absolute left-2.5 top-2.5 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
+              {badge}
+            </span>
+          ) : null}
         </div>
+        <div className="px-3 pt-2.5">
+          <p className="truncate text-[14px] font-bold tracking-tight text-foreground">{artist.name}</p>
+          <p className="truncate text-[11.5px] text-ink-3">
+            @{artist.instagram_handle}
+            {artist.genres.length > 0 ? ` · ${artist.genres.slice(0, 2).join(" · ")}` : ""}
+          </p>
+          <p className="mt-1 text-[11.5px] font-semibold text-foreground">{c.demandBand[artist.demand_band]}</p>
+        </div>
+      </button>
+      <div className="mt-auto p-3 pt-2">
+        {!confirmed ? <VoteBox artistId={artist.id} isLoggedIn={isLoggedIn} lang={lang} /> : null}
       </div>
     </div>
   );

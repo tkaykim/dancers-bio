@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   DEMAND_BANDS,
   PUBLIC_STATUSES,
+  demandBandOf,
   parseDemandBand,
   type DemandBand,
   type WorkshopArtist,
@@ -88,46 +89,80 @@ export async function getPublicWorkshopArtistBySlug(slug: string): Promise<Works
   return withCounts([data as WorkshopArtist], counts)[0] ?? null;
 }
 
-// ── '다른 댄서들이 희망한 안무가' ───────────────────────────────────────────
-// suggested 카드는 RLS 가 anon 에게 숨기므로(공개 카드 아님) 서버에서 service-role 로 읽되,
-// 이름·핸들만 내보낸다(제출자 연락처·수요 수는 절대 포함하지 않는다 — D1).
-// 정렬은 최신 제안순 — 수요순으로 두면 수를 지워도 순위가 새어 나간다.
-// 실제 수요가 1건 이상 붙은 카드만 노출한다 — 시드 카탈로그(검색 전용)가 위시로 새면
-// 아무도 원한 적 없는 이름이 사회적 증거처럼 보인다.
+// ── '지금 요청되고 있는 안무가' (크라우드펀딩식 단일 그리드) ─────────────────
+// 유저 요청(suggested — 실수요 1건 이상)과 운영 발행(published/confirmed/completed)을
+// 한 리스트로 합치고 단계는 뱃지로만 구분한다. recruiting 은 별도 상단 섹션.
+// suggested 는 RLS 가 anon 에게 숨기므로 서버에서 service-role 로 읽되,
+// 카드 표시 정보만 내보낸다 — 제출자 연락처·정확한 수요 수는 절대 포함하지 않는다(D1).
+// 정렬은 최신 수요 활동순 — 수요량 순으로 두면 수를 지워도 순위가 새어 나간다.
+// 시드 카탈로그(수요 0)는 노출하지 않는다 — 아무도 원한 적 없는 이름이 사회적 증거처럼 보이면 안 된다.
 
-export type WorkshopWishRow = { name: string; instagram_handle: string };
+export type RequestedArtist = {
+  id: string;
+  name: string;
+  instagram_handle: string;
+  genres: string[];
+  country: string | null;
+  headline: string | null;
+  image_url: string | null;
+  status: string;
+  slug: string | null;
+  demand_band: DemandBand;
+};
 
-export async function listWorkshopWishes(limit = 24): Promise<WorkshopWishRow[]> {
+export async function listRequestedArtists(limit = 60): Promise<RequestedArtist[]> {
   const admin = createAdminClient();
   const { data: artists } = await admin
     .from("workshop_artists")
-    .select("id, name, instagram_handle, created_at")
-    .eq("status", "suggested")
+    .select("id, name, instagram_handle, genres, country, headline, image_url, status, slug, created_at")
+    .in("status", ["suggested", "published", "confirmed", "completed"])
     .order("created_at", { ascending: false })
-    .limit(200);
-  const rows = (artists ?? []) as { id: string; name: string; instagram_handle: string; created_at: string }[];
+    .limit(500);
+  const rows = (artists ?? []) as Array<{
+    id: string;
+    name: string;
+    instagram_handle: string;
+    genres: string[] | null;
+    country: string | null;
+    headline: string | null;
+    image_url: string | null;
+    status: string;
+    slug: string | null;
+    created_at: string;
+  }>;
   if (rows.length === 0) return [];
 
-  const { data: demands } = await admin
-    .from("workshop_demands")
-    .select("artist_id, created_at")
-    .in(
-      "artist_id",
-      rows.map((r) => r.id),
-    );
+  const { data: demands } = await admin.from("workshop_demands").select("artist_id, created_at");
+  const counts = new Map<string, number>();
   const lastDemandAt = new Map<string, string>();
   for (const d of demands ?? []) {
     const id = d.artist_id as string;
     const at = d.created_at as string;
+    counts.set(id, (counts.get(id) ?? 0) + 1);
     const prev = lastDemandAt.get(id);
     if (!prev || at > prev) lastDemandAt.set(id, at);
   }
 
   return rows
-    .filter((r) => lastDemandAt.has(r.id))
-    .sort((a, b) => (lastDemandAt.get(b.id) ?? "").localeCompare(lastDemandAt.get(a.id) ?? ""))
+    .filter((r) => (r.status === "suggested" ? (counts.get(r.id) ?? 0) >= 1 : true))
+    .sort((a, b) => {
+      const la = lastDemandAt.get(a.id) ?? a.created_at;
+      const lb = lastDemandAt.get(b.id) ?? b.created_at;
+      return lb.localeCompare(la);
+    })
     .slice(0, limit)
-    .map((r) => ({ name: r.name, instagram_handle: r.instagram_handle }));
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      instagram_handle: r.instagram_handle,
+      genres: r.genres ?? [],
+      country: r.country,
+      headline: r.headline,
+      image_url: r.image_url,
+      status: r.status,
+      slug: r.slug,
+      demand_band: demandBandOf(counts.get(r.id) ?? 0),
+    }));
 }
 
 // ── 내 예약 ────────────────────────────────────────────────────────────────
