@@ -98,7 +98,7 @@ export function ArtistProfileModal({
             <X className="size-4" />
           </button>
           {badgeLabel ? (
-            {/* uppercase 금지 — "deetz" 브랜드 소문자 표기 규칙 */}
+            // uppercase 클래스 금지 — "deetz" 브랜드 소문자 표기 규칙
             <span
               className={cn(
                 "absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold",
