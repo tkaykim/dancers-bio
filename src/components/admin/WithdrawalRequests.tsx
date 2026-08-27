@@ -301,8 +301,8 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
             className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-ink-2"
           >
             <option value="all">상태 전체</option>
-            <option value="requested">출금신청</option>
-            <option value="pending">정산대기·완료</option>
+            <option value="requested">출금신청(이체 대기)</option>
+            <option value="pending">정산 확정·대기</option>
             <option value="paid">입금완료</option>
             <option value="cancelled">취소</option>
           </select>
@@ -398,7 +398,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
       ) : null}
 
       {!normalizedQuery || requested.length > 0 ? (
-        <Section title="출금신청" count={requested.length} empty="처리할 출금 신청이 없어요.">
+        <Section title="출금신청 · 이체 대기" count={requested.length} empty="처리할 출금 신청이 없어요.">
           {requested.map((r) => (
             <Row
               key={r.id}
@@ -416,7 +416,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
       ) : null}
 
       {awaiting.length > 0 ? (
-        <Section title="정산완료 · 출금신청 전" count={awaiting.length}>
+        <Section title="정산 확정 · 출금신청 전" count={awaiting.length}>
           {awaiting.map((r) => (
             <Row
               key={r.id}
@@ -434,7 +434,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
       ) : null}
 
       {awaitingAmount.length > 0 ? (
-        <Section title="정산대기 · 금액 미입력" count={awaitingAmount.length}>
+        <Section title="정산 확정 대기 · 금액 미입력" count={awaitingAmount.length}>
           {awaitingAmount.map((r) => (
             <Row key={r.id} row={r} number={displayNumberById.get(r.id)} onOpen={() => setSelectedId(r.id)} />
           ))}

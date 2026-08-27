@@ -15,6 +15,7 @@ import {
 } from "@/components/settlement/MySettlements";
 import type { DancerDocsState } from "@/components/settlement/DancerDocuments";
 import { settlementRoleLabel, type SettlementStatus } from "@/lib/settlement";
+import { expectedPayoutLabel } from "@/lib/payout-schedule";
 import {
   isPayoutAccountValid,
   isPayoutInfoComplete,
@@ -125,7 +126,9 @@ export default async function WithdrawSharePage({
   // 겸직(출연료+교통비 등)이면 행이 여러 개다 — 전부 보여준다.
   const { data: sList } = await admin
     .from("settlements")
-    .select("id, role, gross_amount, withholding_rate, status, paid_at")
+    .select(
+      "id, role, gross_amount, withholding_rate, status, created_at, requested_at, paid_at",
+    )
     .eq("project_id", projectId)
     .eq("dancer_id", dancerId)
     .neq("status", "cancelled")
@@ -136,6 +139,8 @@ export default async function WithdrawSharePage({
     gross_amount: number | null;
     withholding_rate: number;
     status: string;
+    created_at: string | null;
+    requested_at: string | null;
     paid_at: string | null;
   }>;
 
@@ -145,7 +150,8 @@ export default async function WithdrawSharePage({
         <div className="rounded-2xl border border-border bg-card p-5 text-center text-sm text-ink-2">
           아직 정산 금액이 등록되지 않았어요.
           <br />
-          담당자가 금액을 확정하면 여기에서 출금 신청할 수 있어요.
+          담당자가 금액을 확정하면 알림을 드리고, 확정된 금액은 출금 가능
+          잔액에 반영돼요.
         </div>
       </Shell>
     );
@@ -174,7 +180,12 @@ export default async function WithdrawSharePage({
     grossAmount: s.gross_amount as number,
     rate: Number(s.withholding_rate),
     status: s.status as SettlementStatus,
+    createdAt: s.created_at,
     paidAt: s.paid_at,
+    expectedPayoutLabel:
+      s.status === "requested"
+        ? expectedPayoutLabel(s.requested_at ?? s.created_at ?? new Date())
+        : null,
   }));
   const accounts: Record<string, PayoutAccount | null> = {
     [dancerId]:
@@ -204,6 +215,7 @@ export default async function WithdrawSharePage({
         docs={docs}
         dancerNames={{ [dancerId]: dancerName }}
         brandName={BRAND_META[brand].orgName}
+        variant="share"
       />
     </Shell>
   );

@@ -15,12 +15,19 @@ import {
   type MySettlementRow,
   type PayoutAccount,
 } from "@/components/settlement/MySettlements";
+import { SettlementSummary } from "@/components/settlement/SettlementSummary";
 import type { DancerDocsState } from "@/components/settlement/DancerDocuments";
 import {
   calcSettlement,
+  isAwaitingAmount,
   settlementRoleLabel,
   type SettlementStatus,
 } from "@/lib/settlement";
+import {
+  expectedPayoutLabel,
+  kstYear,
+  nextPayoutLabel,
+} from "@/lib/payout-schedule";
 import {
   isPayoutAccountValid,
   isPayoutInfoComplete,
@@ -60,7 +67,7 @@ export default async function MySettlementsPage() {
     const { data: sRows } = await supabase
       .from("settlements")
       .select(
-        "id, dancer_id, role, gross_amount, withholding_rate, status, requested_at, paid_at, project:projects!settlements_project_id_fkey ( title )",
+        "id, dancer_id, role, gross_amount, withholding_rate, status, created_at, requested_at, paid_at, project:projects!settlements_project_id_fkey ( title )",
       )
       .in("dancer_id", dancerIds)
       .neq("status", "cancelled")
@@ -73,6 +80,7 @@ export default async function MySettlementsPage() {
       gross_amount: number;
       withholding_rate: number;
       status: SettlementStatus;
+      created_at: string | null;
       requested_at: string | null;
       paid_at: string | null;
       project: { title: string } | { title: string }[] | null;
@@ -92,7 +100,12 @@ export default async function MySettlementsPage() {
         grossAmount: r.gross_amount,
         rate: Number(r.withholding_rate),
         status: r.status,
+        createdAt: r.created_at,
         paidAt: r.paid_at,
+        expectedPayoutLabel:
+          r.status === "requested"
+            ? expectedPayoutLabel(r.requested_at ?? r.created_at ?? new Date())
+            : null,
       };
     });
 
@@ -142,28 +155,50 @@ export default async function MySettlementsPage() {
   // 잔액은 이미 세후이므로 여기서 추가 공제가 없다.
   const balanceByDancer: Record<string, { balance: number; available: number }> = {};
   const pendingByDancer: Record<string, PendingWithdrawal[]> = {};
+  // 받은 정산(연도별) = 구 경로 paid 정산 실수령 + 잔액 출금 paid 금액.
+  // 잔액 일원화 이후의 실입금은 withdrawal_requests(paid)로만 남아서,
+  // 정산 paid만 합치면 새 경로 입금이 통째로 빠진다.
+  const receivedByYear: Record<number, number> = {};
+  let processingTotal = 0;
+  let processingCount = 0;
   if (dancerIds.length > 0) {
     const svc = createAdminClient();
     const [{ data: ledgerRows }, { data: wrRows }] = await Promise.all([
       svc.from("dancer_ledger_entries").select("dancer_id, amount").in("dancer_id", dancerIds),
       svc
         .from("withdrawal_requests")
-        .select("id, dancer_id, amount, requested_at, bank_name, bank_account_number, status")
+        .select(
+          "id, dancer_id, amount, requested_at, paid_at, bank_name, bank_account_number, status",
+        )
         .in("dancer_id", dancerIds)
-        .eq("status", "requested")
+        .in("status", ["requested", "paid"])
         .order("requested_at", { ascending: false }),
     ]);
+    type WrRow = {
+      id: string;
+      dancer_id: string;
+      amount: number;
+      requested_at: string;
+      paid_at: string | null;
+      bank_name: string | null;
+      bank_account_number: string | null;
+      status: string;
+    };
+    const withdrawals = (wrRows ?? []) as WrRow[];
+    for (const wr of withdrawals) {
+      if (wr.status === "paid" && wr.paid_at) {
+        const year = kstYear(wr.paid_at);
+        receivedByYear[year] = (receivedByYear[year] ?? 0) + Number(wr.amount);
+      }
+    }
     for (const id of dancerIds) {
       const bal = (ledgerRows ?? [])
         .filter((r) => (r as { dancer_id: string }).dancer_id === id)
         .reduce((sum, r) => sum + Number((r as { amount: number }).amount), 0);
-      const reqs = (wrRows ?? []).filter(
-        (r) => (r as { dancer_id: string }).dancer_id === id,
+      const reqs = withdrawals.filter(
+        (r) => r.dancer_id === id && r.status === "requested",
       );
-      const held = reqs.reduce(
-        (sum, r) => sum + Number((r as { amount: number }).amount),
-        0,
-      );
+      const held = reqs.reduce((sum, r) => sum + Number(r.amount), 0);
       // ⚠ 이행기: 잔액 출금으로 일원화하기 전에 이미 '출금신청'된 정산 건이
       // 관리자 큐에서 이체를 기다리고 있다. 그 금액도 예약으로 빼지 않으면
       // 같은 돈을 잔액에서 또 신청할 수 있다(구 경로 + 신 경로 = 이중 지급).
@@ -173,18 +208,12 @@ export default async function MySettlementsPage() {
           (sum, x) => sum + calcSettlement(x.grossAmount ?? 0, x.rate).net,
           0,
         );
+      processingTotal += held + legacyHeld;
       balanceByDancer[id] = {
         balance: bal,
         available: bal - held - legacyHeld,
       };
-      pendingByDancer[id] = reqs.map((r) => {
-        const row = r as {
-          id: string;
-          amount: number;
-          requested_at: string;
-          bank_name: string | null;
-          bank_account_number: string | null;
-        };
+      pendingByDancer[id] = reqs.map((row) => {
         const no = row.bank_account_number ?? "";
         return {
           id: row.id,
@@ -192,10 +221,32 @@ export default async function MySettlementsPage() {
           requestedAt: row.requested_at,
           bankName: row.bank_name,
           accountTail: no ? `***${no.slice(-4)}` : null,
+          expectedPayoutLabel: expectedPayoutLabel(row.requested_at),
         };
       });
+      processingCount += reqs.length;
     }
   }
+
+  // 요약 카드 데이터 (전 프로필 합산).
+  for (const s of settlements) {
+    if (s.status === "paid" && s.paidAt) {
+      const year = kstYear(s.paidAt);
+      receivedByYear[year] =
+        (receivedByYear[year] ?? 0) +
+        calcSettlement(s.grossAmount ?? 0, s.rate).net;
+    }
+  }
+  const awaitingCount = settlements.filter((s) =>
+    isAwaitingAmount(s.status, s.grossAmount),
+  ).length;
+  processingCount += settlements.filter((s) => s.status === "requested").length;
+  const availableTotal = Object.values(balanceByDancer).reduce(
+    (sum, b) => sum + Math.max(0, b.available),
+    0,
+  );
+  const payoutLabel = nextPayoutLabel();
+  const currentYear = kstYear(new Date().toISOString());
 
   return (
     <div className="flex flex-col gap-6 px-6 pb-10 pt-8">
@@ -212,10 +263,21 @@ export default async function MySettlementsPage() {
         )}
         <h1 className="text-2xl font-bold tracking-tight">정산 · 출금</h1>
         <p className="text-sm text-ink-3">
-          확정된 정산금액과 출금 신청 현황이에요. 원천징수 3.3%를 뺀 금액이
-          등록하신 계좌로 입금됩니다.
+          내 돈이 지금 어디에 있는지, 다음 입금이 언제인지 한눈에 볼 수 있어요.
         </p>
       </header>
+
+      {dancerIds.length > 0 ? (
+        <SettlementSummary
+          awaitingCount={awaitingCount}
+          availableTotal={availableTotal}
+          processingTotal={processingTotal}
+          processingCount={processingCount}
+          nextPayoutLabel={payoutLabel}
+          receivedByYear={receivedByYear}
+          currentYear={currentYear}
+        />
+      ) : null}
 
       {dancerIds.map((id) => (
         <BalanceWithdraw
@@ -227,6 +289,7 @@ export default async function MySettlementsPage() {
           pending={pendingByDancer[id] ?? []}
           payoutReady={payoutReady[id] ?? false}
           brandName={BRAND_META[brand].orgName}
+          nextPayoutLabel={payoutLabel}
         />
       ))}
 
@@ -246,7 +309,7 @@ export default async function MySettlementsPage() {
           docs={docs}
           dancerNames={Object.fromEntries(nameById)}
           brandName={BRAND_META[brand].orgName}
-          hideWithdrawUI
+          variant="page"
         />
       )}
     </div>
