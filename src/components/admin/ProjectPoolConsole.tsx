@@ -95,8 +95,8 @@ export function ProjectPoolConsole({
         <SummaryLine
           label={
             revenueSource === "deals"
-              ? "수주액 (공급가 · 받을 돈 연동)"
-              : "수주액 (공급가)"
+              ? "수주액 (공급가액 · 매출채권 연동)"
+              : "수주액 (공급가액)"
           }
           value={clientRevenue}
         />
@@ -105,8 +105,8 @@ export function ProjectPoolConsole({
         manualClientRevenue != null &&
         manualClientRevenue !== clientRevenue ? (
           <p className="text-[11px] text-amber-600">
-            구 수기 수주액 {formatWon(manualClientRevenue)}과 불일치 — 받을 돈
-            콘솔의 확정 라인 합계를 기준으로 표시 중입니다.
+            구 수기 수주액 {formatWon(manualClientRevenue)}과 불일치 —
+            매출·수금 화면의 매출 확정 합계를 기준으로 표시 중입니다.
           </p>
         ) : null}
         <SummaryLine
@@ -283,7 +283,7 @@ function FinanceCard({
         <label className="flex flex-col gap-1">
           <span className="text-[11px] font-medium text-ink-3">
             수주액 (부가세 제외)
-            {dealsLinked ? " — 받을 돈 연동" : ""}
+            {dealsLinked ? " — 매출채권 연동" : ""}
           </span>
           <input
             inputMode="numeric"
@@ -295,7 +295,7 @@ function FinanceCard({
           />
           {dealsLinked ? (
             <span className="text-[10px] leading-snug text-ink-3">
-              받을 돈(매출채권) 콘솔의 확정 라인 합계가 자동 반영돼요.
+              매출·수금 화면의 매출 확정 합계가 자동 반영돼요.
               {isAdmin ? (
                 <>
                   {" "}
@@ -303,7 +303,7 @@ function FinanceCard({
                     href="/admin/finance/receivables"
                     className="font-medium text-primary underline"
                   >
-                    받을 돈 콘솔에서 수정
+                    매출·수금 화면에서 수정
                   </a>
                 </>
               ) : null}

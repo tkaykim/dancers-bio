@@ -77,7 +77,7 @@ const GROUPS: Group[] = [
     items: [
       { href: "/admin/settlements", label: "정산 처리", Icon: Wallet, exact: true },
       { href: "/admin/settlements/ledger", label: "지급 장부", Icon: Receipt },
-      { href: "/admin/finance/receivables", label: "받을 돈", Icon: HandCoins },
+      { href: "/admin/finance/receivables", label: "매출·수금", Icon: HandCoins },
     ],
   },
   {

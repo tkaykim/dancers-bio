@@ -5,7 +5,10 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionResult } from "./auth";
-import type { RevenueLineStatus } from "@/lib/receivables";
+import {
+  LINE_STATUS_LABELS,
+  type RevenueLineStatus,
+} from "@/lib/receivables";
 
 // 매출채권(받을 돈) 액션 — 설계 정본 docs/design-client-receivables.md rev1.
 // 전부 requireAdmin(경영지원실 전용, 대표 결정 3) + service-role(테이블 RLS default-deny).
@@ -135,12 +138,12 @@ const dealSchema = z
     )
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "단가형 딜은 단가가 필요합니다.",
+        message: "단가형 계약은 단가가 필요합니다.",
       });
     if (d.pricing_model === "revenue_share" && d.revenue_share_pct == null)
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "매출 배분 딜은 배분율(%)이 필요합니다.",
+        message: "매출 배분 계약은 배분율(%)이 필요합니다.",
       });
   });
 
@@ -191,7 +194,7 @@ async function parseDealForm(fd: FormData): Promise<DealFormParse> {
     const msg: string =
       typeof custom?.message === "string" && custom.message
         ? custom.message
-        : "딜 입력값을 확인해 주세요. (프로젝트·거래처명·계약 유형은 필수)";
+        : "계약 입력값을 확인해 주세요. (프로젝트·거래처명·계약 유형은 필수)";
     return { ok: false, error: msg };
   }
   return { ok: true, data: parsed.data };
@@ -237,9 +240,9 @@ export async function updateDealAction(fd: FormData): Promise<ActionResult> {
     .select("id, project_id")
     .eq("id", dealId)
     .maybeSingle();
-  if (!existing) return { ok: false, error: "딜을 찾을 수 없습니다." };
+  if (!existing) return { ok: false, error: "계약을 찾을 수 없습니다." };
   if ((existing.project_id as string) !== r.data.project_id)
-    return { ok: false, error: "딜의 프로젝트는 변경할 수 없습니다." };
+    return { ok: false, error: "계약의 프로젝트는 변경할 수 없습니다." };
 
   const { error } = await admin
     .from("project_client_deals")
@@ -273,9 +276,9 @@ export async function createLineAction(
   const dueDate = strOrNull(fd.get("due_date"));
   const memo = strOrNull(fd.get("memo"));
   if (!uuid.safeParse(dealId).success || !LINE_TYPES.includes(lineType) || !title)
-    return { ok: false, error: "라인 입력값을 확인해 주세요." };
+    return { ok: false, error: "매출 입력값을 확인해 주세요." };
   if (dueDate && !ymd.safeParse(dueDate).success)
-    return { ok: false, error: "지급예정일 형식이 잘못됐습니다." };
+    return { ok: false, error: "수금 예정일 형식이 잘못됐습니다." };
 
   const isAdjustment = lineType === "adjustment";
   const qtyRaw = str(fd.get("quantity"));
@@ -296,11 +299,11 @@ export async function createLineAction(
       quantity <= 0 ||
       unitPrice == null
     )
-      return { ok: false, error: "단가×수량 라인은 수량과 단가가 필요합니다." };
+      return { ok: false, error: "단가×수량 매출은 수량과 단가가 필요합니다." };
     supply = Math.round(quantity * unitPrice); // 금액은 서버가 계산(불일치 방지)
   }
   if (supply == null)
-    return { ok: false, error: "공급가(원)를 입력해 주세요." };
+    return { ok: false, error: "공급가액(원)을 입력해 주세요." };
 
   const admin = createAdminClient();
   const { data: deal } = await admin
@@ -308,7 +311,7 @@ export async function createLineAction(
     .select("id, quantity_cap, vat_mode")
     .eq("id", dealId)
     .maybeSingle();
-  if (!deal) return { ok: false, error: "딜을 찾을 수 없습니다." };
+  if (!deal) return { ok: false, error: "계약을 찾을 수 없습니다." };
   if (
     lineType === "unit_billing" &&
     deal.quantity_cap != null &&
@@ -361,11 +364,12 @@ export async function updateLineAction(fd: FormData): Promise<ActionResult> {
     .select("id, status, line_type")
     .eq("id", lineId)
     .maybeSingle();
-  if (!line) return { ok: false, error: "라인을 찾을 수 없습니다." };
+  if (!line) return { ok: false, error: "매출 항목을 찾을 수 없습니다." };
   if (line.status !== "draft" && line.status !== "confirmed")
     return {
       ok: false,
-      error: "계산서 발행·수납 후에는 금액을 수정할 수 없습니다. 정정(±) 라인을 추가해 주세요.",
+      error:
+        "세금계산서 발행·수금 완료 후에는 금액을 수정할 수 없습니다. '조정(차감·에누리)' 항목을 추가해 주세요.",
     };
 
   const isAdjustment = (line.line_type as string) === "adjustment";
@@ -379,9 +383,9 @@ export async function updateLineAction(fd: FormData): Promise<ActionResult> {
   });
   const dueDate = strOrNull(fd.get("due_date"));
   if (!title || supply == null || vat == null)
-    return { ok: false, error: "라인 입력값을 확인해 주세요." };
+    return { ok: false, error: "매출 입력값을 확인해 주세요." };
   if (dueDate && !ymd.safeParse(dueDate).success)
-    return { ok: false, error: "지급예정일 형식이 잘못됐습니다." };
+    return { ok: false, error: "수금 예정일 형식이 잘못됐습니다." };
 
   const qtyRaw = str(fd.get("quantity"));
   const quantity = qtyRaw ? Number(qtyRaw) : null;
@@ -395,7 +399,7 @@ export async function updateLineAction(fd: FormData): Promise<ActionResult> {
   };
   if ((line.line_type as string) === "unit_billing") {
     if (quantity == null || quantity <= 0 || unitPrice == null)
-      return { ok: false, error: "단가×수량 라인은 수량과 단가가 필요합니다." };
+      return { ok: false, error: "단가×수량 매출은 수량과 단가가 필요합니다." };
     patch.quantity = quantity;
     patch.unit_price = unitPrice;
     patch.supply_amount = Math.round(quantity * unitPrice);
@@ -433,12 +437,12 @@ export async function setLineStatusAction(fd: FormData): Promise<ActionResult> {
     .select("id, status")
     .eq("id", lineId)
     .maybeSingle();
-  if (!line) return { ok: false, error: "라인을 찾을 수 없습니다." };
+  if (!line) return { ok: false, error: "매출 항목을 찾을 수 없습니다." };
   const allowed = LINE_TRANSITIONS[line.status as string] ?? [];
   if (!allowed.includes(next))
     return {
       ok: false,
-      error: `'${line.status}' 상태에서 '${next}'로 바꿀 수 없습니다.`,
+      error: `'${LINE_STATUS_LABELS[line.status as RevenueLineStatus] ?? line.status}' 상태에서는 '${LINE_STATUS_LABELS[next] ?? next}'(으)로 바꿀 수 없습니다.`,
     };
   if (next === "invoiced") {
     const issued = invoiceDate ?? new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(new Date());
@@ -450,7 +454,7 @@ export async function setLineStatusAction(fd: FormData): Promise<ActionResult> {
     };
     if (dueDate) {
       if (!ymd.safeParse(dueDate).success)
-        return { ok: false, error: "지급예정일 형식이 잘못됐습니다." };
+        return { ok: false, error: "수금 예정일 형식이 잘못됐습니다." };
       patch.due_date = dueDate;
     }
     const { error } = await admin
@@ -471,7 +475,8 @@ export async function setLineStatusAction(fd: FormData): Promise<ActionResult> {
       if (error.message.includes("CANCEL_HAS_RECEIPTS"))
         return {
           ok: false,
-          error: "입금 기록이 있는 라인은 취소할 수 없습니다. 환불(음수 입금)로 0을 만든 뒤 취소해 주세요.",
+          error:
+            "수금 내역이 있는 매출은 취소할 수 없습니다. 환불(음수 수금)로 잔액 0원을 만든 뒤 취소해 주세요.",
         };
       return { ok: false, error: error.message };
     }
@@ -493,7 +498,10 @@ export async function deleteLineAction(fd: FormData): Promise<ActionResult> {
     .in("status", ["draft", "cancelled"]);
   if (error) {
     if (error.message.includes("LINE_NO_DELETE"))
-      return { ok: false, error: "입금 기록이 있거나 발행·수납된 라인은 삭제할 수 없습니다." };
+      return {
+        ok: false,
+        error: "수금 내역이 있거나 계산서 발행·수금 완료된 매출은 삭제할 수 없습니다.",
+      };
     return { ok: false, error: error.message };
   }
   revalidatePath(RECEIVABLES_PATH);
@@ -513,11 +521,11 @@ export async function addReceiptAction(
   if (!uuid.safeParse(dealId).success)
     return { ok: false, error: "잘못된 요청입니다." };
   if (lineId && !uuid.safeParse(lineId).success)
-    return { ok: false, error: "잘못된 라인입니다." };
+    return { ok: false, error: "잘못된 매출 항목입니다." };
   if (amount == null || amount === 0)
-    return { ok: false, error: "입금액(원)을 입력해 주세요. 환불·회수는 음수로." };
+    return { ok: false, error: "수금액(원)을 입력해 주세요. 환불·회수는 음수로." };
   if (!ymd.safeParse(receivedOn).success)
-    return { ok: false, error: "입금일 형식이 잘못됐습니다. (YYYY-MM-DD)" };
+    return { ok: false, error: "수금일 형식이 잘못됐습니다. (YYYY-MM-DD)" };
 
   const admin = createAdminClient();
   const { data, error } = await admin
@@ -536,7 +544,7 @@ export async function addReceiptAction(
     .single();
   if (error) {
     if (error.message.includes("RECEIPT_DEAL_MISMATCH"))
-      return { ok: false, error: "선택한 청구 라인이 이 딜의 라인이 아닙니다." };
+      return { ok: false, error: "선택한 매출 항목이 이 계약의 항목이 아닙니다." };
     return { ok: false, error: error.message };
   }
   revalidatePath(RECEIVABLES_PATH);
