@@ -51,7 +51,7 @@ async function persist(
   const user = await requireUser();
   const owned = await ownedPaidApplication(applicationId, user.id);
   if (!owned.application) {
-    return { ok: false, error: "결제가 완료된 본인 케이스만 제출할 수 있습니다.", code: "forbidden" };
+    return { ok: false, error: "Only your own paid program case can be submitted.", code: "forbidden" };
   }
 
   const normalized = structuredClone(data);
@@ -87,7 +87,7 @@ async function persist(
     ciphertext = encryptVisaDocumentSensitiveData(applicationId, sensitive);
   } catch (error) {
     console.error("[visa-document-intake] encryption unavailable", error);
-    return { ok: false, error: "보안 저장 설정을 확인하고 있습니다. 잠시 후 다시 시도해 주세요." };
+    return { ok: false, error: "Secure storage is temporarily unavailable. Please try again shortly." };
   }
 
   const now = new Date().toISOString();
@@ -115,14 +115,14 @@ async function persist(
         .maybeSingle();
       return {
         ok: false,
-        error: "다른 창에서 저장된 변경사항이 있습니다. 페이지를 새로고침해 주세요.",
+        error: "This draft was changed in another tab. Reload the page before continuing.",
         code: "conflict",
         currentVersion: Number(current?.draft_version ?? 0),
       };
     }
     if (error) {
       console.error("[visa-document-intake] insert failed", { code: error.code });
-      return { ok: false, error: "임시저장에 실패했습니다. 입력 내용은 이 창에 남아 있습니다." };
+      return { ok: false, error: "The draft could not be saved. Your entries remain in this tab." };
     }
   } else {
     const { data: updated, error } = await owned.admin
@@ -135,7 +135,7 @@ async function persist(
       .maybeSingle();
     if (error) {
       console.error("[visa-document-intake] update failed", { code: error.code });
-      return { ok: false, error: "임시저장에 실패했습니다. 입력 내용은 이 창에 남아 있습니다." };
+      return { ok: false, error: "The draft could not be saved. Your entries remain in this tab." };
     }
     if (!updated) {
       const { data: current } = await owned.admin
@@ -146,8 +146,8 @@ async function persist(
       return {
         ok: false,
         error: current?.status === "accepted"
-          ? "검토가 완료된 서류는 수정할 수 없습니다."
-          : "다른 창에서 저장된 변경사항이 있습니다. 페이지를 새로고침해 주세요.",
+          ? "Documents already accepted by the team cannot be edited."
+          : "This draft was changed in another tab. Reload the page before continuing.",
         code: current?.status === "accepted" ? "forbidden" : "conflict",
         currentVersion: Number(current?.draft_version ?? expectedVersion),
       };
@@ -186,12 +186,12 @@ async function persist(
 
 export async function saveVisaDocumentDraftAction(input: unknown): Promise<SaveResult> {
   const parsed = saveSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "입력값을 확인해 주세요." };
+  if (!parsed.success) return { ok: false, error: "Please check the information you entered." };
   return persist(parsed.data.applicationId, parsed.data.expectedVersion, parsed.data.data, false);
 }
 
 export async function submitVisaDocumentIntakeAction(input: unknown): Promise<SaveResult> {
   const parsed = saveSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "입력값을 확인해 주세요." };
+  if (!parsed.success) return { ok: false, error: "Please check the information you entered." };
   return persist(parsed.data.applicationId, parsed.data.expectedVersion, parsed.data.data, true);
 }

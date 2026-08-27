@@ -4,7 +4,7 @@ import { EMPTY_VISA_DOCUMENT_FORM } from "@/lib/visa/document-intake-schema";
 import type { VisaDocumentIntakeContext } from "@/lib/visa/document-intake";
 
 export default function VisaDocumentsE2EPage() {
-  if (process.env.NODE_ENV !== "development") notFound();
+  if (process.env.VISA_DOCUMENT_E2E_PREVIEW !== "1") notFound();
   const context: VisaDocumentIntakeContext = {
     applicationId: "00000000-0000-4000-8000-000000000001",
     email: "e2e-applicant@example.com",
@@ -55,3 +55,4 @@ export default function VisaDocumentsE2EPage() {
     </main>
   );
 }
+

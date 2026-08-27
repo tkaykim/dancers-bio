@@ -7,7 +7,7 @@ const mediumText = z.string().trim().max(500);
 const dateText = z
   .string()
   .trim()
-  .refine((value) => value === "" || /^\d{4}-\d{2}-\d{2}$/.test(value), "날짜 형식을 확인해 주세요.");
+  .refine((value) => value === "" || /^\d{4}-\d{2}-\d{2}$/.test(value), "Please check the date format.");
 const itemId = z.string().trim().min(1).max(80);
 
 const passportSchema = z.object({
@@ -257,85 +257,85 @@ function validateDateRange(
   endDate: string,
 ) {
   if (startDate && endDate && startDate > endDate) {
-    context.addIssue({ code: "custom", path, message: "종료일은 시작일보다 빠를 수 없습니다." });
+    context.addIssue({ code: "custom", path, message: "The departure date cannot be earlier than the arrival date." });
   }
 }
 
 export const visaDocumentSubmissionSchema = visaDocumentDraftSchema.superRefine((form, context) => {
-  addRequiredIssue(context, ["fullNameEnglish"], form.fullNameEnglish, "영문 성명을 입력해 주세요.");
-  addRequiredIssue(context, ["birthDate"], form.birthDate, "생년월일을 입력해 주세요.");
-  addRequiredIssue(context, ["mobilePhone"], form.mobilePhone, "휴대폰 번호를 입력해 주세요.");
+  addRequiredIssue(context, ["fullNameEnglish"], form.fullNameEnglish, "Please enter your full name in English.");
+  addRequiredIssue(context, ["birthDate"], form.birthDate, "Please enter your date of birth.");
+  addRequiredIssue(context, ["mobilePhone"], form.mobilePhone, "Please enter your mobile phone number.");
   if (!form.hasNoHomePhone) {
-    addRequiredIssue(context, ["homePhone"], form.homePhone, "자택 전화번호를 입력하거나 없음에 체크해 주세요.");
+    addRequiredIssue(context, ["homePhone"], form.homePhone, "Enter a home telephone number or select that you do not have one.");
   }
-  addRequiredIssue(context, ["homeCountryAddress"], form.homeCountryAddress, "본국 주소를 입력해 주세요.");
+  addRequiredIssue(context, ["homeCountryAddress"], form.homeCountryAddress, "Please enter your home-country address.");
   if (form.currentResidenceDifferent) {
-    addRequiredIssue(context, ["currentResidenceAddress"], form.currentResidenceAddress, "현재 거주지 주소를 입력해 주세요.");
+    addRequiredIssue(context, ["currentResidenceAddress"], form.currentResidenceAddress, "Please enter your current residential address.");
   }
-  addRequiredIssue(context, ["koreaPlannedAddress"], form.koreaPlannedAddress, "한국 체류 예정 주소를 입력해 주세요.");
+  addRequiredIssue(context, ["koreaPlannedAddress"], form.koreaPlannedAddress, "Please enter your planned address in Korea.");
   if (!form.nationalIdNotApplicable) {
-    addRequiredIssue(context, ["nationalIdNumber"], form.nationalIdNumber, "국가식별번호를 입력하거나 해당 없음에 체크해 주세요.");
+    addRequiredIssue(context, ["nationalIdNumber"], form.nationalIdNumber, "Enter your national identification number or select not applicable.");
   }
   if (form.dualNationality && form.dualNationalityCountries.length === 0) {
-    context.addIssue({ code: "custom", path: ["dualNationalityCountries"], message: "복수 국적 국가를 입력해 주세요." });
+    context.addIssue({ code: "custom", path: ["dualNationalityCountries"], message: "Please enter your other nationality countries." });
   }
-  addRequiredIssue(context, ["primaryPassport", "number"], form.primaryPassport.number, "여권 번호를 입력해 주세요.");
-  addRequiredIssue(context, ["primaryPassport", "issuingCountry"], form.primaryPassport.issuingCountry, "여권 발급 국가를 입력해 주세요.");
-  addRequiredIssue(context, ["primaryPassport", "expiryDate"], form.primaryPassport.expiryDate, "여권 만료일을 입력해 주세요.");
+  addRequiredIssue(context, ["primaryPassport", "number"], form.primaryPassport.number, "Please enter your passport number.");
+  addRequiredIssue(context, ["primaryPassport", "issuingCountry"], form.primaryPassport.issuingCountry, "Please enter the passport issuing country.");
+  addRequiredIssue(context, ["primaryPassport", "expiryDate"], form.primaryPassport.expiryDate, "Please enter the passport expiry date.");
   if (form.hasOtherPassports && form.otherPassports.length === 0) {
-    context.addIssue({ code: "custom", path: ["otherPassports"], message: "다른 유효한 여권 정보를 입력해 주세요." });
+    context.addIssue({ code: "custom", path: ["otherPassports"], message: "Please add the other valid passport." });
   }
   for (const [index, passport] of form.otherPassports.entries()) {
-    addRequiredIssue(context, ["otherPassports", index, "number"], passport.number, "여권 번호를 입력해 주세요.");
-    addRequiredIssue(context, ["otherPassports", index, "issuingCountry"], passport.issuingCountry, "발급 국가를 입력해 주세요.");
-    addRequiredIssue(context, ["otherPassports", index, "expiryDate"], passport.expiryDate, "만료일을 입력해 주세요.");
+    addRequiredIssue(context, ["otherPassports", index, "number"], passport.number, "Please enter the passport number.");
+    addRequiredIssue(context, ["otherPassports", index, "issuingCountry"], passport.issuingCountry, "Please enter the issuing country.");
+    addRequiredIssue(context, ["otherPassports", index, "expiryDate"], passport.expiryDate, "Please enter the expiry date.");
   }
   if (form.usedOtherNameInKorea && form.previousNames.length === 0) {
-    context.addIssue({ code: "custom", path: ["previousNames"], message: "과거 사용한 영문 성명을 입력해 주세요." });
+    context.addIssue({ code: "custom", path: ["previousNames"], message: "Please enter the English name used previously." });
   }
-  addRequiredIssue(context, ["emergencyContact", "nameEnglish"], form.emergencyContact.nameEnglish, "비상 연락처 이름을 입력해 주세요.");
-  addRequiredIssue(context, ["emergencyContact", "phone"], form.emergencyContact.phone, "비상 연락처 전화번호를 입력해 주세요.");
-  addRequiredIssue(context, ["emergencyContact", "country"], form.emergencyContact.country, "비상 연락처 거주 국가를 입력해 주세요.");
-  addRequiredIssue(context, ["emergencyContact", "relationship"], form.emergencyContact.relationship, "관계를 입력해 주세요.");
-  if (!form.education.level) context.addIssue({ code: "custom", path: ["education", "level"], message: "최종 학력을 선택해 주세요." });
-  addRequiredIssue(context, ["education", "schoolName"], form.education.schoolName, "학교 이름을 입력해 주세요.");
-  addRequiredIssue(context, ["education", "city"], form.education.city, "학교 소재 도시를 입력해 주세요.");
-  addRequiredIssue(context, ["education", "country"], form.education.country, "학교 소재 국가를 입력해 주세요.");
-  if (!form.maritalStatus) context.addIssue({ code: "custom", path: ["maritalStatus"], message: "혼인 사항을 선택해 주세요." });
+  addRequiredIssue(context, ["emergencyContact", "nameEnglish"], form.emergencyContact.nameEnglish, "Please enter the emergency contact's name.");
+  addRequiredIssue(context, ["emergencyContact", "phone"], form.emergencyContact.phone, "Please enter the emergency contact's phone number.");
+  addRequiredIssue(context, ["emergencyContact", "country"], form.emergencyContact.country, "Please enter the emergency contact's country of residence.");
+  addRequiredIssue(context, ["emergencyContact", "relationship"], form.emergencyContact.relationship, "Please enter your relationship to the emergency contact.");
+  if (!form.education.level) context.addIssue({ code: "custom", path: ["education", "level"], message: "Please select your highest education." });
+  addRequiredIssue(context, ["education", "schoolName"], form.education.schoolName, "Please enter the school name.");
+  addRequiredIssue(context, ["education", "city"], form.education.city, "Please enter the school's city.");
+  addRequiredIssue(context, ["education", "country"], form.education.country, "Please enter the school's country.");
+  if (!form.maritalStatus) context.addIssue({ code: "custom", path: ["maritalStatus"], message: "Please select your marital status." });
   if (form.maritalStatus === "married") {
-    addRequiredIssue(context, ["spouse", "nameEnglish"], form.spouse.nameEnglish, "배우자 영문 성명을 입력해 주세요.");
-    addRequiredIssue(context, ["spouse", "birthDate"], form.spouse.birthDate, "배우자 생년월일을 입력해 주세요.");
-    addRequiredIssue(context, ["spouse", "nationality"], form.spouse.nationality, "배우자 국적을 입력해 주세요.");
-    addRequiredIssue(context, ["spouse", "residence"], form.spouse.residence, "배우자 거주지를 입력해 주세요.");
-    addRequiredIssue(context, ["spouse", "phone"], form.spouse.phone, "배우자 연락처를 입력해 주세요.");
+    addRequiredIssue(context, ["spouse", "nameEnglish"], form.spouse.nameEnglish, "Please enter your spouse's full name in English.");
+    addRequiredIssue(context, ["spouse", "birthDate"], form.spouse.birthDate, "Please enter your spouse's date of birth.");
+    addRequiredIssue(context, ["spouse", "nationality"], form.spouse.nationality, "Please enter your spouse's nationality.");
+    addRequiredIssue(context, ["spouse", "residence"], form.spouse.residence, "Please enter your spouse's residence.");
+    addRequiredIssue(context, ["spouse", "phone"], form.spouse.phone, "Please enter your spouse's phone number.");
   }
   if (form.hasChildren && form.childrenCount < 1) {
-    context.addIssue({ code: "custom", path: ["childrenCount"], message: "자녀 수를 입력해 주세요." });
+    context.addIssue({ code: "custom", path: ["childrenCount"], message: "Please enter the number of children." });
   }
   if (form.hasFamilyInKorea && form.familyInKorea.length === 0) {
-    context.addIssue({ code: "custom", path: ["familyInKorea"], message: "한국에 거주하는 가족 정보를 입력해 주세요." });
+    context.addIssue({ code: "custom", path: ["familyInKorea"], message: "Please add the family member living in Korea." });
   }
   if (form.hasAccompanyingFamily && form.accompanyingFamily.length === 0) {
-    context.addIssue({ code: "custom", path: ["accompanyingFamily"], message: "동반 가족 정보를 입력해 주세요." });
+    context.addIssue({ code: "custom", path: ["accompanyingFamily"], message: "Please add the accompanying family member." });
   }
   if (form.koreaVisitCountLast5Years > 0) {
-    addRequiredIssue(context, ["latestKoreaVisit", "purpose"], form.latestKoreaVisit.purpose, "최근 한국 방문 목적을 입력해 주세요.");
-    addRequiredIssue(context, ["latestKoreaVisit", "startDate"], form.latestKoreaVisit.startDate, "최근 한국 방문 시작일을 입력해 주세요.");
-    addRequiredIssue(context, ["latestKoreaVisit", "endDate"], form.latestKoreaVisit.endDate, "최근 한국 방문 종료일을 입력해 주세요.");
+    addRequiredIssue(context, ["latestKoreaVisit", "purpose"], form.latestKoreaVisit.purpose, "Please enter the purpose of your most recent Korea visit.");
+    addRequiredIssue(context, ["latestKoreaVisit", "startDate"], form.latestKoreaVisit.startDate, "Please enter the arrival date of your most recent Korea visit.");
+    addRequiredIssue(context, ["latestKoreaVisit", "endDate"], form.latestKoreaVisit.endDate, "Please enter the departure date of your most recent Korea visit.");
     validateDateRange(context, ["latestKoreaVisit", "endDate"], form.latestKoreaVisit.startDate, form.latestKoreaVisit.endDate);
   }
   for (const [index, travel] of form.otherInternationalTravel.entries()) {
-    addRequiredIssue(context, ["otherInternationalTravel", index, "country"], travel.country, "방문 국가를 입력해 주세요.");
-    addRequiredIssue(context, ["otherInternationalTravel", index, "purpose"], travel.purpose, "방문 목적을 입력해 주세요.");
-    addRequiredIssue(context, ["otherInternationalTravel", index, "startDate"], travel.startDate, "방문 시작일을 입력해 주세요.");
-    addRequiredIssue(context, ["otherInternationalTravel", index, "endDate"], travel.endDate, "방문 종료일을 입력해 주세요.");
+    addRequiredIssue(context, ["otherInternationalTravel", index, "country"], travel.country, "Please enter the country visited.");
+    addRequiredIssue(context, ["otherInternationalTravel", index, "purpose"], travel.purpose, "Please enter the purpose of the trip.");
+    addRequiredIssue(context, ["otherInternationalTravel", index, "startDate"], travel.startDate, "Please enter the arrival date.");
+    addRequiredIssue(context, ["otherInternationalTravel", index, "endDate"], travel.endDate, "Please enter the departure date.");
     validateDateRange(context, ["otherInternationalTravel", index, "endDate"], travel.startDate, travel.endDate);
   }
   if (!form.sensitiveCollectionConsent) {
-    context.addIssue({ code: "custom", path: ["sensitiveCollectionConsent"], message: "고유식별정보 수집·이용에 동의해 주세요." });
+    context.addIssue({ code: "custom", path: ["sensitiveCollectionConsent"], message: "Please consent to the collection and use of sensitive identification information." });
   }
   if (!form.truthfulnessConfirmed) {
-    context.addIssue({ code: "custom", path: ["truthfulnessConfirmed"], message: "입력 내용 확인에 체크해 주세요." });
+    context.addIssue({ code: "custom", path: ["truthfulnessConfirmed"], message: "Please confirm that the information is complete and accurate." });
   }
 });
 
@@ -343,6 +343,6 @@ export function firstVisaDocumentIssue(error: z.ZodError): { field: string; mess
   const issue = error.issues[0];
   return {
     field: issue?.path.join(".") ?? "form",
-    message: issue?.message ?? "입력값을 확인해 주세요.",
+    message: issue?.message ?? "Please check the information you entered.",
   };
 }

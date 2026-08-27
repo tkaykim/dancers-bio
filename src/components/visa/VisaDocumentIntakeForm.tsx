@@ -162,7 +162,7 @@ export function VisaDocumentIntakeForm({ context, preview = false }: { context: 
     setMessage("");
     startTransition(async () => {
       if (savingRef.current) {
-        setMessage("임시저장이 끝난 뒤 다시 제출해 주세요.");
+        setMessage("Please submit again after the draft has finished saving.");
         return;
       }
       const previewValidation = preview ? visaDocumentSubmissionSchema.safeParse(formRef.current) : null;
@@ -190,7 +190,7 @@ export function VisaDocumentIntakeForm({ context, preview = false }: { context: 
         dirtyRef.current = false;
         setLastSavedAt(result.data.lastSavedAt);
         setSaveState("submitted");
-        setMessage("제출이 완료되었습니다. 담당자가 검토 후 필요한 경우 연락드리겠습니다.");
+        setMessage("Your information has been submitted. Our team will contact you if anything else is needed.");
       } else {
         setSaveState(result.code === "conflict" ? "conflict" : "error");
         setMessage(result.error);
