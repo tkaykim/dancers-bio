@@ -171,12 +171,16 @@ async function persist(
     .from("dancer_visa_applications")
     .update(submit
       ? {
+          preferred_lang: validation.data.preferredLang,
           basic_documents_status: "reviewing",
           case_stage: "visa_documents_basic",
           status: "documents",
           next_action: "제출 서류 검토 중",
         }
-      : { basic_documents_status: "collecting" })
+      : {
+          preferred_lang: validation.data.preferredLang,
+          basic_documents_status: "collecting",
+        })
     .eq("id", applicationId);
 
   revalidatePath("/me/visa");

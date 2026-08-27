@@ -11,7 +11,7 @@
     "test:phone": "node --test src/lib/phone.test.ts",
     "test:payout-validation": "node --test src/lib/payout-validation.test.mjs",
     "test:payout-schedule": "node --test src/lib/payout-schedule.test.ts",
-    "test:visa-documents": "node --test src/lib/visa/document-intake-schema.test.ts",
+    "test:visa-documents": "node --test src/lib/visa/document-intake-schema.test.ts src/lib/visa/document-intake-copy.test.ts",
     "db:types": "supabase gen types typescript --project-id wvfmqiajdvbsevlhlgtl --schema public > src/lib/supabase/types.ts",
     "seo:indexnow": "node scripts/submit-indexnow.mjs"
   },

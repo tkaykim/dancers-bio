@@ -64,7 +64,6 @@ export default function VisaDocumentsE2EPage() {
         <p>화면에서 입력하거나 제출한 내용은 운영 DB에 저장되지 않습니다.</p>
         <p className="mt-1 text-xs">Admin preview only. Changes and submissions on this page are not saved to the production database.</p>
       </div>
-      <h1 className="mt-6 text-2xl font-bold">Visa document information</h1>
       <VisaDocumentIntakeForm context={context} preview />
     </main>
   );

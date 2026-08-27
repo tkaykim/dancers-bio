@@ -17,6 +17,15 @@ async function main() {
   page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`))
 
   await page.goto(`${base}/e2e/visa-documents-preview`, { waitUntil: 'networkidle' })
+  await page.screenshot({ path: path.join(artifactDir, 'desktop-language-en.png'), fullPage: true })
+  await page.getByRole('button', { name: '한국어' }).click()
+  await page.getByRole('heading', { name: '비자 서류 정보' }).waitFor()
+  await page.getByText('기본 인적사항', { exact: true }).first().waitFor()
+  await page.getByRole('button', { name: '日本語' }).click()
+  await page.getByRole('heading', { name: 'ビザ書類情報' }).waitFor()
+  await page.getByText('日本のマイナンバーはこのページでは収集しません。').waitFor()
+  await page.getByRole('button', { name: 'English' }).click()
+  await page.getByRole('heading', { name: 'Visa document information' }).waitFor()
   await page.getByLabel('Full name in English').fill('E2E AUTOSAVE APPLICANT')
   await page.waitForTimeout(1600)
   await page.getByText(/^Saved/).waitFor()
@@ -46,13 +55,16 @@ async function main() {
     if (message.type() === 'error') errors.push(`mobile console: ${message.text()}`)
   })
   await mobile.goto(`${base}/e2e/visa-documents-preview`, { waitUntil: 'networkidle' })
-  await mobile.screenshot({ path: path.join(artifactDir, 'mobile-step-1.png'), fullPage: true })
+  await mobile.getByRole('button', { name: '한국어' }).click()
+  await mobile.getByRole('heading', { name: '비자 서류 정보' }).waitFor()
+  await mobile.waitForTimeout(250)
+  await mobile.screenshot({ path: path.join(artifactDir, 'mobile-ko-step-1.png'), fullPage: true })
   const overflow = await mobile.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
   if (overflow) throw new Error('Mobile page has horizontal overflow')
 
   await browser.close()
   if (errors.length) throw new Error(errors.join('\n'))
-  process.stdout.write('E2E passed: autosave, navigation, JP-sensitive-data guard, repeatable travel, submit, mobile overflow.\n')
+  process.stdout.write('E2E passed: ko/en/ja switching, autosave, navigation, JP-sensitive-data guard, repeatable travel, submit, mobile overflow.\n')
 }
 
 main().catch((error) => {
