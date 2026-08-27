@@ -1,11 +1,32 @@
 # 설계: 프로젝트 매출채권(받을 돈) — 거래처·계약조건·청구·입금 기록
 
-> 상태: **rev1 (대표 deep-interview 4결정 반영, 2026-08-27) — 구현 착수 승인 대기**
+> 상태: **rev1.1 — 라이브** (rev1 대표 4결정 → PR #180 구현·배포 2026-08-27 → 대표 지시로 화면 용어를 국내 ERP·회계 표준으로 전면 교체)
 > 관련 정본: `design-staff-settlement-pool.md`(풀 산식의 수주액 입력이 이 모듈의 출력이 됨) · `design-settlement-collection.md` · 메모리 `project_deetz_settlement.md` · 메모리 `project_unified_finance_control_plane.md`(전사 재무 통제면)
 > 계기: 지급(보낼 돈)은 role·원장·출금·다계좌이체까지 구축됐지만, **받을 돈은 `project_finances.client_revenue` 정수 1칸이 전부**. 실측: ndolt1 구도워크스 3,080만(공급가 2,800만+VAT) 입금 완료 건이 deetz·ERP 어디에도 채권으로 없음, The SMC 챌린지(업로드 인원×7만, cap 200)는 ERP에 프로젝트조차 없음. "누구한테 얼마 받기로 했는지"를 경영지원실이 확인할 수 있는 시스템이 없다.
 > 검증: 스키마·데이터 = deetz(wvfm…)·ERP(totalmanagement)·grigo-artist 운영 DB 실측(2026-08-27).
 
 ---
+
+## 0. 화면 용어 정본 (rev1.1 — 국내 ERP·회계 관례, 대표 지시 2026-08-27)
+
+> "딜·청구 라인" 같은 개발 용어를 쓰지 않는다. 화면·오류 문구는 아래 표준 용어만 사용한다.
+> DB 식별자(테이블·컬럼·상태 코드)는 영어 원안 유지 — 표시 계층에서만 번역한다.
+
+| 내부 개념(DB) | 화면 표준 용어 |
+|---|---|
+| deal (`project_client_deals`) | **계약** (수주) — 계약 등록/계약 수정 |
+| revenue line (`deal_revenue_lines`) | **매출 항목** — 매출 등록/매출 저장 |
+| receipt (`deal_receipts`) | **수금** — 수금 등록/수금 내역 |
+| line_id 없는 수금 | **가수금** (매출 항목 미배정) |
+| outstanding | **미수금** |
+| due_date | **수금 예정일** |
+| payment_terms | **결제 조건** |
+| expected_supply_amount | **계약금액 (공급가액)** |
+| supply/vat/total | **공급가액 / 부가세 / 합계금액** ("VAT" 표기 금지) |
+| status: draft/confirmed/invoiced/received | **미확정 / 매출 확정 / 계산서 발행 / 수금 완료** |
+| line_type: base/installment/unit_billing/option/expense_rebill/revenue_share/adjustment | **용역 대금 / 계약금·잔금 / 인원(수량) 정산 / 추가 용역 / 실비 청구 / 매출 배분(RS) / 조정(차감·에누리)** |
+| 콘솔 네비 라벨 | **매출·수금** (페이지 제목: 매출·수금 관리(받을 돈)) |
+| 처리 순서 안내 | ① 계약 등록 → ② 매출 확정 → ③ 세금계산서 발행 → ④ 수금 등록 (미수금·연체 자동) |
 
 ## 1. 대표 인터뷰 확정 사항 (2026-08-27, deep-interview)
 

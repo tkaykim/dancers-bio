@@ -41,21 +41,22 @@ export const DEAL_STATUS_LABELS: Record<DealStatus, string> = {
   cancelled: "취소",
 };
 
+// 라벨은 국내 ERP·회계 관례(수주·매출·세금계산서·수금·미수금)를 따른다 — 대표 지시 2026-08-27.
 export const LINE_TYPE_LABELS: Record<RevenueLineType, string> = {
-  base: "기본",
-  installment: "분할(계약금/잔금)",
-  unit_billing: "단가×수량 확정",
-  option: "옵션(+α)",
-  expense_rebill: "실비 재청구",
-  revenue_share: "매출 배분",
-  adjustment: "정정(±)",
+  base: "용역 대금",
+  installment: "계약금·잔금",
+  unit_billing: "인원(수량) 정산",
+  option: "추가 용역",
+  expense_rebill: "실비 청구",
+  revenue_share: "매출 배분(RS)",
+  adjustment: "조정(차감·에누리)",
 };
 
 export const LINE_STATUS_LABELS: Record<RevenueLineStatus, string> = {
-  draft: "초안",
-  confirmed: "확정",
+  draft: "미확정",
+  confirmed: "매출 확정",
   invoiced: "계산서 발행",
-  received: "수납 완료",
+  received: "수금 완료",
   cancelled: "취소",
 };
 
@@ -104,7 +105,7 @@ export function dealTermsSummary(d: {
   switch (d.pricing_model) {
     case "fixed":
       return d.expected_supply_amount != null
-        ? `정액 ${won(d.expected_supply_amount)} (공급가)`
+        ? `정액 ${won(d.expected_supply_amount)} (공급가액)`
         : "정액";
     case "per_unit": {
       const unit = d.unit_label || "1건";

@@ -192,7 +192,7 @@ function NewPartyForm({ onDone }: { onDone: () => void }) {
       }
     >
       <div className="flex flex-col gap-1">
-        <label className={labelCls}>정식 상호 *</label>
+        <label className={labelCls}>상호 (법인명) *</label>
         <input name="name" required className={inputCls} placeholder="주식회사 ○○" />
       </div>
       <div className="flex flex-col gap-1">
@@ -323,7 +323,7 @@ function DealForm({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className={labelCls}>딜 담당 창구</label>
+        <label className={labelCls}>거래처 담당자</label>
         <input
           name="contact_name"
           className={inputCls}
@@ -331,7 +331,7 @@ function DealForm({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className={labelCls}>창구 이메일</label>
+        <label className={labelCls}>담당자 이메일</label>
         <input
           name="contact_email"
           type="email"
@@ -357,7 +357,7 @@ function DealForm({
         </select>
       </div>
       <div className="flex flex-col gap-1">
-        <label className={labelCls}>딜 상태</label>
+        <label className={labelCls}>계약 상태</label>
         <select
           name="status"
           className={inputCls}
@@ -375,7 +375,7 @@ function DealForm({
       {showUnit ? (
         <>
           <div className="flex flex-col gap-1">
-            <label className={labelCls}>단가 (공급가, 원) *</label>
+            <label className={labelCls}>단가 (공급가액, 원) *</label>
             <MoneyInput name="unit_price" defaultValue={deal?.unit_price} />
           </div>
           <div className="flex flex-col gap-1">
@@ -444,7 +444,7 @@ function DealForm({
         </>
       ) : null}
       <div className="flex flex-col gap-1">
-        <label className={labelCls}>예상 총액 (공급가, 원)</label>
+        <label className={labelCls}>계약금액 (공급가액, 원)</label>
         <MoneyInput
           name="expected_supply_amount"
           defaultValue={deal?.expected_supply_amount}
@@ -457,13 +457,13 @@ function DealForm({
           className={inputCls}
           defaultValue={deal?.vat_mode ?? "vat_excluded"}
         >
-          <option value="vat_excluded">VAT 별도</option>
-          <option value="vat_included">VAT 포함가 합의</option>
+          <option value="vat_excluded">부가세 별도</option>
+          <option value="vat_included">부가세 포함</option>
           <option value="tax_free">면세</option>
         </select>
       </div>
       <div className="flex flex-col gap-1">
-        <label className={labelCls}>지급 조건</label>
+        <label className={labelCls}>결제 조건</label>
         <input
           name="payment_terms"
           className={inputCls}
@@ -490,12 +490,12 @@ function DealForm({
         />
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
-        <label className={labelCls}>합의 근거 (서면 추적)</label>
+        <label className={labelCls}>계약 근거 (메일·구두 확정 등)</label>
         <input
           name="agreement_basis"
           className={inputCls}
           defaultValue={deal?.agreement_basis ?? ""}
-          placeholder="메일 mailId·계약서·유선 일자 등"
+          placeholder="예: 8/14 계약서 메일 발송 + 유선 확정"
         />
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
@@ -510,7 +510,7 @@ function DealForm({
       {err ? <p className="text-sm text-red-600 sm:col-span-2">{err}</p> : null}
       <div className="flex gap-2 sm:col-span-2">
         <button type="submit" disabled={pending} className={btnPrimary}>
-          {isEdit ? "딜 저장" : "딜 등록"}
+          {isEdit ? "계약 저장" : "계약 등록"}
         </button>
         <button type="button" onClick={onDone} className={btnGhost}>
           닫기
@@ -559,7 +559,7 @@ function LineForm({
         <input type="hidden" name="deal_id" value={deal.id} />
       )}
       <div className="flex flex-col gap-1">
-        <label className={labelCls}>라인 유형</label>
+        <label className={labelCls}>매출 구분</label>
         {isEdit ? (
           <p className="py-2 text-sm text-ink-2">{LINE_TYPE_LABELS[type]}</p>
         ) : (
@@ -586,7 +586,7 @@ function LineForm({
           required
           className={inputCls}
           defaultValue={line?.title ?? ""}
-          placeholder="예: 잔금 / 업로드 61건 정산 / 2차 활용료"
+          placeholder="예: 잔금 / 업로드 인원 정산 / 2차 활용료"
         />
       </div>
       {type === "unit_billing" ? (
@@ -609,13 +609,13 @@ function LineForm({
             />
           </div>
           <p className="self-end pb-2 text-xs text-ink-4">
-            공급가 = 수량 × 단가 (서버 계산)
+            공급가액 = 수량 × 단가 (자동 계산)
           </p>
         </>
       ) : (
         <div className="flex flex-col gap-1">
           <label className={labelCls}>
-            공급가 (원) *{type === "adjustment" ? " — 감액은 음수" : ""}
+            공급가액 (원) *{type === "adjustment" ? " — 감액은 음수" : ""}
           </label>
           <MoneyInput name="supply_amount" defaultValue={line?.supply_amount} />
         </div>
@@ -625,7 +625,7 @@ function LineForm({
         <MoneyInput name="vat_amount" defaultValue={line?.vat_amount} />
       </div>
       <div className="flex flex-col gap-1">
-        <label className={labelCls}>지급예정일</label>
+        <label className={labelCls}>수금 예정일</label>
         <input
           name="due_date"
           type="date"
@@ -635,10 +635,10 @@ function LineForm({
       </div>
       {!isEdit ? (
         <div className="flex flex-col gap-1">
-          <label className={labelCls}>초기 상태</label>
+          <label className={labelCls}>등록 상태</label>
           <select name="status" className={inputCls} defaultValue="confirmed">
-            <option value="draft">초안(금액 미확정)</option>
-            <option value="confirmed">확정(청구 가능)</option>
+            <option value="draft">미확정 (임시 저장)</option>
+            <option value="confirmed">매출 확정</option>
           </select>
         </div>
       ) : null}
@@ -649,7 +649,7 @@ function LineForm({
       {err ? <p className="text-sm text-red-600 sm:col-span-3">{err}</p> : null}
       <div className="flex gap-2 sm:col-span-3">
         <button type="submit" disabled={pending} className={btnPrimary}>
-          {isEdit ? "라인 저장" : "라인 추가"}
+          {isEdit ? "매출 저장" : "매출 등록"}
         </button>
         <button type="button" onClick={onDone} className={btnGhost}>
           닫기
@@ -691,13 +691,13 @@ function ReceiptForm({
     >
       <input type="hidden" name="deal_id" value={deal.id} />
       <div className="flex flex-col gap-1 sm:col-span-2">
-        <label className={labelCls}>청구 라인 (미선택 = 미배부 입금)</label>
+        <label className={labelCls}>매출 항목 (미선택 시 가수금 처리)</label>
         <select
           name="line_id"
           className={inputCls}
           defaultValue={openLines.length === 1 ? openLines[0].id : ""}
         >
-          <option value="">라인 미지정</option>
+          <option value="">항목 미지정 (가수금)</option>
           {deal.lines
             .filter((l) => l.status !== "cancelled")
             .map((l) => (
@@ -709,11 +709,11 @@ function ReceiptForm({
         </select>
       </div>
       <div className="flex flex-col gap-1">
-        <label className={labelCls}>입금액 (원, 환불은 음수) *</label>
+        <label className={labelCls}>수금액 (원, 환불·회수는 음수) *</label>
         <MoneyInput name="amount" required />
       </div>
       <div className="flex flex-col gap-1">
-        <label className={labelCls}>입금일 *</label>
+        <label className={labelCls}>수금일 *</label>
         <input
           name="received_on"
           type="date"
@@ -733,7 +733,7 @@ function ReceiptForm({
       {err ? <p className="text-sm text-red-600 sm:col-span-3">{err}</p> : null}
       <div className="flex gap-2 sm:col-span-3">
         <button type="submit" disabled={pending} className={btnPrimary}>
-          입금 기록
+          수금 등록
         </button>
         <button type="button" onClick={onDone} className={btnGhost}>
           닫기
@@ -764,7 +764,7 @@ function LineRow({ deal, line }: { deal: DealDto; line: LineDto }) {
 
   const remove = () =>
     start(async () => {
-      if (!window.confirm("이 라인을 삭제할까요?")) return;
+      if (!window.confirm("이 매출 항목을 삭제할까요?")) return;
       const fd = new FormData();
       fd.set("line_id", line.id);
       const res = await deleteLineAction(fd);
@@ -788,29 +788,29 @@ function LineRow({ deal, line }: { deal: DealDto; line: LineDto }) {
             <LineStatusBadge line={line} />
           </div>
           <p className="text-xs text-ink-3">
-            공급가 {formatWon(line.supply_amount)} + VAT{" "}
-            {formatWon(line.vat_amount)} = {formatWon(total)}
+            공급가액 {formatWon(line.supply_amount)} + 부가세{" "}
+            {formatWon(line.vat_amount)} = 합계 {formatWon(total)}
             {line.quantity != null && line.unit_price != null
               ? ` (${line.quantity} × ${formatWon(line.unit_price)})`
               : ""}
           </p>
           <p className="text-xs text-ink-4">
             {line.invoice_issued_at
-              ? `계산서 ${line.invoice_issued_at} · `
+              ? `세금계산서 발행 ${line.invoice_issued_at} · `
               : ""}
-            {line.due_date ? `지급예정 ${line.due_date} · ` : ""}
+            {line.due_date ? `수금 예정 ${line.due_date} · ` : ""}
             {line.status === "received"
-              ? `수납 ${line.received_at}`
+              ? `수금 완료 ${line.received_at}`
               : line.receipts_sum > 0
-                ? `입금 ${formatWon(line.receipts_sum)} / 잔액 ${formatWon(remaining)}`
-                : "입금 전"}
+                ? `수금 ${formatWon(line.receipts_sum)} / 미수 ${formatWon(remaining)}`
+                : "수금 전"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {line.status === "draft" ? (
             <>
               <button className={btnMini} disabled={pending} onClick={() => transition("confirmed")}>
-                확정
+                매출 확정
               </button>
               <button className={btnMini} disabled={pending} onClick={() => setEditing((v) => !v)}>
                 수정
@@ -829,7 +829,7 @@ function LineRow({ deal, line }: { deal: DealDto; line: LineDto }) {
                 수정
               </button>
               <button className={btnMini} disabled={pending} onClick={() => transition("draft")}>
-                초안으로
+                확정 취소
               </button>
             </>
           ) : null}
@@ -900,10 +900,10 @@ function DealCard({
           <p className="text-xs text-ink-3">
             {terms}
             {deal.vat_mode === "vat_excluded"
-              ? " · VAT 별도"
+              ? " · 부가세 별도"
               : deal.vat_mode === "tax_free"
                 ? " · 면세"
-                : " · VAT 포함 합의"}
+                : " · 부가세 포함"}
             {deal.payment_terms ? ` · ${deal.payment_terms}` : ""}
           </p>
           {deal.agreement_basis ? (
@@ -912,32 +912,32 @@ function DealCard({
         </div>
         <div className="flex gap-1.5">
           <button className={btnMini} onClick={() => setPanel(panel === "line" ? "none" : "line")}>
-            + 청구 라인
+            + 매출 등록
           </button>
           <button className={btnMini} onClick={() => setPanel(panel === "receipt" ? "none" : "receipt")}>
-            + 입금 기록
+            + 수금 등록
           </button>
           <button className={btnMini} onClick={() => setPanel(panel === "edit" ? "none" : "edit")}>
-            딜 수정
+            계약 수정
           </button>
         </div>
       </header>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div className="rounded-lg bg-secondary/60 p-2.5">
-          <p className="text-[11px] text-ink-3">청구 확정 (공급가)</p>
+          <p className="text-[11px] text-ink-3">매출액 (공급가액)</p>
           <p className="text-sm font-semibold">{formatWon(deal.billed_supply)}</p>
         </div>
         <div className="rounded-lg bg-secondary/60 p-2.5">
-          <p className="text-[11px] text-ink-3">청구 총액 (VAT 포함)</p>
+          <p className="text-[11px] text-ink-3">합계금액 (부가세 포함)</p>
           <p className="text-sm font-semibold">{formatWon(deal.billed_total)}</p>
         </div>
         <div className="rounded-lg bg-secondary/60 p-2.5">
-          <p className="text-[11px] text-ink-3">입금 합계</p>
+          <p className="text-[11px] text-ink-3">수금액</p>
           <p className="text-sm font-semibold">{formatWon(deal.receipts_sum)}</p>
         </div>
         <div className="rounded-lg bg-secondary/60 p-2.5">
-          <p className="text-[11px] text-ink-3">미수 잔액</p>
+          <p className="text-[11px] text-ink-3">미수금</p>
           <p
             className={`text-sm font-semibold ${deal.outstanding > 0 ? "text-red-600" : ""}`}
           >
@@ -949,7 +949,7 @@ function DealCard({
 
       {deal.hints ? (
         <p className="rounded-lg bg-blue-500/5 px-3 py-2 text-xs text-ink-2">
-          수량 힌트(제안값 — 확정은 수동, 설계 §5): 유효 댄서 정산행{" "}
+          정산 수량 참고(운영 데이터 — 확정 수량은 직접 입력): 유효 댄서 정산행{" "}
           <b>{deal.hints.dancerRows}</b> · 영상 제출자{" "}
           <b>{deal.hints.submissions}</b> · 현장 체크인{" "}
           <b>{deal.hints.checkedIn}</b>
@@ -959,8 +959,8 @@ function DealCard({
 
       {deal.unallocated_receipts !== 0 ? (
         <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-700">
-          라인 미배부 입금 {formatWon(deal.unallocated_receipts)} — 청구 라인에
-          배부해 주세요.
+          가수금 {formatWon(deal.unallocated_receipts)} (매출 항목 미배정) —
+          어느 매출의 수금인지 지정해 주세요.
         </p>
       ) : null}
 
@@ -993,14 +993,15 @@ function DealCard({
         </div>
       ) : (
         <p className="text-sm text-ink-4">
-          청구 라인이 아직 없습니다. 금액이 확정되면 라인을 추가해 주세요.
+          등록된 매출이 아직 없습니다. 금액이 확정되면 &lsquo;매출 등록&rsquo;으로
+          추가해 주세요.
         </p>
       )}
 
       {deal.receipts.length > 0 ? (
         <details className="text-sm">
           <summary className="cursor-pointer text-ink-3">
-            입금 기록 {deal.receipts.length}건 · 합계{" "}
+            수금 내역 {deal.receipts.length}건 · 합계{" "}
             {formatWon(deal.receipts_sum)}
           </summary>
           <ul className="mt-2 flex flex-col gap-1">
@@ -1013,7 +1014,7 @@ function DealCard({
                 <span className="text-ink-3">{r.received_on}</span>
                 {r.line_id == null ? (
                   <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-amber-700">
-                    미배부
+                    가수금
                   </span>
                 ) : null}
                 {r.clobe_tx_id ? (
@@ -1049,29 +1050,40 @@ export function ReceivablesConsole({
     const active = deals.filter((d) => d.status !== "cancelled");
     return {
       billedSupply: active.reduce((t, d) => t + d.billed_supply, 0),
+      received: active.reduce((t, d) => t + d.receipts_sum, 0),
       outstanding: active.reduce((t, d) => t + d.outstanding, 0),
       overdue: active.reduce((t, d) => t + d.overdue_count, 0),
-      negotiating: deals.filter((d) => d.status === "negotiating").length,
     };
   }, [deals]);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 pb-16 pt-8">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">받을 돈 (매출채권)</h1>
+      <header className="flex flex-col gap-1.5">
+        <h1 className="text-2xl font-bold tracking-tight">
+          매출·수금 관리 (받을 돈)
+        </h1>
         <p className="text-sm text-ink-3">
-          프로젝트별 거래처·계약 조건·청구·입금을 기록합니다. 경영지원실 전용 —
-          금액 정본은 이 화면입니다.
+          프로젝트별 계약(수주)·매출·세금계산서·수금을 기록합니다. 경영지원실
+          전용 — 금액 정본은 이 화면입니다.
+        </p>
+        <p className="rounded-lg bg-secondary/60 px-3 py-2 text-xs text-ink-2">
+          처리 순서: <b>① 계약 등록</b> → <b>② 매출 확정</b> →{" "}
+          <b>③ 세금계산서 발행</b> → <b>④ 수금 등록</b> — 미수금·연체는 자동
+          계산됩니다.
         </p>
       </header>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div className="rounded-xl border border-hairline-2 p-3">
-          <p className="text-[11px] text-ink-3">확정 채권 (공급가)</p>
+          <p className="text-[11px] text-ink-3">매출 합계 (공급가액)</p>
           <p className="text-base font-bold">{formatWon(summary.billedSupply)}</p>
         </div>
         <div className="rounded-xl border border-hairline-2 p-3">
-          <p className="text-[11px] text-ink-3">미수 잔액 (VAT 포함)</p>
+          <p className="text-[11px] text-ink-3">수금 합계</p>
+          <p className="text-base font-bold">{formatWon(summary.received)}</p>
+        </div>
+        <div className="rounded-xl border border-hairline-2 p-3">
+          <p className="text-[11px] text-ink-3">미수금 (부가세 포함)</p>
           <p
             className={`text-base font-bold ${summary.outstanding > 0 ? "text-red-600" : ""}`}
           >
@@ -1079,12 +1091,12 @@ export function ReceivablesConsole({
           </p>
         </div>
         <div className="rounded-xl border border-hairline-2 p-3">
-          <p className="text-[11px] text-ink-3">연체 라인</p>
-          <p className="text-base font-bold">{summary.overdue}건</p>
-        </div>
-        <div className="rounded-xl border border-hairline-2 p-3">
-          <p className="text-[11px] text-ink-3">협의중 딜</p>
-          <p className="text-base font-bold">{summary.negotiating}건</p>
+          <p className="text-[11px] text-ink-3">연체</p>
+          <p
+            className={`text-base font-bold ${summary.overdue > 0 ? "text-red-600" : ""}`}
+          >
+            {summary.overdue}건
+          </p>
         </div>
       </div>
 
@@ -1096,7 +1108,7 @@ export function ReceivablesConsole({
             setShowNewParty(false);
           }}
         >
-          {showNewDeal ? "새 딜 닫기" : "새 딜 등록"}
+          {showNewDeal ? "등록 닫기" : "계약 등록"}
         </button>
         <button
           className={btnGhost}
@@ -1105,7 +1117,7 @@ export function ReceivablesConsole({
             setShowNewDeal(false);
           }}
         >
-          {showNewParty ? "거래처 닫기" : "새 거래처"}
+          {showNewParty ? "거래처 닫기" : "거래처 등록"}
         </button>
       </div>
 
@@ -1125,7 +1137,9 @@ export function ReceivablesConsole({
       ) : null}
 
       {deals.length === 0 ? (
-        <p className="text-sm text-ink-4">등록된 딜이 없습니다.</p>
+        <p className="text-sm text-ink-4">
+          등록된 계약이 없습니다. &lsquo;계약 등록&rsquo;으로 시작해 주세요.
+        </p>
       ) : (
         <div className="flex flex-col gap-4">
           {deals.map((d) => (
