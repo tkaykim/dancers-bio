@@ -1,7 +1,16 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { VisaDocumentIntakeForm } from "@/components/visa/VisaDocumentIntakeForm";
 import { EMPTY_VISA_DOCUMENT_FORM } from "@/lib/visa/document-intake-schema";
 import type { VisaDocumentIntakeContext } from "@/lib/visa/document-intake";
+
+export const metadata: Metadata = {
+  title: "Visa document intake preview | deetz",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default function VisaDocumentsE2EPage() {
   if (process.env.VISA_DOCUMENT_E2E_PREVIEW !== "1") notFound();
@@ -50,9 +59,13 @@ export default function VisaDocumentsE2EPage() {
   };
   return (
     <main className="mx-auto max-w-3xl px-5 py-8">
-      <h1 className="text-2xl font-bold">Visa document E2E preview</h1>
+      <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+        <p className="font-bold">관리자 검토용 미리보기입니다.</p>
+        <p>화면에서 입력하거나 제출한 내용은 운영 DB에 저장되지 않습니다.</p>
+        <p className="mt-1 text-xs">Admin preview only. Changes and submissions on this page are not saved to the production database.</p>
+      </div>
+      <h1 className="mt-6 text-2xl font-bold">Visa document information</h1>
       <VisaDocumentIntakeForm context={context} preview />
     </main>
   );
 }
-
