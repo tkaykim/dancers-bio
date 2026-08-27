@@ -73,7 +73,33 @@ export default async function ProjectPoolPage({
   const distributed = sumGross(
     active.filter((s) => s.role !== "dancer" && s.role !== "travel"),
   );
-  const revenue = (fin?.client_revenue as number | null) ?? null;
+  // 수주액 소스 전환(expand-contract, docs/design-client-receivables.md §6.1):
+  // 받을 돈 딜의 확정+(confirmed/invoiced/received) 라인이 있으면 그 공급가 합계가 수주액,
+  // 없으면 legacy 수기값(client_revenue). 딜만 있고 확정 라인이 없으면 0으로 오독되지 않게 수기값 유지.
+  const { data: dealRows } = await admin
+    .from("project_client_deals")
+    .select("id, status")
+    .eq("project_id", projectId);
+  const activeDealIds = (
+    (dealRows ?? []) as Array<{ id: string; status: string }>
+  )
+    .filter((d) => d.status !== "cancelled")
+    .map((d) => d.id);
+  let dealRevenue: number | null = null;
+  if (activeDealIds.length > 0) {
+    const { data: lineRows } = await admin
+      .from("deal_revenue_lines")
+      .select("supply_amount, status")
+      .in("deal_id", activeDealIds)
+      .in("status", ["confirmed", "invoiced", "received"]);
+    const billable = (lineRows ?? []) as Array<{ supply_amount: number }>;
+    if (billable.length > 0)
+      dealRevenue = billable.reduce((t, l) => t + l.supply_amount, 0);
+  }
+  const manualRevenue = (fin?.client_revenue as number | null) ?? null;
+  const revenue = dealRevenue ?? manualRevenue;
+  const revenueSource: "deals" | "manual" =
+    dealRevenue != null ? "deals" : "manual";
   const expense = (fin?.expense_amount as number | null) ?? 0;
   const pool = revenue != null ? revenue - directLabor - expense : null;
   const residual = pool != null ? pool - distributed : null;
@@ -182,6 +208,8 @@ export default async function ProjectPoolPage({
         isAdmin={amAdmin}
         staffPoolEnabled={fin?.staff_pool_enabled === true}
         clientRevenue={revenue}
+        revenueSource={revenueSource}
+        manualClientRevenue={manualRevenue}
         expenseAmount={expense}
         directLabor={directLabor}
         pool={pool}

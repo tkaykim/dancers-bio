@@ -50,6 +50,8 @@ export function ProjectPoolConsole({
   isAdmin,
   staffPoolEnabled,
   clientRevenue,
+  revenueSource = "manual",
+  manualClientRevenue = null,
   expenseAmount,
   directLabor,
   pool,
@@ -61,6 +63,8 @@ export function ProjectPoolConsole({
   isAdmin: boolean;
   staffPoolEnabled: boolean;
   clientRevenue: number | null;
+  revenueSource?: "deals" | "manual";
+  manualClientRevenue?: number | null;
   expenseAmount: number;
   directLabor: number;
   pool: number | null;
@@ -78,6 +82,8 @@ export function ProjectPoolConsole({
         isAdmin={isAdmin}
         staffPoolEnabled={staffPoolEnabled}
         clientRevenue={clientRevenue}
+        revenueSource={revenueSource}
+        manualClientRevenue={manualClientRevenue}
         expenseAmount={expenseAmount}
         busy={busy}
         startTransition={startTransition}
@@ -86,7 +92,23 @@ export function ProjectPoolConsole({
 
       {/* 풀 요약 — 잔여 = 회사 유보 자동(대표 결정 8) */}
       <section className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-4 text-sm">
-        <SummaryLine label="수주액 (공급가)" value={clientRevenue} />
+        <SummaryLine
+          label={
+            revenueSource === "deals"
+              ? "수주액 (공급가 · 받을 돈 연동)"
+              : "수주액 (공급가)"
+          }
+          value={clientRevenue}
+        />
+        {revenueSource === "deals" &&
+        isAdmin &&
+        manualClientRevenue != null &&
+        manualClientRevenue !== clientRevenue ? (
+          <p className="text-[11px] text-amber-600">
+            구 수기 수주액 {formatWon(manualClientRevenue)}과 불일치 — 받을 돈
+            콘솔의 확정 라인 합계를 기준으로 표시 중입니다.
+          </p>
+        ) : null}
         <SummaryLine
           label="− 직접비 (출연료·교통비)"
           value={directLabor}
@@ -185,6 +207,8 @@ function FinanceCard({
   isAdmin,
   staffPoolEnabled,
   clientRevenue,
+  revenueSource,
+  manualClientRevenue,
   expenseAmount,
   busy,
   startTransition,
@@ -194,18 +218,25 @@ function FinanceCard({
   isAdmin: boolean;
   staffPoolEnabled: boolean;
   clientRevenue: number | null;
+  revenueSource: "deals" | "manual";
+  manualClientRevenue: number | null;
   expenseAmount: number;
   busy: boolean;
   startTransition: (cb: () => void) => void;
   onDone: () => void;
 }) {
+  const dealsLinked = revenueSource === "deals";
   const [revenue, setRevenue] = useState(formatWonInput(clientRevenue));
   const [expense, setExpense] = useState(formatWonInput(expenseAmount));
 
   function save() {
     const fd = new FormData();
     fd.set("project_id", projectId);
-    fd.set("client_revenue", revenue);
+    // 받을 돈 연동 시 수주액 정본은 딜 라인 합계 — legacy 수기값은 건드리지 않고 보존.
+    fd.set(
+      "client_revenue",
+      dealsLinked ? formatWonInput(manualClientRevenue) : revenue,
+    );
     fd.set("expense_amount", expense);
     startTransition(async () => {
       const res = await setProjectFinanceAction(fd);
@@ -252,15 +283,32 @@ function FinanceCard({
         <label className="flex flex-col gap-1">
           <span className="text-[11px] font-medium text-ink-3">
             수주액 (부가세 제외)
+            {dealsLinked ? " — 받을 돈 연동" : ""}
           </span>
           <input
             inputMode="numeric"
             value={revenue}
             onChange={(e) => setRevenue(formatWonInput(e.target.value))}
             placeholder="원"
-            disabled={busy}
-            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+            disabled={busy || dealsLinked}
+            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-60"
           />
+          {dealsLinked ? (
+            <span className="text-[10px] leading-snug text-ink-3">
+              받을 돈(매출채권) 콘솔의 확정 라인 합계가 자동 반영돼요.
+              {isAdmin ? (
+                <>
+                  {" "}
+                  <a
+                    href="/admin/finance/receivables"
+                    className="font-medium text-primary underline"
+                  >
+                    받을 돈 콘솔에서 수정
+                  </a>
+                </>
+              ) : null}
+            </span>
+          ) : null}
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-[11px] font-medium text-ink-3">
