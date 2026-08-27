@@ -19,13 +19,32 @@ import { verifyPaymentCallback } from "@/lib/visa/payment-link";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const bodySchema = z.object({
+const casePaymentSchema = z.object({
   applicationId: z.string().uuid(),
   event: z.enum(["paid", "refunded"]),
   orderNo: z.string().trim().min(3).max(64),
   provider: z.enum(["toss", "paypal"]),
   amountKrw: z.number().int().positive().max(100_000_000),
   occurredAt: z.string().datetime(),
+  meta: z.record(z.string(), z.unknown()).optional(),
+});
+
+const programEnrollmentSchema = z.object({
+  kind: z.literal("program_enrollment"),
+  externalTrainingOrderId: z.string().uuid(),
+  event: z.literal("paid"),
+  orderNo: z.string().trim().min(3).max(64),
+  provider: z.enum(["toss", "paypal"]),
+  amountKrw: z.number().int().positive().max(100_000_000),
+  occurredAt: z.string().datetime(),
+  productSlug: z.enum(["training-and-placement", "monthly-training", "monthly-training-100"]),
+  customer: z.object({
+    name: z.string().trim().min(1).max(160),
+    email: z.string().trim().email().max(200),
+    phone: z.string().trim().max(80).nullable().optional(),
+    nationality: z.string().trim().max(160).nullable().optional(),
+    preferredLang: z.enum(["ko", "en", "ja"]).default("en"),
+  }),
   meta: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -43,7 +62,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 });
   }
 
-  const parsed = bodySchema.safeParse(parsedJson);
+  const programParsed = programEnrollmentSchema.safeParse(parsedJson);
+  if (programParsed.success) {
+    return handleProgramEnrollment(createAdminClient(), programParsed.data);
+  }
+
+  const parsed = casePaymentSchema.safeParse(parsedJson);
   if (!parsed.success) {
     return NextResponse.json(
       { ok: false, error: parsed.error.issues[0]?.message ?? "invalid payload" },
@@ -176,6 +200,92 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ ok: true });
+}
+
+async function handleProgramEnrollment(
+  admin: ReturnType<typeof createAdminClient>,
+  input: z.infer<typeof programEnrollmentSchema>,
+): Promise<NextResponse> {
+  const normalizedEmail = input.customer.email.trim().toLowerCase();
+  const { data: existingByOrder, error: orderLookupError } = await admin
+    .from("dancer_visa_applications")
+    .select("id")
+    .eq("external_training_order_id", input.externalTrainingOrderId)
+    .maybeSingle();
+  if (orderLookupError) {
+    console.error("[visa/payment-callback] program order lookup failed", { code: orderLookupError.code });
+    return NextResponse.json({ ok: false, error: "lookup failed" }, { status: 500 });
+  }
+  if (existingByOrder?.id) {
+    return NextResponse.json({ ok: true, visaApplicationId: existingByOrder.id, deduped: true });
+  }
+
+  const { data: existingByEmail, error: emailLookupError } = await admin
+    .from("dancer_visa_applications")
+    .select("id, payment_meta")
+    .eq("email_normalized", normalizedEmail)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (emailLookupError) {
+    console.error("[visa/payment-callback] program email lookup failed", { code: emailLookupError.code });
+    return NextResponse.json({ ok: false, error: "lookup failed" }, { status: 500 });
+  }
+  let targetId = (existingByEmail?.id as string | undefined) ?? null;
+
+  const paymentMeta = {
+    ...((existingByEmail?.payment_meta ?? {}) as Record<string, unknown>),
+    ...(input.meta ?? {}),
+    customer_name: input.customer.name,
+    customer_phone: input.customer.phone ?? null,
+    customer_nationality: input.customer.nationality ?? null,
+    issued_product_slug: input.productSlug,
+    source_system: "grigoent_training_orders",
+  };
+  const paymentPatch = {
+    email: normalizedEmail,
+    preferred_lang: input.customer.preferredLang,
+    external_training_order_id: input.externalTrainingOrderId,
+    program_product_slug: input.productSlug,
+    payment_status: "paid",
+    payment_order_no: input.orderNo,
+    payment_provider: input.provider,
+    payment_amount_krw: input.amountKrw,
+    paid_at: input.occurredAt,
+    payment_refunded_at: null,
+    payment_meta: paymentMeta,
+  };
+
+  if (targetId) {
+    const { error } = await admin
+      .from("dancer_visa_applications")
+      .update(paymentPatch)
+      .eq("id", targetId);
+    if (error) {
+      console.error("[visa/payment-callback] program update failed", { code: error.code });
+      return NextResponse.json({ ok: false, error: "update failed" }, { status: 500 });
+    }
+  } else {
+    const { data: created, error } = await admin
+      .from("dancer_visa_applications")
+      .insert({
+        ...paymentPatch,
+        source: "program",
+        status: "documents",
+        case_stage: "visa_documents_basic",
+        basic_documents_status: "not_started",
+        next_action: "비자 서류 정보 입력",
+      })
+      .select("id")
+      .single();
+    if (error || !created) {
+      console.error("[visa/payment-callback] program insert failed", { code: error?.code });
+      return NextResponse.json({ ok: false, error: "insert failed" }, { status: 500 });
+    }
+    targetId = created.id as string;
+  }
+
+  return NextResponse.json({ ok: true, visaApplicationId: targetId });
 }
 
 // ── Village 사전예약금 ─────────────────────────────────────────────────────
