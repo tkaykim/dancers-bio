@@ -15,10 +15,12 @@ export type PendingWithdrawal = {
   requestedAt: string;
   bankName: string | null;
   accountTail: string | null;
+  // 서버에서 계산한 입금 예정일 라벨("9/5(금)") — 하이드레이션 불일치 방지.
+  expectedPayoutLabel: string | null;
 };
 
 // 잔액에서 원하는 금액만 출금 신청. 전액 신청도 여기서 한다.
-// 실제 이체는 담당자(경영지원실)가 통장에서 하고, 그때 잔액에서 빠진다.
+// 실제 이체는 담당자(경영지원실)가 매주 금요일 일괄로 하고, 그때 잔액에서 빠진다.
 export function BalanceWithdraw({
   dancerId,
   dancerName,
@@ -27,6 +29,7 @@ export function BalanceWithdraw({
   pending,
   brandName = "deetz",
   payoutReady,
+  nextPayoutLabel,
 }: {
   dancerId: string;
   dancerName: string;
@@ -35,6 +38,7 @@ export function BalanceWithdraw({
   pending: PendingWithdrawal[];
   brandName?: string;
   payoutReady: boolean;
+  nextPayoutLabel: string;
 }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
@@ -60,7 +64,9 @@ export function BalanceWithdraw({
         toast.error(res.error);
         return;
       }
-      toast.success(`${formatWon(n)} 출금을 신청했어요.`);
+      toast.success(
+        `${formatWon(n)} 출금을 신청했어요. ${nextPayoutLabel} 입금 예정이에요.`,
+      );
       setAmount("");
       router.refresh();
     });
@@ -136,7 +142,9 @@ export function BalanceWithdraw({
           <p className="text-[11px] leading-relaxed text-ink-3">
             잔액은 원천징수 3.3%를 이미 뺀 실수령 금액이에요.
             <br />
-            신청하면 {brandName} 정산 담당자가 등록하신 계좌로 입금합니다.
+            {brandName} 정산 담당자가 매주 금요일에 일괄 입금해요. 다음
+            지급일은 <span className="font-semibold text-ink-2">{nextPayoutLabel}</span>
+            이에요.
           </p>
         </>
       )}
@@ -157,7 +165,10 @@ export function BalanceWithdraw({
                     {formatWon(p.amount)}
                   </span>
                   <span className="truncate text-[11px] text-ink-3">
-                    {p.bankName ?? "계좌"} {p.accountTail ?? ""} · 입금 대기
+                    {p.bankName ?? "계좌"} {p.accountTail ?? ""} ·{" "}
+                    {p.expectedPayoutLabel
+                      ? `${p.expectedPayoutLabel} 입금 예정`
+                      : "입금 대기"}
                   </span>
                 </div>
                 <button

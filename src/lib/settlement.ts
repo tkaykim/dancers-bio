@@ -79,10 +79,14 @@ export function calcPayout(input: {
   return { gross: c.gross, tax: c.tax, vat: 0, transfer: c.net };
 }
 
-// 4단계 개념: 정산대기(금액 미입력) → 정산완료(pending+금액有) → 출금신청(requested) → 입금완료(paid)
+// 4단계 개념: 정산 확정 대기(금액 미입력) → 정산 확정(pending+금액有, 잔액 반영)
+//            → 지급 처리 중(requested, 구 경로 잔여) → 입금완료(paid)
+// 라벨 정본 — 옛 "정산완료"는 금액 확정을 뜻했는데 "돈 다 받음"으로 읽혀 CS를
+// 만들었다. "출금 가능"도 잔액을 출금한 뒤에는 거짓이 되므로, 행의 사실만
+// 말하는 "정산 확정"으로 교체(확정 대기 → 정산 확정 사다리). 2026-08-27.
 export const SETTLEMENT_STATUS_LABEL: Record<SettlementStatus, string> = {
-  pending: "정산완료",
-  requested: "출금신청",
+  pending: "정산 확정",
+  requested: "지급 처리 중",
   paid: "입금완료",
   cancelled: "취소됨",
 };
@@ -96,11 +100,11 @@ export function isAwaitingAmount(
   return status === "pending" && (gross == null || gross <= 0);
 }
 
-// 금액 미입력 pending 은 "정산대기"로, 그 외는 기본 라벨로 표시.
+// 금액 미입력 pending 은 "정산 확정 대기"로, 그 외는 기본 라벨로 표시.
 export function settlementStageLabel(
   status: SettlementStatus,
   gross: number | null | undefined,
 ): string {
-  if (isAwaitingAmount(status, gross)) return "정산대기";
+  if (isAwaitingAmount(status, gross)) return "정산 확정 대기";
   return SETTLEMENT_STATUS_LABEL[status];
 }

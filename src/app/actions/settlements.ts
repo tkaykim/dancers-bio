@@ -121,61 +121,8 @@ function parseRole(v: FormDataEntryValue | null): SettlementRole | null {
     : null;
 }
 
-// 댄서 출금신청 → 경영지원실(슈퍼관리자 전원)에게 인앱 + 웹푸시 알림 (비치명적).
-// 담당자가 코크핏을 열어보지 않아도 "처리할 출금 신청이 들어왔다"를 즉시 인지.
-async function notifyAdminsWithdrawalRequested(
-  settlementId: string,
-): Promise<void> {
-  try {
-    const admin = createAdminClient();
-    const { data: s } = await admin
-      .from("settlements")
-      .select("dancer_id, project_id, gross_amount, withholding_rate, tax_mode, vat_amount")
-      .eq("id", settlementId)
-      .maybeSingle();
-    if (!s) return;
-
-    const [{ data: d }, { data: p }, { data: admins }] = await Promise.all([
-      admin.from("dancers").select("stage_name").eq("id", s.dancer_id).maybeSingle(),
-      admin.from("projects").select("title").eq("id", s.project_id).maybeSingle(),
-      admin.from("profiles").select("id").eq("is_admin", true),
-    ]);
-    const ids = (admins ?? []).map((a: { id: string }) => a.id as string);
-    if (ids.length === 0) return;
-
-    const name = (d?.stage_name as string) ?? "댄서";
-    const title = (p?.title as string) ?? "프로젝트";
-    const net = transferAmountOf(s);
-    const url = "/admin/settlements";
-
-    await Promise.all(
-      ids.map((rid) =>
-        notify({
-          recipientId: rid,
-          type: "settlement_withdrawal_requested",
-          payload: {
-            kind: "withdrawal_requested",
-            settlement_id: settlementId,
-            dancer_name: name,
-            project_title: title,
-            net_amount: net,
-            url,
-          },
-          push: {
-            title: "출금 신청 접수",
-            body: `${name}님이 '${title}' 정산 출금을 신청했어요 (${formatWon(net)} 입금 예정).`,
-            url,
-          },
-        }),
-      ),
-    );
-  } catch (err) {
-    console.error(
-      "[notifyAdminsWithdrawalRequested] failed (non-fatal):",
-      err,
-    );
-  }
-}
+// (구) notifyAdminsWithdrawalRequested — 정산 건별 출금신청과 함께 제거.
+// 잔액 출금의 관리자 알림은 actions/withdrawals.ts가 보낸다.
 
 // 댄서에게 정산완료/입금완료 알림 (인앱 + 웹푸시 + 알림톡). 비치명적.
 // 정산 정보(계좌 3종 + 주민/외국인등록번호) 완비 여부.
@@ -261,7 +208,7 @@ async function notifyDancerSettlement(
               type: "settlement_confirmed" as const,
               push: {
                 title: "정산 금액 확정",
-                body: `'${title}' 정산금 ${netText}이 확정됐어요.`,
+                body: `'${title}' 정산금 ${netText}이 확정됐어요. 출금 신청분은 매주 금요일에 입금돼요.`,
                 url,
               },
             };
@@ -697,7 +644,7 @@ export async function sendWithdrawalRequestEmailAction(
     .maybeSingle();
   if (!s) return { ok: false, error: "정산 내역을 찾을 수 없습니다." };
   if (s.status !== "pending")
-    return { ok: false, error: "정산완료(출금신청 전) 건만 안내를 보낼 수 있어요." };
+    return { ok: false, error: "정산 확정(출금신청 전) 건만 안내를 보낼 수 있어요." };
   // 사업자(invoice) 건은 3.3% 안내 메일 문안이 맞지 않는다 — 별도 커뮤니케이션으로.
   if ((s.tax_mode as string) === "invoice")
     return { ok: false, error: "사업자(세금계산서) 건은 이 안내 메일 대상이 아닙니다." };
@@ -797,20 +744,10 @@ export async function saveResidentNumberAction(
   return { ok: true };
 }
 
-// ── 댄서: 출금 신청 (pending → requested). 계좌+주민번호 등록 필수. ─────────
-export async function requestWithdrawalAction(
-  fd: FormData,
-): Promise<ActionResult> {
-  // ⛔ 정산 건별 출금은 신규 신청을 받지 않는다(잔액 출금으로 일원화).
-  // 두 경로를 함께 열어두면 같은 돈이 정산 출금과 잔액 출금으로 각각 지급되는
-  // 이중 지급이 가능하다. 이미 신청된 기존 건은 관리자 화면에서 그대로 소진한다.
-  return {
-    ok: false,
-    error:
-      "출금 방식이 잔액 출금으로 바뀌었어요. ‘출금하기’에서 원하는 금액을 신청해 주세요.",
-  };
-}
-
+// ⛔ 정산 건별 출금(requestWithdrawalAction)은 잔액 출금으로 일원화되며 제거됨.
+// 두 경로를 함께 열면 같은 돈이 두 번 지급될 수 있고, DB도 신규 requested
+// 진입을 봉인한다(LEGACY_WITHDRAWAL_CLOSED). 부활 금지 — 출금은
+// requestPartialWithdrawalAction(잔액) 단일 경로다.
 
 // ── 관리자: 미지급 정산 취소 (pending/requested → cancelled) ──────────────
 // 테스트 제출·중복·지급 대상 아님을 확인한 건을 대기열에서 제외한다.

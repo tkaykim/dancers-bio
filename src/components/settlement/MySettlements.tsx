@@ -1,11 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
+import { Check, ChevronDown, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import {
-  requestWithdrawalAction,
   savePayoutAccountAction,
   saveResidentNumberAction,
 } from "@/app/actions/settlements";
@@ -31,7 +31,11 @@ export type MySettlementRow = {
   grossAmount: number | null;
   rate: number;
   status: SettlementStatus;
+  createdAt: string | null;
   paidAt: string | null;
+  // 지급 처리 중(requested) 건의 안내용 입금 예정일 라벨("9/5(금)").
+  // 하이드레이션 불일치를 피하려고 서버에서 계산해 내려준다.
+  expectedPayoutLabel: string | null;
 };
 
 function fmtDateKST(iso: string | null): string {
@@ -49,6 +53,20 @@ function fmtDateKST(iso: string | null): string {
     .replace(/\.$/, "");
 }
 
+function fmtShortDateKST(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(d);
+  const month = parts.find((p) => p.type === "month")?.value ?? "";
+  const day = parts.find((p) => p.type === "day")?.value ?? "";
+  return month && day ? `${month}/${day}` : "";
+}
+
 export type PayoutAccount = {
   bankName: string;
   accountNumber: string;
@@ -64,10 +82,9 @@ export function MySettlements({
   dancerNames,
   // 화이트라벨(/w GRIGO 호스트)에서 원천징수 주체 표기를 브랜드에 맞추기 위한 표시명.
   brandName = "deetz",
-  // 출금이 잔액(원장) 기반으로 옮겨간 화면에서는 여기의 출금 UI를 숨긴다.
-  // 두 곳에 서로 다른 기준(세전/세후)의 '출금 가능 금액'이 함께 보이면 혼란스럽고,
-  // 정산 건별 출금은 서버에서 이미 차단돼 눌러도 실패한다.
-  hideWithdrawUI = false,
+  // page = /me/settlements(출금하기 카드가 같은 화면 위에 있음)
+  // share = /w 공유 링크(출금은 /me/settlements로 안내)
+  variant = "page",
 }: {
   settlements: MySettlementRow[];
   accounts: Record<string, PayoutAccount | null>;
@@ -76,251 +93,248 @@ export function MySettlements({
   docs: Record<string, DancerDocsState>;
   dancerNames: Record<string, string>;
   brandName?: string;
-  hideWithdrawUI?: boolean;
+  variant?: "page" | "share";
 }) {
-  const router = useRouter();
-  const [confirm, setConfirm] = useState<MySettlementRow | null>(null);
   const dancerIds = Object.keys(dancerNames);
-
-  // 출금 가능 잔액 = 정산완료(pending) 건의 세전 금액 합계.
-  // (출금신청·입금완료 건은 이미 처리 중/완료라 잔액에서 제외)
-  const pendingRows = settlements.filter(
-    (s) => s.status === "pending" && s.grossAmount != null,
-  );
-  const withdrawableGross = pendingRows.reduce(
-    (sum, s) => sum + calcSettlement(s.grossAmount ?? 0, s.rate).gross,
-    0,
-  );
-
-  // 받은 정산 = 입금완료(paid) 건의 실수령 — 연도별로 확인(작년치도).
-  const thisYear = new Date().getFullYear();
-  const paidRows = settlements.filter((s) => s.status === "paid" && s.paidAt);
-  const availableYears = [
-    ...new Set([
-      thisYear,
-      ...paidRows.map((s) => new Date(s.paidAt as string).getFullYear()),
-    ]),
-  ].sort((a, b) => b - a);
-  const [receivedYear, setReceivedYear] = useState(thisYear);
-  const receivedForYear = paidRows.reduce(
-    (sum, s) =>
-      new Date(s.paidAt as string).getFullYear() === receivedYear
-        ? sum + calcSettlement(s.grossAmount ?? 0, s.rate).net
-        : sum,
-    0,
-  );
+  const allPayoutReady =
+    dancerIds.length > 0 && dancerIds.every((id) => payoutReady[id] === true);
+  // 지급 정보는 한 번 등록하면 끝이라, 완비된 경우 접어서 정산 내역을 위로 올린다.
+  const [payoutInfoOpen, setPayoutInfoOpen] = useState(!allPayoutReady);
 
   return (
     <div className="flex flex-col gap-6">
-      {/* 출금 가능 잔액 + 올해 받은 정산 요약 */}
-      <section
-        className={
-          hideWithdrawUI ? "grid grid-cols-1 gap-2" : "grid grid-cols-2 gap-2"
-        }
-      >
-        {hideWithdrawUI ? null : (
-        <div className="flex flex-col gap-1 rounded-2xl border border-border bg-gradient-to-br from-primary/10 to-card p-4">
-          <span className="text-[11px] font-medium text-ink-3">출금 가능 금액</span>
-          <span className="text-2xl font-extrabold tracking-tight text-foreground">
-            {formatWon(withdrawableGross)}
-          </span>
-          <span className="text-[10px] text-ink-3">
-            정산완료 {pendingRows.length}건 · 출금 시 3.3% 세금 공제
-          </span>
-        </div>
-        )}
-        <div className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-4">
-          <div className="flex items-center justify-between gap-1">
-            <span className="text-[11px] font-medium text-ink-3">받은 정산</span>
-            {availableYears.length > 1 ? (
-              <select
-                value={receivedYear}
-                onChange={(e) => setReceivedYear(Number(e.target.value))}
-                aria-label="연도 선택"
-                className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-ink-2 outline-none focus:border-primary"
-              >
-                {availableYears.map((y) => (
-                  <option key={y} value={y}>
-                    {y}년
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <span className="text-[10px] text-ink-3">{receivedYear}년</span>
-            )}
-          </div>
-          <span className="text-2xl font-extrabold tracking-tight text-foreground">
-            {formatWon(receivedForYear)}
-          </span>
-          <span className="text-[10px] text-ink-3">입금완료 실수령 기준</span>
-        </div>
-      </section>
-
-      {/* 입금 계좌 */}
+      {/* 프로젝트별 정산 내역 */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-ink-2">입금 계좌</h2>
-        {dancerIds.map((id) => (
-          <AccountCard
-            key={id}
-            dancerId={id}
-            dancerName={dancerNames[id]}
-            showName={dancerIds.length > 1}
-            account={accounts[id] ?? null}
-          />
-        ))}
-      </section>
-
-      {/* 주민(외국인)등록번호 */}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-ink-2">
-          주민(외국인)등록번호
-        </h2>
-        {dancerIds.map((id) => (
-          <ResidentNumberCard
-            key={id}
-            dancerId={id}
-            dancerName={dancerNames[id]}
-            showName={dancerIds.length > 1}
-            registered={residentNumberRegistered[id] === true}
-          />
-        ))}
-      </section>
-
-      {/* 정산 서류 */}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-ink-2">정산 서류</h2>
-        {dancerIds.map((id) => (
-          <DancerDocuments
-            key={id}
-            dancerId={id}
-            dancerName={dancerNames[id]}
-            showName={dancerIds.length > 1}
-            docs={docs[id] ?? { idCard: false, bankbook: false }}
-          />
-        ))}
-      </section>
-
-      {/* 정산 내역 */}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-ink-2">정산 내역</h2>
+        <h2 className="text-sm font-bold text-ink-2">프로젝트별 정산</h2>
         {settlements.length === 0 ? (
           <div className="rounded-2xl border border-border bg-card p-5 text-sm text-ink-3">
-            아직 확정된 정산금액이 없어요. 진행한 프로젝트의 정산금액이
-            등록되면 여기에 표시됩니다.
+            아직 정산 내역이 없어요. 참여한 프로젝트의 정산이 등록되면 여기에
+            표시됩니다.
           </div>
         ) : (
           <ul className="flex flex-col gap-3">
-            {settlements.map((s) => {
-              const hasAccount = !!accounts[s.dancerId];
-              const hasPayoutInfo = payoutReady[s.dancerId] === true;
-              // 셀프 제출 직후 등 금액 미정 건 = 금액 산정 대기 카드.
-              if (s.grossAmount == null) {
-                return (
-                  <li
-                    key={s.id}
-                    className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-semibold leading-tight">
-                          {s.projectTitle}
-                        </span>
-                        <span className="text-xs text-ink-3">
-                          {s.dancerName}
-                        </span>
-                      </div>
-                      <span className="shrink-0 rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold text-ink-3">
-                        금액 산정 대기
-                      </span>
-                    </div>
-                    <p className="text-xs text-ink-3">
-                      정산 정보 제출이 완료됐어요. 담당자가 금액을 확정하면
-                      알려드릴게요.
-                    </p>
-                  </li>
-                );
-              }
-              const calc = calcSettlement(s.grossAmount, s.rate);
-              return (
-                <li
-                  key={s.id}
-                  className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-sm font-semibold leading-tight">
-                        {s.projectTitle}
-                      </span>
-                      <span className="text-xs text-ink-3">{s.dancerName}</span>
-                    </div>
-                    <StatusBadge status={s.status} />
-                  </div>
-
-                  <div className="flex flex-col gap-1 rounded-xl bg-secondary/60 p-3">
-                    <div className="flex items-end justify-between">
-                      <span className="text-xs text-ink-3">정산 금액 (세전)</span>
-                      <span className="text-lg font-bold text-foreground">
-                        {formatWon(calc.gross)}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-ink-3">
-                      세금 {(calc.rate * 100).toFixed(1)}%(−{formatWon(calc.tax)})
-                      {s.status === "paid"
-                        ? ` 공제 후 ${formatWon(calc.net)} 입금 완료`
-                        : s.status === "requested"
-                          ? ` 공제 후 ${formatWon(calc.net)} 입금 예정`
-                          : ` 공제 후 ${formatWon(calc.net)} 입금돼요`}
-                    </p>
-                  </div>
-
-                  {s.status === "pending" && !hideWithdrawUI ? (
-                    hasPayoutInfo ? (
-                      <button
-                        type="button"
-                        onClick={() => setConfirm(s)}
-                        className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors active:opacity-80"
-                      >
-                        출금 신청
-                      </button>
-                    ) : (
-                      <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                        {hasAccount
-                          ? "출금 신청하려면 주민(외국인)등록번호도 등록해 주세요."
-                          : "출금 신청하려면 입금 계좌와 주민(외국인)등록번호를 모두 등록해 주세요."}
-                      </p>
-                    )
-                  ) : null}
-                  {s.status === "requested" ? (
-                    <p className="text-xs text-ink-3">
-                      출금 신청이 접수되었어요. 담당자 확인 후 등록하신 계좌로
-                      입금됩니다.
-                    </p>
-                  ) : null}
-                  {s.status === "paid" ? (
-                    <p className="text-xs text-emerald-600">
-                      입금이 완료되었어요.
-                      {s.paidAt ? ` · ${fmtDateKST(s.paidAt)} 입금` : ""}
-                    </p>
-                  ) : null}
-                </li>
-              );
-            })}
+            {settlements.map((s) => (
+              <SettlementCard
+                key={s.id}
+                row={s}
+                payoutReady={payoutReady[s.dancerId] === true}
+                variant={variant}
+              />
+            ))}
           </ul>
         )}
       </section>
 
-      {confirm ? (
-        <WithdrawDialog
-          row={confirm}
-          account={accounts[confirm.dancerId] ?? null}
-          brandName={brandName}
-          onClose={() => setConfirm(null)}
-          onDone={() => {
-            setConfirm(null);
-            router.refresh();
-          }}
-        />
+      {/* 지급 정보 (계좌·주민번호·서류) — 등록 완료면 접힘 */}
+      <section className="flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={() => setPayoutInfoOpen((v) => !v)}
+          aria-expanded={payoutInfoOpen}
+          className="flex items-center justify-between gap-2 rounded-2xl border border-border bg-card px-4 py-3"
+        >
+          <span className="text-sm font-bold text-ink-2">
+            지급 정보 (계좌 · 등록번호 · 서류)
+          </span>
+          <span className="flex items-center gap-1.5 text-[11px] font-medium">
+            {allPayoutReady ? (
+              <span className="flex items-center gap-1 text-emerald-600">
+                <Check size={13} aria-hidden /> 등록 완료
+              </span>
+            ) : (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">
+                등록 필요
+              </span>
+            )}
+            <ChevronDown
+              size={15}
+              aria-hidden
+              className={`text-ink-3 transition-transform ${payoutInfoOpen ? "rotate-180" : ""}`}
+            />
+          </span>
+        </button>
+
+        {payoutInfoOpen ? (
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-3">
+              <h3 className="text-xs font-bold text-ink-3">입금 계좌</h3>
+              {dancerIds.map((id) => (
+                <AccountCard
+                  key={id}
+                  dancerId={id}
+                  dancerName={dancerNames[id]}
+                  showName={dancerIds.length > 1}
+                  account={accounts[id] ?? null}
+                />
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <h3 className="text-xs font-bold text-ink-3">
+                주민(외국인)등록번호
+              </h3>
+              {dancerIds.map((id) => (
+                <ResidentNumberCard
+                  key={id}
+                  dancerId={id}
+                  dancerName={dancerNames[id]}
+                  showName={dancerIds.length > 1}
+                  registered={residentNumberRegistered[id] === true}
+                />
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <h3 className="text-xs font-bold text-ink-3">정산 서류</h3>
+              {dancerIds.map((id) => (
+                <DancerDocuments
+                  key={id}
+                  dancerId={id}
+                  dancerName={dancerNames[id]}
+                  showName={dancerIds.length > 1}
+                  docs={docs[id] ?? { idCard: false, bankbook: false }}
+                />
+              ))}
+            </div>
+
+            <p className="text-[11px] leading-relaxed text-ink-3">
+              원천징수 3.3%는 플랫폼 수수료가 아니라 국세청에 납부되는
+              세금(소득세 3% + 지방소득세 0.3%)이에요. {brandName}가 대신
+              원천징수·신고하며, 매년 5월 종합소득세 신고 때 환급받으실 수도
+              있어요.
+            </p>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+// 카드 하나 = 정산 1건. "지금 어디까지 왔고 다음이 언제인지"를 카드가 직접 말한다.
+function SettlementCard({
+  row: s,
+  payoutReady,
+  variant,
+}: {
+  row: MySettlementRow;
+  payoutReady: boolean;
+  variant: "page" | "share";
+}) {
+  // 금액 미확정 = 정산 확정 대기 카드 (진행 단계 표시).
+  if (s.grossAmount == null) {
+    return (
+      <li className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-semibold leading-tight">
+              {s.projectTitle}
+            </span>
+            <span className="text-xs text-ink-3">{s.dancerName}</span>
+          </div>
+          <span className="shrink-0 rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold text-ink-3">
+            정산 확정 대기
+          </span>
+        </div>
+        <AwaitingSteps registeredAt={s.createdAt} />
+        <p className="text-xs leading-relaxed text-ink-3">
+          정산 정보 제출이 완료됐어요. 담당자가 금액을 확정하면 알림을
+          드릴게요. 확정된 금액은 바로 출금 가능 잔액에 반영돼요.
+        </p>
+      </li>
+    );
+  }
+
+  const calc = calcSettlement(s.grossAmount, s.rate);
+  return (
+    <li className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-semibold leading-tight">
+            {s.projectTitle}
+          </span>
+          <span className="text-xs text-ink-3">{s.dancerName}</span>
+        </div>
+        <StatusBadge status={s.status} />
+      </div>
+
+      <div className="flex flex-col gap-1 rounded-xl bg-secondary/60 p-3">
+        <div className="flex items-end justify-between">
+          <span className="text-xs text-ink-3">정산 금액 (세전)</span>
+          <span className="text-lg font-bold text-foreground">
+            {formatWon(calc.gross)}
+          </span>
+        </div>
+        <p className="text-[11px] text-ink-3">
+          세금 {(calc.rate * 100).toFixed(1)}%(−{formatWon(calc.tax)})
+          {s.status === "paid"
+            ? ` 공제 후 ${formatWon(calc.net)} 입금 완료`
+            : s.status === "requested"
+              ? ` 공제 후 ${formatWon(calc.net)} 입금 예정`
+              : ` 공제 후 ${formatWon(calc.net)}이 출금 가능 잔액에 반영돼요`}
+        </p>
+      </div>
+
+      {s.status === "pending" ? (
+        payoutReady ? (
+          variant === "share" ? (
+            <Link
+              href="/me/settlements"
+              className="rounded-xl bg-primary px-4 py-3 text-center text-sm font-semibold text-primary-foreground transition-colors active:opacity-80"
+            >
+              출금 신청하러 가기 →
+            </Link>
+          ) : (
+            <p className="text-xs text-ink-3">
+              위 &lsquo;출금하기&rsquo;에서 원하는 금액만큼 출금을 신청할 수
+              있어요.
+            </p>
+          )
+        ) : (
+          <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            출금하려면 아래 &lsquo;지급 정보&rsquo;에서 입금 계좌와
+            주민(외국인)등록번호를 등록해 주세요.
+          </p>
+        )
       ) : null}
+      {s.status === "requested" ? (
+        <p className="text-xs text-ink-3">
+          출금 신청이 접수됐어요.
+          {s.expectedPayoutLabel
+            ? ` ${s.expectedPayoutLabel}에 등록하신 계좌로 입금될 예정이에요.`
+            : " 담당자 확인 후 등록하신 계좌로 입금됩니다."}
+        </p>
+      ) : null}
+      {s.status === "paid" ? (
+        <p className="text-xs text-emerald-600">
+          입금이 완료되었어요.
+          {s.paidAt ? ` · ${fmtDateKST(s.paidAt)} 입금` : ""}
+        </p>
+      ) : null}
+    </li>
+  );
+}
+
+// 확정 대기 카드의 진행 단계: 정산 등록 ✓ → 금액 확정(진행 중) → 잔액 반영.
+function AwaitingSteps({ registeredAt }: { registeredAt: string | null }) {
+  const registeredDate = fmtShortDateKST(registeredAt);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center">
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500">
+          <Check size={10} className="text-white" aria-hidden />
+        </span>
+        <span className="h-0.5 flex-1 bg-emerald-200" />
+        <span className="h-4 w-4 shrink-0 rounded-full border-2 border-amber-500 bg-card" />
+        <span className="h-0.5 flex-1 bg-border" />
+        <span className="h-4 w-4 shrink-0 rounded-full border-2 border-border bg-card" />
+      </div>
+      <div className="flex justify-between text-[10px] leading-tight">
+        <span className="text-emerald-600">
+          정산 등록{registeredDate ? ` ${registeredDate}` : ""}
+        </span>
+        <span className="text-center font-medium text-amber-600">금액 확정</span>
+        <span className="text-right text-ink-3">잔액 반영</span>
+      </div>
     </div>
   );
 }
@@ -446,40 +460,15 @@ function ResidentNumberCard({
   );
 }
 
-function Line({
-  label,
-  value,
-  strong,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className={strong ? "font-semibold text-foreground" : ""}>
-        {label}
-      </span>
-      <span
-        className={
-          strong ? "text-base font-bold text-foreground" : "font-medium"
-        }
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
 function StatusBadge({ status }: { status: SettlementStatus }) {
   const tone =
     status === "paid"
       ? "bg-emerald-100 text-emerald-700"
       : status === "requested"
-        ? "bg-blue-100 text-blue-700"
+        ? "bg-amber-100 text-amber-700"
         : status === "cancelled"
           ? "bg-secondary text-ink-3"
-          : "bg-amber-100 text-amber-700";
+          : "bg-blue-100 text-blue-700";
   return (
     <span
       className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${tone}`}
@@ -612,120 +601,6 @@ function AccountCard({
           </p>
         </div>
       )}
-    </div>
-  );
-}
-
-function WithdrawDialog({
-  row,
-  account,
-  brandName,
-  onClose,
-  onDone,
-}: {
-  row: MySettlementRow;
-  account: PayoutAccount | null;
-  brandName: string;
-  onClose: () => void;
-  onDone: () => void;
-}) {
-  const [busy, startTransition] = useTransition();
-  const [reveal, setReveal] = useState(false);
-  const calc = calcSettlement(row.grossAmount ?? 0, row.rate);
-
-  function submit() {
-    const fd = new FormData();
-    fd.set("settlement_id", row.id);
-    startTransition(async () => {
-      const res = await requestWithdrawalAction(fd);
-      if (res.ok) {
-        toast.success("출금 신청이 접수되었어요.");
-        onDone();
-      } else {
-        toast.error(res.error);
-      }
-    });
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-base font-bold">출금 신청</h3>
-        <p className="mt-1 text-sm text-ink-2">{row.projectTitle}</p>
-
-        <div className="mt-4 flex flex-col gap-1 rounded-xl bg-secondary/60 p-3 text-xs text-ink-2">
-          <Line label="정산 금액 (세전)" value={formatWon(calc.gross)} />
-          <Line
-            label={`세금 원천징수 (${(calc.rate * 100).toFixed(1)}%)`}
-            value={`− ${formatWon(calc.tax)}`}
-          />
-          <div className="my-1 border-t border-hairline-2" />
-          <Line label="실입금액" value={formatWon(calc.net)} strong />
-        </div>
-
-        <div className="mt-3 rounded-xl bg-blue-50 p-3 text-[11px] leading-relaxed">
-          <p className="font-semibold text-blue-800">
-            원천징수 3.3%는 플랫폼 수수료가 아니에요.
-          </p>
-          <p className="mt-1 text-blue-700">
-            국세청에 납부되는 세금이에요 (소득세 3% + 지방소득세 0.3%).
-          </p>
-          <p className="mt-1 text-blue-700">
-            {brandName}가 댄서님 대신 원천징수·신고하고, 매년 5월 종합소득세 신고 때
-            환급받으실 수도 있어요.
-          </p>
-        </div>
-
-        {account ? (
-          <div className="mt-3 flex items-start justify-between gap-2 text-sm text-ink-2">
-            <p className="min-w-0">
-              <span className="font-semibold text-foreground">
-                {account.bankName}{" "}
-                {reveal ? account.accountNumber : maskAccount(account.accountNumber)}
-              </span>{" "}
-              ({account.accountHolder}) 으로 입금됩니다.
-            </p>
-            <button
-              type="button"
-              onClick={() => setReveal((v) => !v)}
-              aria-label={reveal ? "가리기" : "계좌번호 전체 보기"}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border text-ink-2 active:bg-secondary"
-            >
-              {reveal ? <EyeOff size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
-            </button>
-          </div>
-        ) : null}
-
-        <p className="mt-3 text-xs text-ink-3">
-          신청하면 원천징수 3.3%를 제외한 {formatWon(calc.net)}이 등록하신
-          계좌로 입금됩니다. 신청하시겠어요?
-        </p>
-
-        <div className="mt-5 flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            className="flex-1 rounded-xl border border-border px-4 py-3 text-sm font-medium text-ink-2 active:bg-secondary"
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={busy}
-            className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground active:opacity-80 disabled:opacity-50"
-          >
-            {busy ? "신청 중…" : "출금 신청"}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

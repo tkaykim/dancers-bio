@@ -196,6 +196,11 @@ export default async function AdminSettlementsPage() {
           표시 금액은 실수령(원천징수 3.3% 공제 후)이에요. 3.3%는 플랫폼 수수료가
           아니라 국세청에 납부되는 세금(소득세 3% + 지방소득세 0.3%)입니다.
         </p>
+        <p className="rounded-xl bg-primary/10 px-3 py-2 text-xs font-medium text-ink-2">
+          지급 주기: 댄서 화면에는 &lsquo;출금 신청분은 매주 금요일 일괄
+          입금&rsquo;으로 안내돼요. 금요일마다 잔액 출금 큐와 아래 출금신청
+          큐를 함께 비워 주세요. (목요일까지 신청분 = 그 주 금요일 지급)
+        </p>
       </header>
       <BalanceWithdrawalQueue rows={balanceRows} />
       <WithdrawalRequests rows={list} />
