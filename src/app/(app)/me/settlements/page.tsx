@@ -18,6 +18,7 @@ import {
 import { SettlementSummary } from "@/components/settlement/SettlementSummary";
 import type { DancerDocsState } from "@/components/settlement/DancerDocuments";
 import {
+  calcPayout,
   calcSettlement,
   isAwaitingAmount,
   settlementRoleLabel,
@@ -27,6 +28,7 @@ import {
   expectedPayoutLabel,
   kstYear,
   nextPayoutLabel,
+  sumByKstYear,
 } from "@/lib/payout-schedule";
 import {
   isPayoutAccountValid,
@@ -58,6 +60,9 @@ export default async function MySettlementsPage() {
   const nameById = new Map(dancers.map((d) => [d.id, d.stage_name ?? "내 프로필"]));
 
   let settlements: MySettlementRow[] = [];
+  // 실제 입금된 건(구 경로 정산 paid + 잔액 출금 paid). 연도별 '받은 정산'
+  // 합계의 유일한 입력이며, 상세 페이지(/me/settlements/history)와 같은 규칙.
+  const receivedRows: Array<{ paidAt: string; amount: number }> = [];
   const accounts: Record<string, PayoutAccount | null> = {};
   const payoutReady: Record<string, boolean> = {};
   const residentNumberRegistered: Record<string, boolean> = {};
@@ -67,7 +72,7 @@ export default async function MySettlementsPage() {
     const { data: sRows } = await supabase
       .from("settlements")
       .select(
-        "id, dancer_id, role, gross_amount, withholding_rate, status, created_at, requested_at, paid_at, project:projects!settlements_project_id_fkey ( title )",
+        "id, dancer_id, role, gross_amount, withholding_rate, tax_mode, vat_amount, status, created_at, requested_at, paid_at, project:projects!settlements_project_id_fkey ( title )",
       )
       .in("dancer_id", dancerIds)
       .neq("status", "cancelled")
@@ -79,13 +84,32 @@ export default async function MySettlementsPage() {
       role: string;
       gross_amount: number;
       withholding_rate: number;
+      tax_mode: string | null;
+      vat_amount: number | null;
       status: SettlementStatus;
       created_at: string | null;
       requested_at: string | null;
       paid_at: string | null;
       project: { title: string } | { title: string }[] | null;
     };
-    settlements = ((sRows ?? []) as unknown as Row[]).map((r) => {
+    const rawSettlements = (sRows ?? []) as unknown as Row[];
+
+    // 받은 정산 합계는 /me/settlements/history와 같은 식(calcPayout)으로 쌓는다
+    // — 요약 타일과 상세 페이지가 다른 숫자를 말하면 안 된다.
+    for (const r of rawSettlements) {
+      if (r.status !== "paid" || !r.paid_at) continue;
+      receivedRows.push({
+        paidAt: r.paid_at,
+        amount: calcPayout({
+          gross: r.gross_amount ?? 0,
+          rate: Number(r.withholding_rate),
+          taxMode: r.tax_mode,
+          vatAmount: r.vat_amount,
+        }).transfer,
+      });
+    }
+
+    settlements = rawSettlements.map((r) => {
       const proj = Array.isArray(r.project) ? r.project[0] ?? null : r.project;
       const baseTitle = proj?.title ?? "(공고)";
       return {
@@ -155,10 +179,6 @@ export default async function MySettlementsPage() {
   // 잔액은 이미 세후이므로 여기서 추가 공제가 없다.
   const balanceByDancer: Record<string, { balance: number; available: number }> = {};
   const pendingByDancer: Record<string, PendingWithdrawal[]> = {};
-  // 받은 정산(연도별) = 구 경로 paid 정산 실수령 + 잔액 출금 paid 금액.
-  // 잔액 일원화 이후의 실입금은 withdrawal_requests(paid)로만 남아서,
-  // 정산 paid만 합치면 새 경로 입금이 통째로 빠진다.
-  const receivedByYear: Record<number, number> = {};
   let processingTotal = 0;
   let processingCount = 0;
   if (dancerIds.length > 0) {
@@ -187,8 +207,7 @@ export default async function MySettlementsPage() {
     const withdrawals = (wrRows ?? []) as WrRow[];
     for (const wr of withdrawals) {
       if (wr.status === "paid" && wr.paid_at) {
-        const year = kstYear(wr.paid_at);
-        receivedByYear[year] = (receivedByYear[year] ?? 0) + Number(wr.amount);
+        receivedRows.push({ paidAt: wr.paid_at, amount: Number(wr.amount) });
       }
     }
     for (const id of dancerIds) {
@@ -229,14 +248,9 @@ export default async function MySettlementsPage() {
   }
 
   // 요약 카드 데이터 (전 프로필 합산).
-  for (const s of settlements) {
-    if (s.status === "paid" && s.paidAt) {
-      const year = kstYear(s.paidAt);
-      receivedByYear[year] =
-        (receivedByYear[year] ?? 0) +
-        calcSettlement(s.grossAmount ?? 0, s.rate).net;
-    }
-  }
+  // 구 경로 정산 paid와 잔액 출금 paid는 경로가 갈려 겹치지 않는다
+  // (정산 paid = 원장 earn+withdraw / 잔액 출금 = withdraw만) — 이중계상 없음.
+  const receivedByYear = sumByKstYear(receivedRows);
   const awaitingCount = settlements.filter((s) =>
     isAwaitingAmount(s.status, s.grossAmount),
   ).length;

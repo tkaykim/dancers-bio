@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { CalendarClock } from "lucide-react";
 import { formatWon } from "@/lib/settlement";
 import { PAYOUT_RULE_LINE } from "@/lib/payout-schedule";
@@ -93,7 +94,14 @@ export function SettlementSummary({
           <span className="text-xl font-extrabold tracking-tight text-foreground">
             {formatWon(received)}
           </span>
-          <span className="text-[10px] text-ink-3">입금완료 실수령 기준</span>
+          {/* 연도 합계만으론 "언제 뭐가 들어왔는지"를 알 수 없어서,
+              고른 연도를 그대로 들고 기간별 상세로 넘어간다. */}
+          <Link
+            href={`/me/settlements/history?period=year&year=${year}`}
+            className="text-[10px] font-semibold text-primary hover:underline"
+          >
+            기간별 내역 보기 →
+          </Link>
         </div>
       </div>
 
