@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, ExternalLink, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, ShieldCheck } from "lucide-react";
 import { requireUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadMemberVisaAccess } from "@/lib/visa/member-case";
@@ -167,6 +167,24 @@ export default async function MemberVisaPage() {
         defaultLang={defaultLang}
         nextActionNote={applicantNote(stringValue(row, "next_action"))}
       />
+
+      {paymentStatus === "paid" ? (
+        <section className="mt-5 rounded-2xl border border-primary/25 bg-primary/5 p-5">
+          <div className="flex items-start gap-3">
+            <FileText className="mt-0.5 size-5 text-primary" />
+            <div className="min-w-0 flex-1">
+              <h2 className="font-bold">Visa document information</h2>
+              <p className="mt-1 text-sm leading-6 text-ink-2">
+                Complete the secure form for document preparation.
+                Your progress is saved automatically.
+              </p>
+              <Link href="/me/visa/documents" className="mt-4 inline-flex rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground">
+                Open document form
+              </Link>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <p className="mt-4 px-1 text-xs leading-relaxed text-ink-3">
         The final visa decision and processing time are determined by Korea Immigration.

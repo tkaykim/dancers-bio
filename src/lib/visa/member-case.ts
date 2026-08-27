@@ -11,6 +11,7 @@ type PrivateNationality = {
 
 export type MemberVisaApplication = Record<string, unknown> & {
   id: string;
+  email: string;
   dancer_id: string | null;
   preferred_lang: string | null;
   case_stage: string | null;
@@ -22,6 +23,9 @@ export type MemberVisaApplication = Record<string, unknown> & {
   visa_issued_at: string | null;
   payment_status: string | null;
   payment_meta: Record<string, unknown> | null;
+  source: string | null;
+  external_training_order_id: string | null;
+  program_product_slug: string | null;
   created_at: string;
 };
 
@@ -37,6 +41,14 @@ function nationalitySignal(row: PrivateNationality | undefined): "kr" | "foreign
   if (row.is_korean_national === false) return "foreign";
   if (row.nationality_code?.trim()) return "foreign";
   return "unknown";
+}
+
+function isPaidProgramCase(application: MemberVisaApplication): boolean {
+  return (
+    application.source === "program" &&
+    application.payment_status === "paid" &&
+    Boolean(application.external_training_order_id)
+  );
 }
 
 async function claimMemberVisaApplications({
@@ -55,7 +67,7 @@ async function claimMemberVisaApplications({
   // 서버에서 미연결 후보의 최소 컬럼만 읽고 이메일은 JS에서 완전 일치로 비교한다.
   const { data: candidatesRaw } = await admin
     .from("dancer_visa_applications")
-    .select("id, email, dancer_id")
+    .select("id, email, dancer_id, source, payment_status, external_training_order_id")
     .is("applicant_profile_id", null)
     .order("created_at", { ascending: false })
     .limit(1000);
@@ -63,6 +75,9 @@ async function claimMemberVisaApplications({
     id: string;
     email: string;
     dancer_id: string | null;
+    source: string | null;
+    payment_status: string | null;
+    external_training_order_id: string | null;
   }>;
   const emailMatches = candidates.filter(
     (application) => application.email.trim().toLowerCase() === normalizedEmail,
@@ -70,20 +85,28 @@ async function claimMemberVisaApplications({
   const dancerIds = Array.from(new Set(
     emailMatches.map((application) => application.dancer_id).filter((id): id is string => Boolean(id)),
   ));
-  if (dancerIds.length === 0) return;
-
-  const { data: privateRowsRaw } = await admin
-    .from("dancer_private_info")
-    .select("dancer_id, nationality_code, is_korean_national")
-    .in("dancer_id", dancerIds);
-  const privateRows = (privateRowsRaw ?? []) as unknown as PrivateNationality[];
+  let privateRows: PrivateNationality[] = [];
+  if (dancerIds.length > 0) {
+    const { data } = await admin
+      .from("dancer_private_info")
+      .select("dancer_id, nationality_code, is_korean_national")
+      .in("dancer_id", dancerIds);
+    privateRows = (data ?? []) as unknown as PrivateNationality[];
+  }
   const foreignDancerIds = new Set(
     privateRows
       .filter((row) => nationalitySignal(row) === "foreign")
       .map((row) => row.dancer_id),
   );
   const applicationIds = emailMatches
-    .filter((application) => application.dancer_id && foreignDancerIds.has(application.dancer_id))
+    .filter((application) => (
+      (application.dancer_id && foreignDancerIds.has(application.dancer_id)) ||
+      (
+        application.source === "program" &&
+        application.payment_status === "paid" &&
+        Boolean(application.external_training_order_id)
+      )
+    ))
     .map((application) => application.id);
   if (applicationIds.length === 0) return;
 
@@ -168,7 +191,9 @@ export async function loadMemberVisaAccess(userId: string): Promise<MemberVisaAc
   if (hasKoreanSignal) return { eligible: false, application: null, dancerName: null };
 
   const application = applications.find(
-    (item) => item.dancer_id && nationalitySignal(privateMap.get(item.dancer_id)) === "foreign",
+    (item) =>
+      (item.dancer_id && nationalitySignal(privateMap.get(item.dancer_id)) === "foreign") ||
+      isPaidProgramCase(item),
   ) ?? null;
   const hasForeignProfile = ownedDancers.some(
     (dancer) => nationalitySignal(privateMap.get(dancer.id)) === "foreign",
@@ -177,10 +202,14 @@ export async function loadMemberVisaAccess(userId: string): Promise<MemberVisaAc
     ? dancerNameMap.get(application.dancer_id)
     : null;
   const firstDancer = applicationDancer ?? ownedDancers[0] ?? null;
+  const paymentMeta = application?.payment_meta ?? {};
+  const paidCustomerName = typeof paymentMeta.customer_name === "string"
+    ? paymentMeta.customer_name.trim()
+    : null;
 
   return {
     eligible: Boolean(application || hasForeignProfile),
     application,
-    dancerName: firstDancer?.stage_name ?? firstDancer?.korean_name ?? null,
+    dancerName: firstDancer?.stage_name ?? firstDancer?.korean_name ?? paidCustomerName ?? null,
   };
 }
