@@ -113,21 +113,30 @@ function formatMoneyText(v: string): string {
 function MoneyInput(props: {
   name: string;
   defaultValue?: number | null;
+  // 제어 모드(부가세 자동 계산 등 연동 필드용): value + onValueChange를 함께 넘긴다.
+  value?: string;
+  onValueChange?: (formatted: string) => void;
   placeholder?: string;
   className?: string;
   required?: boolean;
 }) {
-  const [v, setV] = useState(
+  const [inner, setInner] = useState(
     props.defaultValue != null
       ? Math.round(props.defaultValue).toLocaleString("ko-KR")
       : "",
   );
+  const controlled = props.value !== undefined;
+  const v = controlled ? (props.value as string) : inner;
   return (
     <input
       name={props.name}
       value={v}
       required={props.required}
-      onChange={(e) => setV(formatMoneyText(e.target.value))}
+      onChange={(e) => {
+        const f = formatMoneyText(e.target.value);
+        if (controlled) props.onValueChange?.(f);
+        else setInner(f);
+      }}
       inputMode="numeric"
       placeholder={props.placeholder ?? "0"}
       className={
@@ -136,6 +145,17 @@ function MoneyInput(props: {
       }
     />
   );
+}
+
+function moneyToNumber(s: string): number {
+  const neg = s.trim().startsWith("-");
+  const digits = s.replace(/[^\d]/g, "");
+  if (!digits) return 0;
+  return (neg ? -1 : 1) * Number(digits);
+}
+
+function formatMoneyNumber(n: number | null | undefined): string {
+  return n != null ? Math.round(n).toLocaleString("ko-KR") : "";
 }
 
 const inputCls =
@@ -538,6 +558,32 @@ function LineForm({
     line?.line_type ?? (deal.pricing_model === "per_unit" ? "unit_billing" : "base"),
   );
   const isEdit = !!line;
+  // 부가세 자동 입력(대표 지시 2026-08-27): 공급가액(또는 수량×단가) 입력 시 10%를
+  // 즉시 채우고, 이후 직접 수정 가능. 면세 계약은 0원. 공급가액을 다시 바꾸면 재계산.
+  const taxFree = deal.vat_mode === "tax_free";
+  const [supplyStr, setSupplyStr] = useState(
+    formatMoneyNumber(line?.supply_amount),
+  );
+  const [vatStr, setVatStr] = useState(formatMoneyNumber(line?.vat_amount));
+  const [qtyStr, setQtyStr] = useState(
+    line?.quantity != null ? String(line.quantity) : "",
+  );
+  const [unitStr, setUnitStr] = useState(
+    formatMoneyNumber(line?.unit_price ?? deal.unit_price),
+  );
+  const autoVatFor = (supply: number) =>
+    setVatStr(formatMoneyNumber(taxFree ? 0 : Math.round(supply * 0.1)));
+  const recalcFromUnit = (qs: string, us: string) => {
+    const q = Number(qs);
+    if (!Number.isFinite(q) || q <= 0) return;
+    autoVatFor(Math.round(q * moneyToNumber(us)));
+  };
+  const unitSupplyPreview = (() => {
+    const q = Number(qtyStr);
+    if (!Number.isFinite(q) || q <= 0) return null;
+    const u = moneyToNumber(unitStr);
+    return u > 0 ? Math.round(q * u) : null;
+  })();
   return (
     <form
       className="grid gap-3 sm:grid-cols-3"
@@ -598,18 +644,29 @@ function LineForm({
               inputMode="decimal"
               required
               className={inputCls}
-              defaultValue={line?.quantity ?? ""}
+              value={qtyStr}
+              onChange={(e) => {
+                setQtyStr(e.target.value);
+                recalcFromUnit(e.target.value, unitStr);
+              }}
             />
           </div>
           <div className="flex flex-col gap-1">
             <label className={labelCls}>단가 (원) *</label>
             <MoneyInput
               name="unit_price"
-              defaultValue={line?.unit_price ?? deal.unit_price}
+              value={unitStr}
+              onValueChange={(v) => {
+                setUnitStr(v);
+                recalcFromUnit(qtyStr, v);
+              }}
             />
           </div>
           <p className="self-end pb-2 text-xs text-ink-4">
-            공급가액 = 수량 × 단가 (자동 계산)
+            공급가액 = 수량 × 단가
+            {unitSupplyPreview != null
+              ? ` — 현재 ${formatWon(unitSupplyPreview)}`
+              : " (자동 계산)"}
           </p>
         </>
       ) : (
@@ -617,12 +674,24 @@ function LineForm({
           <label className={labelCls}>
             공급가액 (원) *{type === "adjustment" ? " — 감액은 음수" : ""}
           </label>
-          <MoneyInput name="supply_amount" defaultValue={line?.supply_amount} />
+          <MoneyInput
+            name="supply_amount"
+            value={supplyStr}
+            onValueChange={(v) => {
+              setSupplyStr(v);
+              autoVatFor(moneyToNumber(v));
+            }}
+          />
         </div>
       )}
       <div className="flex flex-col gap-1">
-        <label className={labelCls}>부가세 (원, 비우면 10%)</label>
-        <MoneyInput name="vat_amount" defaultValue={line?.vat_amount} />
+        <label className={labelCls}>부가세 (원)</label>
+        <MoneyInput name="vat_amount" value={vatStr} onValueChange={setVatStr} />
+        <span className="text-[10px] leading-snug text-ink-4">
+          {taxFree
+            ? "면세 계약 — 0원이 자동 입력됩니다."
+            : "공급가액의 10%가 자동 입력됩니다. 필요하면 직접 수정하세요."}
+        </span>
       </div>
       <div className="flex flex-col gap-1">
         <label className={labelCls}>수금 예정일</label>
