@@ -66,6 +66,23 @@ export async function POST(request: NextRequest) {
   if (programParsed.success) {
     return handleProgramEnrollment(createAdminClient(), programParsed.data);
   }
+  if (
+    typeof parsedJson === "object" &&
+    parsedJson !== null &&
+    "kind" in parsedJson &&
+    parsedJson.kind === "program_enrollment"
+  ) {
+    const issue = programParsed.error.issues[0];
+    const field = issue?.path.length ? issue.path.join(".") : "payload";
+    console.error("[visa/payment-callback] invalid program enrollment", {
+      field,
+      code: issue?.code ?? "unknown",
+    });
+    return NextResponse.json(
+      { ok: false, error: `Invalid ${field}: ${issue?.message ?? "invalid payload"}` },
+      { status: 400 },
+    );
+  }
 
   const parsed = casePaymentSchema.safeParse(parsedJson);
   if (!parsed.success) {
