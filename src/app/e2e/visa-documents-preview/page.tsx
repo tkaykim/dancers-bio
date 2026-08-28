@@ -23,6 +23,7 @@ export default function VisaDocumentsE2EPage() {
     status: "draft",
     lastSavedAt: null,
     submittedAt: null,
+    initialAttachments: [],
     initialData: {
       ...structuredClone(EMPTY_VISA_DOCUMENT_FORM),
       fullNameEnglish: "E2E APPLICANT",

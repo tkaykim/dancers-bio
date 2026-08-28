@@ -9,6 +9,11 @@ import {
 } from "./document-intake-schema";
 import { decryptVisaDocumentSensitiveData } from "./document-intake-crypto";
 import { isPaidVisaDocumentCase } from "./document-products";
+import {
+  VISA_DOCUMENTS_BUCKET,
+  type VisaAttachmentKind,
+  type VisaDocumentAttachment,
+} from "./document-attachments";
 
 export type VisaDocumentIntakeStatus = "draft" | "submitted" | "needs_revision" | "accepted";
 
@@ -22,6 +27,7 @@ export type VisaDocumentIntakeContext = {
   status: VisaDocumentIntakeStatus;
   lastSavedAt: string | null;
   submittedAt: string | null;
+  initialAttachments: VisaDocumentAttachment[];
 };
 
 type PrivateInfoRow = {
@@ -31,6 +37,17 @@ type PrivateInfoRow = {
   nationality: string | null;
   nationality_code: string | null;
   nationalities: unknown;
+};
+
+type AttachmentRow = {
+  id: string;
+  kind: VisaAttachmentKind;
+  sort_order: number;
+  storage_path: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
 };
 
 function stringMeta(meta: Record<string, unknown> | null, key: string): string | null {
@@ -72,7 +89,13 @@ export async function loadVisaDocumentIntakeContext(
   const application = applications.find(isPaidVisaDocumentCase) ?? null;
   if (!application) return null;
 
-  const [{ data: privateInfoRaw }, { data: dancerRaw }, { data: profileRaw }, { data: intakeRaw }] =
+  const [
+    { data: privateInfoRaw },
+    { data: dancerRaw },
+    { data: profileRaw },
+    { data: intakeRaw },
+    { data: attachmentsRaw },
+  ] =
     await Promise.all([
       application.dancer_id
         ? admin
@@ -96,6 +119,12 @@ export async function loadVisaDocumentIntakeContext(
         )
         .eq("application_id", application.id)
         .maybeSingle(),
+      admin
+        .from("visa_document_attachments")
+        .select("id, kind, sort_order, storage_path, original_name, mime_type, size_bytes, created_at")
+        .eq("application_id", application.id)
+        .order("kind")
+        .order("sort_order"),
     ]);
 
   const privateInfo = privateInfoRaw as PrivateInfoRow | null;
@@ -146,6 +175,22 @@ export async function loadVisaDocumentIntakeContext(
     initialData.nationalIdNumber = "";
     initialData.nationalIdNotApplicable = true;
   }
+  const attachmentRows = (attachmentsRaw ?? []) as AttachmentRow[];
+  const signedAttachments = await Promise.all(attachmentRows.map(async (row) => {
+    const { data } = await admin.storage
+      .from(VISA_DOCUMENTS_BUCKET)
+      .createSignedUrl(row.storage_path, 3600);
+    return {
+      id: row.id,
+      kind: row.kind,
+      sortOrder: row.sort_order,
+      originalName: row.original_name,
+      mimeType: row.mime_type,
+      sizeBytes: Number(row.size_bytes),
+      uploadedAt: row.created_at,
+      viewUrl: data?.signedUrl ?? null,
+    } satisfies VisaDocumentAttachment;
+  }));
 
   return {
     applicationId: application.id,
@@ -157,5 +202,6 @@ export async function loadVisaDocumentIntakeContext(
     status: intake?.status ?? "draft",
     lastSavedAt: intake?.last_saved_at ?? null,
     submittedAt: intake?.submitted_at ?? null,
+    initialAttachments: signedAttachments,
   };
 }
