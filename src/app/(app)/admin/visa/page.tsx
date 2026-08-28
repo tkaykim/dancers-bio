@@ -77,6 +77,13 @@ type TrackingEventRow = {
   scroll_depth: number | null;
 };
 
+type IntakeSummaryRow = {
+  application_id: string;
+  status: string;
+  last_saved_at: string;
+  submitted_at: string | null;
+};
+
 // 미팅 안내 메일 캠페인만 따로 집계한다 (발송 → 열람 → 링크 클릭).
 function summarizeMeeting(events: TrackingEventRow[]): MeetingTracking {
   const of = (type: string) => events.filter((event) => event.event_type === type);
@@ -146,6 +153,7 @@ export default async function AdminVisaPage() {
   const meetingTrackingMap = new Map<string, MeetingTracking>();
   const invitesMap = new Map<string, MeetingInvite[]>();
   const outboundMap = new Map<string, OutboundMail[]>();
+  const intakeMap = new Map<string, IntakeSummaryRow>();
   // 오디션 확정 안내 최근 발송 (신청건당 1건) — 패널의 중복 발송 방지 표시용
   const auditionMailMap = new Map<string, { sentAt: string; key: string | null }>();
 
@@ -189,6 +197,14 @@ export default async function AdminVisaPage() {
   }
 
   if (appIds.length > 0) {
+    const { data: intakeRows } = await admin
+      .from("visa_document_intakes")
+      .select("application_id, status, last_saved_at, submitted_at")
+      .in("application_id", appIds);
+    for (const intake of (intakeRows ?? []) as unknown as IntakeSummaryRow[]) {
+      intakeMap.set(intake.application_id, intake);
+    }
+
     const { data: trackingEvents } = await admin
       .from("visa_case_tracking_events")
       .select("application_id, created_at, event_type, event_key, campaign, lang, step, scroll_depth")
@@ -304,6 +320,9 @@ export default async function AdminVisaPage() {
       payment_amount_krw: a.payment_amount_krw ?? null,
       paid_at: a.paid_at ?? null,
       payment_refunded_at: a.payment_refunded_at ?? null,
+      document_intake_status: intakeMap.get(a.id)?.status ?? null,
+      document_intake_last_saved_at: intakeMap.get(a.id)?.last_saved_at ?? null,
+      document_intake_submitted_at: intakeMap.get(a.id)?.submitted_at ?? null,
       tracking: trackingMap.get(a.id) ?? null,
       meeting_tracking: meetingTrackingMap.get(a.id) ?? null,
       meeting_invites: invitesMap.get(a.id) ?? [],

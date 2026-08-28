@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 const SITE = "https://deetz.kr";
-const UPDATED_AT = "2026년 8월 14일";
+const UPDATED_AT = "2026년 8월 28일";
 
 export const metadata: Metadata = {
   title: { absolute: "개인정보처리방침 | deetz(디츠)" },
@@ -126,6 +126,11 @@ export default function PrivacyPage() {
                 "이용자의 직접 입력",
               ],
               [
+                "비자 서류 준비",
+                "성명, 생년월일, 연락처, 주소, 국적, 여권 정보와 여권번호, 본국 국가식별번호, 비상 연락처, 학력, 혼인·가족 관계, 최근 5년간 출입국 기록",
+                "결제 완료 회원의 직접 입력",
+              ],
+              [
                 "고객 문의 및 SNS 상담",
                 "문의 내용, 이메일 주소, Instagram 발신자 식별자·계정명·메시지 내용",
                 "이메일, 웹 문의 양식, Instagram 다이렉트 메시지",
@@ -144,6 +149,7 @@ export default function PrivacyPage() {
             <li>회원 식별과 로그인, 본인 확인 등 서비스 운영</li>
             <li>프로필·포트폴리오 공개와 캐스팅 매칭, 공고 지원 처리</li>
             <li>출연료 정산과 세무 신고 등 법령상 의무 이행</li>
+            <li>한국 비자 서류 준비와 관련 행정 업무</li>
             <li>공고·지원 결과·일정 등 서비스 이용에 필요한 안내 발송</li>
             <li>문의와 제보에 대한 응대, 분쟁 처리와 기록 보존</li>
             <li>부정 이용 방지와 서비스 개선을 위한 통계 분석</li>
@@ -195,6 +201,11 @@ export default function PrivacyPage() {
               ],
               ["소비자 불만 또는 분쟁 처리 기록", "3년", "전자상거래법"],
               ["원천징수 관련 정산 자료", "5년", "국세기본법 등 세법"],
+              [
+                "비자 서류 정보와 고유식별정보",
+                "비자 서류 준비와 관련 행정 업무 종료 시까지",
+                "이용자의 별도 동의",
+              ],
               ["접속 기록", "3개월", "통신비밀보호법"],
             ]}
           />
@@ -251,7 +262,7 @@ export default function PrivacyPage() {
 
         <Section no={9} title="안전성 확보 조치">
           <ul className="list-disc space-y-1 pl-5">
-            <li>비밀번호와 주민등록번호 등 민감한 정보의 암호화 저장</li>
+            <li>비밀번호, 주민등록번호, 여권번호, 본국 국가식별번호 등 민감한 정보의 암호화 저장</li>
             <li>접근 권한 최소화와 행별 접근 제어(RLS) 적용</li>
             <li>전송 구간 암호화(HTTPS) 적용</li>
             <li>접속 기록 보관과 정기적인 점검</li>

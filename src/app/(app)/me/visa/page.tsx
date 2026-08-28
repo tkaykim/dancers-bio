@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, ExternalLink, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, ShieldCheck } from "lucide-react";
 import { requireUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadMemberVisaAccess } from "@/lib/visa/member-case";
+import { isPaidVisaDocumentCase } from "@/lib/visa/document-products";
 import { makeVisaCaseToken } from "@/lib/quick-token";
 import {
   makeVisaPaymentUrl,
@@ -95,6 +96,7 @@ export default async function MemberVisaPage() {
     ? issuedSlug as VisaPaymentProductSlug
     : "audition-fee";
   const paymentStatus = stringValue(row, "payment_status") ?? "unpaid";
+  const documentFormReady = isPaidVisaDocumentCase(row);
   let paymentUrl: string | null = null;
   if (paymentStatus === "link_sent") {
     try {
@@ -111,6 +113,23 @@ export default async function MemberVisaPage() {
   const defaultLangRaw = stringValue(row, "preferred_lang");
   const defaultLang: VisaJourneyLang =
     defaultLangRaw === "ja" || defaultLangRaw === "ko" ? defaultLangRaw : "en";
+  const documentCta = {
+    ko: {
+      title: "비자 서류 정보",
+      body: "서류 준비에 필요한 정보를 안전하게 제출해 주세요. 작성 내용은 자동으로 임시 저장됩니다.",
+      action: "서류 작성하기",
+    },
+    en: {
+      title: "Visa document information",
+      body: "Submit the information needed to prepare your documents. Your progress is saved automatically.",
+      action: "Open document form",
+    },
+    ja: {
+      title: "ビザ書類情報",
+      body: "書類準備に必要な情報をご提出ください。入力内容は自動的に一時保存されます。",
+      action: "書類フォームを開く",
+    },
+  }[defaultLang];
   const data: JourneyData = {
     followUpSubmittedAt: stringValue(row, "follow_up_submitted_at"),
     caseStage: stringValue(row, "case_stage") ?? "application_received",
@@ -170,6 +189,23 @@ export default async function MemberVisaPage() {
         defaultLang={defaultLang}
         nextActionNote={applicantNote(stringValue(row, "next_action"))}
       />
+
+      {documentFormReady ? (
+        <section className="mt-5 rounded-2xl border border-primary/25 bg-primary/5 p-5">
+          <div className="flex items-start gap-3">
+            <FileText className="mt-0.5 size-5 text-primary" />
+            <div className="min-w-0 flex-1">
+              <h2 className="font-bold">{documentCta.title}</h2>
+              <p className="mt-1 text-sm leading-6 text-ink-2">
+                {documentCta.body}
+              </p>
+              <Link href="/me/visa/documents" className="mt-4 inline-flex rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground">
+                {documentCta.action}
+              </Link>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <p className="mt-4 px-1 text-xs leading-relaxed text-ink-3">
         The final visa decision and processing time are determined by Korea Immigration.
