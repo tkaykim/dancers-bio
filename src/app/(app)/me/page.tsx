@@ -8,6 +8,7 @@ import { ProfileCard } from "@/components/profile/ProfileCard";
 import { ProfileShareCard } from "@/components/share/ProfileShareCard";
 import { PushPrompt } from "@/components/layout/PushPrompt";
 import { BugReportRow } from "@/components/feedback/BugReport";
+import { listManagedProjects } from "@/lib/projects/managed";
 import { visaByCode } from "@/lib/data/korea-visas";
 import {
   loadMemberVisaAccess,
@@ -47,38 +48,9 @@ export default async function MePage() {
   const shareTitle = `${profile.display_name ?? "댄서"} | 댄서 프로필 · dancers.bio`;
   const visaAccess = await loadMemberVisaAccess(user.id);
 
-  // 공동관리자로 지정된 공고 목록.
-  //
-  // project_managers 는 권한 판정(canManageProject)에만 쓰였고 어디에도 목록이 없었다.
-  // 그래서 관리자가 아닌 담당자(예: 프로젝트 매니저)는 공고 URL 을 북마크하지 않으면
-  // 자기가 맡은 공고를 다시 찾을 방법이 없었다 — 공고가 마감되면 피드에서도 사라진다.
-  // 소유자 공고도 같은 목록에 합쳐 "내가 관리하는 공고" 하나로 보여준다.
-  const managedProjects = await (async () => {
-    const { data: managerRows } = await supabase
-      .from("project_managers")
-      .select("project_id")
-      .eq("profile_id", user.id);
-    const managedIds = (managerRows ?? []).map((r) => r.project_id as string);
-
-    const { data: rows } = await supabase
-      .from("projects")
-      .select("id, short_code, title, status, application_deadline")
-      .is("deleted_at", null)
-      .or(
-        managedIds.length > 0
-          ? `owner_id.eq.${user.id},id.in.(${managedIds.join(",")})`
-          : `owner_id.eq.${user.id}`,
-      )
-      .order("created_at", { ascending: false })
-      .limit(50);
-    return (rows ?? []) as Array<{
-      id: string;
-      short_code: string | null;
-      title: string;
-      status: string;
-      application_deadline: string | null;
-    }>;
-  })();
+  // 관리 공고는 마이페이지에 줄줄이 펼치지 않고 메뉴 한 줄로만 요약한다 — 목록은 /me/projects.
+  const managedProjects = await listManagedProjects(user.id);
+  const managedOpenCount = managedProjects.filter((mp) => mp.status === "open").length;
 
   return (
     <div className="flex flex-col gap-6 px-6 pb-10 pt-8 lg:mx-auto lg:max-w-2xl">
@@ -98,27 +70,16 @@ export default async function MePage() {
         <VisaStatusCard application={visaAccess.application} visa={visaAccess.visa} />
       ) : null}
 
-      {managedProjects.length > 0 ? (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-bold text-ink-2">내가 관리하는 공고</h2>
-          <ul className="overflow-hidden rounded-2xl border border-border bg-card">
-            {managedProjects.map((mp) => (
-              <SettingsRow
-                key={mp.id}
-                href={`/projects/${mp.short_code ?? mp.id}/applicants`}
-                title={mp.title}
-                desc={
-                  mp.status === "open" ? "모집 중 · 지원자 보기" : "마감 · 지원자 보기"
-                }
-              />
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-bold text-ink-2">활동</h2>
         <ul className="overflow-hidden rounded-2xl border border-border bg-card">
+          {managedProjects.length > 0 ? (
+            <SettingsRow
+              href="/me/projects"
+              title="내가 관리하는 공고"
+              desc={`모집 중 ${managedOpenCount}건 · 전체 ${managedProjects.length}건`}
+            />
+          ) : null}
           <SettingsRow
             href="/me/portfolio"
             title="댄서 포트폴리오"
