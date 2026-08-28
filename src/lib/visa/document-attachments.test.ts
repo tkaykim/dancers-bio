@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Native TypeScript tests require the runtime extension.
-import { nextAvailableActivitySlot, validateVisaAttachmentMetadata, visaAttachmentRequirementsMet, type VisaDocumentAttachment } from "./document-attachments.ts";
+import { nextAvailableActivitySlot, shouldOptimizeVisaImage, validateVisaAttachmentMetadata, visaAttachmentRequirementsMet, type VisaDocumentAttachment } from "./document-attachments.ts";
+// @ts-expect-error Native TypeScript tests require the runtime extension.
+import { visaDocumentResumableEndpoint } from "../storage/visa-document-endpoint.ts";
 
 function attachment(
   kind: VisaDocumentAttachment["kind"],
@@ -19,7 +21,7 @@ function attachment(
   };
 }
 
-test("visa attachment metadata enforces type, size, and image-only slots", () => {
+test("visa attachment metadata enforces type and image-only slots without a 10 MB ceiling", () => {
   assert.deepEqual(validateVisaAttachmentMetadata({
     kind: "passport_copy",
     originalName: "passport.pdf",
@@ -42,12 +44,12 @@ test("visa attachment metadata enforces type, size, and image-only slots", () =>
     kind: "dancer_profile",
     originalName: "profile.pdf",
     mimeType: "application/pdf",
-    sizeBytes: 10 * 1024 * 1024 + 1,
-  }).ok, false);
+    sizeBytes: 100 * 1024 * 1024,
+  }).ok, true);
 });
 
-test("submission requires three singleton files and exactly eight activity photos", () => {
-  const photos = Array.from({ length: 8 }, (_, index) => attachment("activity_photo", index));
+test("submission requires three singleton files and at least four activity photos", () => {
+  const photos = Array.from({ length: 4 }, (_, index) => attachment("activity_photo", index));
   const complete = [
     attachment("passport_copy"),
     attachment("dancer_profile"),
@@ -56,6 +58,35 @@ test("submission requires three singleton files and exactly eight activity photo
   ];
   assert.equal(visaAttachmentRequirementsMet(complete), true);
   assert.equal(visaAttachmentRequirementsMet(complete.slice(0, -1)), false);
-  assert.equal(nextAvailableActivitySlot(complete.slice(0, -1)), 7);
-  assert.equal(nextAvailableActivitySlot(complete), null);
+  assert.equal(visaAttachmentRequirementsMet([
+    ...complete,
+    attachment("activity_photo", 4),
+  ]), true);
+  assert.equal(nextAvailableActivitySlot(complete.slice(0, -1)), 3);
+  assert.equal(nextAvailableActivitySlot(complete), 4);
+});
+
+test("large browser-compatible photos are selected for automatic optimization", () => {
+  assert.equal(shouldOptimizeVisaImage({
+    name: "activity.jpg",
+    type: "image/jpeg",
+    size: 7 * 1024 * 1024,
+  }), true);
+  assert.equal(shouldOptimizeVisaImage({
+    name: "profile.pdf",
+    type: "application/pdf",
+    size: 100 * 1024 * 1024,
+  }), false);
+  assert.equal(shouldOptimizeVisaImage({
+    name: "activity.heic",
+    type: "image/heic",
+    size: 20 * 1024 * 1024,
+  }), false);
+});
+
+test("signed resumable uploads use the direct storage sign endpoint", () => {
+  assert.equal(
+    visaDocumentResumableEndpoint("https://project-ref.supabase.co"),
+    "https://project-ref.storage.supabase.co/storage/v1/upload/resumable/sign",
+  );
 });

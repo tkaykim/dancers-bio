@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   VISA_ATTACHMENT_KINDS,
+  VISA_ATTACHMENT_MAX_SORT_ORDER,
   VISA_DOCUMENTS_BUCKET,
   validateVisaAttachmentMetadata,
   type VisaAttachmentKind,
@@ -29,7 +30,7 @@ type AttachmentResult<T = undefined> =
 const prepareSchema = z.object({
   applicationId: z.string().uuid(),
   kind: z.enum(VISA_ATTACHMENT_KINDS),
-  sortOrder: z.number().int().min(0).max(7),
+  sortOrder: z.number().int().min(0).max(VISA_ATTACHMENT_MAX_SORT_ORDER),
   originalName: z.string().trim().min(1).max(255),
   mimeType: z.string().max(100),
   sizeBytes: z.number().int().positive(),
@@ -84,7 +85,9 @@ function toAttachment(row: AttachmentRow, viewUrl: string | null): VisaDocumentA
 }
 
 function expectedSortOrder(kind: VisaAttachmentKind, sortOrder: number): number | null {
-  if (kind === "activity_photo") return sortOrder >= 0 && sortOrder <= 7 ? sortOrder : null;
+  if (kind === "activity_photo") {
+    return sortOrder >= 0 && sortOrder <= VISA_ATTACHMENT_MAX_SORT_ORDER ? sortOrder : null;
+  }
   return sortOrder === 0 ? 0 : null;
 }
 
