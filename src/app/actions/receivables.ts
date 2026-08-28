@@ -22,7 +22,10 @@ function parseAmount(
   v: FormDataEntryValue | null,
   opts: { allowNegative?: boolean; allowZero?: boolean } = {},
 ): number | null {
-  const t = (v ?? "").toString().replace(/[,\s원]/g, "").trim();
+  const t = (v ?? "")
+    .toString()
+    .replace(/[,\s원]/g, "")
+    .trim();
   if (!t) return null;
   const n = Math.round(Number(t));
   if (!Number.isFinite(n)) return null;
@@ -80,7 +83,10 @@ export async function createClientPartyAction(
     memo: strOrNull(fd.get("memo")),
   });
   if (!parsed.success)
-    return { ok: false, error: "거래처 입력값을 확인해 주세요. (사업자번호는 숫자 10자리)" };
+    return {
+      ok: false,
+      error: "거래처 입력값을 확인해 주세요. (사업자번호는 숫자 10자리)",
+    };
 
   const admin = createAdminClient();
   const { data, error } = await admin
@@ -149,8 +155,7 @@ const dealSchema = z
   });
 
 type DealFormParse =
-  | { ok: false; error: string }
-  | { ok: true; data: z.infer<typeof dealSchema> };
+  { ok: false; error: string } | { ok: true; data: z.infer<typeof dealSchema> };
 
 async function parseDealForm(fd: FormData): Promise<DealFormParse> {
   const admin = createAdminClient();
@@ -273,10 +278,15 @@ export async function createLineAction(
   const dealId = str(fd.get("deal_id"));
   const lineType = str(fd.get("line_type")) as (typeof LINE_TYPES)[number];
   const title = str(fd.get("title"));
-  const initialStatus = str(fd.get("status")) === "confirmed" ? "confirmed" : "draft";
+  const initialStatus =
+    str(fd.get("status")) === "confirmed" ? "confirmed" : "draft";
   const dueDate = strOrNull(fd.get("due_date"));
   const memo = strOrNull(fd.get("memo"));
-  if (!uuid.safeParse(dealId).success || !LINE_TYPES.includes(lineType) || !title)
+  if (
+    !uuid.safeParse(dealId).success ||
+    !LINE_TYPES.includes(lineType) ||
+    !title
+  )
     return { ok: false, error: "매출 입력값을 확인해 주세요." };
   if (dueDate && !ymd.safeParse(dueDate).success)
     return { ok: false, error: "수금 예정일 형식이 잘못됐습니다." };
@@ -365,7 +375,8 @@ export async function createMixedUnitLinesAction(
 ): Promise<ActionResult<{ count: number }>> {
   const profile = await requireAdmin();
   const dealId = str(fd.get("deal_id"));
-  const initialStatus = str(fd.get("status")) === "draft" ? "draft" : "confirmed";
+  const initialStatus =
+    str(fd.get("status")) === "draft" ? "draft" : "confirmed";
   const dueDate = strOrNull(fd.get("due_date"));
   if (!uuid.safeParse(dealId).success)
     return { ok: false, error: "잘못된 요청입니다." };
@@ -378,7 +389,11 @@ export async function createMixedUnitLinesAction(
   } catch {
     return { ok: false, error: "혼합 매출 항목을 읽을 수 없습니다." };
   }
-  const parsed = z.array(mixedUnitLineSchema).min(1).max(20).safeParse(rawLines);
+  const parsed = z
+    .array(mixedUnitLineSchema)
+    .min(1)
+    .max(20)
+    .safeParse(rawLines);
   if (!parsed.success)
     return { ok: false, error: "항목명·수량·단가를 확인해 주세요." };
 
@@ -390,9 +405,15 @@ export async function createMixedUnitLinesAction(
     .maybeSingle();
   if (!deal) return { ok: false, error: "계약을 찾을 수 없습니다." };
   if ((deal.pricing_model as string) !== "composite")
-    return { ok: false, error: "혼합형 계약에서만 여러 단가를 한 번에 등록할 수 있습니다." };
+    return {
+      ok: false,
+      error: "혼합형 계약에서만 여러 단가를 한 번에 등록할 수 있습니다.",
+    };
 
-  const quantityTotal = parsed.data.reduce((sum, line) => sum + line.quantity, 0);
+  const quantityTotal = parsed.data.reduce(
+    (sum, line) => sum + line.quantity,
+    0,
+  );
   const { data: existingUnitLines, error: existingUnitLinesError } = await admin
     .from("deal_revenue_lines")
     .select("quantity")
@@ -445,47 +466,84 @@ export async function createMixedUnitLinesAction(
   return { ok: true, data: { count: data.length } };
 }
 
-export async function markConfirmedLinesInvoicedAction(
+export async function recordTaxInvoiceAction(
   fd: FormData,
-): Promise<ActionResult<{ count: number }>> {
-  await requireAdmin();
+): Promise<ActionResult<{ id: string; count: number }>> {
+  const profile = await requireAdmin();
   const dealId = str(fd.get("deal_id"));
   const invoiceDate = str(fd.get("invoice_issued_at"));
   const dueDate = str(fd.get("due_date"));
   const actualIssuanceConfirmed = str(fd.get("actual_issuance_confirmed"));
+  const externalReference = strOrNull(fd.get("external_reference"));
+  const memo = strOrNull(fd.get("invoice_memo"));
   if (!uuid.safeParse(dealId).success)
     return { ok: false, error: "잘못된 요청입니다." };
   if (!ymd.safeParse(invoiceDate).success || !ymd.safeParse(dueDate).success)
     return { ok: false, error: "발행일과 수금 예정일을 확인해 주세요." };
   if (dueDate < invoiceDate)
-    return { ok: false, error: "수금 예정일은 계산서 발행일보다 빠를 수 없습니다." };
+    return {
+      ok: false,
+      error: "수금 예정일은 계산서 발행일보다 빠를 수 없습니다.",
+    };
   if (actualIssuanceConfirmed !== "yes")
-    return { ok: false, error: "실제 세금계산서 발행 완료 여부를 확인해 주세요." };
+    return {
+      ok: false,
+      error: "실제 세금계산서 발행 완료 여부를 확인해 주세요.",
+    };
+
+  let rawLineIds: unknown;
+  try {
+    rawLineIds = JSON.parse(str(fd.get("line_ids_json")));
+  } catch {
+    return {
+      ok: false,
+      error: "세금계산서에 포함할 매출 항목을 읽을 수 없습니다.",
+    };
+  }
+  const lineIds = z.array(uuid).min(1).max(50).safeParse(rawLineIds);
+  if (!lineIds.success || new Set(lineIds.data).size !== lineIds.data.length)
+    return {
+      ok: false,
+      error: "세금계산서에 포함할 매출 항목을 확인해 주세요.",
+    };
+  if (externalReference && externalReference.length > 120)
+    return {
+      ok: false,
+      error: "승인번호·참조번호는 120자 이내로 입력해 주세요.",
+    };
+  if (memo && memo.length > 500)
+    return { ok: false, error: "계산서 메모는 500자 이내로 입력해 주세요." };
 
   const admin = createAdminClient();
-  const { data: deal } = await admin
-    .from("project_client_deals")
-    .select("id")
-    .eq("id", dealId)
-    .maybeSingle();
-  if (!deal) return { ok: false, error: "계약을 찾을 수 없습니다." };
-
-  const { data, error } = await admin
-    .from("deal_revenue_lines")
-    .update({
-      status: "invoiced",
-      invoice_issued_at: invoiceDate,
-      due_date: dueDate,
-    })
-    .eq("deal_id", dealId)
-    .eq("status", "confirmed")
-    .select("id");
-  if (error) return { ok: false, error: error.message };
-  if (data.length === 0)
-    return { ok: false, error: "발행 처리할 매출 확정 항목이 없습니다." };
+  const { data, error } = await admin.rpc("record_deal_tax_invoice", {
+    p_deal_id: dealId,
+    p_line_ids: lineIds.data,
+    p_issued_on: invoiceDate,
+    p_due_date: dueDate,
+    p_created_by: profile.id,
+    p_external_reference: externalReference,
+    p_memo: memo,
+  });
+  if (error) {
+    if (error.message.includes("TAX_INVOICE_LINES_NOT_CONFIRMABLE"))
+      return {
+        ok: false,
+        error:
+          "선택한 항목 중 이미 발행됐거나 매출 확정 상태가 아닌 항목이 있습니다.",
+      };
+    if (error.message.includes("TAX_INVOICE_DUE_BEFORE_ISSUE"))
+      return {
+        ok: false,
+        error: "수금 예정일은 계산서 발행일보다 빠를 수 없습니다.",
+      };
+    return { ok: false, error: error.message };
+  }
 
   revalidatePath(RECEIVABLES_PATH);
-  return { ok: true, data: { count: data.length } };
+  return {
+    ok: true,
+    data: { id: data as string, count: lineIds.data.length },
+  };
 }
 
 export async function updateLineAction(fd: FormData): Promise<ActionResult> {
@@ -553,17 +611,14 @@ export async function updateLineAction(fd: FormData): Promise<ActionResult> {
 
 const LINE_TRANSITIONS: Record<string, RevenueLineStatus[]> = {
   // 현재 상태 → 이동 가능 상태. received 진입은 입금 합계 충족 시 DB가 허용(수동 전환도 검증됨).
-  draft: ["confirmed", "invoiced", "cancelled"],
-  confirmed: ["draft", "invoiced", "cancelled"],
-  invoiced: ["cancelled"],
+  draft: ["confirmed", "cancelled"],
+  confirmed: ["draft", "cancelled"],
 };
 
 export async function setLineStatusAction(fd: FormData): Promise<ActionResult> {
   await requireAdmin();
   const lineId = str(fd.get("line_id"));
   const next = str(fd.get("next_status")) as RevenueLineStatus;
-  const invoiceDate = strOrNull(fd.get("invoice_issued_at"));
-  const dueDate = strOrNull(fd.get("due_date"));
   if (!uuid.safeParse(lineId).success)
     return { ok: false, error: "잘못된 요청입니다." };
 
@@ -580,42 +635,21 @@ export async function setLineStatusAction(fd: FormData): Promise<ActionResult> {
       ok: false,
       error: `'${LINE_STATUS_LABELS[line.status as RevenueLineStatus] ?? line.status}' 상태에서는 '${LINE_STATUS_LABELS[next] ?? next}'(으)로 바꿀 수 없습니다.`,
     };
-  if (next === "invoiced") {
-    const issued = invoiceDate ?? new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(new Date());
-    if (!ymd.safeParse(issued).success)
-      return { ok: false, error: "세금계산서 발행일 형식이 잘못됐습니다." };
-    const patch: Record<string, unknown> = {
-      status: "invoiced",
-      invoice_issued_at: issued,
-    };
-    if (dueDate) {
-      if (!ymd.safeParse(dueDate).success)
-        return { ok: false, error: "수금 예정일 형식이 잘못됐습니다." };
-      patch.due_date = dueDate;
-    }
-    const { error } = await admin
-      .from("deal_revenue_lines")
-      .update(patch)
-      .eq("id", lineId)
-      .eq("status", line.status as string);
-    if (error) return { ok: false, error: error.message };
-  } else {
-    const patch: Record<string, unknown> = { status: next };
-    if (next === "draft" || next === "confirmed") patch.invoice_issued_at = null;
-    const { error } = await admin
-      .from("deal_revenue_lines")
-      .update(patch)
-      .eq("id", lineId)
-      .eq("status", line.status as string);
-    if (error) {
-      if (error.message.includes("CANCEL_HAS_RECEIPTS"))
-        return {
-          ok: false,
-          error:
-            "수금 내역이 있는 매출은 취소할 수 없습니다. 환불(음수 수금)로 잔액 0원을 만든 뒤 취소해 주세요.",
-        };
-      return { ok: false, error: error.message };
-    }
+  const patch: Record<string, unknown> = { status: next };
+  if (next === "draft" || next === "confirmed") patch.invoice_issued_at = null;
+  const { error } = await admin
+    .from("deal_revenue_lines")
+    .update(patch)
+    .eq("id", lineId)
+    .eq("status", line.status as string);
+  if (error) {
+    if (error.message.includes("CANCEL_HAS_RECEIPTS"))
+      return {
+        ok: false,
+        error:
+          "수금 내역이 있는 매출은 취소할 수 없습니다. 환불(음수 수금)로 잔액 0원을 만든 뒤 취소해 주세요.",
+      };
+    return { ok: false, error: error.message };
   }
   revalidatePath(RECEIVABLES_PATH);
   return { ok: true };
@@ -636,7 +670,8 @@ export async function deleteLineAction(fd: FormData): Promise<ActionResult> {
     if (error.message.includes("LINE_NO_DELETE"))
       return {
         ok: false,
-        error: "수금 내역이 있거나 계산서 발행·수금 완료된 매출은 삭제할 수 없습니다.",
+        error:
+          "수금 내역이 있거나 계산서 발행·수금 완료된 매출은 삭제할 수 없습니다.",
       };
     return { ok: false, error: error.message };
   }
@@ -659,11 +694,35 @@ export async function addReceiptAction(
   if (lineId && !uuid.safeParse(lineId).success)
     return { ok: false, error: "잘못된 매출 항목입니다." };
   if (amount == null || amount === 0)
-    return { ok: false, error: "수금액(원)을 입력해 주세요. 환불·회수는 음수로." };
+    return {
+      ok: false,
+      error: "수금액(원)을 입력해 주세요. 환불·회수는 음수로.",
+    };
   if (!ymd.safeParse(receivedOn).success)
     return { ok: false, error: "수금일 형식이 잘못됐습니다. (YYYY-MM-DD)" };
 
   const admin = createAdminClient();
+  if (lineId) {
+    const { data: line } = await admin
+      .from("deal_revenue_lines")
+      .select("id, deal_id, status, tax_invoice_id")
+      .eq("id", lineId)
+      .maybeSingle();
+    if (!line || line.deal_id !== dealId)
+      return {
+        ok: false,
+        error: "선택한 매출 항목이 이 계약의 항목이 아닙니다.",
+      };
+    if (
+      !line.tax_invoice_id ||
+      (line.status !== "invoiced" && line.status !== "received")
+    )
+      return {
+        ok: false,
+        error:
+          "매출 항목에 수금을 연결하려면 먼저 세금계산서 발행을 기록해 주세요. 선입금은 항목 미지정 가수금으로 등록할 수 있습니다.",
+      };
+  }
   const { data, error } = await admin
     .from("deal_receipts")
     .insert({
@@ -680,7 +739,10 @@ export async function addReceiptAction(
     .single();
   if (error) {
     if (error.message.includes("RECEIPT_DEAL_MISMATCH"))
-      return { ok: false, error: "선택한 매출 항목이 이 계약의 항목이 아닙니다." };
+      return {
+        ok: false,
+        error: "선택한 매출 항목이 이 계약의 항목이 아닙니다.",
+      };
     return { ok: false, error: error.message };
   }
   revalidatePath(RECEIVABLES_PATH);

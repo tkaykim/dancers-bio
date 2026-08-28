@@ -1,6 +1,6 @@
 # 설계: 프로젝트 매출채권(받을 돈) — 거래처·계약조건·청구·입금 기록
 
-> 상태: **rev1.1 — 라이브** (rev1 대표 4결정 → PR #180 구현·배포 2026-08-27 → 대표 지시로 화면 용어를 국내 ERP·회계 표준으로 전면 교체)
+> 상태: **rev1.2 — rev1.1 라이브 + 복수 품목 세금계산서 구조는 로컬 검증 완료·운영 배포 전** (rev1 대표 4결정 → PR #180 구현·배포 2026-08-27 → rev1.2 계약 1건·계산서 1건·품목 N건 구조)
 > 관련 정본: `design-staff-settlement-pool.md`(풀 산식의 수주액 입력이 이 모듈의 출력이 됨) · `design-settlement-collection.md` · 메모리 `project_deetz_settlement.md` · 메모리 `project_unified_finance_control_plane.md`(전사 재무 통제면)
 > 계기: 지급(보낼 돈)은 role·원장·출금·다계좌이체까지 구축됐지만, **받을 돈은 `project_finances.client_revenue` 정수 1칸이 전부**. 실측: ndolt1 구도워크스 3,080만(공급가 2,800만+VAT) 입금 완료 건이 deetz·ERP 어디에도 채권으로 없음, The SMC 챌린지(업로드 인원×7만, cap 200)는 ERP에 프로젝트조차 없음. "누구한테 얼마 받기로 했는지"를 경영지원실이 확인할 수 있는 시스템이 없다.
 > 검증: 스키마·데이터 = deetz(wvfm…)·ERP(totalmanagement)·grigo-artist 운영 DB 실측(2026-08-27).
@@ -12,30 +12,31 @@
 > "딜·청구 라인" 같은 개발 용어를 쓰지 않는다. 화면·오류 문구는 아래 표준 용어만 사용한다.
 > DB 식별자(테이블·컬럼·상태 코드)는 영어 원안 유지 — 표시 계층에서만 번역한다.
 
-| 내부 개념(DB) | 화면 표준 용어 |
-|---|---|
-| deal (`project_client_deals`) | **계약** (수주) — 계약 등록/계약 수정 |
-| revenue line (`deal_revenue_lines`) | **매출 항목** — 매출 등록/매출 저장 |
-| receipt (`deal_receipts`) | **수금** — 수금 등록/수금 내역 |
-| line_id 없는 수금 | **가수금** (매출 항목 미배정) |
-| outstanding | **미수금** |
-| due_date | **수금 예정일** |
-| payment_terms | **결제 조건** |
-| expected_supply_amount | **계약금액 (공급가액)** |
-| supply/vat/total | **공급가액 / 부가세 / 합계금액** ("VAT" 표기 금지) |
-| status: draft/confirmed/invoiced/received | **미확정 / 매출 확정 / 계산서 발행 / 수금 완료** |
+| 내부 개념(DB)                                                                           | 화면 표준 용어                                                                                            |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| deal (`project_client_deals`)                                                           | **계약** (수주) — 계약 등록/계약 수정                                                                     |
+| revenue line (`deal_revenue_lines`)                                                     | **매출 항목** — 매출 등록/매출 저장                                                                       |
+| tax invoice (`deal_tax_invoices`)                                                       | **세금계산서** — 한 번의 발행에 포함된 여러 매출 항목의 묶음                                              |
+| receipt (`deal_receipts`)                                                               | **수금** — 수금 등록/수금 내역                                                                            |
+| line_id 없는 수금                                                                       | **가수금** (매출 항목 미배정)                                                                             |
+| outstanding                                                                             | **미수금**                                                                                                |
+| due_date                                                                                | **수금 예정일**                                                                                           |
+| payment_terms                                                                           | **결제 조건**                                                                                             |
+| expected_supply_amount                                                                  | **계약금액 (공급가액)**                                                                                   |
+| supply/vat/total                                                                        | **공급가액 / 부가세 / 합계금액** ("VAT" 표기 금지)                                                        |
+| status: draft/confirmed/invoiced/received                                               | **미확정 / 매출 확정 / 계산서 발행 / 수금 완료**                                                          |
 | line_type: base/installment/unit_billing/option/expense_rebill/revenue_share/adjustment | **용역 대금 / 계약금·잔금 / 인원(수량) 정산 / 추가 용역 / 실비 청구 / 매출 배분(RS) / 조정(차감·에누리)** |
-| 콘솔 네비 라벨 | **매출·수금** (페이지 제목: 매출·수금 관리(받을 돈)) |
-| 처리 순서 안내 | ① 계약 등록 → ② 매출 확정 → ③ 세금계산서 발행 → ④ 수금 등록 (미수금·연체 자동) |
+| 콘솔 네비 라벨                                                                          | **매출·수금** (페이지 제목: 매출·수금 관리(받을 돈))                                                      |
+| 처리 순서 안내                                                                          | ① 계약 등록 → ② 매출 확정 → ③ 세금계산서 발행 → ④ 수금 등록 (미수금·연체 자동)                            |
 
 ## 1. 대표 인터뷰 확정 사항 (2026-08-27, deep-interview)
 
-| # | 축 | 결정 |
-|---|---|---|
-| 1 | 정본 위치 | **deetz에 기록·수량산정·마진 담당(운영 원장) + ERP/전사 재무콘솔에는 읽기모델 투영(후속 자동화)**. grigo-artist `revenues`와 대칭. 8/12 전사 설계(운영 원장=BU, 중앙=읽기모델)와 부합 |
-| 2 | 추적 범위 | **청구·입금까지** — 계약조건·확정액 + 세금계산서 발행일·지급기일·입금일·입금액·미수 잔액. Clobe **자동** 대사는 Phase 2(수동 tx 참조 기입은 지금부터) |
-| 3 | 입력·노출 | **경영지원실(admin) 전용.** 안무가 오너는 기존 `client_revenue` 수기 입력 수준 유지. 오너 개방(멀티테넌트)은 이번 범위 제외 |
-| 4 | 계약 유형 | 정액 / 단가×수량 / +α 옵션(기본) + **분할 지급(계약금/잔금) / 최소보장+초과 단가 / 실비 재청구 / 매출 배분(RS%)** 전부 수용 |
+| #   | 축        | 결정                                                                                                                                                                                  |
+| --- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 정본 위치 | **deetz에 기록·수량산정·마진 담당(운영 원장) + ERP/전사 재무콘솔에는 읽기모델 투영(후속 자동화)**. grigo-artist `revenues`와 대칭. 8/12 전사 설계(운영 원장=BU, 중앙=읽기모델)와 부합 |
+| 2   | 추적 범위 | **청구·입금까지** — 계약조건·확정액 + 세금계산서 발행일·지급기일·입금일·입금액·미수 잔액. Clobe **자동** 대사는 Phase 2(수동 tx 참조 기입은 지금부터)                                 |
+| 3   | 입력·노출 | **경영지원실(admin) 전용.** 안무가 오너는 기존 `client_revenue` 수기 입력 수준 유지. 오너 개방(멀티테넌트)은 이번 범위 제외                                                           |
+| 4   | 계약 유형 | 정액 / 단가×수량 / +α 옵션(기본) + **분할 지급(계약금/잔금) / 최소보장+초과 단가 / 실비 재청구 / 매출 배분(RS%)** 전부 수용                                                           |
 
 ---
 
@@ -45,7 +46,9 @@
 딜(project_client_deals) = 계약 1건: 거래처 + 조건(산식) + 근거(계약서/메일)
    │  1:N
 청구 라인(deal_revenue_lines) = 채권 1건: 금액 확정 단위 (계약금/잔금/업로드 N건×단가/옵션/실비/정정)
-   │  1:N                          상태: draft → confirmed → invoiced → received (cancelled)
+   │  N:1                          상태: draft → confirmed → invoiced → received (cancelled)
+세금계산서(deal_tax_invoices) = 실제 발행 문서 1건: 발행일 + 품목 합계 + 참조번호
+   │  1:N
 입금(deal_receipts) = 입금 사실 append-only (부분입금·합산입금·환불 음수)
 ```
 
@@ -57,20 +60,20 @@
 
 ### 계약 유형 → 스키마 매핑
 
-| 유형 | 실사례 | 딜 설정 | 라인 표현 |
-|---|---|---|---|
-| 정액 | ndolt1 2,800만 | `pricing_model='fixed'` | `base` 1행 (분할이면 `installment` N행) |
-| 단가×수량 | The SMC 7만×검수통과 업로드, cap 200 | `per_unit` + unit_price·unit_label·quantity_cap | 수량 확정 시 `unit_billing` (차수별 복수 가능) |
-| 최소보장+초과 | (대비) 최소 100명 보장+초과 단가 | `min_guarantee_plus_unit` + quantity_min 또는 min_guarantee_amount | 보장분 `base` + 초과분 `unit_billing` |
-| +α 옵션 | 2차 활용·광고 집행 별도 협의 | 모델 무관 | `option` 라인 추가 |
-| 분할 지급 | 계약금/잔금, 마일스톤 | 모델 무관 + payment_terms | `installment` N행, 각자 due_date |
-| 실비 재청구 | 교통비·의상비 전가 | 모델 무관 | `expense_rebill` (지급측 travel 정산행과 자연 상쇄 → 풀 영향 0) |
-| 매출 배분(RS%) | (대비) 상대 매출의 N% | `revenue_share` + revenue_share_pct·base 서술 | 정산 주기마다 `revenue_share` 라인, 산정 근거 memo 필수 |
-| 감액·정정 | 검수 미달 감액 등 | — | `adjustment` 음수 라인 (확정 라인은 불변, §4) |
+| 유형           | 실사례                               | 딜 설정                                                            | 라인 표현                                                       |
+| -------------- | ------------------------------------ | ------------------------------------------------------------------ | --------------------------------------------------------------- |
+| 정액           | ndolt1 2,800만                       | `pricing_model='fixed'`                                            | `base` 1행 (분할이면 `installment` N행)                         |
+| 단가×수량      | The SMC 7만×검수통과 업로드, cap 200 | `per_unit` + unit_price·unit_label·quantity_cap                    | 수량 확정 시 `unit_billing` (차수별 복수 가능)                  |
+| 최소보장+초과  | (대비) 최소 100명 보장+초과 단가     | `min_guarantee_plus_unit` + quantity_min 또는 min_guarantee_amount | 보장분 `base` + 초과분 `unit_billing`                           |
+| +α 옵션        | 2차 활용·광고 집행 별도 협의         | 모델 무관                                                          | `option` 라인 추가                                              |
+| 분할 지급      | 계약금/잔금, 마일스톤                | 모델 무관 + payment_terms                                          | `installment` N행, 각자 due_date                                |
+| 실비 재청구    | 교통비·의상비 전가                   | 모델 무관                                                          | `expense_rebill` (지급측 travel 정산행과 자연 상쇄 → 풀 영향 0) |
+| 매출 배분(RS%) | (대비) 상대 매출의 N%                | `revenue_share` + revenue_share_pct·base 서술                      | 정산 주기마다 `revenue_share` 라인, 산정 근거 memo 필수         |
+| 감액·정정      | 검수 미달 감액 등                    | —                                                                  | `adjustment` 음수 라인 (확정 라인은 불변, §4)                   |
 
 ---
 
-## 3. 데이터 모델 (additive 4테이블 — 기존 테이블 무변경)
+## 3. 데이터 모델 (additive 5테이블 — 기존 공개 테이블 무변경)
 
 ⚠ 공통 원칙: **`projects` 등 공개 테이블에 컬럼을 추가하지 않는다**(client_revenue 컬럼 노출 사고 전례). 금액은 전부 신규 private 테이블. 신규 금액 컬럼은 전부 **bigint**(기존 integer 21억 한계 회피).
 
@@ -138,7 +141,30 @@ create index project_client_deals_project_idx on public.project_client_deals(pro
 - `negotiating` 딜도 기록 → 견적·제안 단계 파이프라인 가시성(부수 효과). 확정 전에는 라인을 만들지 않거나 draft로만.
 - 계약 당사자 법인은 항상 (주)그리고엔터테인먼트(deetz=브랜드)이므로 컬럼으로 두지 않는다. 필요 시 memo.
 
-### 3.3 `deal_revenue_lines` — 청구 라인(채권 단위)
+### 3.3 `deal_tax_invoices` — 세금계산서 헤더(발행 문서 단위)
+
+```sql
+create table public.deal_tax_invoices (
+  id uuid primary key default gen_random_uuid(),
+  deal_id uuid not null references public.project_client_deals(id),
+  issued_on date not null,
+  due_date date,
+  supply_amount bigint not null,
+  vat_amount bigint not null default 0,
+  external_reference text,                    -- 홈택스 승인번호·외부 참조번호
+  document_url text,
+  memo text,
+  created_by uuid,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+- 계약을 쪼개지 않고 **계약 1건에 세금계산서 N건**을 둘 수 있다.
+- 한 번 발행하는 여러 비용 구성은 **세금계산서 헤더 1건에 매출 항목 N개**로 연결한다.
+- 발행 금액은 연결할 매출 항목 합계로 DB가 계산하며, 생성 후 금액·발행일·계약 연결은 불변이다.
+
+### 3.4 `deal_revenue_lines` — 청구 라인(채권 단위)
 
 ```sql
 create table public.deal_revenue_lines (
@@ -155,6 +181,7 @@ create table public.deal_revenue_lines (
     check (status in ('draft','confirmed','invoiced','received','cancelled')),
   due_date date,                               -- 지급예정일(연체 판정 기준)
   invoice_issued_at date,                      -- 세금계산서 발행일
+  tax_invoice_id uuid references public.deal_tax_invoices(id),
   received_at date,                            -- 수납 완료일(트리거가 receipts 합계로 세팅)
   memo text,
   created_by uuid,
@@ -170,7 +197,7 @@ create index deal_revenue_lines_deal_idx on public.deal_revenue_lines(deal_id);
 - `received`는 앱이 아니라 **DB 트리거가 receipts 합계로 판정·전환**(§4) — 상태와 돈이 어긋나지 않게.
 - 전사 재무 통제면의 받을 돈 상태 규격(draft→confirmed→invoiced→received→reconciled)과 1:1 — `reconciled`는 Clobe 자동 대사(Phase 2)에서 추가.
 
-### 3.4 `deal_receipts` — 입금 기록 (append-only)
+### 3.5 `deal_receipts` — 입금 기록 (append-only)
 
 ```sql
 create table public.deal_receipts (
@@ -192,14 +219,15 @@ create index deal_receipts_line_idx on public.deal_receipts(line_id);
 
 ## 4. 보안·불변식 (지급측 봉인과 대칭)
 
-1. **RLS**: 신규 4테이블 전부 `enable row level security` + **정책 0개(default-deny)**. 접근은 requireAdmin 서버액션(service-role)만. 오너·공동관리자·일반 사용자 노출 없음(결정 3).
-2. **권한 회수**: `revoke insert, update, delete, truncate on <4테이블> from anon, authenticated;` — 지급측 교훈("상태만 봉인은 부족 — 테이블 권한까지").
+1. **RLS**: 신규 5테이블 전부 `enable row level security` + **정책 0개(default-deny)**. 접근은 requireAdmin 서버액션(service-role)만. 오너·공동관리자·일반 사용자 노출 없음(결정 3).
+2. **권한 회수**: `revoke insert, update, delete, truncate on <5테이블> from anon, authenticated;` — 지급측 교훈("상태만 봉인은 부족 — 테이블 권한까지").
 3. **receipts는 append-only**: UPDATE·DELETE 차단 트리거. 교정 = 음수 receipt 추가.
 4. **라인 봉인 트리거**:
    - `invoiced` 이후 `supply_amount`·`vat_amount`·`quantity`·`unit_price`·`deal_id` 불변(세금계산서 발행액과 괴리 방지). 정정은 `adjustment` 라인 또는 수정세금계산서+새 라인.
    - `received` 라인은 상태 포함 전면 불변·삭제 불가. `cancelled`는 receipts 합계 0일 때만 허용.
    - receipts insert 시 같은 트랜잭션에서 라인 합계 재계산 → `received` 전환·`received_at` 세팅(멱등).
-5. **감사**: created_by 기록. 금액 변경 이력이 필요해지면 Phase 2에서 append-only 이벤트 로그(전사 규격 `finance_payment_events`형) 추가 — MVP는 updated_at+불변식으로 충분.
+5. **계산서 원자성**: 계산서 기록 RPC가 선택된 `confirmed` 항목을 잠그고 합계를 계산해 헤더 1건을 만든 뒤, 같은 트랜잭션에서 모두 `invoiced`로 전환한다. 일부 항목만 연결되는 중간 상태는 허용하지 않는다.
+6. **감사**: created_by 기록. 금액 변경 이력이 필요해지면 Phase 2에서 append-only 이벤트 로그(전사 규격 `finance_payment_events`형) 추가 — MVP는 updated_at+불변식으로 충분.
 
 ---
 
@@ -211,7 +239,7 @@ create index deal_receipts_line_idx on public.deal_receipts(line_id);
 - `composite` 계약은 단가가 다른 수량 항목을 최대 20행까지 한 번에 입력하며, 행별 공급가액과 부가세 및 전체 합계를 즉시 미리 본다.
 - 혼합 일괄 등록은 서버가 각 행의 `quantity × unit_price`와 VAT를 다시 계산하고, 기존 미취소 수량과 신규 수량 합계가 계약 상한을 넘으면 차단한다.
 - `expected_supply_amount`가 있으면 매출 확정 공급가액 합계와 일치·부족·초과 여부를 계약 카드에서 즉시 표시한다.
-- 하나의 세금계산서에 여러 매출 항목이 포함되면 발행일과 수금 예정일을 한 번 입력해 확정 항목을 일괄 발행 처리한다.
+- 하나의 세금계산서에 여러 매출 항목이 포함되면 발행일과 수금 예정일을 한 번 입력하고, 선택 항목 전부를 명시적인 세금계산서 헤더 1건에 묶는다.
 - 발행 처리는 외부 세금계산서 발행을 대신하지 않으며, 실제 발행 완료 확인 체크가 있어야 기록할 수 있다.
 
 ---
@@ -254,12 +282,12 @@ create index deal_receipts_line_idx on public.deal_receipts(line_id);
 
 ## 8. 구현 순서 (배포 게이트)
 
-| Phase | 내용 | 게이트 |
-|---|---|---|
-| A | 마이그레이션(4테이블+RLS+봉인 트리거) + 백필 2건 + 검증 | additive·코드 무관 — 적용 후 `npm run db:types` |
-| B | 서버액션(`actions/receivables.ts`) + `/admin/finance/receivables` 콘솔(목록·딜 상세·라인·입금·수량 힌트) + AdminNav '정산' 그룹에 추가 | typecheck·lint·build·admin E2E → PR |
-| C | 풀 화면 수주액 소스를 딜 합계로 교체(expand-contract) | 풀 파일럿(ndolt1) 금액 1원 일치 재검증 |
-| D | Clobe 대사 자동화 · ERP 투영(orchestrator pull) · 미수 D+N 경보(9시 디제스트 연동) | 별도 설계 |
+| Phase | 내용                                                                                                                                   | 게이트                                          |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| A     | 마이그레이션(4테이블+RLS+봉인 트리거) + 백필 2건 + 검증                                                                                | additive·코드 무관 — 적용 후 `npm run db:types` |
+| B     | 서버액션(`actions/receivables.ts`) + `/admin/finance/receivables` 콘솔(목록·딜 상세·라인·입금·수량 힌트) + AdminNav '정산' 그룹에 추가 | typecheck·lint·build·admin E2E → PR             |
+| C     | 풀 화면 수주액 소스를 딜 합계로 교체(expand-contract)                                                                                  | 풀 파일럿(ndolt1) 금액 1원 일치 재검증          |
+| D     | Clobe 대사 자동화 · ERP 투영(orchestrator pull) · 미수 D+N 경보(9시 디제스트 연동)                                                     | 별도 설계                                       |
 
 ---
 

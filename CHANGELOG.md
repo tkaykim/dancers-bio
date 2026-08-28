@@ -4,7 +4,7 @@
 
 - Register mixed-rate receivables in one form with server-calculated supply, VAT, and contract-cap validation.
 - Compare the contracted supply amount with confirmed revenue and flag matching, missing, or excess amounts.
-- Record one issued tax invoice across all confirmed revenue items only after an explicit issuance confirmation.
+- Group multiple confirmed revenue items under one immutable tax-invoice record, with one issuance date, due date, and document total.
 
 ## 0.1.6 - 2026-08-12
 
