@@ -232,15 +232,15 @@ grigoent 프로덕션 빌드가 통과해야 한다.
 
 ## 2026-08-28 운영 출시 결과
 
-deetz PR #186·#187은 main `4f4f674cd7e28dc28b0b2e8fd6e5ef301bfa96a7`, Vercel production `dpl_24q1KovMtnPAQDB8L9MTWAdnDSir`에 배포했다.
+deetz 기본 폼 PR #186·#187과 운영 문서 PR #188에 이어 첨부 기능 PR #189를 main `c7172cb850ef3820c2492e85f4bed7a39a6612fe`, Vercel production `dpl_4RfksYa7sJfxs6KjauycQBe3nxTw`에 배포했다.
 
 grigoent PR #44·#45는 main `e285cd709c5ea7bf504b659639fd86e5e0e98439`, Vercel production `dpl_8aBMBkrkEkekcYmDKUqwpAxdTqrf`에 배포했다.
 
-dancersbio Supabase migration `visa_document_intakes_20260828`을 적용하고 `VISA_DOCUMENT_ENCRYPTION_KEY`를 deetz Production과 범위 제한 Preview 환경에 등록했다.
+dancersbio Supabase migration `visa_document_intakes_20260828`과 `visa_document_attachments_20260828`을 적용하고 `VISA_DOCUMENT_ENCRYPTION_KEY`를 deetz Production과 범위 제한 Preview 환경에 등록했다.
 
 기존 결제 완료 대상 주문 2건은 deetz 케이스에 모두 연결했으며 미연결 주문은 0건이다.
 
-운영 Playwright E2E는 로그인 후 원래 신청서 복귀, 자동저장, 새로고침 복원, 두 탭 충돌 차단, 7단계 제출, 390px 가로 넘침 0, 관리자 복호화 열람을 통과했다.
+운영 Playwright E2E는 로그인 후 원래 신청서 복귀, 자동저장, 새로고침 복원, 두 탭 충돌 차단, 기본 7개 정보 단계 제출, 390px 가로 넘침 0, 관리자 복호화 열람을 통과했다.
 
 운영 DB에서 제출 완료 시각과 암호문 저장을 확인했고 테스트 여권번호가 비민감 JSON이나 암호문에 평문으로 노출되지 않음을 확인했다.
 
@@ -251,3 +251,9 @@ dancersbio Supabase migration `visa_document_intakes_20260828`을 적용하고 `
 첨부자료 운영 migration `visa_document_attachments_20260828`은 `visa_document_attachments`와 비공개 `visa-documents` 버킷을 생성했다.
 
 테이블은 RLS 활성화, 일반 역할 권한 회수, service role 전용이며 버킷에는 회원 직접 접근 정책이 없다.
+
+첨부 Preview E2E는 총 11개 파일 업로드, 활동사진 정확히 8장 충족 뒤 제출 잠금 해제, 새로고침 복원, desktop·390px 가로 넘침 0과 콘솔 오류 0을 확인했다.
+
+production Storage 통합검증은 signed upload와 signed read 200, public read 차단과 테스트 객체 정리를 확인했다.
+
+배포 canary는 비로그인 `/me/visa/documents`의 로그인 복귀 URL, 운영 Preview 경로 404, 첨부 메타데이터 0건과 Storage 잔여 객체 0건을 확인했다.
