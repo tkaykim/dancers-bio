@@ -16,7 +16,7 @@ import {
 
 type SaveResult =
   | { ok: true; data: { version: number; lastSavedAt: string; status: string } }
-  | { ok: false; error: string; code?: "conflict" | "forbidden"; currentVersion?: number };
+  | { ok: false; error: string; code?: "conflict" | "forbidden" | "attachments_incomplete"; currentVersion?: number };
 
 const saveSchema = z.object({
   applicationId: z.string().uuid(),
@@ -82,6 +82,30 @@ async function persist(
   if (!validation.success) {
     const issue = firstVisaDocumentIssue(validation.error);
     return { ok: false, error: issue.message };
+  }
+
+  if (submit) {
+    const { data: attachments, error: attachmentError } = await owned.admin
+      .from("visa_document_attachments")
+      .select("kind")
+      .eq("application_id", applicationId);
+    if (attachmentError) {
+      console.error("[visa-document-intake] attachment validation failed", { code: attachmentError.code });
+      return { ok: false, error: "The attached files could not be checked. Please try again." };
+    }
+    const count = (kind: string) => (attachments ?? []).filter((item) => item.kind === kind).length;
+    if (
+      count("passport_copy") !== 1
+      || count("dancer_profile") !== 1
+      || count("id_photo") !== 1
+      || count("activity_photo") !== 8
+    ) {
+      return {
+        ok: false,
+        error: "Required attachments are incomplete.",
+        code: "attachments_incomplete",
+      };
+    }
   }
 
   const { stored, sensitive } = splitVisaDocumentData(validation.data);

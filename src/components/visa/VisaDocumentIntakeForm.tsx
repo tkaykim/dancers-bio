@@ -6,9 +6,11 @@ import { AlertCircle, ArrowLeft, Check, ChevronLeft, ChevronRight, LoaderCircle,
 import { saveVisaDocumentDraftAction, submitVisaDocumentIntakeAction } from "@/app/actions/visa-document-intake";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { VisaDocumentAttachments } from "@/components/visa/VisaDocumentAttachments";
 import type { VisaDocumentIntakeContext } from "@/lib/visa/document-intake";
 import { VISA_DOCUMENT_LANGUAGES, visaDocumentCopy, type VisaDocumentLanguage } from "@/lib/visa/document-intake-copy";
 import { visaDocumentSubmissionSchema, type VisaDocumentFormData } from "@/lib/visa/document-intake-schema";
+import { visaAttachmentRequirementsMet } from "@/lib/visa/document-attachments";
 
 type SaveState = "idle" | "saving" | "saved" | "error" | "conflict" | "submitted";
 
@@ -51,9 +53,10 @@ function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
 }
 
 function localizedSaveError(
-  result: { error: string; code?: "conflict" | "forbidden" },
+  result: { error: string; code?: "conflict" | "forbidden" | "attachments_incomplete" },
   copy: ReturnType<typeof visaDocumentCopy>,
 ) {
+  if (result.code === "attachments_incomplete") return copy.attachmentIncomplete;
   if (result.code === "conflict") return copy.conflictError;
   if (result.code === "forbidden" && result.error.includes("already accepted")) return copy.acceptedError;
   if (result.code === "forbidden") return copy.paidOnlyError;
@@ -68,6 +71,8 @@ export function VisaDocumentIntakeForm({ context, preview = false }: { context: 
   const [saveState, setSaveState] = useState<SaveState>(context.status === "submitted" ? "submitted" : "idle");
   const [message, setMessage] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState(context.lastSavedAt);
+  const [attachmentsComplete, setAttachmentsComplete] = useState(() => visaAttachmentRequirementsMet(context.initialAttachments));
+  const [attachmentsBusy, setAttachmentsBusy] = useState(false);
   const [pending, startTransition] = useTransition();
   const formRef = useRef(form);
   const versionRef = useRef(context.draftVersion);
@@ -77,6 +82,8 @@ export function VisaDocumentIntakeForm({ context, preview = false }: { context: 
   const lang = form.preferredLang as VisaDocumentLanguage;
   const copy = visaDocumentCopy(lang);
   const dateLocale = lang === "ko" ? "ko-KR" : lang === "ja" ? "ja-JP" : "en-US";
+  const handleAttachmentCompleteness = useCallback((complete: boolean) => setAttachmentsComplete(complete), []);
+  const handleAttachmentBusy = useCallback((busy: boolean) => setAttachmentsBusy(busy), []);
 
   const mutate = useCallback((recipe: (current: VisaDocumentFormData) => VisaDocumentFormData) => {
     setForm((current) => {
@@ -168,8 +175,12 @@ export function VisaDocumentIntakeForm({ context, preview = false }: { context: 
   const submit = () => {
     setMessage("");
     startTransition(async () => {
-      if (savingRef.current) {
+      if (savingRef.current || attachmentsBusy) {
         setMessage(copy.submitAfterSaving);
+        return;
+      }
+      if (!attachmentsComplete) {
+        setMessage(copy.attachmentIncomplete);
         return;
       }
       const previewValidation = preview ? visaDocumentSubmissionSchema.safeParse(formRef.current) : null;
@@ -323,6 +334,18 @@ export function VisaDocumentIntakeForm({ context, preview = false }: { context: 
             <p className="md:col-span-2 text-sm leading-6 text-ink-2">{copy.travelIntro}</p>
             {form.otherInternationalTravel.map((item,index) => <div key={item.id} className="md:col-span-2 grid gap-3 rounded-2xl border p-4 md:grid-cols-2"><Input aria-label={copy.travelCountry} placeholder={copy.travelCountryPlaceholder} value={item.country} onChange={(e) => mutate((c) => ({ ...c, otherInternationalTravel: c.otherInternationalTravel.map((p,i) => i === index ? { ...p, country: e.target.value } : p) }))} /><Input aria-label={copy.travelPurpose} placeholder={copy.travelPurposePlaceholder} value={item.purpose} onChange={(e) => mutate((c) => ({ ...c, otherInternationalTravel: c.otherInternationalTravel.map((p,i) => i === index ? { ...p, purpose: e.target.value } : p) }))} /><Field label={copy.arrivalDate}><Input type="date" value={item.startDate} onChange={(e) => mutate((c) => ({ ...c, otherInternationalTravel: c.otherInternationalTravel.map((p,i) => i === index ? { ...p, startDate: e.target.value } : p) }))} /></Field><Field label={copy.departureDate}><Input type="date" value={item.endDate} onChange={(e) => mutate((c) => ({ ...c, otherInternationalTravel: c.otherInternationalTravel.map((p,i) => i === index ? { ...p, endDate: e.target.value } : p) }))} /></Field><Button type="button" variant="destructive" className="md:col-span-2" onClick={() => mutate((c) => ({ ...c, otherInternationalTravel: c.otherInternationalTravel.filter((_,i) => i !== index) }))}><Trash2 />{copy.removeTrip}</Button></div>)}
             <Button type="button" variant="outline" className="md:col-span-2" onClick={() => mutate((c) => ({ ...c, otherInternationalTravel: [...c.otherInternationalTravel, { id: uid("travel"), country: "", purpose: "", startDate: "", endDate: "" }] }))}><Plus />{copy.addTrip}</Button>
+          </> : null}
+
+          {step === 7 ? <>
+            <VisaDocumentAttachments
+              applicationId={context.applicationId}
+              language={lang}
+              initialAttachments={context.initialAttachments}
+              disabled={context.status === "accepted"}
+              preview={preview}
+              onCompletenessChange={handleAttachmentCompleteness}
+              onBusyChange={handleAttachmentBusy}
+            />
             <div className="md:col-span-2 mt-4 space-y-4 rounded-2xl border border-primary/20 bg-primary/5 p-4"><CheckField checked={form.sensitiveCollectionConsent} onChange={(value) => set("sensitiveCollectionConsent", value)}>{copy.sensitiveConsent}</CheckField><Link href="/privacy" target="_blank" className="inline-flex text-xs font-semibold text-primary underline underline-offset-4">{copy.privacyPolicy}</Link><CheckField checked={form.truthfulnessConfirmed} onChange={(value) => set("truthfulnessConfirmed", value)}>{copy.truthfulnessConfirmation}</CheckField></div>
           </> : null}
         </div>
@@ -330,7 +353,7 @@ export function VisaDocumentIntakeForm({ context, preview = false }: { context: 
         {message ? <div role="alert" className={`mt-6 rounded-xl border px-4 py-3 text-sm leading-6 ${saveState === "submitted" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-800" : "border-destructive/30 bg-destructive/5 text-destructive"}`}>{message}</div> : null}
         <div className="mt-7 flex items-center justify-between gap-3 border-t border-border pt-5">
           <Button type="button" variant="outline" disabled={step === 0 || pending} onClick={() => void move(step - 1)}><ChevronLeft />{copy.previous}</Button>
-          {step < copy.steps.length - 1 ? <Button type="button" disabled={pending || saveState === "conflict"} onClick={() => void move(step + 1)}>{copy.saveAndContinue}<ChevronRight /></Button> : <Button type="button" disabled={pending || saveState === "conflict" || saveState === "saving"} onClick={submit}>{pending ? <LoaderCircle className="animate-spin" /> : <Check />}{copy.submitInformation}</Button>}
+          {step < copy.steps.length - 1 ? <Button type="button" disabled={pending || saveState === "conflict"} onClick={() => void move(step + 1)}>{copy.saveAndContinue}<ChevronRight /></Button> : <Button type="button" disabled={pending || attachmentsBusy || saveState === "conflict" || saveState === "saving" || !attachmentsComplete} onClick={submit}>{pending || attachmentsBusy ? <LoaderCircle className="animate-spin" /> : <Check />}{copy.submitInformation}</Button>}
         </div>
       </form>
       <p className="mt-4 px-2 text-xs leading-5 text-ink-3">{copy.securityReminder}</p>
