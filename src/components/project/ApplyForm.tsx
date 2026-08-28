@@ -16,6 +16,12 @@ import type { NationalityOption } from "@/lib/nationality";
 const FEE_CURRENCIES = ["KRW", "USD", "JPY", "EUR"] as const;
 const FEE_UNITS = ["회당", "일당", "건당", "총액"] as const;
 
+export type ApplicationAvailabilitySchedule = {
+  id: string;
+  label: string;
+  whenText: string;
+};
+
 export function ApplyForm({
   projectId,
   projectShortCode,
@@ -27,6 +33,7 @@ export function ApplyForm({
   recruitmentChannelName,
   recruitmentChannelCode,
   nationalityOptions = [],
+  availabilitySchedules = [],
 }: {
   /** UUID — server action에 전달되는 canonical id. */
   projectId: string;
@@ -44,6 +51,8 @@ export function ApplyForm({
   recruitmentChannelCode?: string | null;
   /** 공개 프로필에는 노출하지 않고, 지원서별 동의 시 담당자에게만 공개할 국적 목록. */
   nationalityOptions?: NationalityOption[];
+  /** 지원 단계에서 한 번에 가능여부를 받을 후보 일정. */
+  availabilitySchedules?: ApplicationAvailabilitySchedule[];
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
@@ -57,6 +66,7 @@ export function ApplyForm({
   const [feeCurrency, setFeeCurrency] = useState<string>("KRW");
   const [feeUnit, setFeeUnit] = useState<string>("회당");
   const [feeNegotiable, setFeeNegotiable] = useState(false);
+  const [selectedScheduleIds, setSelectedScheduleIds] = useState<string[]>([]);
   const [nationalityDisclosureConsent, setNationalityDisclosureConsent] =
     useState(false);
 
@@ -96,6 +106,13 @@ export function ApplyForm({
         formData.set("project_id", projectId);
         if (recruitmentChannelId) {
           formData.set("recruitment_channel_id", recruitmentChannelId);
+        }
+        if (availabilitySchedules.length > 0 && selectedScheduleIds.length === 0) {
+          setMessage({
+            kind: "error",
+            text: "참석 가능한 일정을 하나 이상 선택해 주세요.",
+          });
+          return;
         }
         if (collectFee) {
           const normalizedFeeAmount = feeAmount.replace(/[^\d]/g, "");
@@ -149,6 +166,73 @@ export function ApplyForm({
         placeholder="예: 무대 댄서 7년차, K-pop 다수 경험 보유. 빠른 캐치 자신 있어요."
         className="rounded-md border border-input bg-background px-3 py-2 text-sm"
       />
+
+      {availabilitySchedules.length > 0 ? (
+        <fieldset className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/30 p-3">
+          <legend className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-ink-3">
+            참석 가능한 일정 (필수)
+          </legend>
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-xs leading-5 text-ink-3">
+              참석 가능한 일정을 모두 선택해 주세요.
+              선택하지 않은 일정은 참여 불가로 제출됩니다.
+            </p>
+            <button
+              type="button"
+              onClick={() =>
+                setSelectedScheduleIds(
+                  selectedScheduleIds.length === availabilitySchedules.length
+                    ? []
+                    : availabilitySchedules.map((schedule) => schedule.id),
+                )
+              }
+              className="shrink-0 text-xs font-medium text-primary underline-offset-4 hover:underline"
+            >
+              {selectedScheduleIds.length === availabilitySchedules.length
+                ? "전체 해제"
+                : "전체 선택"}
+            </button>
+          </div>
+          <div className="flex flex-col gap-2">
+            {availabilitySchedules.map((schedule) => {
+              const checked = selectedScheduleIds.includes(schedule.id);
+              return (
+                <label
+                  key={schedule.id}
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                    checked
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-background"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    name="availability_schedule_ids"
+                    value={schedule.id}
+                    checked={checked}
+                    onChange={(event) =>
+                      setSelectedScheduleIds((current) =>
+                        event.target.checked
+                          ? [...current, schedule.id]
+                          : current.filter((id) => id !== schedule.id),
+                      )
+                    }
+                    className="mt-0.5 size-4 shrink-0 accent-primary"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-ink-1">
+                      {schedule.label}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-ink-3">
+                      {schedule.whenText}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+      ) : null}
 
       {collectCastingDetails ? (
         <fieldset className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/30 p-3">
