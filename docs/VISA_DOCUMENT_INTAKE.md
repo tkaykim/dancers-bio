@@ -2,7 +2,7 @@
 
 작성일은 2026-08-28이다.
 
-현재 상태는 운영 배포 후보 구현과 로컬 검증 완료이며 운영 DB 마이그레이션과 두 앱 배포를 진행한다.
+현재 상태는 운영 DB 마이그레이션, deetz·grigoent 배포, 기존 결제 주문 대사와 운영 E2E까지 완료한 라이브 상태다.
 
 ## 목표
 
@@ -193,3 +193,21 @@ grigoent 프로덕션 빌드가 통과해야 한다.
 관리자 페이지는 동적 렌더링하고 비관리자에게는 노출하지 않는다.
 
 내보내기와 파일 다운로드 기능은 제공하지 않는다.
+
+## 2026-08-28 운영 출시 결과
+
+deetz PR #186·#187은 main `4f4f674cd7e28dc28b0b2e8fd6e5ef301bfa96a7`, Vercel production `dpl_24q1KovMtnPAQDB8L9MTWAdnDSir`에 배포했다.
+
+grigoent PR #44·#45는 main `e285cd709c5ea7bf504b659639fd86e5e0e98439`, Vercel production `dpl_8aBMBkrkEkekcYmDKUqwpAxdTqrf`에 배포했다.
+
+dancersbio Supabase migration `visa_document_intakes_20260828`을 적용하고 `VISA_DOCUMENT_ENCRYPTION_KEY`를 deetz Production과 범위 제한 Preview 환경에 등록했다.
+
+기존 결제 완료 대상 주문 2건은 deetz 케이스에 모두 연결했으며 미연결 주문은 0건이다.
+
+운영 Playwright E2E는 로그인 후 원래 신청서 복귀, 자동저장, 새로고침 복원, 두 탭 충돌 차단, 7단계 제출, 390px 가로 넘침 0, 관리자 복호화 열람을 통과했다.
+
+운영 DB에서 제출 완료 시각과 암호문 저장을 확인했고 테스트 여권번호가 비민감 JSON이나 암호문에 평문으로 노출되지 않음을 확인했다.
+
+과거 화면 검토용 모의 Preview deployment 2건은 삭제했으며 운영 `/e2e/visa-documents-preview`도 404를 반환한다.
+
+과거 모의 Preview 입력은 서버나 브라우저 저장소에 전송되지 않았으므로 복구할 수 없고 운영 링크에서 다시 제출받아야 한다.
