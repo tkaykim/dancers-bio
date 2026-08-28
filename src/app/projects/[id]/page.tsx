@@ -139,6 +139,7 @@ type SessionRow = {
   time_tbd: boolean;
   sort_order: number;
   status: string;
+  collect_availability: boolean;
 };
 
 type ApplicationRow = {
@@ -220,7 +221,7 @@ export default async function ProjectDetailPage({
   ] = await Promise.all([
     admin
       .from("project_schedules")
-      .select("id, label, starts_at, ends_at, time_tbd, sort_order, status")
+      .select("id, label, starts_at, ends_at, time_tbd, sort_order, status, collect_availability")
       .eq("project_id", id)
       .order("starts_at", { ascending: true, nullsFirst: false })
       .order("sort_order"),
@@ -744,6 +745,20 @@ export default async function ProjectDetailPage({
               recruitmentChannelId={activeRecruitmentChannel?.id ?? null}
               recruitmentChannelName={activeRecruitmentChannel?.name ?? null}
               recruitmentChannelCode={activeRecruitmentChannel?.share_code ?? null}
+              availabilitySchedules={sessions
+                .filter(
+                  (session) =>
+                    session.collect_availability && session.status !== "cancelled",
+                )
+                .map((session) => ({
+                  id: session.id,
+                  label: session.label,
+                  whenText: formatWhen(
+                    session.starts_at,
+                    session.ends_at,
+                    session.time_tbd,
+                  ),
+                }))}
             />
           ) : !applyOpen ? (
             <p className="rounded-xl border border-border bg-card p-4 text-sm text-ink-3">

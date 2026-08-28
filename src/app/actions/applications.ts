@@ -16,6 +16,7 @@ import {
   type NationalityOption,
 } from "@/lib/nationality";
 import type { ActionResult } from "./auth";
+import { resolveAvailabilitySelection } from "@/lib/application-availability";
 
 // Lite MVP: 1계정 = 1댄서 가정. team apply / manager-as-actor 분기 모두 제거.
 // 항상 본인 own dancer (profile_id = user.id) 중 가장 오래된 1개로 INSERT.
@@ -90,6 +91,34 @@ export async function applyToProjectAction(
   const dancerId = ownDancers?.[0]?.id as string | undefined;
   if (!dancerId) {
     return { ok: false, error: NEEDS_DANCER_ERROR };
+  }
+
+  // 지원 화면에 표시된 후보 일정 전체를 서버에서 다시 조회한다.
+  // 선택한 일정은 가능, 나머지는 불가로 한 번에 저장해 누락을 만들지 않는다.
+  const scheduleAdmin = createAdminClient();
+  const { data: availabilityScheduleRows, error: availabilityScheduleError } =
+    await scheduleAdmin
+      .from("project_schedules")
+      .select("id")
+      .eq("project_id", project_id)
+      .eq("collect_availability", true)
+      .neq("status", "cancelled")
+      .order("starts_at", { ascending: true, nullsFirst: false })
+      .order("sort_order");
+  if (availabilityScheduleError) {
+    return {
+      ok: false,
+      error: "일정 정보를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    };
+  }
+  const availabilitySelection = resolveAvailabilitySelection(
+    (availabilityScheduleRows ?? []).map((row: { id: string }) => row.id),
+    formData
+      .getAll("availability_schedule_ids")
+      .map((value) => value.toString()),
+  );
+  if (!availabilitySelection.ok) {
+    return availabilitySelection;
   }
 
   // 공개 동의는 지원서 단위로만 기록한다. 국적 목록은 클라이언트 값을 믿지 않고
@@ -220,6 +249,34 @@ export async function applyToProjectAction(
       return { ok: false, error: "지원 권한이 없습니다." };
     }
     return { ok: false, error: humanizeDbError(error.message) };
+  }
+
+  if (availabilitySelection.responses.length > 0) {
+    const respondedAt = new Date().toISOString();
+    const { error: scheduleResponseError } = await scheduleAdmin
+      .from("project_schedule_responses")
+      .upsert(
+        availabilitySelection.responses.map((response) => ({
+          ...response,
+          dancer_id: dancerId,
+          time_slots: null,
+          note: null,
+          responded_at: respondedAt,
+        })),
+        { onConflict: "schedule_id,dancer_id" },
+      );
+    if (scheduleResponseError) {
+      console.error("[apply] 일정 가능여부 저장 실패", {
+        projectId: project_id,
+        dancerId,
+        code: scheduleResponseError.code,
+      });
+      return {
+        ok: false,
+        error:
+          "지원서는 접수됐지만 일정 응답 저장에 실패했습니다. 운영팀에 문의해 주세요.",
+      };
+    }
   }
 
   revalidatePath(`/projects/${project_id}`);
