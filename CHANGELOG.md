@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Register mixed-rate receivables in one form with server-calculated supply, VAT, and contract-cap validation.
+- Compare the contracted supply amount with confirmed revenue and flag matching, missing, or excess amounts.
+- Group multiple confirmed revenue items under one immutable tax-invoice record, with one issuance date, due date, and document total.
+
 ## 0.1.6 - 2026-08-12
 
 - Let clients review project candidates through a revocable, project-scoped magic link without creating an administrator account.

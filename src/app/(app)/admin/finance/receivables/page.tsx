@@ -17,6 +17,7 @@ import {
   type PartyDto,
   type ProjectOption,
   type ReceiptDto,
+  type TaxInvoiceDto,
 } from "@/components/admin/receivables/ReceivablesConsole";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ export default async function ReceivablesPage() {
   const [
     { data: dealRows },
     { data: lineRows },
+    { data: taxInvoiceRows },
     { data: receiptRows },
     { data: partyRows },
     { data: projectRows },
@@ -42,6 +44,10 @@ export default async function ReceivablesPage() {
       .from("deal_revenue_lines")
       .select("*")
       .order("created_at", { ascending: true }),
+    admin
+      .from("deal_tax_invoices")
+      .select("*")
+      .order("issued_on", { ascending: false }),
     admin
       .from("deal_receipts")
       .select("*")
@@ -95,7 +101,19 @@ export default async function ReceivablesPage() {
     status: RevenueLineStatus;
     due_date: string | null;
     invoice_issued_at: string | null;
+    tax_invoice_id: string | null;
     received_at: string | null;
+    memo: string | null;
+  };
+  type TaxInvoiceRow = {
+    id: string;
+    deal_id: string;
+    issued_on: string;
+    due_date: string | null;
+    supply_amount: number;
+    vat_amount: number;
+    external_reference: string | null;
+    document_url: string | null;
     memo: string | null;
   };
   type ReceiptRow = {
@@ -111,6 +129,7 @@ export default async function ReceivablesPage() {
 
   const deals = (dealRows ?? []) as DealRow[];
   const lines = (lineRows ?? []) as LineRow[];
+  const taxInvoices = (taxInvoiceRows ?? []) as TaxInvoiceRow[];
   const receipts = (receiptRows ?? []) as ReceiptRow[];
 
   const projectById = new Map<string, { short_code: string; title: string }>();
@@ -177,8 +196,10 @@ export default async function ReceivablesPage() {
     const eventProject = new Map<string, string>();
     for (const e of (evRows ?? []) as Array<{ id: string; project_id: string }>)
       eventProject.set(e.id, e.project_id);
-    let partRows: Array<{ event_id: string; attendance_status: string | null }> =
-      [];
+    let partRows: Array<{
+      event_id: string;
+      attendance_status: string | null;
+    }> = [];
     if (eventIds.length > 0) {
       const { data } = await admin
         .from("event_participants")
@@ -187,22 +208,28 @@ export default async function ReceivablesPage() {
       partRows = (data ?? []) as typeof partRows;
     }
     for (const pid of hintProjectIds) {
-      const dancerRows = ((sRows ?? []) as Array<{
-        project_id: string;
-        status: string;
-        role: string;
-      }>).filter(
+      const dancerRows = (
+        (sRows ?? []) as Array<{
+          project_id: string;
+          status: string;
+          role: string;
+        }>
+      ).filter(
         (s) =>
-          s.project_id === pid && s.role === "dancer" && s.status !== "cancelled",
+          s.project_id === pid &&
+          s.role === "dancer" &&
+          s.status !== "cancelled",
       ).length;
       // 제출 수는 재업로드 중복을 제거한 제출자 기준(지원서 → 인스타핸들 → 행 id 순 키).
       const submissions = new Set(
-        ((subRows ?? []) as Array<{
-          id: string;
-          project_id: string;
-          application_id: string | null;
-          instagram_handle: string | null;
-        }>)
+        (
+          (subRows ?? []) as Array<{
+            id: string;
+            project_id: string;
+            application_id: string | null;
+            instagram_handle: string | null;
+          }>
+        )
           .filter((s) => s.project_id === pid)
           .map((s) => s.application_id ?? s.instagram_handle ?? s.id),
       ).size;
@@ -223,6 +250,12 @@ export default async function ReceivablesPage() {
     linesByDeal.set(l.deal_id, arr);
   }
   const receiptsByDeal = new Map<string, ReceiptRow[]>();
+  const taxInvoicesByDeal = new Map<string, TaxInvoiceRow[]>();
+  for (const invoice of taxInvoices) {
+    const arr = taxInvoicesByDeal.get(invoice.deal_id) ?? [];
+    arr.push(invoice);
+    taxInvoicesByDeal.set(invoice.deal_id, arr);
+  }
   const receiptSumByLine = new Map<string, number>();
   for (const r of receipts) {
     const arr = receiptsByDeal.get(r.deal_id) ?? [];
@@ -243,6 +276,7 @@ export default async function ReceivablesPage() {
       overdue: isLineOverdue(l, today),
     }));
     const dealReceipts: ReceiptDto[] = receiptsByDeal.get(d.id) ?? [];
+    const dealTaxInvoices: TaxInvoiceDto[] = taxInvoicesByDeal.get(d.id) ?? [];
     const billable = dealLines.filter((l) =>
       BILLABLE_LINE_STATUSES.includes(l.status),
     );
@@ -257,6 +291,7 @@ export default async function ReceivablesPage() {
       project_short_code: proj?.short_code ?? null,
       project_title: proj?.title ?? "(삭제되었거나 접근 불가한 프로젝트)",
       lines: dealLines,
+      tax_invoices: dealTaxInvoices,
       receipts: dealReceipts,
       billed_supply: billedSupply,
       billed_total: billedTotal,
@@ -273,11 +308,13 @@ export default async function ReceivablesPage() {
     name: p.name,
     business_registration_number: p.business_registration_number,
   }));
-  const projectOptions: ProjectOption[] = ((projectRows ?? []) as Array<{
-    id: string;
-    short_code: string;
-    title: string;
-  }>).map((p) => ({ id: p.id, short_code: p.short_code, title: p.title }));
+  const projectOptions: ProjectOption[] = (
+    (projectRows ?? []) as Array<{
+      id: string;
+      short_code: string;
+      title: string;
+    }>
+  ).map((p) => ({ id: p.id, short_code: p.short_code, title: p.title }));
 
   return (
     <ReceivablesConsole
