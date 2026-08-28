@@ -13,8 +13,10 @@ import {
 } from "@/app/actions/visa-document-attachments";
 import { Button } from "@/components/ui/button";
 import { uploadVisaAttachmentToSignedUrl } from "@/lib/storage/visa-document";
+import { prepareVisaAttachmentFile } from "@/lib/storage/visa-document-image";
 import {
-  VISA_ACTIVITY_PHOTO_COUNT,
+  VISA_ACTIVITY_PHOTO_MIN_COUNT,
+  VISA_ATTACHMENT_MAX_SORT_ORDER,
   formatVisaAttachmentSize,
   validateVisaAttachmentMetadata,
   visaAttachmentRequirementsMet,
@@ -57,6 +59,7 @@ export function VisaDocumentAttachments({
   const copy = visaDocumentCopy(language);
   const [attachments, setAttachments] = useState(initialAttachments);
   const [busySlots, setBusySlots] = useState<Set<string>>(() => new Set());
+  const [progressBySlot, setProgressBySlot] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
   const complete = useMemo(() => visaAttachmentRequirementsMet(attachments), [attachments]);
   const isBusy = busySlots.size > 0;
@@ -79,19 +82,21 @@ export function VisaDocumentAttachments({
     sortOrder: number,
   ) => {
     const slotKey = `${kind}:${sortOrder}`;
-    const validated = validateVisaAttachmentMetadata({
-      kind,
-      originalName: file.name,
-      mimeType: file.type,
-      sizeBytes: file.size,
-    });
-    if (!validated.ok) {
-      setError(copy.attachmentUploadFailed);
-      return false;
-    }
     setError("");
     setSlotBusy(slotKey, true);
     try {
+      const preparedFile = await prepareVisaAttachmentFile(file);
+      const uploadFile = preparedFile.file;
+      const validated = validateVisaAttachmentMetadata({
+        kind,
+        originalName: file.name,
+        mimeType: uploadFile.type,
+        sizeBytes: uploadFile.size,
+      });
+      if (!validated.ok) {
+        setError(copy.attachmentUploadFailed);
+        return false;
+      }
       if (preview) {
         const now = new Date().toISOString();
         const previewAttachment: VisaDocumentAttachment = {
@@ -100,9 +105,9 @@ export function VisaDocumentAttachments({
           sortOrder,
           originalName: file.name,
           mimeType: validated.mimeType,
-          sizeBytes: file.size,
+          sizeBytes: uploadFile.size,
           uploadedAt: now,
-          viewUrl: URL.createObjectURL(file),
+          viewUrl: URL.createObjectURL(uploadFile),
         };
         setAttachments((current) => [
           ...current.filter((item) => !(item.kind === kind && item.sortOrder === sortOrder)),
@@ -111,28 +116,31 @@ export function VisaDocumentAttachments({
         return true;
       }
 
-      const prepared = await prepareVisaAttachmentUploadAction({
+      const uploadTicket = await prepareVisaAttachmentUploadAction({
         applicationId,
         kind,
         sortOrder,
         originalName: file.name,
         mimeType: validated.mimeType,
-        sizeBytes: file.size,
+        sizeBytes: uploadFile.size,
       });
-      if (!prepared.ok) {
-        setError(localError(prepared.error, copy));
+      if (!uploadTicket.ok) {
+        setError(localError(uploadTicket.error, copy));
         return false;
       }
       const uploaded = await uploadVisaAttachmentToSignedUrl({
-        file,
-        storagePath: prepared.data.storagePath,
-        token: prepared.data.token,
-        mimeType: prepared.data.mimeType,
+        file: uploadFile,
+        storagePath: uploadTicket.data.storagePath,
+        token: uploadTicket.data.token,
+        mimeType: uploadTicket.data.mimeType,
+        onProgress: (percentage) => {
+          setProgressBySlot((current) => ({ ...current, [slotKey]: percentage }));
+        },
       });
       if (!uploaded.ok) {
         await cleanupVisaAttachmentUploadAction({
           applicationId,
-          storagePath: prepared.data.storagePath,
+          storagePath: uploadTicket.data.storagePath,
         });
         setError(copy.attachmentUploadFailed);
         return false;
@@ -142,9 +150,9 @@ export function VisaDocumentAttachments({
         kind,
         sortOrder,
         originalName: file.name,
-        mimeType: prepared.data.mimeType,
-        sizeBytes: file.size,
-        storagePath: prepared.data.storagePath,
+        mimeType: uploadTicket.data.mimeType,
+        sizeBytes: uploadFile.size,
+        storagePath: uploadTicket.data.storagePath,
       });
       if (!completed.ok) {
         setError(localError(completed.error, copy));
@@ -160,6 +168,11 @@ export function VisaDocumentAttachments({
       setError(copy.attachmentUploadFailed);
       return false;
     } finally {
+      setProgressBySlot((current) => {
+        const next = { ...current };
+        delete next[slotKey];
+        return next;
+      });
       setSlotBusy(slotKey, false);
     }
   }, [applicationId, copy, preview, setSlotBusy]);
@@ -184,9 +197,9 @@ export function VisaDocumentAttachments({
         .map((item) => item.sortOrder),
     );
     for (const file of files) {
-      const sortOrder = Array.from({ length: VISA_ACTIVITY_PHOTO_COUNT }, (_, index) => index)
-        .find((index) => !used.has(index));
-      if (sortOrder === undefined) break;
+      let sortOrder = 0;
+      while (used.has(sortOrder) && sortOrder <= VISA_ATTACHMENT_MAX_SORT_ORDER) sortOrder += 1;
+      if (sortOrder > VISA_ATTACHMENT_MAX_SORT_ORDER) break;
       used.add(sortOrder);
       const uploaded = await upload(file, "activity_photo", sortOrder);
       if (!uploaded) used.delete(sortOrder);
@@ -244,6 +257,7 @@ export function VisaDocumentAttachments({
     hint: string,
     imageOnly: boolean,
     compact = false,
+    required = true,
   ) => {
     const slotKey = `${kind}:${sortOrder}`;
     const slotBusy = busySlots.has(slotKey);
@@ -252,7 +266,7 @@ export function VisaDocumentAttachments({
       <article key={slotKey} className="rounded-2xl border border-border bg-background p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-sm font-bold">{title}<span className="ml-1 text-destructive">*</span></h3>
+            <h3 className="text-sm font-bold">{title}{required ? <span className="ml-1 text-destructive">*</span> : null}</h3>
             {hint ? <p className="mt-1 text-xs leading-5 text-ink-3">{hint}</p> : null}
           </div>
           {attachment ? <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" /> : null}
@@ -267,6 +281,11 @@ export function VisaDocumentAttachments({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-semibold">{attachment.originalName}</p>
                 <p className="mt-0.5 text-[11px] text-ink-3">{formatVisaAttachmentSize(attachment.sizeBytes)}</p>
+                {slotBusy ? (
+                  <p className="mt-1 text-[11px] font-semibold text-primary">
+                    {copy.uploadingFile}{progressBySlot[slotKey] !== undefined ? ` ${progressBySlot[slotKey]}%` : ""}
+                  </p>
+                ) : null}
               </div>
             </div>
             <div className="flex flex-wrap gap-2 border-t border-border p-3">
@@ -290,7 +309,11 @@ export function VisaDocumentAttachments({
           </div>
         ) : (
           <label className={`mt-3 flex min-h-24 items-center justify-center rounded-xl border border-dashed border-primary/35 bg-primary/5 px-4 text-center text-sm font-semibold text-primary ${disabled || slotBusy ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-primary/10"}`}>
-            {slotBusy ? <><LoaderCircle className="mr-2 size-4 animate-spin" />{copy.uploadingFile}</> : <><Upload className="mr-2 size-4" />{copy.chooseFile}</>}
+            {slotBusy ? (
+              <><LoaderCircle className="mr-2 size-4 animate-spin" />{copy.uploadingFile}{progressBySlot[slotKey] !== undefined ? ` ${progressBySlot[slotKey]}%` : ""}</>
+            ) : (
+              <><Upload className="mr-2 size-4" />{copy.chooseFile}</>
+            )}
             <input type="file" accept={accept} disabled={disabled || slotBusy} className="sr-only" onChange={(event) => chooseFile(event, kind, sortOrder)} />
           </label>
         )}
@@ -298,6 +321,16 @@ export function VisaDocumentAttachments({
       </article>
     );
   };
+
+  const highestActivitySlot = activityPhotos.at(-1)?.sortOrder ?? -1;
+  const visibleActivitySlotCount = Math.min(
+    VISA_ATTACHMENT_MAX_SORT_ORDER + 1,
+    Math.max(
+      VISA_ACTIVITY_PHOTO_MIN_COUNT,
+      highestActivitySlot + 2,
+      activityPhotos.length + 1,
+    ),
+  );
 
   return (
     <div className="md:col-span-2 space-y-6">
@@ -315,10 +348,10 @@ export function VisaDocumentAttachments({
             <p className="mt-1 text-[11px] leading-4 text-ink-3">{copy.acceptedImageTypes}</p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <p className={`text-xs font-bold ${activityPhotos.length === VISA_ACTIVITY_PHOTO_COUNT ? "text-emerald-700" : "text-primary"}`}>
+            <p className={`text-xs font-bold ${activityPhotos.length >= VISA_ACTIVITY_PHOTO_MIN_COUNT ? "text-emerald-700" : "text-primary"}`}>
               {copy.activityPhotoProgress(activityPhotos.length)}
             </p>
-            {!disabled && activityPhotos.length < VISA_ACTIVITY_PHOTO_COUNT ? (
+            {!disabled ? (
               <label className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-input bg-background px-3 text-xs font-medium hover:bg-muted ${isBusy ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
                 <Upload className="size-3.5" />{copy.addActivityPhotos}
                 <input type="file" multiple accept={IMAGE_FILE_ACCEPT} disabled={isBusy} className="sr-only" onChange={(event) => void chooseActivityFiles(event)} />
@@ -327,7 +360,7 @@ export function VisaDocumentAttachments({
           </div>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {Array.from({ length: VISA_ACTIVITY_PHOTO_COUNT }, (_, sortOrder) => fileCard(
+          {Array.from({ length: visibleActivitySlotCount }, (_, sortOrder) => fileCard(
             activityPhotos.find((item) => item.sortOrder === sortOrder) ?? null,
             "activity_photo",
             sortOrder,
@@ -335,6 +368,7 @@ export function VisaDocumentAttachments({
             "",
             true,
             true,
+            false,
           ))}
         </div>
       </section>

@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptVisaDocumentSensitiveData } from "@/lib/visa/document-intake-crypto";
 import { isPaidVisaDocumentCase } from "@/lib/visa/document-products";
+import { VISA_ACTIVITY_PHOTO_MIN_COUNT } from "@/lib/visa/document-attachments";
 import {
   firstVisaDocumentIssue,
   splitVisaDocumentData,
@@ -98,7 +99,7 @@ async function persist(
       count("passport_copy") !== 1
       || count("dancer_profile") !== 1
       || count("id_photo") !== 1
-      || count("activity_photo") !== 8
+      || count("activity_photo") < VISA_ACTIVITY_PHOTO_MIN_COUNT
     ) {
       return {
         ok: false,

@@ -1,6 +1,7 @@
 export const VISA_DOCUMENTS_BUCKET = "visa-documents";
-export const VISA_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
-export const VISA_ACTIVITY_PHOTO_COUNT = 8;
+export const VISA_ACTIVITY_PHOTO_MIN_COUNT = 4;
+export const VISA_ATTACHMENT_MAX_SORT_ORDER = 32_767;
+export const VISA_IMAGE_OPTIMIZE_THRESHOLD_BYTES = 6 * 1024 * 1024;
 
 export const VISA_ATTACHMENT_KINDS = [
   "passport_copy",
@@ -50,6 +51,17 @@ export function normalizeVisaAttachmentMimeType(fileName: string, mimeType: stri
   return MIME_BY_EXTENSION[extension] ?? null;
 }
 
+export function shouldOptimizeVisaImage(input: {
+  name: string;
+  type: string;
+  size: number;
+}): boolean {
+  const mimeType = normalizeVisaAttachmentMimeType(input.name, input.type);
+  return mimeType !== null
+    && ["image/jpeg", "image/png", "image/webp"].includes(mimeType)
+    && input.size > VISA_IMAGE_OPTIMIZE_THRESHOLD_BYTES;
+}
+
 export function visaAttachmentExtension(mimeType: string): string | null {
   return EXTENSION_BY_MIME[mimeType] ?? null;
 }
@@ -67,9 +79,6 @@ export function validateVisaAttachmentMetadata(input: {
   if (!Number.isInteger(input.sizeBytes) || input.sizeBytes < 1) {
     return { ok: false, error: "empty_file" };
   }
-  if (input.sizeBytes > VISA_ATTACHMENT_MAX_BYTES) {
-    return { ok: false, error: "file_too_large" };
-  }
   const mimeType = normalizeVisaAttachmentMimeType(originalName, input.mimeType);
   if (!mimeType) return { ok: false, error: "unsupported_file_type" };
   if ((input.kind === "id_photo" || input.kind === "activity_photo") && mimeType === "application/pdf") {
@@ -85,7 +94,7 @@ export function visaAttachmentRequirementsMet(attachments: VisaDocumentAttachmen
   return count("passport_copy") === 1
     && count("dancer_profile") === 1
     && count("id_photo") === 1
-    && count("activity_photo") === VISA_ACTIVITY_PHOTO_COUNT;
+    && count("activity_photo") >= VISA_ACTIVITY_PHOTO_MIN_COUNT;
 }
 
 export function nextAvailableActivitySlot(attachments: VisaDocumentAttachment[]): number | null {
@@ -94,7 +103,7 @@ export function nextAvailableActivitySlot(attachments: VisaDocumentAttachment[])
       .filter((item) => item.kind === "activity_photo")
       .map((item) => item.sortOrder),
   );
-  for (let slot = 0; slot < VISA_ACTIVITY_PHOTO_COUNT; slot += 1) {
+  for (let slot = 0; slot <= VISA_ATTACHMENT_MAX_SORT_ORDER; slot += 1) {
     if (!used.has(slot)) return slot;
   }
   return null;
