@@ -42,6 +42,7 @@ export type PaymentReceiptInput = {
   foreignCharge: { currency: string; amount: number } | null;
   paidAt: string;
   receiptUrl: string | null;
+  documentIntakeUrl: string | null;
 };
 
 const PROVIDER_LABEL: Record<Lang, Record<"toss" | "paypal", string>> = {
@@ -72,6 +73,9 @@ const COPY: Record<
     nextHtml: string;
     lookupLabel: string;
     receiptLabel: string;
+    documentTitle: string;
+    documentBody: string;
+    documentLabel: string;
     copyrightNote: string;
   }
 > = {
@@ -97,6 +101,9 @@ const COPY: Record<
       "담당자가 확인한 뒤 진행 일정을 개별적으로 안내드립니다.<br>결제 내역은 아래에서 언제든 다시 확인하실 수 있습니다.<br>문의는 이 메일에 그대로 회신해 주세요.",
     lookupLabel: "결제 내역 조회",
     receiptLabel: "영수증 보기",
+    documentTitle: "비자 서류 정보 제출",
+    documentBody: "결제에 사용한 이메일로 deetz에 로그인해 서류 정보를 작성해 주세요.<br>작성 내용은 자동으로 임시 저장됩니다.",
+    documentLabel: "비자 서류 작성하기",
     copyrightNote: "이 메일은 결제 시 입력하신 주소로 발송되었습니다.",
   },
   en: {
@@ -121,6 +128,9 @@ const COPY: Record<
       "Our team will review and contact you with the schedule.<br>You can look up this payment anytime at the link below.<br>Just reply to this email if you have any questions.",
     lookupLabel: "Look up my payment",
     receiptLabel: "View receipt",
+    documentTitle: "Submit your visa document information",
+    documentBody: "Log in to deetz with the email used for payment and complete the document form.<br>Your entries are saved automatically.",
+    documentLabel: "Open document form",
     copyrightNote: "This email was sent to the address you entered at checkout.",
   },
   ja: {
@@ -145,6 +155,9 @@ const COPY: Record<
       "担当者が確認のうえ、進行スケジュールを個別にご案内いたします。<br>お支払い内容は下記からいつでもご確認いただけます。<br>ご不明な点はこのメールにそのままご返信ください。",
     lookupLabel: "決済内容を確認する",
     receiptLabel: "領収書を見る",
+    documentTitle: "ビザ書類情報の提出",
+    documentBody: "決済時のメールアドレスでdeetzにログインし、書類フォームをご入力ください。<br>入力内容は自動保存されます。",
+    documentLabel: "書類フォームを開く",
     copyrightNote: "このメールは決済時にご入力いただいたアドレスへ送信されています。",
   },
 };
@@ -237,6 +250,12 @@ export async function sendPaymentReceiptEmail(input: PaymentReceiptInput): Promi
         ? `<a href="${esc(input.receiptUrl)}" style="display:inline-block;margin:14px 0 0 8px;border:1px solid #d4d4d8;color:#111111;text-decoration:none;font-size:14px;font-weight:700;padding:10px 16px;border-radius:10px;">${esc(c.receiptLabel)}</a>`
         : ""
     }</div></td></tr>
+${input.documentIntakeUrl ? `<tr><td style="padding:8px 32px 6px;">
+  <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:14px;padding:16px 18px;">
+    <div style="font-size:13px;font-weight:700;color:#9a3412;margin-bottom:8px;">${esc(c.documentTitle)}</div>
+    <div style="font-size:14px;line-height:1.75;color:#7c2d12;">${c.documentBody}</div>
+    <a href="${esc(input.documentIntakeUrl)}" style="display:inline-block;margin-top:14px;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:11px 16px;border-radius:10px;">${esc(c.documentLabel)}</a>
+  </div></td></tr>` : ""}
 <tr><td style="padding:22px 32px 28px;border-top:1px solid #ececef;background:#fafafa;">
   <img src="https://www.deetz.kr/brand/deetz-logo-black.png" alt="deetz" width="41" height="20" style="display:block;height:20px;width:auto;border:0;">
   <div style="font-size:12px;color:#6b7280;margin:10px 0 14px;">${c.tagline}</div>
@@ -262,6 +281,9 @@ export async function sendPaymentReceiptEmail(input: PaymentReceiptInput): Promi
     input.foreignCharge ? `${c.labels.foreign}: ${input.foreignCharge.currency} ${input.foreignCharge.amount}` : "",
     `${c.labels.method}: ${PROVIDER_LABEL[lang][input.provider]}`,
     `${c.labels.paidAt}: ${formatPaidAt(input.paidAt, lang)}`,
+    "",
+    input.documentIntakeUrl ? `${c.documentTitle}: ${input.documentIntakeUrl}` : "",
+    input.documentIntakeUrl ? c.documentBody.replace(/<br>/g, " ") : "",
     "",
     LOOKUP_URL,
   ]

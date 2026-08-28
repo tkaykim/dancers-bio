@@ -2,6 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isPaidVisaDocumentCase } from "./document-products";
 
 type PrivateNationality = {
   dancer_id: string;
@@ -58,22 +59,6 @@ function nationalitySignal(row: PrivateNationality | undefined): "kr" | "foreign
   return "unknown";
 }
 
-export const VISA_DOCUMENT_PRODUCT_SLUGS = [
-  "training-and-placement",
-  "monthly-training",
-  "monthly-training-100",
-] as const;
-
-const visaDocumentProductSlugSet = new Set<string>(VISA_DOCUMENT_PRODUCT_SLUGS);
-
-export function isPaidVisaDocumentCase(application: MemberVisaApplication): boolean {
-  if (application.payment_status !== "paid") return false;
-  const issuedSlug = application.payment_meta?.issued_product_slug;
-  const productSlug = application.program_product_slug ??
-    (typeof issuedSlug === "string" ? issuedSlug : null);
-  return Boolean(productSlug && visaDocumentProductSlugSet.has(productSlug));
-}
-
 async function claimMemberVisaApplications({
   admin,
   userId,
@@ -128,7 +113,7 @@ async function claimMemberVisaApplications({
   const applicationIds = emailMatches
     .filter((application) => (
       (application.dancer_id && foreignDancerIds.has(application.dancer_id)) ||
-      isPaidVisaDocumentCase(application as MemberVisaApplication)
+      isPaidVisaDocumentCase(application)
     ))
     .map((application) => application.id);
   if (applicationIds.length === 0) return;

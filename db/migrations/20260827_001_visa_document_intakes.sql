@@ -6,6 +6,24 @@ alter table public.dancer_visa_applications
   add column if not exists external_training_order_id uuid,
   add column if not exists program_product_slug text;
 
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'dancer_visa_applications_program_product_slug_check'
+      and conrelid = 'public.dancer_visa_applications'::regclass
+  ) then
+    alter table public.dancer_visa_applications
+      add constraint dancer_visa_applications_program_product_slug_check
+      check (
+        program_product_slug is null or
+        program_product_slug in ('training-and-placement', 'monthly-training', 'monthly-training-100')
+      );
+  end if;
+end
+$$;
+
 create unique index if not exists dancer_visa_applications_external_training_order_uidx
   on public.dancer_visa_applications (external_training_order_id)
   where external_training_order_id is not null;

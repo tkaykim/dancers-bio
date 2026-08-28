@@ -103,6 +103,9 @@ export type VisaAdminRow = {
   payment_amount_krw: number | null;
   paid_at: string | null;
   payment_refunded_at: string | null;
+  document_intake_status: string | null;
+  document_intake_last_saved_at: string | null;
+  document_intake_submitted_at: string | null;
   meeting_tracking: MeetingTracking | null;
   meeting_invites: MeetingInvite[];
   outbound_mails: OutboundMail[];
@@ -689,6 +692,31 @@ function VisaDetail({
       />
 
       <VisaOutboundMailsPanel mails={row.outbound_mails} />
+
+      {row.document_intake_status ? (
+        <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-primary">비자 서류 정보</p>
+              <p className="mt-1 text-sm text-ink-2">
+                상태 {row.document_intake_status}
+                {row.document_intake_submitted_at
+                  ? ` · 제출 ${formatKstShort(row.document_intake_submitted_at)}`
+                  : row.document_intake_last_saved_at
+                    ? ` · 마지막 저장 ${formatKstShort(row.document_intake_last_saved_at)}`
+                    : ""}
+              </p>
+            </div>
+            <Link
+              href={`/admin/visa/${row.id}/documents`}
+              className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"
+            >
+              제출 내용 열기
+              <ChevronRight className="size-3.5" />
+            </Link>
+          </div>
+        </div>
+      ) : null}
 
       <VisaPaymentPanel
         state={{

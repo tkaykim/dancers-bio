@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptVisaDocumentSensitiveData } from "@/lib/visa/document-intake-crypto";
+import { isPaidVisaDocumentCase } from "@/lib/visa/document-products";
 import {
   firstVisaDocumentIssue,
   splitVisaDocumentData,
@@ -27,7 +28,7 @@ async function ownedPaidApplication(applicationId: string, userId: string) {
   const admin = createAdminClient();
   const { data } = await admin
     .from("dancer_visa_applications")
-    .select("id, dancer_id, payment_status, payment_meta")
+    .select("id, dancer_id, payment_status, payment_meta, program_product_slug")
     .eq("id", applicationId)
     .eq("applicant_profile_id", userId)
     .eq("payment_status", "paid")
@@ -37,7 +38,9 @@ async function ownedPaidApplication(applicationId: string, userId: string) {
     application: data as {
       id: string;
       dancer_id: string | null;
+      payment_status: string | null;
       payment_meta: Record<string, unknown> | null;
+      program_product_slug: string | null;
     } | null,
   };
 }
@@ -50,7 +53,7 @@ async function persist(
 ): Promise<SaveResult> {
   const user = await requireUser();
   const owned = await ownedPaidApplication(applicationId, user.id);
-  if (!owned.application) {
+  if (!owned.application || !isPaidVisaDocumentCase(owned.application)) {
     return { ok: false, error: "Only your own paid program case can be submitted.", code: "forbidden" };
   }
 

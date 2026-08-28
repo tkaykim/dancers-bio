@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default function VisaDocumentsE2EPage() {
-  if (process.env.VISA_DOCUMENT_E2E_PREVIEW !== "1") notFound();
+  if (process.env.VERCEL_ENV !== "preview" || process.env.VISA_DOCUMENT_E2E_PREVIEW !== "1") notFound();
   const context: VisaDocumentIntakeContext = {
     applicationId: "00000000-0000-4000-8000-000000000001",
     email: "e2e-applicant@example.com",

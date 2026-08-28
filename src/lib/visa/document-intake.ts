@@ -8,6 +8,7 @@ import {
   type VisaDocumentFormData,
 } from "./document-intake-schema";
 import { decryptVisaDocumentSensitiveData } from "./document-intake-crypto";
+import { isPaidVisaDocumentCase } from "./document-products";
 
 export type VisaDocumentIntakeStatus = "draft" | "submitted" | "needs_revision" | "accepted";
 
@@ -68,7 +69,7 @@ export async function loadVisaDocumentIntakeContext(
     .order("created_at", { ascending: false })
     .limit(20);
   const applications = (applicationsRaw ?? []) as unknown as MemberVisaApplication[];
-  const application = applications[0] ?? null;
+  const application = applications.find(isPaidVisaDocumentCase) ?? null;
   if (!application) return null;
 
   const [{ data: privateInfoRaw }, { data: dancerRaw }, { data: profileRaw }, { data: intakeRaw }] =

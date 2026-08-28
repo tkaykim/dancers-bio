@@ -41,7 +41,7 @@ function CheckField({ checked, onChange, children, disabled }: { checked: boolea
   return (
     <label className={`flex items-start gap-2 text-sm leading-5 ${disabled ? "text-ink-3" : "cursor-pointer"}`}>
       <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} className="mt-0.5 accent-primary" />
-      <span>{children}</span>
+      <span className="whitespace-pre-line">{children}</span>
     </label>
   );
 }
@@ -323,7 +323,7 @@ export function VisaDocumentIntakeForm({ context, preview = false }: { context: 
             <p className="md:col-span-2 text-sm leading-6 text-ink-2">{copy.travelIntro}</p>
             {form.otherInternationalTravel.map((item,index) => <div key={item.id} className="md:col-span-2 grid gap-3 rounded-2xl border p-4 md:grid-cols-2"><Input aria-label={copy.travelCountry} placeholder={copy.travelCountryPlaceholder} value={item.country} onChange={(e) => mutate((c) => ({ ...c, otherInternationalTravel: c.otherInternationalTravel.map((p,i) => i === index ? { ...p, country: e.target.value } : p) }))} /><Input aria-label={copy.travelPurpose} placeholder={copy.travelPurposePlaceholder} value={item.purpose} onChange={(e) => mutate((c) => ({ ...c, otherInternationalTravel: c.otherInternationalTravel.map((p,i) => i === index ? { ...p, purpose: e.target.value } : p) }))} /><Field label={copy.arrivalDate}><Input type="date" value={item.startDate} onChange={(e) => mutate((c) => ({ ...c, otherInternationalTravel: c.otherInternationalTravel.map((p,i) => i === index ? { ...p, startDate: e.target.value } : p) }))} /></Field><Field label={copy.departureDate}><Input type="date" value={item.endDate} onChange={(e) => mutate((c) => ({ ...c, otherInternationalTravel: c.otherInternationalTravel.map((p,i) => i === index ? { ...p, endDate: e.target.value } : p) }))} /></Field><Button type="button" variant="destructive" className="md:col-span-2" onClick={() => mutate((c) => ({ ...c, otherInternationalTravel: c.otherInternationalTravel.filter((_,i) => i !== index) }))}><Trash2 />{copy.removeTrip}</Button></div>)}
             <Button type="button" variant="outline" className="md:col-span-2" onClick={() => mutate((c) => ({ ...c, otherInternationalTravel: [...c.otherInternationalTravel, { id: uid("travel"), country: "", purpose: "", startDate: "", endDate: "" }] }))}><Plus />{copy.addTrip}</Button>
-            <div className="md:col-span-2 mt-4 space-y-4 rounded-2xl border border-primary/20 bg-primary/5 p-4"><CheckField checked={form.sensitiveCollectionConsent} onChange={(value) => set("sensitiveCollectionConsent", value)}>{copy.sensitiveConsent}</CheckField><CheckField checked={form.truthfulnessConfirmed} onChange={(value) => set("truthfulnessConfirmed", value)}>{copy.truthfulnessConfirmation}</CheckField></div>
+            <div className="md:col-span-2 mt-4 space-y-4 rounded-2xl border border-primary/20 bg-primary/5 p-4"><CheckField checked={form.sensitiveCollectionConsent} onChange={(value) => set("sensitiveCollectionConsent", value)}>{copy.sensitiveConsent}</CheckField><Link href="/privacy" target="_blank" className="inline-flex text-xs font-semibold text-primary underline underline-offset-4">{copy.privacyPolicy}</Link><CheckField checked={form.truthfulnessConfirmed} onChange={(value) => set("truthfulnessConfirmed", value)}>{copy.truthfulnessConfirmation}</CheckField></div>
           </> : null}
         </div>
 

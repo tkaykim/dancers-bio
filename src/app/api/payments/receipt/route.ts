@@ -35,6 +35,7 @@ const bodySchema = z.object({
     .optional(),
   paidAt: z.string().datetime(),
   receiptUrl: z.string().url().nullable().optional(),
+  documentIntakeUrl: z.string().url().nullable().optional(),
   visaCaseUrl: z.string().url().nullable().optional(),
 });
 
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
     discountCode: parsed.data.discountCode ?? null,
     foreignCharge: parsed.data.foreignCharge ?? null,
     receiptUrl: parsed.data.receiptUrl ?? null,
+    documentIntakeUrl: parsed.data.documentIntakeUrl ?? null,
   };
 
   // 두 통은 서로 독립이다. 하나가 실패해도 나머지는 보낸다.
