@@ -8,12 +8,15 @@ import {
   createDealAction,
   updateDealAction,
   createLineAction,
+  createMixedUnitLinesAction,
+  markConfirmedLinesInvoicedAction,
   updateLineAction,
   setLineStatusAction,
   deleteLineAction,
   addReceiptAction,
 } from "@/app/actions/receivables";
 import {
+  calculateUnitPricing,
   DEAL_STATUS_LABELS,
   LINE_STATUS_LABELS,
   LINE_TYPE_LABELS,
@@ -156,6 +159,14 @@ function moneyToNumber(s: string): number {
 
 function formatMoneyNumber(n: number | null | undefined): string {
   return n != null ? Math.round(n).toLocaleString("ko-KR") : "";
+}
+
+function addDaysYmd(ymd: string, days: number): string {
+  const date = new Date(`${ymd}T00:00:00+09:00`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(
+    date,
+  );
 }
 
 const inputCls =
@@ -469,6 +480,12 @@ function DealForm({
           name="expected_supply_amount"
           defaultValue={deal?.expected_supply_amount}
         />
+        {model === "composite" ? (
+          <span className="text-[10px] leading-snug text-ink-4">
+            최종 합의한 전체 공급가액을 입력하고, 저장 후 단가별 수량을 혼합 매출로
+            나눠 등록하세요.
+          </span>
+        ) : null}
       </div>
       <div className="flex flex-col gap-1">
         <label className={labelCls}>부가세 구분</label>
@@ -728,6 +745,311 @@ function LineForm({
   );
 }
 
+type MixedUnitLineDraft = {
+  id: number;
+  title: string;
+  quantity: string;
+  unitPrice: string;
+  memo: string;
+};
+
+function MixedUnitLinesForm({
+  deal,
+  onDone,
+}: {
+  deal: DealDto;
+  onDone: () => void;
+}) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+  const [lines, setLines] = useState<MixedUnitLineDraft[]>([
+    { id: 1, title: "", quantity: "", unitPrice: "", memo: "" },
+    { id: 2, title: "", quantity: "", unitPrice: "", memo: "" },
+  ]);
+  const taxFree = deal.vat_mode === "tax_free";
+
+  const updateLine = (
+    id: number,
+    patch: Partial<Omit<MixedUnitLineDraft, "id">>,
+  ) =>
+    setLines((current) =>
+      current.map((line) => (line.id === id ? { ...line, ...patch } : line)),
+    );
+
+  const totals = lines.reduce(
+    (sum, line) => {
+      const quantity = Number(line.quantity);
+      const unitPrice = moneyToNumber(line.unitPrice);
+      if (!Number.isFinite(quantity) || quantity <= 0 || unitPrice <= 0)
+        return sum;
+      const amount = calculateUnitPricing({ quantity, unitPrice, taxFree });
+      return {
+        supply: sum.supply + amount.supplyAmount,
+        vat: sum.vat + amount.vatAmount,
+        total: sum.total + amount.totalAmount,
+      };
+    },
+    { supply: 0, vat: 0, total: 0 },
+  );
+
+  return (
+    <form
+      className="flex flex-col gap-3"
+      action={(fd) =>
+        start(async () => {
+          fd.set(
+            "lines_json",
+            JSON.stringify(
+              lines.map((line) => ({
+                title: line.title.trim(),
+                quantity: Number(line.quantity),
+                unit_price: moneyToNumber(line.unitPrice),
+                memo: line.memo.trim() || null,
+              })),
+            ),
+          );
+          const res = await createMixedUnitLinesAction(fd);
+          if (!res.ok) return setErr(res.error);
+          setErr(null);
+          onDone();
+          router.refresh();
+        })
+      }
+    >
+      <input type="hidden" name="deal_id" value={deal.id} />
+      <div className="rounded-lg bg-blue-500/5 px-3 py-2 text-xs text-ink-2">
+        단가가 다른 항목을 한 번에 등록합니다.
+        공급가액과 부가세는 각 행의 수량 × 단가로 서버에서 다시 계산합니다.
+      </div>
+      <div className="flex flex-col gap-2">
+        {lines.map((line, index) => {
+          const quantity = Number(line.quantity);
+          const unitPrice = moneyToNumber(line.unitPrice);
+          const amount =
+            Number.isFinite(quantity) && quantity > 0 && unitPrice > 0
+              ? calculateUnitPricing({ quantity, unitPrice, taxFree })
+              : null;
+          return (
+            <div
+              key={line.id}
+              className="grid gap-2 rounded-lg border border-hairline-2 bg-background p-3 sm:grid-cols-12"
+            >
+              <div className="flex flex-col gap-1 sm:col-span-4">
+                <label className={labelCls}>항목 {index + 1} *</label>
+                <input
+                  name={`mixed_title_${line.id}`}
+                  required
+                  className={inputCls}
+                  value={line.title}
+                  onChange={(e) => updateLine(line.id, { title: e.target.value })}
+                  placeholder="예: 일반 업로드"
+                />
+              </div>
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className={labelCls}>수량 *</label>
+                <input
+                  name={`mixed_quantity_${line.id}`}
+                  type="number"
+                  min="0.01"
+                  step="any"
+                  required
+                  className={inputCls}
+                  value={line.quantity}
+                  onChange={(e) => updateLine(line.id, { quantity: e.target.value })}
+                />
+              </div>
+              <div className="flex flex-col gap-1 sm:col-span-3">
+                <label className={labelCls}>단가 (원) *</label>
+                <MoneyInput
+                  name={`mixed_unit_price_${line.id}`}
+                  value={line.unitPrice}
+                  onValueChange={(value) => updateLine(line.id, { unitPrice: value })}
+                />
+              </div>
+              <div className="flex items-end justify-between gap-2 sm:col-span-3">
+                <p className="pb-2 text-xs text-ink-3">
+                  {amount ? formatWon(amount.supplyAmount) : "공급가액 0원"}
+                </p>
+                {lines.length > 1 ? (
+                  <button
+                    type="button"
+                    className={btnMini}
+                    onClick={() =>
+                      setLines((current) =>
+                        current.filter((item) => item.id !== line.id),
+                      )
+                    }
+                  >
+                    삭제
+                  </button>
+                ) : null}
+              </div>
+              <div className="flex flex-col gap-1 sm:col-span-12">
+                <label className={labelCls}>행 메모</label>
+                <input
+                  name={`mixed_memo_${line.id}`}
+                  className={inputCls}
+                  value={line.memo}
+                  onChange={(e) => updateLine(line.id, { memo: e.target.value })}
+                  placeholder="합의 근거나 산정 기준"
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        className={`${btnGhost} self-start`}
+        onClick={() =>
+          setLines((current) => [
+            ...current,
+            {
+              id: Math.max(...current.map((line) => line.id), 0) + 1,
+              title: "",
+              quantity: "",
+              unitPrice: "",
+              memo: "",
+            },
+          ])
+        }
+      >
+        + 단가 항목 추가
+      </button>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <div className="flex flex-col gap-1">
+          <label className={labelCls}>수금 예정일</label>
+          <input name="due_date" type="date" className={inputCls} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className={labelCls}>등록 상태</label>
+          <select name="status" className={inputCls} defaultValue="confirmed">
+            <option value="draft">미확정 (임시 저장)</option>
+            <option value="confirmed">매출 확정</option>
+          </select>
+        </div>
+        <div className="rounded-lg bg-secondary/70 px-3 py-2 text-xs">
+          <p>공급가액 {formatWon(totals.supply)}</p>
+          <p>
+            부가세 {formatWon(totals.vat)} · 합계 {formatWon(totals.total)}
+          </p>
+        </div>
+      </div>
+      {err ? <p className="text-sm text-red-600">{err}</p> : null}
+      <div className="flex gap-2">
+        <button type="submit" disabled={pending} className={btnPrimary}>
+          {pending ? "등록 중…" : `${lines.length}개 항목 일괄 등록`}
+        </button>
+        <button type="button" onClick={onDone} className={btnGhost}>
+          닫기
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function InvoiceConfirmedLinesForm({
+  deal,
+  today,
+  onDone,
+}: {
+  deal: DealDto;
+  today: string;
+  onDone: () => void;
+}) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+  const confirmed = deal.lines.filter((line) => line.status === "confirmed");
+  const supply = confirmed.reduce((sum, line) => sum + line.supply_amount, 0);
+  const vat = confirmed.reduce((sum, line) => sum + line.vat_amount, 0);
+  const commonDueDates = new Set(
+    confirmed.map((line) => line.due_date).filter(Boolean),
+  );
+  const defaultDueDate =
+    commonDueDates.size === 1
+      ? ([...commonDueDates][0] as string)
+      : addDaysYmd(today, 30);
+
+  return (
+    <form
+      className="flex flex-col gap-3"
+      action={(fd) =>
+        start(async () => {
+          const res = await markConfirmedLinesInvoicedAction(fd);
+          if (!res.ok) return setErr(res.error);
+          setErr(null);
+          onDone();
+          router.refresh();
+        })
+      }
+    >
+      <input type="hidden" name="deal_id" value={deal.id} />
+      <div className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
+        이 기능은 세금계산서를 외부에서 발행하지 않습니다.
+        실제 발행을 완료한 뒤 Deetz에 발행 사실을 기록할 때 사용하세요.
+      </div>
+      <div className="flex flex-col gap-1 rounded-lg border border-hairline-2 p-3 text-sm">
+        {confirmed.map((line) => (
+          <div key={line.id} className="flex justify-between gap-3">
+            <span>{line.title}</span>
+            <span className="shrink-0">{formatWon(line.supply_amount + line.vat_amount)}</span>
+          </div>
+        ))}
+        <div className="mt-1 flex justify-between border-t border-hairline-2 pt-2 font-semibold">
+          <span>{confirmed.length}개 항목 합계</span>
+          <span>{formatWon(supply + vat)}</span>
+        </div>
+        <p className="text-xs text-ink-3">
+          공급가액 {formatWon(supply)} + 부가세 {formatWon(vat)}
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <label className={labelCls}>세금계산서 발행일 *</label>
+          <input
+            name="invoice_issued_at"
+            type="date"
+            required
+            defaultValue={today}
+            className={inputCls}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className={labelCls}>수금 예정일 *</label>
+          <input
+            name="due_date"
+            type="date"
+            required
+            defaultValue={defaultDueDate}
+            className={inputCls}
+          />
+        </div>
+      </div>
+      <label className="flex items-start gap-2 rounded-lg border border-hairline-2 px-3 py-2 text-xs text-ink-2">
+        <input
+          name="actual_issuance_confirmed"
+          value="yes"
+          type="checkbox"
+          required
+          className="mt-0.5"
+        />
+        실제 세금계산서 발행이 완료됐으며 위 발행일과 수금 예정일이 맞습니다.
+      </label>
+      {err ? <p className="text-sm text-red-600">{err}</p> : null}
+      <div className="flex gap-2">
+        <button type="submit" disabled={pending} className={btnPrimary}>
+          {pending ? "처리 중…" : `${confirmed.length}개 항목 발행 처리`}
+        </button>
+        <button type="button" onClick={onDone} className={btnGhost}>
+          닫기
+        </button>
+      </div>
+    </form>
+  );
+}
+
 // ── 입금 기록 폼 ────────────────────────────────────────────────────────────
 
 function ReceiptForm({
@@ -822,6 +1144,13 @@ function LineRow({ deal, line }: { deal: DealDto; line: LineDto }) {
 
   const transition = (next: RevenueLineStatus) =>
     start(async () => {
+      if (
+        next === "invoiced" &&
+        !window.confirm(
+          "실제 세금계산서 발행을 완료했나요? 확인을 누르면 오늘 날짜로 발행 기록됩니다.",
+        )
+      )
+        return;
       const fd = new FormData();
       fd.set("line_id", line.id);
       fd.set("next_status", next);
@@ -892,7 +1221,7 @@ function LineRow({ deal, line }: { deal: DealDto; line: LineDto }) {
           {line.status === "confirmed" ? (
             <>
               <button className={btnMini} disabled={pending} onClick={() => transition("invoiced")}>
-                계산서 발행
+                개별 발행 기록
               </button>
               <button className={btnMini} disabled={pending} onClick={() => setEditing((v) => !v)}>
                 수정
@@ -937,10 +1266,15 @@ function DealCard({
   projects: ProjectOption[];
   today: string;
 }) {
-  const [panel, setPanel] = useState<"none" | "line" | "receipt" | "edit">(
-    "none",
-  );
+  const [panel, setPanel] = useState<
+    "none" | "line" | "mixed" | "invoice" | "receipt" | "edit"
+  >("none");
   const terms = dealTermsSummary(deal);
+  const confirmedLines = deal.lines.filter((line) => line.status === "confirmed");
+  const expectedGap =
+    deal.expected_supply_amount == null
+      ? null
+      : deal.expected_supply_amount - deal.billed_supply;
   return (
     <section className="flex flex-col gap-3 rounded-xl border border-hairline-2 bg-card p-4">
       <header className="flex flex-wrap items-start justify-between gap-2">
@@ -979,10 +1313,20 @@ function DealCard({
             <p className="text-xs text-ink-4">근거: {deal.agreement_basis}</p>
           ) : null}
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
+          {deal.pricing_model === "composite" ? (
+            <button className={btnMini} onClick={() => setPanel(panel === "mixed" ? "none" : "mixed")}>
+              + 혼합 매출
+            </button>
+          ) : null}
           <button className={btnMini} onClick={() => setPanel(panel === "line" ? "none" : "line")}>
-            + 매출 등록
+            {deal.pricing_model === "composite" ? "+ 기타 매출" : "+ 매출 등록"}
           </button>
+          {confirmedLines.length > 0 ? (
+            <button className={btnMini} onClick={() => setPanel(panel === "invoice" ? "none" : "invoice")}>
+              계산서 발행 기록
+            </button>
+          ) : null}
           <button className={btnMini} onClick={() => setPanel(panel === "receipt" ? "none" : "receipt")}>
             + 수금 등록
           </button>
@@ -1016,6 +1360,22 @@ function DealCard({
         </div>
       </div>
 
+      {expectedGap != null ? (
+        expectedGap === 0 ? (
+          <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700">
+            계약금액과 매출 확정 공급가액이 {formatWon(deal.billed_supply)}으로
+            일치합니다.
+          </p>
+        ) : (
+          <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-700">
+            계약금액 {formatWon(deal.expected_supply_amount!)} 대비 매출 확정 공급가액이{" "}
+            {expectedGap > 0
+              ? `${formatWon(expectedGap)} 부족합니다.`
+              : `${formatWon(Math.abs(expectedGap))} 초과합니다.`}
+          </p>
+        )
+      ) : null}
+
       {deal.hints ? (
         <p className="rounded-lg bg-blue-500/5 px-3 py-2 text-xs text-ink-2">
           정산 수량 참고(운영 데이터 — 확정 수량은 직접 입력): 유효 댄서 정산행{" "}
@@ -1046,6 +1406,20 @@ function DealCard({
       {panel === "line" ? (
         <div className="rounded-lg bg-secondary/50 p-3">
           <LineForm deal={deal} onDone={() => setPanel("none")} />
+        </div>
+      ) : null}
+      {panel === "mixed" ? (
+        <div className="rounded-lg bg-secondary/50 p-3">
+          <MixedUnitLinesForm deal={deal} onDone={() => setPanel("none")} />
+        </div>
+      ) : null}
+      {panel === "invoice" ? (
+        <div className="rounded-lg bg-secondary/50 p-3">
+          <InvoiceConfirmedLinesForm
+            deal={deal}
+            today={today}
+            onDone={() => setPanel("none")}
+          />
         </div>
       ) : null}
       {panel === "receipt" ? (

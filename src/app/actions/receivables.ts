@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionResult } from "./auth";
 import {
+  calculateUnitPricing,
   LINE_STATUS_LABELS,
   type RevenueLineStatus,
 } from "@/lib/receivables";
@@ -350,6 +351,141 @@ export async function createLineAction(
   if (error) return { ok: false, error: error.message };
   revalidatePath(RECEIVABLES_PATH);
   return { ok: true, data: { id: data.id as string } };
+}
+
+const mixedUnitLineSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  quantity: z.number().positive().max(1_000_000),
+  unit_price: z.number().int().positive().max(100_000_000_000),
+  memo: z.string().trim().max(500).nullable().optional(),
+});
+
+export async function createMixedUnitLinesAction(
+  fd: FormData,
+): Promise<ActionResult<{ count: number }>> {
+  const profile = await requireAdmin();
+  const dealId = str(fd.get("deal_id"));
+  const initialStatus = str(fd.get("status")) === "draft" ? "draft" : "confirmed";
+  const dueDate = strOrNull(fd.get("due_date"));
+  if (!uuid.safeParse(dealId).success)
+    return { ok: false, error: "잘못된 요청입니다." };
+  if (dueDate && !ymd.safeParse(dueDate).success)
+    return { ok: false, error: "수금 예정일 형식이 잘못됐습니다." };
+
+  let rawLines: unknown;
+  try {
+    rawLines = JSON.parse(str(fd.get("lines_json")));
+  } catch {
+    return { ok: false, error: "혼합 매출 항목을 읽을 수 없습니다." };
+  }
+  const parsed = z.array(mixedUnitLineSchema).min(1).max(20).safeParse(rawLines);
+  if (!parsed.success)
+    return { ok: false, error: "항목명·수량·단가를 확인해 주세요." };
+
+  const admin = createAdminClient();
+  const { data: deal } = await admin
+    .from("project_client_deals")
+    .select("id, pricing_model, quantity_cap, vat_mode")
+    .eq("id", dealId)
+    .maybeSingle();
+  if (!deal) return { ok: false, error: "계약을 찾을 수 없습니다." };
+  if ((deal.pricing_model as string) !== "composite")
+    return { ok: false, error: "혼합형 계약에서만 여러 단가를 한 번에 등록할 수 있습니다." };
+
+  const quantityTotal = parsed.data.reduce((sum, line) => sum + line.quantity, 0);
+  const { data: existingUnitLines, error: existingUnitLinesError } = await admin
+    .from("deal_revenue_lines")
+    .select("quantity")
+    .eq("deal_id", dealId)
+    .eq("line_type", "unit_billing")
+    .neq("status", "cancelled");
+  if (existingUnitLinesError)
+    return { ok: false, error: existingUnitLinesError.message };
+  const existingQuantity = (existingUnitLines ?? []).reduce(
+    (sum, line) => sum + Number(line.quantity ?? 0),
+    0,
+  );
+  if (
+    deal.quantity_cap != null &&
+    existingQuantity + quantityTotal > Number(deal.quantity_cap)
+  )
+    return {
+      ok: false,
+      error: `기존 수량(${existingQuantity})과 이번 수량(${quantityTotal})의 합이 계약 상한(${deal.quantity_cap})을 초과합니다.`,
+    };
+
+  const taxFree = (deal.vat_mode as string) === "tax_free";
+  const rows = parsed.data.map((line) => {
+    const totals = calculateUnitPricing({
+      quantity: line.quantity,
+      unitPrice: line.unit_price,
+      taxFree,
+    });
+    return {
+      deal_id: dealId,
+      line_type: "unit_billing" as const,
+      title: line.title,
+      quantity: line.quantity,
+      unit_price: line.unit_price,
+      supply_amount: totals.supplyAmount,
+      vat_amount: totals.vatAmount,
+      status: initialStatus,
+      due_date: dueDate,
+      memo: line.memo || null,
+      created_by: profile.id,
+    };
+  });
+
+  const { data, error } = await admin
+    .from("deal_revenue_lines")
+    .insert(rows)
+    .select("id");
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(RECEIVABLES_PATH);
+  return { ok: true, data: { count: data.length } };
+}
+
+export async function markConfirmedLinesInvoicedAction(
+  fd: FormData,
+): Promise<ActionResult<{ count: number }>> {
+  await requireAdmin();
+  const dealId = str(fd.get("deal_id"));
+  const invoiceDate = str(fd.get("invoice_issued_at"));
+  const dueDate = str(fd.get("due_date"));
+  const actualIssuanceConfirmed = str(fd.get("actual_issuance_confirmed"));
+  if (!uuid.safeParse(dealId).success)
+    return { ok: false, error: "잘못된 요청입니다." };
+  if (!ymd.safeParse(invoiceDate).success || !ymd.safeParse(dueDate).success)
+    return { ok: false, error: "발행일과 수금 예정일을 확인해 주세요." };
+  if (dueDate < invoiceDate)
+    return { ok: false, error: "수금 예정일은 계산서 발행일보다 빠를 수 없습니다." };
+  if (actualIssuanceConfirmed !== "yes")
+    return { ok: false, error: "실제 세금계산서 발행 완료 여부를 확인해 주세요." };
+
+  const admin = createAdminClient();
+  const { data: deal } = await admin
+    .from("project_client_deals")
+    .select("id")
+    .eq("id", dealId)
+    .maybeSingle();
+  if (!deal) return { ok: false, error: "계약을 찾을 수 없습니다." };
+
+  const { data, error } = await admin
+    .from("deal_revenue_lines")
+    .update({
+      status: "invoiced",
+      invoice_issued_at: invoiceDate,
+      due_date: dueDate,
+    })
+    .eq("deal_id", dealId)
+    .eq("status", "confirmed")
+    .select("id");
+  if (error) return { ok: false, error: error.message };
+  if (data.length === 0)
+    return { ok: false, error: "발행 처리할 매출 확정 항목이 없습니다." };
+
+  revalidatePath(RECEIVABLES_PATH);
+  return { ok: true, data: { count: data.length } };
 }
 
 export async function updateLineAction(fd: FormData): Promise<ActionResult> {

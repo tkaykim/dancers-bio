@@ -67,6 +67,30 @@ export const BILLABLE_LINE_STATUSES: RevenueLineStatus[] = [
   "received",
 ];
 
+export type UnitPricingInput = {
+  quantity: number;
+  unitPrice: number;
+  taxFree?: boolean;
+};
+
+export function calculateUnitPricing({
+  quantity,
+  unitPrice,
+  taxFree = false,
+}: UnitPricingInput): {
+  supplyAmount: number;
+  vatAmount: number;
+  totalAmount: number;
+} {
+  const supplyAmount = Math.round(quantity * unitPrice);
+  const vatAmount = taxFree ? 0 : Math.round(supplyAmount * 0.1);
+  return {
+    supplyAmount,
+    vatAmount,
+    totalAmount: supplyAmount + vatAmount,
+  };
+}
+
 export function lineBilledTotal(l: {
   supply_amount: number;
   vat_amount: number;
@@ -130,6 +154,8 @@ export function dealTermsSummary(d: {
         ? `매출의 ${Number(d.revenue_share_pct)}%`
         : "매출 배분(RS%)";
     case "composite":
-      return "혼합(라인 참조)";
+      return d.expected_supply_amount != null
+        ? `혼합 · 계약금액 ${won(d.expected_supply_amount)} (항목별 내역)`
+        : "혼합(항목별 내역)";
   }
 }
