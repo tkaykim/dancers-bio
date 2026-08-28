@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { ArrowLeft, LockKeyhole } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileImage, FileText, LockKeyhole } from "lucide-react";
 import { requireProfile } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptVisaDocumentSensitiveData } from "@/lib/visa/document-intake-crypto";
@@ -9,6 +9,7 @@ import {
   joinVisaDocumentData,
   type VisaDocumentFormData,
 } from "@/lib/visa/document-intake-schema";
+import { VISA_DOCUMENTS_BUCKET, formatVisaAttachmentSize, type VisaAttachmentKind } from "@/lib/visa/document-attachments";
 
 export const metadata = { title: "비자 서류 제출 내용 | deetz admin" };
 export const dynamic = "force-dynamic";
@@ -31,6 +32,23 @@ const MARITAL_LABEL: Record<string, string> = {
   married: "기혼",
   divorced: "이혼",
   single: "미혼",
+};
+
+const ATTACHMENT_LABEL: Record<VisaAttachmentKind, string> = {
+  passport_copy: "여권 사본",
+  dancer_profile: "개인 댄서 프로필",
+  id_photo: "증명사진",
+  activity_photo: "주요 활동 실적 사진",
+};
+
+type AttachmentRow = {
+  id: string;
+  kind: VisaAttachmentKind;
+  sort_order: number;
+  storage_path: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
 };
 
 function display(value: unknown): string {
@@ -81,7 +99,7 @@ export default async function AdminVisaDocumentsPage({ params }: { params: Promi
 
   const { id } = await params;
   const admin = createAdminClient();
-  const [{ data: application }, { data: intake }] = await Promise.all([
+  const [{ data: application }, { data: intake }, { data: attachmentsRaw }] = await Promise.all([
     admin
       .from("dancer_visa_applications")
       .select("id, email")
@@ -92,6 +110,12 @@ export default async function AdminVisaDocumentsPage({ params }: { params: Promi
       .select("status, form_data, sensitive_data_ciphertext, last_saved_at, submitted_at")
       .eq("application_id", id)
       .maybeSingle(),
+    admin
+      .from("visa_document_attachments")
+      .select("id, kind, sort_order, storage_path, original_name, mime_type, size_bytes")
+      .eq("application_id", id)
+      .order("kind")
+      .order("sort_order"),
   ]);
   if (!application || !intake) notFound();
 
@@ -99,6 +123,13 @@ export default async function AdminVisaDocumentsPage({ params }: { params: Promi
     ? decryptVisaDocumentSensitiveData(id, intake.sensitive_data_ciphertext)
     : null;
   const form = joinVisaDocumentData(intake.form_data, sensitive);
+  const attachmentRows = (attachmentsRaw ?? []) as AttachmentRow[];
+  const attachments = await Promise.all(attachmentRows.map(async (attachment) => {
+    const { data } = await admin.storage
+      .from(VISA_DOCUMENTS_BUCKET)
+      .createSignedUrl(attachment.storage_path, 900);
+    return { ...attachment, viewUrl: data?.signedUrl ?? null };
+  }));
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-5 pb-16">
@@ -204,6 +235,37 @@ export default async function AdminVisaDocumentsPage({ params }: { params: Promi
         <Row label="민감정보 수집 동의" value={form.sensitiveCollectionConsent} />
         <Row label="사실 확인" value={form.truthfulnessConfirmed} />
       </Section>
+
+      <section className="rounded-2xl border border-border bg-card p-5 md:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <h2 className="text-base font-bold">8. 첨부자료</h2>
+          <p className="text-xs font-semibold text-ink-3">총 {attachments.length}개</p>
+        </div>
+        {attachments.length > 0 ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {attachments.map((attachment) => (
+              <article key={attachment.id} className="rounded-xl border border-border bg-background p-4">
+                <div className="flex items-start gap-3">
+                  {attachment.mime_type === "application/pdf" ? <FileText className="mt-0.5 size-5 shrink-0 text-primary" /> : <FileImage className="mt-0.5 size-5 shrink-0 text-primary" />}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-primary">
+                      {ATTACHMENT_LABEL[attachment.kind]}
+                      {attachment.kind === "activity_photo" ? ` ${attachment.sort_order + 1}` : ""}
+                    </p>
+                    <p className="mt-1 truncate text-sm font-semibold">{attachment.original_name}</p>
+                    <p className="mt-1 text-xs text-ink-3">{formatVisaAttachmentSize(Number(attachment.size_bytes))}</p>
+                  </div>
+                </div>
+                {attachment.viewUrl ? (
+                  <a href={attachment.viewUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-primary underline underline-offset-4">
+                    <ExternalLink className="size-3.5" />파일 열기
+                  </a>
+                ) : <p className="mt-3 text-xs text-destructive">파일 링크를 생성하지 못했습니다.</p>}
+              </article>
+            ))}
+          </div>
+        ) : <p className="mt-4 text-sm text-ink-3">첨부된 파일이 없습니다.</p>}
+      </section>
     </div>
   );
 }

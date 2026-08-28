@@ -10,14 +10,16 @@ test("visa document intake exposes Korean, English, and Japanese", () => {
   assert.equal(visaDocumentCopy("ja").title, "ビザ書類情報");
 });
 
-test("all visa document languages cover the same fields and seven steps", () => {
+test("all visa document languages cover the same fields and eight steps", () => {
   const englishKeys = Object.keys(VISA_DOCUMENT_COPY.en).sort();
   for (const language of VISA_DOCUMENT_LANGUAGES) {
     const copy = visaDocumentCopy(language.value);
     assert.deepEqual(Object.keys(copy).sort(), englishKeys);
-    assert.equal(copy.steps.length, 7);
+    assert.equal(copy.steps.length, 8);
     assert.ok(copy.japanNationalIdHint.length > 0);
     assert.ok(copy.securityReminder.length > 0);
+    assert.ok(copy.attachmentIncomplete.length > 0);
+    assert.equal(copy.activityPhotoProgress(8).length > 0, true);
   }
 });
 
