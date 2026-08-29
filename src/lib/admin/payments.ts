@@ -47,6 +47,7 @@ export type AdminPaymentLine = {
 export type AdminPaymentOperation = {
   id: string;
   operationType: "cancel" | "refund";
+  executionMode?: "two_person" | "direct";
   sourcePaymentId: string;
   status: string;
   amount: number;
@@ -170,6 +171,7 @@ function operationsFrom(rows: UnknownRow[]): AdminPaymentOperation[] {
   return rows.map((row) => ({
     id: stringValue(row, "id") ?? "",
     operationType: stringValue(row, "operation_type") === "cancel" ? "cancel" : "refund",
+    executionMode: stringValue(row, "execution_mode") === "direct" ? "direct" : "two_person",
     sourcePaymentId: stringValue(row, "source_payment_id") ?? "",
     status: stringValue(row, "status") ?? "unknown",
     amount: numberValue(row, "ledger_amount") ?? 0,

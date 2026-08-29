@@ -130,6 +130,7 @@ export function PaymentsAdminTable({
   executionConfigured,
   generatedAt,
   currentUserId,
+  canExecuteDirectly = false,
   preview = false,
 }: {
   items: AdminPaymentRow[];
@@ -138,6 +139,7 @@ export function PaymentsAdminTable({
   executionConfigured: boolean;
   generatedAt: string;
   currentUserId: string;
+  canExecuteDirectly?: boolean;
   preview?: boolean;
 }) {
   const router = useRouter();
@@ -203,6 +205,12 @@ export function PaymentsAdminTable({
 
       {!grigoentConfigured ? <Warning>grigoent 연결 설정이 없어 deetz 내부 결제만 표시됩니다.</Warning> : null}
       {!executionConfigured && grigoentConfigured ? <Warning>grigoent 환불 명령용 공유 시크릿이 없어 요청 조회만 가능하며 승인 실행은 차단됩니다.</Warning> : null}
+      {canExecuteDirectly && !preview ? (
+        <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+          <Check className="mt-0.5 size-3.5 shrink-0" />
+          이 계정은 취소·환불을 다른 관리자 승인 없이 즉시 실행할 수 있습니다.
+        </div>
+      ) : null}
       {preview ? <Warning>QA 미리보기 데이터이며 요청·승인·환불은 실제 서버나 PG로 전송되지 않습니다.</Warning> : null}
       {warnings.map((warning) => <Warning key={warning}>{warning}</Warning>)}
 
@@ -316,6 +324,7 @@ export function PaymentsAdminTable({
           key={selected.id}
           item={selected}
           currentUserId={currentUserId}
+          canExecuteDirectly={canExecuteDirectly}
           generatedAt={generatedAt}
           preview={preview}
           onClose={() => setSelectedId(null)}
@@ -356,7 +365,7 @@ function Pagination({ page, pageCount, pageSize, setPage, setPageSize, total }: 
   );
 }
 
-function PaymentDetailDrawer({ item, currentUserId, generatedAt, preview, onClose, onUpdated }: { item: AdminPaymentRow; currentUserId: string; generatedAt: string; preview: boolean; onClose: () => void; onUpdated: () => void }) {
+function PaymentDetailDrawer({ item, currentUserId, canExecuteDirectly, generatedAt, preview, onClose, onUpdated }: { item: AdminPaymentRow; currentUserId: string; canExecuteDirectly: boolean; generatedAt: string; preview: boolean; onClose: () => void; onUpdated: () => void }) {
   const [mode, setMode] = useState<"cancel" | "refund" | null>(null);
   const [lineId, setLineId] = useState(item.paymentLines.find((line) => line.canRefund || line.canCancel)?.id ?? item.paymentLines[0]?.id ?? "");
   const [amount, setAmount] = useState("");
@@ -371,15 +380,21 @@ function PaymentDetailDrawer({ item, currentUserId, generatedAt, preview, onClos
       ? line.refundableProviderAmount
       : Math.round((line.providerAmount * Number(amount) / line.amount + Number.EPSILON) * 100) / 100
     : 0;
+  const formTitle = mode === "refund"
+    ? canExecuteDirectly ? "환불 즉시 실행" : "환불 요청"
+    : canExecuteDirectly ? "결제 전 취소 즉시 실행" : "결제 전 취소 요청";
+  const submitLabel = canExecuteDirectly
+    ? mode === "refund" ? "환불 즉시 실행" : "결제 전 취소 즉시 실행"
+    : "승인 요청 등록";
 
   const runAction = (task: () => Promise<{ ok: boolean; error?: string; message?: string }>) => {
     startTransition(async () => {
       const result = await task();
+      onUpdated();
       if (result.ok) {
         toast.success(result.message ?? "처리했습니다.");
         setMode(null);
         setReasonDetail("");
-        onUpdated();
       } else toast.error(result.error ?? "처리하지 못했습니다.");
     });
   };
@@ -390,6 +405,15 @@ function PaymentDetailDrawer({ item, currentUserId, generatedAt, preview, onClos
       toast.success("QA 미리보기에서는 요청을 저장하거나 PG로 전송하지 않습니다.");
       setMode(null);
       return;
+    }
+    if (canExecuteDirectly) {
+      const operationLabel = mode === "refund"
+        ? `${formatMoney(line.currency, Number(amount))} 환불`
+        : "결제 전 취소";
+      const confirmed = window.confirm(
+        `${operationLabel}을 즉시 실행합니다.\n\n다른 관리자 승인 없이 PG와 내부 원장에 바로 반영됩니다.\n\n정말 실행하시겠습니까?`,
+      );
+      if (!confirmed) return;
     }
     runAction(() => requestPaymentOperationAction({
       operationType: mode,
@@ -463,16 +487,16 @@ function PaymentDetailDrawer({ item, currentUserId, generatedAt, preview, onClos
           ) : null}
 
           {line && item.source !== "visa_mirror" ? (
-            <DetailSection title="취소·환불 요청">
+            <DetailSection title={canExecuteDirectly ? "취소·환불 실행" : "취소·환불 요청"}>
               {activeForLine ? <Warning>이 결제에는 이미 승인 대기 또는 처리 중인 작업이 있습니다.</Warning> : null}
               {!mode ? (
                 <div className="flex gap-2">
-                  <button type="button" disabled={!line.canRefund || activeForLine} onClick={() => { setMode("refund"); setAmount(String(line.refundableAmount)); }} className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-semibold text-background disabled:opacity-35"><RotateCcw className="size-3.5" /> 환불 요청</button>
-                  <button type="button" disabled={!line.canCancel || activeForLine} onClick={() => setMode("cancel")} className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-hairline-2 px-3 text-xs font-semibold disabled:opacity-35"><X className="size-3.5" /> 결제 전 취소</button>
+                  <button type="button" disabled={!line.canRefund || activeForLine} onClick={() => { setMode("refund"); setAmount(String(line.refundableAmount)); }} className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-semibold text-background disabled:opacity-35"><RotateCcw className="size-3.5" /> {canExecuteDirectly ? "환불 실행" : "환불 요청"}</button>
+                  <button type="button" disabled={!line.canCancel || activeForLine} onClick={() => setMode("cancel")} className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-hairline-2 px-3 text-xs font-semibold disabled:opacity-35"><X className="size-3.5" /> {canExecuteDirectly ? "결제 전 취소 실행" : "결제 전 취소"}</button>
                 </div>
               ) : (
                 <div className="space-y-3 rounded-lg border border-border p-3">
-                  <div className="flex items-center justify-between"><p className="text-xs font-bold">{mode === "refund" ? "환불 요청" : "결제 전 취소 요청"}</p><button type="button" onClick={() => setMode(null)} className="text-[11px] text-ink-3">닫기</button></div>
+                  <div className="flex items-center justify-between"><p className="text-xs font-bold">{formTitle}</p><button type="button" onClick={() => setMode(null)} className="text-[11px] text-ink-3">닫기</button></div>
                   {mode === "refund" ? (
                     <div>
                       <label className="text-[11px] font-medium text-ink-2">환불 금액 ({line.currency})</label>
@@ -491,15 +515,19 @@ function PaymentDetailDrawer({ item, currentUserId, generatedAt, preview, onClos
                     <label className="text-[11px] font-medium text-ink-2">상세 사유</label>
                     <textarea value={reasonDetail} onChange={(event) => setReasonDetail(event.target.value)} maxLength={500} rows={3} placeholder="고객 요청 내용과 판단 근거를 남겨 주세요." className="mt-1 w-full resize-none rounded-lg border border-hairline-2 bg-background p-3 text-xs" />
                   </div>
-                  <p className="rounded-md bg-amber-50 px-2.5 py-2 text-[10px] leading-4 text-amber-800">요청 등록만으로 돈이 이동하지 않습니다. 다른 관리자가 승인해야 PG 취소·환불이 실행됩니다.</p>
-                  <button type="button" disabled={isPending || reasonDetail.trim().length < 2 || (mode === "refund" && (!Number.isFinite(Number(amount)) || Number(amount) <= 0 || Number(amount) > line.refundableAmount))} onClick={submitRequest} className="h-9 w-full rounded-lg bg-foreground text-xs font-semibold text-background disabled:opacity-40">{isPending ? "등록 중…" : "승인 요청 등록"}</button>
+                  <p className={cn("rounded-md px-2.5 py-2 text-[10px] leading-4", canExecuteDirectly ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-800")}>
+                    {canExecuteDirectly
+                      ? "실행 버튼을 누르면 다른 관리자 승인 없이 PG 취소·환불과 내부 원장 반영을 바로 시작합니다."
+                      : "요청 등록만으로 돈이 이동하지 않습니다. 다른 관리자가 승인해야 PG 취소·환불이 실행됩니다."}
+                  </p>
+                  <button type="button" disabled={isPending || reasonDetail.trim().length < 2 || (mode === "refund" && (!Number.isFinite(Number(amount)) || Number(amount) <= 0 || Number(amount) > line.refundableAmount))} onClick={submitRequest} className="h-9 w-full rounded-lg bg-foreground text-xs font-semibold text-background disabled:opacity-40">{isPending ? canExecuteDirectly ? "실행 중…" : "등록 중…" : submitLabel}</button>
                 </div>
               )}
             </DetailSection>
           ) : null}
 
           <DetailSection title={`작업 이력 ${item.operations.length}건`}>
-            {item.operations.length ? <div className="space-y-2">{item.operations.map((operation) => <OperationCard key={operation.id} operation={operation} currentUserId={currentUserId} generatedAt={generatedAt} preview={preview} pending={isPending} runAction={runAction} />)}</div> : <p className="text-xs text-ink-4">취소·환불 작업 이력이 없습니다.</p>}
+            {item.operations.length ? <div className="space-y-2">{item.operations.map((operation) => <OperationCard key={operation.id} operation={operation} currentUserId={currentUserId} canExecuteDirectly={canExecuteDirectly} generatedAt={generatedAt} preview={preview} pending={isPending} runAction={runAction} />)}</div> : <p className="text-xs text-ink-4">취소·환불 작업 이력이 없습니다.</p>}
           </DetailSection>
 
           {item.paymentLines.some((payment) => payment.refunds.length) ? (
@@ -520,16 +548,25 @@ function PaymentDetailDrawer({ item, currentUserId, generatedAt, preview, onClos
   );
 }
 
-function OperationCard({ operation, currentUserId, generatedAt, preview, pending, runAction }: { operation: AdminPaymentOperation; currentUserId: string; generatedAt: string; preview: boolean; pending: boolean; runAction: (task: () => Promise<{ ok: boolean; error?: string; message?: string }>) => void }) {
+function OperationCard({ operation, currentUserId, canExecuteDirectly, generatedAt, preview, pending, runAction }: { operation: AdminPaymentOperation; currentUserId: string; canExecuteDirectly: boolean; generatedAt: string; preview: boolean; pending: boolean; runAction: (task: () => Promise<{ ok: boolean; error?: string; message?: string }>) => void }) {
   const mine = operation.requestedBy === currentUserId;
   const staleProcessing = operation.status === "processing"
     && Boolean(operation.processedAt)
     && new Date(generatedAt).getTime() - new Date(operation.processedAt as string).getTime() >= 5 * 60 * 1000;
   const canReconcile = ["provider_pending", "reconciliation_required"].includes(operation.status) || staleProcessing;
   const previewAction = () => Promise.resolve({ ok: true, message: "QA 미리보기에서는 실제 작업을 실행하지 않습니다." });
+  const executeOwnRequest = () => {
+    if (!preview) {
+      const operationLabel = operation.operationType === "refund"
+        ? `${formatMoney(operation.currency, operation.amount)} 환불`
+        : "결제 전 취소";
+      if (!window.confirm(`${operationLabel}을 즉시 실행합니다.\n\n다른 관리자 승인 없이 PG와 내부 원장에 바로 반영됩니다.\n\n정말 실행하시겠습니까?`)) return;
+    }
+    runAction(preview ? previewAction : () => approvePaymentOperationAction({ operationId: operation.id }));
+  };
   return (
     <div className="rounded-lg border border-border p-3 text-xs">
-      <div className="flex items-center justify-between gap-2"><div className="flex items-center gap-1.5"><StatusChip status={operation.status} /><span className="font-semibold">{operation.operationType === "refund" ? "환불" : "취소"}</span></div><span className="font-semibold">{operation.operationType === "refund" ? formatMoney(operation.currency, operation.amount) : "결제 전 취소"}</span></div>
+      <div className="flex items-center justify-between gap-2"><div className="flex items-center gap-1.5"><StatusChip status={operation.status} /><span className="font-semibold">{operation.operationType === "refund" ? "환불" : "취소"}</span>{operation.executionMode === "direct" ? <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-blue-700">직접 실행</span> : null}</div><span className="font-semibold">{operation.operationType === "refund" ? formatMoney(operation.currency, operation.amount) : "결제 전 취소"}</span></div>
       <p className="mt-2 text-ink-2">{operation.reasonDetail}</p>
       <p className="mt-1 text-[10px] text-ink-4">요청 {operation.requestedByName} · {formatDate(operation.requestedAt)}</p>
       {operation.approvedByName ? <p className="mt-0.5 text-[10px] text-ink-4">승인 {operation.approvedByName} · {formatDate(operation.approvedAt)}</p> : null}
@@ -537,7 +574,10 @@ function OperationCard({ operation, currentUserId, generatedAt, preview, pending
       {operation.status === "requested" ? (
         <div className="mt-3 flex gap-2">
           {mine ? (
-            <button type="button" disabled={pending} onClick={() => runAction(preview ? previewAction : () => rejectPaymentOperationAction({ operationId: operation.id }))} className="h-8 flex-1 rounded-lg border border-hairline-2 text-[11px] font-semibold disabled:opacity-40">내 요청 취소</button>
+            <>
+              <button type="button" disabled={pending} onClick={() => runAction(preview ? previewAction : () => rejectPaymentOperationAction({ operationId: operation.id }))} className="h-8 flex-1 rounded-lg border border-hairline-2 text-[11px] font-semibold disabled:opacity-40">내 요청 취소</button>
+              {canExecuteDirectly ? <button type="button" disabled={pending} onClick={executeOwnRequest} className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg bg-foreground text-[11px] font-semibold text-background disabled:opacity-40"><Check className="size-3" /> 즉시 실행</button> : null}
+            </>
           ) : (
             <>
               <button type="button" disabled={pending} onClick={() => runAction(preview ? previewAction : () => rejectPaymentOperationAction({ operationId: operation.id }))} className="h-8 flex-1 rounded-lg border border-hairline-2 text-[11px] font-semibold disabled:opacity-40">거절</button>

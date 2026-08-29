@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { PaymentsAdminTable } from "@/components/admin/PaymentsAdminTable";
+import { canExecutePaymentOperationsDirectly } from "@/lib/admin/payment-operation-permissions";
 import { loadAdminPayments } from "@/lib/admin/payments";
 import { requireProfile } from "@/lib/auth/guard";
 
@@ -11,7 +12,10 @@ export default async function AdminPaymentsPage() {
   const profile = await requireProfile();
   if (!profile.is_admin) notFound();
 
-  const data = await loadAdminPayments();
+  const [data, canExecuteDirectly] = await Promise.all([
+    loadAdminPayments(),
+    canExecutePaymentOperationsDirectly(profile.id),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -31,6 +35,7 @@ export default async function AdminPaymentsPage() {
         executionConfigured={data.executionConfigured}
         generatedAt={data.generatedAt}
         currentUserId={profile.id}
+        canExecuteDirectly={canExecuteDirectly}
       />
     </div>
   );
