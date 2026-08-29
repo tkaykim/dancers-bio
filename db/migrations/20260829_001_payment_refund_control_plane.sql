@@ -93,8 +93,8 @@ create unique index if not exists deetz_payment_refunds_one_active_per_source_id
 alter table public.payment_operations enable row level security;
 alter table public.deetz_payment_refunds enable row level security;
 
-revoke all on table public.payment_operations from anon, authenticated;
-revoke all on table public.deetz_payment_refunds from anon, authenticated;
+revoke all on table public.payment_operations from anon, authenticated, service_role;
+revoke all on table public.deetz_payment_refunds from anon, authenticated, service_role;
 grant select, insert, update on table public.payment_operations to service_role;
 grant select, insert, update on table public.deetz_payment_refunds to service_role;
 
