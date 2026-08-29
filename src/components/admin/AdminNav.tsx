@@ -19,6 +19,7 @@ import {
   Wallet,
   Receipt,
   HandCoins,
+  CreditCard,
   Home,
   Flame,
   CalendarDays,
@@ -75,6 +76,7 @@ const GROUPS: Group[] = [
   {
     title: "정산",
     items: [
+      { href: "/admin/payments", label: "통합 결제 장부", Icon: CreditCard, exact: true },
       { href: "/admin/settlements", label: "정산 처리", Icon: Wallet, exact: true },
       { href: "/admin/settlements/ledger", label: "지급 장부", Icon: Receipt },
       { href: "/admin/finance/receivables", label: "매출·수금", Icon: HandCoins },
