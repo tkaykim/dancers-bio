@@ -134,7 +134,7 @@ function InboxRow({ room, dim = false }: { room: InboxRoom; dim?: boolean }) {
           >
             {room.projectTitle}
           </span>
-          <span className="shrink-0 text-[11px] tabular-nums text-ink-3">
+          <span className="shrink-0 text-[11px] tabular-nums text-ink-3" suppressHydrationWarning>
             {formatListTime(room.lastMessageAt)}
           </span>
         </div>

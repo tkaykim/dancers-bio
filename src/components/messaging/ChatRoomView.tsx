@@ -354,7 +354,8 @@ function MessageRow(props: {
 
   if (m.kind === "system") {
     return (
-      <p className="my-3 text-center text-[11px] text-ink-4">
+      // 시간 문자열은 서버(UTC)·클라이언트(KST)가 달라 hydration 경고가 난다 — 클라 값이 정답.
+      <p className="my-3 text-center text-[11px] text-ink-4" suppressHydrationWarning>
         {m.body} · {formatMessageTime(m.created_at)}
       </p>
     );
@@ -483,7 +484,7 @@ function MessageRow(props: {
           </div>
         ) : null}
       </div>
-      <span className="mt-0.5 px-1 text-[10px] text-ink-4">
+      <span className="mt-0.5 px-1 text-[10px] text-ink-4" suppressHydrationWarning>
         {formatMessageTime(m.created_at)}
         {mine && props.isLastMine && props.readByCounterpart
           ? props.role === "member"

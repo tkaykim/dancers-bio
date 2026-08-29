@@ -90,6 +90,12 @@ async function bumpSenderWatermark(room: ChatRoomRow, actor: RoomActor, seq: num
       .eq("room_id", room.id)
       .eq("dancer_id", actor.dancerId)
       .lt("last_read_seq", seq);
+    // 회신은 읽었다는 뜻 — 대기 중 미읽음 메일 에피소드도 함께 소멸시킨다.
+    // (핸들러의 발송 직전 재확인이 2차 방어지만, 잡 자체를 여기서 정리한다.)
+    await cancelPendingRoomJobs(room.id, ["unread_mail"], (job) => {
+      const first = Number((job.payload as { firstUnreadSeq?: number }).firstUnreadSeq ?? 0);
+      return first > 0 && first <= seq;
+    });
   } else {
     await admin
       .from("chat_rooms")
