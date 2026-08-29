@@ -1,10 +1,72 @@
 import "server-only";
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { extractPayPalCapture, extractTossCharge } from "@/lib/payments/refund-calculation";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type AdminPaymentSource = "grigoent" | "visa_mirror" | "workshop" | "workshop_event";
+export type AdminRefundState = "none" | "partial" | "full" | "pending" | "attention";
+
+export type AdminPaymentRefund = {
+  id: string;
+  operationId: string | null;
+  status: string;
+  amount: number;
+  currency: string;
+  providerAmount: number;
+  providerCurrency: string;
+  providerRefundId: string | null;
+  providerStatus: string | null;
+  reason: string;
+  requestedAt: string;
+  completedAt: string | null;
+  errorMessage: string | null;
+};
+
+export type AdminPaymentLine = {
+  id: string;
+  sequence: number;
+  status: string;
+  amount: number;
+  currency: string;
+  provider: string | null;
+  providerAmount: number;
+  providerCurrency: string;
+  refundedAmount: number;
+  refundedProviderAmount: number;
+  refundableAmount: number;
+  refundableProviderAmount: number;
+  paidAt: string | null;
+  receiptUrl: string | null;
+  canRefund: boolean;
+  canCancel: boolean;
+  refunds: AdminPaymentRefund[];
+};
+
+export type AdminPaymentOperation = {
+  id: string;
+  operationType: "cancel" | "refund";
+  sourcePaymentId: string;
+  status: string;
+  amount: number;
+  currency: string;
+  providerAmount: number;
+  providerCurrency: string;
+  reasonCode: string;
+  reasonDetail: string;
+  requestedBy: string;
+  requestedByName: string;
+  approvedBy: string | null;
+  approvedByName: string | null;
+  requestedAt: string;
+  approvedAt: string | null;
+  processedAt: string | null;
+  completedAt: string | null;
+  providerRefundId: string | null;
+  providerStatus: string | null;
+  errorMessage: string | null;
+};
 
 export type AdminPaymentRow = {
   id: string;
@@ -17,9 +79,11 @@ export type AdminPaymentRow = {
   customerEmail: string;
   customerPhone: string | null;
   status: string;
+  refundState: AdminRefundState;
   totalAmount: number | null;
   paidAmount: number;
   refundedAmount: number;
+  refundableAmount: number;
   currency: string;
   provider: string | null;
   orderNo: string | null;
@@ -34,12 +98,15 @@ export type AdminPaymentRow = {
   isTest: boolean;
   needsAttention: boolean;
   attentionReason: string | null;
+  paymentLines: AdminPaymentLine[];
+  operations: AdminPaymentOperation[];
 };
 
 export type AdminPaymentsData = {
   items: AdminPaymentRow[];
   warnings: string[];
   grigoentConfigured: boolean;
+  executionConfigured: boolean;
   generatedAt: string;
 };
 
@@ -83,45 +150,155 @@ function productLabel(slug: string | null, title?: string | null): string {
   return slug ? `상품 · ${slug}` : "상품 미지정";
 }
 
-function attentionFor(
-  status: string,
-  productSlug: string | null,
-  totalAmount: number | null,
-  paidAmount: number,
-  failedPaymentCount: number,
-  deetzApplicationId: string | null,
-  isTest: boolean,
-): string | null {
-  if (isTest) return "내부 결제 테스트 상품";
-  if (status === "recovery_required") return "결제는 되었지만 수동 복구가 필요합니다";
-  if (failedPaymentCount > 0 && paidAmount === 0) return "결제 실패 이력이 있습니다";
-  if (totalAmount !== null && status === "completed" && paidAmount < totalAmount) {
-    return "완료 상태지만 납부액이 주문액보다 적습니다";
+function providerCharge(payment: UnknownRow, ledgerAmount: number, ledgerCurrency: string) {
+  const provider = stringValue(payment, "pg_provider");
+  if (provider === "paypal") {
+    const capture = extractPayPalCapture(payment.raw);
+    return {
+      amount: capture.amount ?? ledgerAmount,
+      currency: capture.currency ?? ledgerCurrency,
+    };
   }
-  if (VISA_PRODUCT_SLUGS.has(productSlug ?? "") && !deetzApplicationId) {
-    return "deetz 비자 케이스와 연결되지 않았습니다";
+  if (provider === "toss") {
+    const charge = extractTossCharge(payment.raw);
+    return { amount: charge.amount ?? ledgerAmount, currency: charge.currency };
   }
+  return { amount: ledgerAmount, currency: ledgerCurrency };
+}
+
+function operationsFrom(rows: UnknownRow[]): AdminPaymentOperation[] {
+  return rows.map((row) => ({
+    id: stringValue(row, "id") ?? "",
+    operationType: stringValue(row, "operation_type") === "cancel" ? "cancel" : "refund",
+    sourcePaymentId: stringValue(row, "source_payment_id") ?? "",
+    status: stringValue(row, "status") ?? "unknown",
+    amount: numberValue(row, "ledger_amount") ?? 0,
+    currency: stringValue(row, "ledger_currency") ?? "KRW",
+    providerAmount: numberValue(row, "provider_amount") ?? 0,
+    providerCurrency: stringValue(row, "provider_currency") ?? "KRW",
+    reasonCode: stringValue(row, "reason_code") ?? "other",
+    reasonDetail: stringValue(row, "reason_detail") ?? "사유 없음",
+    requestedBy: stringValue(row, "requested_by") ?? "",
+    requestedByName: stringValue(row, "requested_by_name") ?? "관리자",
+    approvedBy: stringValue(row, "approved_by"),
+    approvedByName: stringValue(row, "approved_by_name"),
+    requestedAt: stringValue(row, "requested_at") ?? new Date(0).toISOString(),
+    approvedAt: stringValue(row, "approved_at"),
+    processedAt: stringValue(row, "processed_at"),
+    completedAt: stringValue(row, "completed_at"),
+    providerRefundId: stringValue(row, "provider_refund_id"),
+    providerStatus: stringValue(row, "provider_status"),
+    errorMessage: stringValue(row, "error_message"),
+  }));
+}
+
+function refundFrom(row: UnknownRow, ledgerKey: string, ledgerCurrency: string): AdminPaymentRefund {
+  return {
+    id: stringValue(row, "id") ?? "",
+    operationId: stringValue(row, "operation_id"),
+    status: stringValue(row, "status") ?? "unknown",
+    amount: numberValue(row, ledgerKey) ?? 0,
+    currency: stringValue(row, "ledger_currency") ?? ledgerCurrency,
+    providerAmount: numberValue(row, "provider_amount") ?? 0,
+    providerCurrency: stringValue(row, "provider_currency") ?? ledgerCurrency,
+    providerRefundId: stringValue(row, "provider_refund_id"),
+    providerStatus: stringValue(row, "provider_status"),
+    reason: stringValue(row, "reason") ?? "사유 없음",
+    requestedAt: stringValue(row, "requested_at") ?? new Date(0).toISOString(),
+    completedAt: stringValue(row, "completed_at"),
+    errorMessage: stringValue(row, "error_message"),
+  };
+}
+
+function makePaymentLine(params: {
+  payment: UnknownRow;
+  sequence: number;
+  ledgerAmount: number;
+  ledgerCurrency: string;
+  refunds: AdminPaymentRefund[];
+  capturedStatuses: string[];
+}): AdminPaymentLine {
+  const status = stringValue(params.payment, "status") ?? "unknown";
+  const provider = stringValue(params.payment, "pg_provider");
+  const charge = providerCharge(params.payment, params.ledgerAmount, params.ledgerCurrency);
+  const completed = params.refunds.filter((refund) => refund.status === "completed");
+  const refundedAmount = completed.reduce((sum, refund) => sum + refund.amount, 0);
+  const refundedProviderAmount = completed.reduce((sum, refund) => sum + refund.providerAmount, 0);
+  const refundableAmount = Math.max(0, params.ledgerAmount - refundedAmount);
+  const refundableProviderAmount = Math.max(0, charge.amount - refundedProviderAmount);
+  const hasActiveRefund = params.refunds.some((refund) => ["processing", "pending", "reconciliation_required"].includes(refund.status));
+  const captured = params.capturedStatuses.includes(status);
+
+  return {
+    id: stringValue(params.payment, "id") ?? "",
+    sequence: params.sequence,
+    status,
+    amount: params.ledgerAmount,
+    currency: params.ledgerCurrency,
+    provider,
+    providerAmount: charge.amount,
+    providerCurrency: charge.currency,
+    refundedAmount,
+    refundedProviderAmount,
+    refundableAmount,
+    refundableProviderAmount,
+    paidAt: stringValue(params.payment, "paid_at"),
+    receiptUrl: stringValue(params.payment, "receipt_url"),
+    canRefund: captured && ["toss", "paypal"].includes(provider ?? "") && Boolean(stringValue(params.payment, "payment_key")) && refundableAmount > 0 && !hasActiveRefund,
+    canCancel: ["pending", "failed"].includes(status) && !stringValue(params.payment, "payment_key"),
+    refunds: params.refunds.sort((a, b) => b.requestedAt.localeCompare(a.requestedAt)),
+  };
+}
+
+function attentionFor(input: {
+  status: string;
+  productSlug: string | null;
+  totalAmount: number | null;
+  paidAmount: number;
+  failedPaymentCount: number;
+  deetzApplicationId: string | null;
+  isTest: boolean;
+  operations: AdminPaymentOperation[];
+}): string | null {
+  if (input.operations.some((operation) => operation.status === "reconciliation_required")) return "PG 결과 대사가 필요한 환불·취소 작업이 있습니다";
+  if (input.operations.some((operation) => operation.status === "provider_pending")) return "PG 처리 완료 확인을 기다리는 작업이 있습니다";
+  if (input.isTest) return "내부 결제 테스트 상품";
+  if (input.status === "recovery_required") return "결제는 되었지만 수동 복구가 필요합니다";
+  if (input.failedPaymentCount > 0 && input.paidAmount === 0) return "결제 실패 이력이 있습니다";
+  if (input.totalAmount !== null && input.status === "completed" && input.paidAmount + 0.001 < input.totalAmount) return "완료 상태지만 순납부액이 주문액보다 적습니다";
+  if (VISA_PRODUCT_SLUGS.has(input.productSlug ?? "") && !input.deetzApplicationId) return "deetz 비자 케이스와 연결되지 않았습니다";
   return null;
 }
 
-function makeRow(input: Omit<AdminPaymentRow, "needsAttention" | "attentionReason">): AdminPaymentRow {
-  const attentionReason = attentionFor(
-    input.status,
-    input.productSlug,
-    input.totalAmount,
-    input.paidAmount,
-    input.failedPaymentCount,
-    input.deetzApplicationId,
-    input.isTest,
-  );
+function refundState(lines: AdminPaymentLine[], operations: AdminPaymentOperation[]): AdminRefundState {
+  if (operations.some((operation) => operation.status === "reconciliation_required")) return "attention";
+  if (operations.some((operation) => ["processing", "provider_pending"].includes(operation.status))) return "pending";
+  const original = lines.reduce((sum, line) => sum + line.amount, 0);
+  const refunded = lines.reduce((sum, line) => sum + line.refundedAmount, 0);
+  if (refunded <= 0) return "none";
+  return refunded + 0.001 >= original ? "full" : "partial";
+}
+
+function finishRow(input: Omit<AdminPaymentRow, "needsAttention" | "attentionReason" | "refundState">): AdminPaymentRow {
+  const attentionReason = attentionFor({
+    status: input.status,
+    productSlug: input.productSlug,
+    totalAmount: input.totalAmount,
+    paidAmount: input.paidAmount,
+    failedPaymentCount: input.failedPaymentCount,
+    deetzApplicationId: input.deetzApplicationId,
+    isTest: input.isTest,
+    operations: input.operations,
+  });
   return {
     ...input,
+    refundState: refundState(input.paymentLines, input.operations),
     needsAttention: Boolean(attentionReason),
     attentionReason,
   };
 }
 
-function grigoentClient() {
+function grigoentClient(): SupabaseClient | null {
   const url = process.env.GRIGOENT_SUPABASE_URL ?? process.env.NEXT_PUBLIC_GRIGOENT_SUPABASE_URL;
   const key = process.env.GRIGOENT_SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
@@ -136,119 +313,120 @@ type GrigoentLoad = {
   configured: boolean;
 };
 
-async function loadGrigoent(): Promise<GrigoentLoad> {
+async function loadGrigoent(operationRows: UnknownRow[]): Promise<GrigoentLoad> {
   const svc = grigoentClient();
   if (!svc) {
     return {
       items: [],
       byId: new Map(),
       byOrderNo: new Map(),
-      warnings: ["grigoent 원장 연결 설정이 없습니다. GRIGOENT_SUPABASE_URL과 GRIGOENT_SUPABASE_SERVICE_ROLE_KEY를 배포 환경에 등록해야 합니다."],
+      warnings: ["grigoent 원장 연결 설정이 없어 deetz 내부 결제만 표시됩니다."],
       configured: false,
     };
   }
-
-  const [{ data: orders, error: ordersError }, { data: products, error: productsError }, { data: plans, error: plansError }] =
-    await Promise.all([
-      svc
-        .from("training_orders")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1000),
-      svc.from("training_products").select("*"),
-      svc.from("training_price_plans").select("*"),
-    ]);
-
+  const [{ data: orders, error: ordersError }, { data: products }, { data: plans }] = await Promise.all([
+    svc.from("training_orders").select("*").order("created_at", { ascending: false }).limit(1000),
+    svc.from("training_products").select("*"),
+    svc.from("training_price_plans").select("*"),
+  ]);
   if (ordersError) {
-    console.error("[admin/payments] grigoent orders failed", ordersError);
-    return {
-      items: [],
-      byId: new Map(),
-      byOrderNo: new Map(),
-      warnings: ["grigoent 주문 원장을 읽지 못했습니다. 연결 설정과 원장 권한을 확인해 주세요."],
-      configured: true,
-    };
+    return { items: [], byId: new Map(), byOrderNo: new Map(), warnings: ["grigoent 주문 원장을 읽지 못했습니다."], configured: true };
   }
-
-  const warnings: string[] = [];
-  if (productsError) warnings.push("grigoent 상품 정보를 읽지 못해 일부 상품명이 상품 코드로 표시됩니다.");
-  if (plansError) warnings.push("grigoent 요금제 정보를 읽지 못해 일부 플랜명이 표시되지 않습니다.");
-
-  const productsById = new Map<string, UnknownRow>();
-  for (const row of (products ?? []) as unknown as UnknownRow[]) {
-    const id = stringValue(row, "id");
-    if (id) productsById.set(id, row);
-  }
-  const plansById = new Map<string, UnknownRow>();
-  for (const row of (plans ?? []) as unknown as UnknownRow[]) {
-    const id = stringValue(row, "id");
-    if (id) plansById.set(id, row);
-  }
-
-  const orderRows = (orders ?? []) as unknown as UnknownRow[];
+  const orderRows = (orders ?? []) as UnknownRow[];
   const orderIds = orderRows.map((row) => stringValue(row, "id")).filter((id): id is string => Boolean(id));
-  const { data: payments, error: paymentsError } = orderIds.length
+  const { data: payments, error: paymentError } = orderIds.length
     ? await svc.from("training_order_payments").select("*").in("order_id", orderIds).order("sequence", { ascending: true })
     : { data: [], error: null };
-  if (paymentsError) warnings.push("grigoent 주문의 회차별 결제 상세를 읽지 못했습니다.");
+  const paymentRows = (payments ?? []) as UnknownRow[];
+  const paymentIds = paymentRows.map((row) => stringValue(row, "id")).filter((id): id is string => Boolean(id));
+  const { data: refunds, error: refundError } = paymentIds.length
+    ? await svc.from("training_payment_refunds").select("*").in("payment_id", paymentIds)
+    : { data: [], error: null };
+  const warnings: string[] = [];
+  if (paymentError) warnings.push("grigoent 회차별 결제 상세를 읽지 못했습니다.");
+  if (refundError) warnings.push("grigoent 환불 원장을 읽지 못했습니다. 환불 마이그레이션 적용 여부를 확인해 주세요.");
 
+  const productsById = new Map((products ?? []).map((row) => [String(row.id), row as UnknownRow]));
+  const plansById = new Map((plans ?? []).map((row) => [String(row.id), row as UnknownRow]));
   const paymentsByOrder = new Map<string, UnknownRow[]>();
-  for (const payment of (payments ?? []) as unknown as UnknownRow[]) {
+  for (const payment of paymentRows) {
     const orderId = stringValue(payment, "order_id");
-    if (!orderId) continue;
-    paymentsByOrder.set(orderId, [...(paymentsByOrder.get(orderId) ?? []), payment]);
+    if (orderId) paymentsByOrder.set(orderId, [...(paymentsByOrder.get(orderId) ?? []), payment]);
+  }
+  const refundsByPayment = new Map<string, UnknownRow[]>();
+  for (const refund of (refunds ?? []) as UnknownRow[]) {
+    const paymentId = stringValue(refund, "payment_id");
+    if (paymentId) refundsByPayment.set(paymentId, [...(refundsByPayment.get(paymentId) ?? []), refund]);
+  }
+  const operationsByPayment = new Map<string, UnknownRow[]>();
+  for (const operation of operationRows.filter((row) => stringValue(row, "source_system") === "grigoent")) {
+    const paymentId = stringValue(operation, "source_payment_id");
+    if (paymentId) operationsByPayment.set(paymentId, [...(operationsByPayment.get(paymentId) ?? []), operation]);
   }
 
   const items: AdminPaymentRow[] = [];
   for (const order of orderRows) {
-    const id = stringValue(order, "id");
-    const orderNo = stringValue(order, "order_no");
-    if (!id) continue;
-    const product = productsById.get(stringValue(order, "product_id") ?? "");
-    const plan = plansById.get(stringValue(order, "plan_id") ?? "");
-    const slug = stringValue(product ?? {}, "slug") ?? stringValue(order, "product_slug");
-    const orderPayments = paymentsByOrder.get(id) ?? [];
-    const capturedPayments = orderPayments.filter((payment) => ["paid", "refunded"].includes(stringValue(payment, "status") ?? ""));
-    const paidAmount = capturedPayments.reduce((sum, payment) => sum + (numberValue(payment, "amount") ?? 0), 0) || numberValue(order, "paid_amount") || 0;
-    const refundedAmount = orderPayments
-      .filter((payment) => stringValue(payment, "status") === "refunded")
-      .reduce((sum, payment) => sum + (numberValue(payment, "amount") ?? 0), 0);
-    const failedPaymentCount = orderPayments.filter((payment) => stringValue(payment, "status") === "failed").length;
+    const orderId = stringValue(order, "id");
+    if (!orderId) continue;
+    const product = productsById.get(stringValue(order, "product_id") ?? "") ?? {};
+    const plan = plansById.get(stringValue(order, "plan_id") ?? "") ?? {};
+    const slug = stringValue(product, "slug") ?? stringValue(order, "product_slug");
+    const orderPayments = paymentsByOrder.get(orderId) ?? [];
+    const lines = orderPayments.map((payment, index) => {
+      const paymentId = stringValue(payment, "id") ?? "";
+      const amount = numberValue(payment, "amount") ?? 0;
+      const refundRows = refundsByPayment.get(paymentId) ?? [];
+      return makePaymentLine({
+        payment,
+        sequence: numberValue(payment, "sequence") ?? index + 1,
+        ledgerAmount: amount,
+        ledgerCurrency: "KRW",
+        refunds: refundRows.map((row) => refundFrom(row, "ledger_amount_krw", "KRW")),
+        capturedStatuses: ["paid", "refunded"],
+      });
+    });
+    const operationRowsForOrder = orderPayments.flatMap((payment) => operationsByPayment.get(stringValue(payment, "id") ?? "") ?? []);
+    const operations = operationsFrom(operationRowsForOrder).sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
+    const captured = lines.filter((line) => ["paid", "refunded"].includes(line.status));
+    const refundedAmount = lines.reduce((sum, line) => sum + line.refundedAmount, 0);
+    const gross = captured.reduce((sum, line) => sum + line.amount, 0);
+    const paidAmount = Math.max(0, gross - refundedAmount);
+    const status = refundedAmount > 0 && paidAmount <= 0 ? "refunded" : stringValue(order, "status") ?? "unknown";
+    const failedPaymentCount = lines.filter((line) => line.status === "failed").length;
     const applicationId = stringValue(order, "visa_application_id");
-    const status = stringValue(order, "status") ?? "unknown";
-    const isTest = slug === "payment-test";
+    const orderNo = stringValue(order, "order_no");
 
-    items.push(
-      makeRow({
-        id: `grigoent:${id}`,
-        source: "grigoent",
-        sourceLabel: "grigoent 원장",
-        productSlug: slug,
-        productLabel: productLabel(slug, stringValue(product ?? {}, "title")),
-        planLabel: stringValue(plan ?? {}, "label"),
-        customerName: stringValue(order, "customer_name") ?? "이름 없음",
-        customerEmail: stringValue(order, "customer_email") ?? "이메일 없음",
-        customerPhone: stringValue(order, "customer_phone"),
-        status,
-        totalAmount: numberValue(order, "total_amount"),
-        paidAmount,
-        refundedAmount,
-        currency: stringValue(order, "currency") ?? stringValue(plan ?? {}, "currency") ?? "KRW",
-        provider: stringValue(order, "pg_provider"),
-        orderNo,
-        createdAt: stringValue(order, "created_at") ?? new Date(0).toISOString(),
-        paidAt: capturedPayments.map((payment) => stringValue(payment, "paid_at")).filter(Boolean).sort().pop() ?? null,
-        refundedAt: orderPayments.map((payment) => stringValue(payment, "refunded_at")).filter(Boolean).sort().pop() ?? null,
-        deetzApplicationId: applicationId,
-        eventId: null,
-        memo: stringValue(order, "memo"),
-        paymentCount: orderPayments.length,
-        failedPaymentCount,
-        isTest,
-      }),
-    );
+    items.push(finishRow({
+      id: `grigoent:${orderId}`,
+      source: "grigoent",
+      sourceLabel: "grigoent 원장",
+      productSlug: slug,
+      productLabel: productLabel(slug, stringValue(product, "title")),
+      planLabel: stringValue(plan, "label"),
+      customerName: stringValue(order, "customer_name") ?? "이름 없음",
+      customerEmail: stringValue(order, "customer_email") ?? "이메일 없음",
+      customerPhone: stringValue(order, "customer_phone"),
+      status,
+      totalAmount: numberValue(order, "total_amount"),
+      paidAmount,
+      refundedAmount,
+      refundableAmount: lines.reduce((sum, line) => sum + line.refundableAmount, 0),
+      currency: "KRW",
+      provider: stringValue(order, "pg_provider") ?? lines.find((line) => line.provider)?.provider ?? null,
+      orderNo,
+      createdAt: stringValue(order, "created_at") ?? new Date(0).toISOString(),
+      paidAt: lines.map((line) => line.paidAt).filter((value): value is string => Boolean(value)).sort().pop() ?? null,
+      refundedAt: lines.flatMap((line) => line.refunds.map((refund) => refund.completedAt)).filter((value): value is string => Boolean(value)).sort().pop() ?? null,
+      deetzApplicationId: applicationId,
+      eventId: null,
+      memo: stringValue(order, "memo"),
+      paymentCount: lines.length,
+      failedPaymentCount,
+      isTest: slug === "payment-test",
+      paymentLines: lines,
+      operations,
+    }));
   }
-
   return {
     items,
     byId: new Map(items.map((item) => [item.id.replace("grigoent:", ""), item])),
@@ -258,8 +436,8 @@ async function loadGrigoent(): Promise<GrigoentLoad> {
   };
 }
 
-async function loadDeetzRows(grigoent: GrigoentLoad): Promise<{ items: AdminPaymentRow[]; warnings: string[] }> {
-  const admin = createAdminClient();
+async function loadDeetzRows(grigoent: GrigoentLoad, operationRows: UnknownRow[], refundRows: UnknownRow[]) {
+  const admin = createAdminClient() as unknown as SupabaseClient;
   const [appsRes, reservationsRes, artistsRes, eventsRes, eventOrdersRes, registrationsRes, sessionsRes] = await Promise.all([
     admin.from("dancer_visa_applications").select("*").order("created_at", { ascending: false }).limit(1000),
     admin.from("workshop_reservations").select("*").order("created_at", { ascending: false }).limit(1000),
@@ -269,41 +447,33 @@ async function loadDeetzRows(grigoent: GrigoentLoad): Promise<{ items: AdminPaym
     admin.from("workshop_event_registrations").select("order_id, session_id"),
     admin.from("workshop_event_sessions").select("id, title"),
   ]);
-
   const warnings: string[] = [];
-  for (const [label, result] of [
-    ["비자 결제", appsRes],
-    ["워크샵 예약 결제", reservationsRes],
-    ["워크샵 행사 결제", eventOrdersRes],
-  ] as const) {
-    if (result.error) warnings.push(`${label} 데이터를 읽지 못했습니다.`);
-  }
+  if (appsRes.error) warnings.push("비자 결제 데이터를 읽지 못했습니다.");
+  if (reservationsRes.error) warnings.push("워크샵 예약 결제를 읽지 못했습니다.");
+  if (eventOrdersRes.error) warnings.push("워크샵 행사 결제를 읽지 못했습니다.");
 
-  const artistById = new Map<string, UnknownRow>();
-  for (const row of (artistsRes.data ?? []) as unknown as UnknownRow[]) {
-    const id = stringValue(row, "id");
-    if (id) artistById.set(id, row);
-  }
-  const eventById = new Map<string, UnknownRow>();
-  for (const row of (eventsRes.data ?? []) as unknown as UnknownRow[]) {
-    const id = stringValue(row, "id");
-    if (id) eventById.set(id, row);
-  }
-  const sessionById = new Map<string, string>();
-  for (const row of (sessionsRes.data ?? []) as unknown as UnknownRow[]) {
-    const id = stringValue(row, "id");
-    const title = stringValue(row, "title");
-    if (id && title) sessionById.set(id, title);
-  }
+  const artistById = new Map((artistsRes.data ?? []).map((row) => [String(row.id), row as UnknownRow]));
+  const eventById = new Map((eventsRes.data ?? []).map((row) => [String(row.id), row as UnknownRow]));
+  const sessionById = new Map((sessionsRes.data ?? []).map((row) => [String(row.id), String(row.title)]));
   const sessionIdsByOrder = new Map<string, string[]>();
-  for (const row of (registrationsRes.data ?? []) as unknown as UnknownRow[]) {
+  for (const row of (registrationsRes.data ?? []) as UnknownRow[]) {
     const orderId = stringValue(row, "order_id");
     const sessionId = stringValue(row, "session_id");
     if (orderId && sessionId) sessionIdsByOrder.set(orderId, [...(sessionIdsByOrder.get(orderId) ?? []), sessionId]);
   }
+  const deetzRefunds = new Map<string, UnknownRow[]>();
+  for (const refund of refundRows) {
+    const key = `${stringValue(refund, "source_type")}:${stringValue(refund, "source_id")}`;
+    deetzRefunds.set(key, [...(deetzRefunds.get(key) ?? []), refund]);
+  }
+  const deetzOperations = new Map<string, UnknownRow[]>();
+  for (const operation of operationRows.filter((row) => stringValue(row, "source_system") === "deetz")) {
+    const key = `${stringValue(operation, "source_type")}:${stringValue(operation, "source_payment_id")}`;
+    deetzOperations.set(key, [...(deetzOperations.get(key) ?? []), operation]);
+  }
 
   const items: AdminPaymentRow[] = [];
-  for (const app of (appsRes.data ?? []) as unknown as UnknownRow[]) {
+  for (const app of (appsRes.data ?? []) as UnknownRow[]) {
     const appId = stringValue(app, "id");
     if (!appId) continue;
     const meta = jsonObject(app.payment_meta);
@@ -320,130 +490,161 @@ async function loadDeetzRows(grigoent: GrigoentLoad): Promise<{ items: AdminPaym
       }
       continue;
     }
-    const hasIssuedPayment = paymentStatus !== "unpaid" || Boolean(orderNo) || Boolean(slug);
-    if (!hasIssuedPayment) continue;
+    if (paymentStatus === "unpaid" && !orderNo && !slug) continue;
     const amount = numberValue(app, "payment_amount_krw") ?? numberValue(app, "quoted_price_krw") ?? numberValue(app, "base_price_krw");
-    const isTest = slug === "payment-test";
-    items.push(
-      makeRow({
-        id: `visa_mirror:${appId}`,
-        source: "visa_mirror",
-        sourceLabel: "deetz 비자 미러",
-        productSlug: slug,
-        productLabel: productLabel(slug),
-        planLabel: null,
-        customerName: stringValue(app, "name") ?? stringValue(app, "email") ?? "비자 신청자",
-        customerEmail: stringValue(app, "email") ?? "이메일 없음",
-        customerPhone: stringValue(app, "phone"),
-        status: paymentStatus,
-        totalAmount: amount,
-        paidAmount: ["paid", "refunded"].includes(paymentStatus) ? amount ?? 0 : 0,
-        refundedAmount: paymentStatus === "refunded" ? amount ?? 0 : 0,
-        currency: "KRW",
-        provider: stringValue(app, "payment_provider"),
-        orderNo,
-        createdAt: stringValue(app, "created_at") ?? new Date(0).toISOString(),
-        paidAt: stringValue(app, "paid_at"),
-        refundedAt: stringValue(app, "payment_refunded_at"),
-        deetzApplicationId: appId,
-        eventId: null,
-        memo: stringValue(app, "memo"),
-        paymentCount: orderNo ? 1 : 0,
-        failedPaymentCount: 0,
-        isTest,
-      }),
-    );
+    const paid = ["paid", "refunded"].includes(paymentStatus) ? amount ?? 0 : 0;
+    const refunded = paymentStatus === "refunded" ? amount ?? 0 : 0;
+    items.push(finishRow({
+      id: `visa_mirror:${appId}`,
+      source: "visa_mirror",
+      sourceLabel: "deetz 비자 미러",
+      productSlug: slug,
+      productLabel: productLabel(slug),
+      planLabel: null,
+      customerName: stringValue(app, "name") ?? stringValue(app, "email") ?? "비자 신청자",
+      customerEmail: stringValue(app, "email") ?? "이메일 없음",
+      customerPhone: stringValue(app, "phone"),
+      status: paymentStatus,
+      totalAmount: amount,
+      paidAmount: Math.max(0, paid - refunded),
+      refundedAmount: refunded,
+      refundableAmount: 0,
+      currency: "KRW",
+      provider: stringValue(app, "payment_provider"),
+      orderNo,
+      createdAt: stringValue(app, "created_at") ?? new Date(0).toISOString(),
+      paidAt: stringValue(app, "paid_at"),
+      refundedAt: stringValue(app, "payment_refunded_at"),
+      deetzApplicationId: appId,
+      eventId: null,
+      memo: stringValue(app, "memo"),
+      paymentCount: orderNo ? 1 : 0,
+      failedPaymentCount: 0,
+      isTest: slug === "payment-test",
+      paymentLines: [],
+      operations: [],
+    }));
   }
 
-  for (const reservation of (reservationsRes.data ?? []) as unknown as UnknownRow[]) {
+  for (const reservation of (reservationsRes.data ?? []) as UnknownRow[]) {
     const id = stringValue(reservation, "id");
     if (!id) continue;
-    const artist = artistById.get(stringValue(reservation, "artist_id") ?? "");
-    const status = stringValue(reservation, "status") ?? "unknown";
-    const amount = numberValue(reservation, "amount");
-    const captured = ["paid", "confirmed", "transferred", "refunded"].includes(status) ? amount ?? 0 : 0;
-    items.push(
-      makeRow({
-        id: `workshop:${id}`,
-        source: "workshop",
-        sourceLabel: "워크샵 예약",
-        productSlug: "workshop-reservation",
-        productLabel: `워크샵 예약금 · ${stringValue(artist ?? {}, "name") ?? "아티스트 미지정"}`,
-        planLabel: stringValue(artist ?? {}, "slug"),
-        customerName: stringValue(reservation, "customer_name") ?? "이름 없음",
-        customerEmail: stringValue(reservation, "customer_email") ?? "이메일 없음",
-        customerPhone: stringValue(reservation, "customer_phone"),
-        status,
-        totalAmount: amount,
-        paidAmount: captured,
-        refundedAmount: status === "refunded" ? amount ?? 0 : 0,
-        currency: "KRW",
-        provider: stringValue(reservation, "pg_provider"),
-        orderNo: stringValue(reservation, "order_no"),
-        createdAt: stringValue(reservation, "created_at") ?? new Date(0).toISOString(),
-        paidAt: stringValue(reservation, "paid_at"),
-        refundedAt: stringValue(reservation, "refunded_at"),
-        deetzApplicationId: null,
-        eventId: null,
-        memo: stringValue(reservation, "memo"),
-        paymentCount: 1,
-        failedPaymentCount: 0,
-        isTest: false,
-      }),
-    );
+    const amount = numberValue(reservation, "amount") ?? 0;
+    const key = `workshop_reservation:${id}`;
+    const refundHistory = (deetzRefunds.get(key) ?? []).map((row) => refundFrom(row, "ledger_amount", "KRW"));
+    const line = makePaymentLine({ payment: reservation, sequence: 1, ledgerAmount: amount, ledgerCurrency: "KRW", refunds: refundHistory, capturedStatuses: ["paid", "confirmed", "transferred", "refunded"] });
+    const legacyRefunded = stringValue(reservation, "status") === "refunded" && line.refundedAmount === 0 ? amount : 0;
+    if (legacyRefunded) {
+      line.refundedAmount = amount;
+      line.refundableAmount = 0;
+      line.canRefund = false;
+    }
+    const operations = operationsFrom(deetzOperations.get(key) ?? []).sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
+    const status = line.refundedAmount >= amount && amount > 0 ? "refunded" : line.status;
+    const artist = artistById.get(stringValue(reservation, "artist_id") ?? "") ?? {};
+    items.push(finishRow({
+      id: `workshop:${id}`,
+      source: "workshop",
+      sourceLabel: "워크샵 예약",
+      productSlug: "workshop-reservation",
+      productLabel: `워크샵 예약금 · ${stringValue(artist, "name") ?? "아티스트 미지정"}`,
+      planLabel: stringValue(artist, "slug"),
+      customerName: stringValue(reservation, "customer_name") ?? "이름 없음",
+      customerEmail: stringValue(reservation, "customer_email") ?? "이메일 없음",
+      customerPhone: stringValue(reservation, "customer_phone"),
+      status,
+      totalAmount: amount,
+      paidAmount: Math.max(0, amount - line.refundedAmount),
+      refundedAmount: line.refundedAmount,
+      refundableAmount: line.refundableAmount,
+      currency: "KRW",
+      provider: line.provider,
+      orderNo: stringValue(reservation, "order_no"),
+      createdAt: stringValue(reservation, "created_at") ?? new Date(0).toISOString(),
+      paidAt: line.paidAt,
+      refundedAt: refundHistory.map((refund) => refund.completedAt).filter((value): value is string => Boolean(value)).sort().pop() ?? stringValue(reservation, "refunded_at"),
+      deetzApplicationId: null,
+      eventId: null,
+      memo: stringValue(reservation, "memo"),
+      paymentCount: 1,
+      failedPaymentCount: line.status === "failed" ? 1 : 0,
+      isTest: false,
+      paymentLines: [line],
+      operations,
+    }));
   }
 
-  for (const order of (eventOrdersRes.data ?? []) as unknown as UnknownRow[]) {
+  for (const order of (eventOrdersRes.data ?? []) as UnknownRow[]) {
     const id = stringValue(order, "id");
     if (!id) continue;
-    const event = eventById.get(stringValue(order, "event_id") ?? "");
-    const status = stringValue(order, "status") ?? "unknown";
-    const amount = numberValue(order, "charged_amount") ?? numberValue(order, "amount_krw");
-    const sessions = (sessionIdsByOrder.get(id) ?? []).map((sessionId) => sessionById.get(sessionId)).filter(Boolean);
-    const eventTitle = stringValue(event ?? {}, "title") ?? "행사 미지정";
-    items.push(
-      makeRow({
-        id: `workshop_event:${id}`,
-        source: "workshop_event",
-        sourceLabel: "워크샵 행사",
-        productSlug: "workshop-event",
-        productLabel: `워크샵 행사 · ${eventTitle}`,
-        planLabel: sessions.length ? sessions.join(", ") : null,
-        customerName: stringValue(order, "customer_name") ?? "이름 없음",
-        customerEmail: stringValue(order, "customer_email") ?? "이메일 없음",
-        customerPhone: stringValue(order, "customer_phone"),
-        status,
-        totalAmount: amount,
-        paidAmount: ["paid", "refunded"].includes(status) ? amount ?? 0 : 0,
-        refundedAmount: status === "refunded" ? amount ?? 0 : 0,
-        currency: stringValue(order, "charged_currency") ?? "KRW",
-        provider: stringValue(order, "pg_provider"),
-        orderNo: stringValue(order, "order_no"),
-        createdAt: stringValue(order, "created_at") ?? new Date(0).toISOString(),
-        paidAt: stringValue(order, "paid_at"),
-        refundedAt: stringValue(order, "refunded_at"),
-        deetzApplicationId: null,
-        eventId: stringValue(order, "event_id"),
-        memo: stringValue(order, "memo"),
-        paymentCount: 1,
-        failedPaymentCount: 0,
-        isTest: false,
-      }),
-    );
+    const currency = stringValue(order, "charged_currency") ?? "KRW";
+    const amount = numberValue(order, "charged_amount") ?? numberValue(order, "amount_krw") ?? 0;
+    const key = `workshop_event:${id}`;
+    const refundHistory = (deetzRefunds.get(key) ?? []).map((row) => refundFrom(row, "ledger_amount", currency));
+    const line = makePaymentLine({ payment: order, sequence: 1, ledgerAmount: amount, ledgerCurrency: currency, refunds: refundHistory, capturedStatuses: ["paid", "refunded"] });
+    const legacyRefunded = stringValue(order, "status") === "refunded" && line.refundedAmount === 0 ? amount : 0;
+    if (legacyRefunded) {
+      line.refundedAmount = amount;
+      line.refundableAmount = 0;
+      line.canRefund = false;
+    }
+    const operations = operationsFrom(deetzOperations.get(key) ?? []).sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
+    const event = eventById.get(stringValue(order, "event_id") ?? "") ?? {};
+    const sessions = (sessionIdsByOrder.get(id) ?? []).map((sessionId) => sessionById.get(sessionId)).filter((value): value is string => Boolean(value));
+    items.push(finishRow({
+      id: `workshop_event:${id}`,
+      source: "workshop_event",
+      sourceLabel: "워크샵 행사",
+      productSlug: "workshop-event",
+      productLabel: `워크샵 행사 · ${stringValue(event, "title") ?? "행사 미지정"}`,
+      planLabel: sessions.length ? sessions.join(", ") : null,
+      customerName: stringValue(order, "customer_name") ?? "이름 없음",
+      customerEmail: stringValue(order, "customer_email") ?? "이메일 없음",
+      customerPhone: stringValue(order, "customer_phone"),
+      status: line.refundedAmount >= amount && amount > 0 ? "refunded" : line.status,
+      totalAmount: amount,
+      paidAmount: Math.max(0, amount - line.refundedAmount),
+      refundedAmount: line.refundedAmount,
+      refundableAmount: line.refundableAmount,
+      currency,
+      provider: line.provider,
+      orderNo: stringValue(order, "order_no"),
+      createdAt: stringValue(order, "created_at") ?? new Date(0).toISOString(),
+      paidAt: line.paidAt,
+      refundedAt: refundHistory.map((refund) => refund.completedAt).filter((value): value is string => Boolean(value)).sort().pop() ?? stringValue(order, "refunded_at"),
+      deetzApplicationId: null,
+      eventId: stringValue(order, "event_id"),
+      memo: stringValue(order, "memo"),
+      paymentCount: 1,
+      failedPaymentCount: line.status === "failed" ? 1 : 0,
+      isTest: false,
+      paymentLines: [line],
+      operations,
+    }));
   }
-
   return { items, warnings };
 }
 
 export async function loadAdminPayments(): Promise<AdminPaymentsData> {
-  const grigoent = await loadGrigoent();
-  const deetz = await loadDeetzRows(grigoent);
-  const generatedAt = new Date().toISOString();
+  const admin = createAdminClient() as unknown as SupabaseClient;
+  const [{ data: operationData, error: operationError }, { data: refundData, error: refundError }] = await Promise.all([
+    admin.from("payment_operations").select("*").order("requested_at", { ascending: false }).limit(2000),
+    admin.from("deetz_payment_refunds").select("*").order("requested_at", { ascending: false }).limit(2000),
+  ]);
+  const operationRows = (operationData ?? []) as UnknownRow[];
+  const refundRows = (refundData ?? []) as UnknownRow[];
+  const controlWarnings: string[] = [];
+  if (operationError) controlWarnings.push("결제 작업 원장을 읽지 못했습니다. 환불 마이그레이션 적용 여부를 확인해 주세요.");
+  if (refundError) controlWarnings.push("deetz 환불 원장을 읽지 못했습니다. 환불 마이그레이션 적용 여부를 확인해 주세요.");
+
+  const grigoent = await loadGrigoent(operationRows);
+  const deetz = await loadDeetzRows(grigoent, operationRows, refundRows);
   const items = [...grigoent.items, ...deetz.items].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return {
     items,
-    warnings: [...grigoent.warnings, ...deetz.warnings],
+    warnings: [...controlWarnings, ...grigoent.warnings, ...deetz.warnings],
     grigoentConfigured: grigoent.configured,
-    generatedAt,
+    executionConfigured: Boolean(process.env.PAYMENT_COMMAND_SECRET && process.env.PAYMENT_COMMAND_SECRET.length >= 32),
+    generatedAt: new Date().toISOString(),
   };
 }

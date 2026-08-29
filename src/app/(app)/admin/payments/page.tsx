@@ -28,7 +28,9 @@ export default async function AdminPaymentsPage() {
         items={data.items}
         warnings={data.warnings}
         grigoentConfigured={data.grigoentConfigured}
+        executionConfigured={data.executionConfigured}
         generatedAt={data.generatedAt}
+        currentUserId={profile.id}
       />
     </div>
   );

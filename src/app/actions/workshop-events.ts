@@ -386,11 +386,12 @@ export async function adminDeleteEventSessionAction(input: {
   return { ok: true };
 }
 
-// ── 어드민: 주문 상태 기록 ──────────────────────────────────────────────────
+// ── 어드민: 주문 운영 상태 기록 ─────────────────────────────────────────────
+// 환불은 통합 결제 장부의 2인 승인 흐름에서만 실행한다.
 
 const orderStatusSchema = z.object({
   id: z.string().uuid(),
-  status: z.enum(["paid", "cancelled", "refunded"]),
+  status: z.enum(["paid"]),
 });
 
 export async function adminSetEventOrderStatusAction(
@@ -403,7 +404,6 @@ export async function adminSetEventOrderStatusAction(
   }
   const admin = createAdminClient();
   const patch: Record<string, unknown> = { status: parsed.data.status, updated_at: new Date().toISOString() };
-  if (parsed.data.status === "refunded") patch.refunded_at = new Date().toISOString();
   const { error } = await admin.from("workshop_event_orders").update(patch).eq("id", parsed.data.id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/workshops/events");

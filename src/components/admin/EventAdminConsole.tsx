@@ -11,7 +11,7 @@ import { EVENT_ORDER_STATUS_LABEL, hhmm } from "@/lib/workshops/event-shared";
 import type { AdminEventListRow, AdminEventOrder, AdminEventSession } from "@/lib/workshops/event-queries";
 
 // 행사 운영 콘솔 — 세션별 n/정원(관리자 전용), 주문 목록·상태 기록.
-// 환불은 토스/PayPal 콘솔에서 먼저 집행하고 여기서 상태만 기록한다.
+// 취소·환불은 통합 결제 장부의 2인 승인 흐름에서만 실행한다.
 
 export function EventAdminConsole({
   event,
@@ -26,7 +26,7 @@ export function EventAdminConsole({
   const [pending, startTransition] = useTransition();
   const [filterSession, setFilterSession] = useState<string>("");
 
-  const setStatus = (id: string, status: "paid" | "cancelled" | "refunded") => {
+  const setStatus = (id: string, status: "paid") => {
     startTransition(async () => {
       const res = await adminSetEventOrderStatusAction({ id, status });
       if (res.ok) {
@@ -60,6 +60,9 @@ export function EventAdminConsole({
         <span className="text-[13px] text-ink-3">
           결제 완료 {orders.filter((o) => o.status === "paid").length}건 · ₩{paidTotal.toLocaleString("ko-KR")} 상당
         </span>
+        <a href="/admin/payments" className="text-[12px] font-semibold text-foreground underline underline-offset-2">
+          취소·환불은 통합 결제 장부에서
+        </a>
       </div>
 
       {/* 세션별 현황 — 정원은 여기서만 보인다 */}
@@ -151,13 +154,9 @@ export function EventAdminConsole({
                 {o.session_ids.map((id) => sessionTitle.get(id) ?? "?").join(", ")}
               </span>
               <span className="ml-auto flex gap-1">
-                {(o.status === "paid"
-                  ? (["refunded"] as const)
-                  : o.status === "recovery_required"
-                    ? (["paid", "refunded"] as const)
-                    : o.status === "pending"
-                      ? (["cancelled"] as const)
-                      : []
+                {(o.status === "recovery_required"
+                  ? (["paid"] as const)
+                  : []
                 ).map((s) => (
                   <button
                     key={s}
