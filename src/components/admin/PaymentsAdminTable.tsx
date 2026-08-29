@@ -95,13 +95,18 @@ function formatMoney(currency: string, amount: number | null): string {
 
 function formatDate(value: string | null, compact = false): string {
   if (!value) return "-";
-  return new Intl.DateTimeFormat("ko-KR", {
+  const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
-    year: compact ? "2-digit" : "numeric",
+    year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    ...(compact ? {} : { hour: "2-digit", minute: "2-digit" }),
-  }).format(new Date(value));
+    ...(compact ? {} : { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }),
+  }).formatToParts(new Date(value));
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
+  const date = compact
+    ? `${part("year").slice(-2)}. ${part("month")}. ${part("day")}.`
+    : `${part("year")}. ${part("month")}. ${part("day")}.`;
+  return compact ? date : `${date} ${part("hour")}:${part("minute")}`;
 }
 
 function statusClass(status: string): string {
@@ -343,9 +348,9 @@ function Pagination({ page, pageCount, pageSize, setPage, setPageSize, total }: 
       <span>{total ? `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, total)} / ${total}` : "0건"}</span>
       <div className="flex items-center gap-1.5">
         <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))} className="h-7 rounded-md border border-hairline-2 bg-background px-2"><option value={25}>25개</option><option value={50}>50개</option><option value={100}>100개</option></select>
-        <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)} className="grid size-7 place-items-center rounded-md border border-hairline-2 disabled:opacity-30"><ChevronLeft className="size-3.5" /></button>
+        <button type="button" aria-label="이전 페이지" disabled={page <= 1} onClick={() => setPage(page - 1)} className="grid size-7 place-items-center rounded-md border border-hairline-2 disabled:opacity-30"><ChevronLeft className="size-3.5" /></button>
         <span className="min-w-14 text-center">{page} / {pageCount}</span>
-        <button type="button" disabled={page >= pageCount} onClick={() => setPage(page + 1)} className="grid size-7 place-items-center rounded-md border border-hairline-2 disabled:opacity-30"><ChevronRight className="size-3.5" /></button>
+        <button type="button" aria-label="다음 페이지" disabled={page >= pageCount} onClick={() => setPage(page + 1)} className="grid size-7 place-items-center rounded-md border border-hairline-2 disabled:opacity-30"><ChevronRight className="size-3.5" /></button>
       </div>
     </div>
   );
