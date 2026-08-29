@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { BottomTabBar } from "@/components/layout/BottomTabBar";
+import { MessagesNavItem } from "@/components/messaging/MessagesBadge";
 
 const navItems = [
   {
@@ -105,6 +106,17 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
                   ? "bg-primary text-primary-foreground [&_.text-ink-3]:text-white/62"
                   : "text-ink-2 hover:bg-secondary hover:text-foreground");
 
+              if (item.href === "/applications") {
+                // 메시지 항목은 지원 내역 바로 앞에 둔다(캐스팅 소통 맥락).
+                return (
+                  <span key="messages-and-applications" className="contents">
+                    <MessagesNavItem active={pathname.startsWith("/messages")} />
+                    <Link href={item.href} className={className}>
+                      {content}
+                    </Link>
+                  </span>
+                );
+              }
               return item.external ? (
                 <a
                   key={item.href}
