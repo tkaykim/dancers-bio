@@ -89,6 +89,12 @@ export default async function AdminHomePage() {
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Tile
+          href="/admin/payments"
+          title="통합 결제 장부"
+          desc="비자·트레이닝·Village·워크샵 결제를 상품·상태·주문번호별로 한 곳에서 확인"
+          accent
+        />
+        <Tile
           href="/admin/analytics"
           title="성장 · KPI 분석"
           desc="가입·지원 추이, 수락률, 채널별 지원, 클레임률 등 핵심 지표"
