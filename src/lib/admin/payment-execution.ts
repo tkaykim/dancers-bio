@@ -377,12 +377,16 @@ async function executeNativeCancellation(input: OperationInput): Promise<Payment
     return { ok: false, status: 502, error: "PG 상태를 확인하지 못해 취소하지 않았습니다." };
   }
 
-  const { error } = await adminClient()
+  const { data: cancelled, error } = await adminClient()
     .from(sourceTable(descriptor))
     .update({ status: "cancelled", updated_at: new Date().toISOString() })
     .eq("id", descriptor.paymentId)
-    .in("status", ["pending", "failed"]);
-  if (error) return { ok: false, status: 500, error: "결제 대기 건을 취소하지 못했습니다." };
+    .in("status", ["pending", "failed"])
+    .select("id")
+    .maybeSingle();
+  if (error || !cancelled) {
+    return { ok: false, status: 409, error: "결제 상태가 변경되어 취소하지 않았습니다. 최신 상태를 다시 확인해 주세요." };
+  }
   return { ok: true, status: "completed", providerRefundId: null, providerStatus: "NOT_CAPTURED", response: null };
 }
 

@@ -49,6 +49,7 @@ type OperationRow = {
   requested_by_name: string;
   approved_by: string | null;
   processed_at: string | null;
+  version: number;
 };
 
 function adminClient(): SupabaseClient {
@@ -110,6 +111,16 @@ async function executeGrigoentOperation(
     });
     const body = (await response.json()) as Record<string, unknown>;
     if (!response.ok || body.ok !== true) {
+      const outcomeUnknown = response.status === 409 || response.status >= 500 || response.ok;
+      if (outcomeUnknown) {
+        return {
+          ok: true,
+          status: "reconciliation_required",
+          providerRefundId: typeof body.providerRefundId === "string" ? body.providerRefundId : null,
+          providerStatus: typeof body.providerStatus === "string" ? body.providerStatus : null,
+          response: body,
+        };
+      }
       return {
         ok: false,
         status: response.status,
@@ -274,8 +285,15 @@ export async function approvePaymentOperationAction(
         updated_at: completedAt,
         version: 3,
       };
-  const { error: updateError } = await client.from("payment_operations").update(patch).eq("id", operation.id);
-  if (updateError) {
+  const { data: finalized, error: updateError } = await client
+    .from("payment_operations")
+    .update(patch)
+    .eq("id", operation.id)
+    .eq("status", "processing")
+    .eq("version", 2)
+    .select("id")
+    .maybeSingle();
+  if (updateError || !finalized) {
     console.error("[payment-operations] operation finalization failed", updateError);
     revalidatePath("/admin/payments");
     return { ok: false, error: "PG 처리는 실행되었지만 통제 원장 갱신에 실패했습니다. 같은 작업을 다시 승인하지 마세요." };
@@ -305,7 +323,7 @@ export async function rejectPaymentOperationAction(
   if (!operation || operation.status !== "requested") return { ok: false, error: "승인 대기 중인 작업이 아닙니다." };
   const nextStatus = operation.requested_by === profile.id ? "cancelled" : "rejected";
   const now = new Date().toISOString();
-  const { error } = await client
+  const { data: updated, error } = await client
     .from("payment_operations")
     .update({
       status: nextStatus,
@@ -317,8 +335,10 @@ export async function rejectPaymentOperationAction(
       version: 2,
     })
     .eq("id", operation.id)
-    .eq("status", "requested");
-  if (error) return { ok: false, error: "작업 요청 상태를 변경하지 못했습니다." };
+    .eq("status", "requested")
+    .select("id")
+    .maybeSingle();
+  if (error || !updated) return { ok: false, error: "다른 관리자가 먼저 처리했거나 작업 요청 상태가 변경되었습니다." };
   revalidatePath("/admin/payments");
   return {
     ok: true,
@@ -345,7 +365,7 @@ export async function reconcilePaymentOperationAction(
     return { ok: false, error: "PG 상태 확인이 필요한 작업이 아닙니다." };
   }
 
-  const result = operation.operation_type === "cancel"
+  let result = operation.operation_type === "cancel"
     ? operation.source_system === "grigoent"
       ? await executeGrigoentOperation(operation, profile.id, "cancel")
       : await executeDeetzPaymentOperation({
@@ -364,6 +384,19 @@ export async function reconcilePaymentOperationAction(
           source: sourceFromType(operation.source_type),
           paymentId: operation.source_payment_id,
         });
+  if (!result.ok && result.status === 404 && staleProcessing && operation.operation_type === "refund") {
+    result = operation.source_system === "grigoent"
+      ? await executeGrigoentOperation(operation, profile.id, "refund")
+      : await executeDeetzPaymentOperation({
+          id: operation.id,
+          operationType: "refund",
+          source: sourceFromType(operation.source_type),
+          paymentId: operation.source_payment_id,
+          ledgerAmount: Number(operation.ledger_amount),
+          providerAmount: Number(operation.provider_amount),
+          reason: operation.reason_detail,
+        });
+  }
   if (!result.ok) return { ok: false, error: result.error };
 
   const now = new Date().toISOString();
