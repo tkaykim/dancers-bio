@@ -12,6 +12,7 @@
     "test:payout-validation": "node --test src/lib/payout-validation.test.mjs",
     "test:payout-schedule": "node --test src/lib/payout-schedule.test.ts",
     "test:receivables": "node --test src/lib/receivables.test.ts",
+    "test:payment-refunds": "node --test src/lib/payments/refund-calculation.test.ts",
     "test:visa-documents": "node --test src/lib/visa/document-intake-schema.test.ts src/lib/visa/document-intake-copy.test.ts src/lib/visa/document-products.test.ts src/lib/visa/document-attachments.test.ts",
     "db:types": "supabase gen types typescript --project-id wvfmqiajdvbsevlhlgtl --schema public > src/lib/supabase/types.ts",
     "seo:indexnow": "node scripts/submit-indexnow.mjs"

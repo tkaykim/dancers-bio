@@ -516,7 +516,7 @@ function ReservationList({ reservations }: { reservations: AdminWorkshopReservat
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  const setStatus = (id: string, status: Exclude<ReservationStatus, "pending" | "recovery_required">) => {
+  const setStatus = (id: string, status: "paid" | "transferred" | "confirmed") => {
     startTransition(async () => {
       const res = await adminSetWorkshopReservationStatusAction({ id, status });
       if (res.ok) {
@@ -532,7 +532,7 @@ function ReservationList({ reservations }: { reservations: AdminWorkshopReservat
     <div className="rounded-lg border border-hairline-2 bg-secondary/30 p-3">
       <p className="text-[13px] font-semibold text-foreground">예약자 {reservations.length}명</p>
       <p className="mt-0.5 text-[11px] text-ink-4">
-        환불은 토스/PayPal 콘솔에서 먼저 집행한 뒤 여기서 상태를 기록하세요.
+        취소·환불은 <a href="/admin/payments" className="font-semibold text-foreground underline underline-offset-2">통합 결제 장부</a>에서 요청하고 다른 관리자가 승인합니다.
       </p>
       <div className="mt-2 flex flex-col gap-1.5">
         {reservations.map((r) => (
@@ -559,10 +559,9 @@ function ReservationList({ reservations }: { reservations: AdminWorkshopReservat
             {r.pg_provider ? <span className="text-ink-4">{r.pg_provider}</span> : null}
             <span className="ml-auto flex gap-1">
               {(r.status === "paid"
-                ? (["confirmed", "refunded", "transferred"] as const)
+                ? (["confirmed", "transferred"] as const)
                 : r.status === "recovery_required"
-                  ? // 돈은 받은 건 — 좌석을 살리거나(paid) 환불로 닫는다.
-                    (["paid", "refunded"] as const)
+                  ? (["paid"] as const)
                   : []
               ).map((s) => (
                 <button
@@ -575,16 +574,6 @@ function ReservationList({ reservations }: { reservations: AdminWorkshopReservat
                   {RESERVATION_STATUS_LABEL[s]}
                 </button>
               ))}
-              {r.status === "pending" ? (
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => setStatus(r.id, "cancelled")}
-                  className="rounded-md border border-hairline-2 px-2 py-1 text-[11px] text-ink-2 transition-colors hover:text-foreground disabled:opacity-45"
-                >
-                  취소 처리
-                </button>
-              ) : null}
             </span>
           </div>
         ))}

@@ -455,12 +455,12 @@ export async function adminMergeWorkshopArtistsAction(
   return { ok: true, data: { moved: result.moved ?? 0 } };
 }
 
-// ── 어드민: 예약 상태 기록 (환불·양도·참가확정 — 실제 환불은 PG 콘솔에서 수동) ──
+// ── 어드민: 예약 운영 상태 기록 ──
+// 환불은 통합 결제 장부의 2인 승인 흐름에서만 실행한다.
 
 const reservationStatusSchema = z.object({
   id: z.string().uuid(),
-  // recovery_required(돈은 받았으나 자동 확정 실패)는 운영자가 paid 로 살리거나 refunded 로 닫는다.
-  status: z.enum(["paid", "cancelled", "refunded", "transferred", "confirmed"]),
+  status: z.enum(["paid", "transferred", "confirmed"]),
   memo: z.string().trim().max(2000).optional().nullable(),
 });
 
@@ -477,8 +477,6 @@ export async function adminSetWorkshopReservationStatusAction(
 
   const patch: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
   if (memo !== undefined && memo !== null) patch.memo = memo;
-  if (status === "refunded") patch.refunded_at = new Date().toISOString();
-
   const { error } = await admin.from("workshop_reservations").update(patch).eq("id", id);
   if (error) return { ok: false, error: error.message };
 

@@ -217,7 +217,7 @@ export async function confirmEventTossPayment(params: {
   const { order, event } = await loadOrder(orderId);
   if (!order) return { ok: false, error: "주문을 찾을 수 없습니다." };
 
-  if (["recovery_required", "refunded"].includes(order.status)) {
+  if (["cancelled", "recovery_required", "refunded"].includes(order.status)) {
     return { ok: false, recovery: true, orderNo: order.order_no, error: "결제 건을 확인하고 있습니다." };
   }
   if (order.status === "paid") {
@@ -262,7 +262,7 @@ export async function confirmEventTossPayment(params: {
         updated_at: new Date().toISOString(),
       })
       .eq("id", order.id)
-      .not("status", "in", "(paid,refunded,recovery_required)");
+      .not("status", "in", "(paid,cancelled,refunded,recovery_required)");
     return { ok: false, error: tossData?.message || "결제 승인에 실패했습니다." };
   }
 
@@ -378,6 +378,14 @@ export async function createEventPaypalOrder(params: {
       console.error("[event-pay/paypal] create order failed:", attempt.body);
       return { ok: false, error: "Could not create the PayPal order." };
     }
+    await createAdminClient()
+      .from("workshop_event_orders")
+      .update({
+        pg_provider: "paypal",
+        provider_order_id: attempt.body.id as string,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", order.id);
     return { ok: true, id: attempt.body.id as string, currency, amount: value };
   } catch (e) {
     console.error("[event-pay/paypal] create order error:", e);
@@ -391,7 +399,7 @@ export async function captureEventPaypalOrder(params: {
 }): Promise<EventConfirmResult> {
   const { order, event } = await loadOrder(params.pgOrderId);
   if (!order) return { ok: false, error: "Order not found." };
-  if (["recovery_required", "refunded"].includes(order.status)) {
+  if (["cancelled", "recovery_required", "refunded"].includes(order.status)) {
     return { ok: false, recovery: true, orderNo: order.order_no, error: "This payment is under review." };
   }
   if (order.status === "paid") {
@@ -424,7 +432,7 @@ export async function captureEventPaypalOrder(params: {
           updated_at: new Date().toISOString(),
         })
         .eq("id", order.id)
-        .not("status", "in", "(paid,refunded,recovery_required)");
+        .not("status", "in", "(paid,cancelled,refunded,recovery_required)");
       return { ok: false, error: "PayPal payment could not be completed." };
     }
 

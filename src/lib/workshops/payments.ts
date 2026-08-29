@@ -250,7 +250,7 @@ export async function confirmWorkshopTossPayment(params: {
   // (재호출하면 ALREADY_PROCESSED_PAYMENT 로 실패 화면이 떠 "결제됐는데 실패"로 보인다.)
   // 복구 대기·환불·양도된 건은 PG 를 다시 부르지 않는다.
   // (재호출하면 중복 승인 오류로 "결제됐는데 실패" 화면이 뜬다. 사람이 확인할 상태로 안내한다.)
-  if (["recovery_required", "refunded", "transferred"].includes(reservation.status)) {
+  if (["cancelled", "recovery_required", "refunded", "transferred"].includes(reservation.status)) {
     return {
       ok: false,
       recovery: true,
@@ -301,7 +301,7 @@ export async function confirmWorkshopTossPayment(params: {
         updated_at: new Date().toISOString(),
       })
       .eq("id", reservation.id)
-      .not("status", "in", "(paid,confirmed,refunded,transferred,recovery_required)");
+      .not("status", "in", "(paid,confirmed,cancelled,refunded,transferred,recovery_required)");
     return { ok: false, error: tossData?.message || "결제 승인에 실패했습니다." };
   }
 
@@ -422,7 +422,11 @@ export async function createWorkshopPaypalOrder(params: {
     const admin = createAdminClient();
     await admin
       .from("workshop_reservations")
-      .update({ pg_provider: "paypal", updated_at: new Date().toISOString() })
+      .update({
+        pg_provider: "paypal",
+        provider_order_id: attempt.body.id as string,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", reservation.id);
 
     return { ok: true, id: attempt.body.id as string };
@@ -440,7 +444,7 @@ export async function captureWorkshopPaypalOrder(params: {
   if (!reservation) return { ok: false, error: "주문을 찾을 수 없습니다." };
   // 복구 대기·환불·양도된 건은 PG 를 다시 부르지 않는다.
   // (재호출하면 중복 승인 오류로 "결제됐는데 실패" 화면이 뜬다. 사람이 확인할 상태로 안내한다.)
-  if (["recovery_required", "refunded", "transferred"].includes(reservation.status)) {
+  if (["cancelled", "recovery_required", "refunded", "transferred"].includes(reservation.status)) {
     return {
       ok: false,
       recovery: true,
@@ -478,7 +482,7 @@ export async function captureWorkshopPaypalOrder(params: {
           updated_at: new Date().toISOString(),
         })
         .eq("id", reservation.id)
-        .not("status", "in", "(paid,confirmed,refunded,transferred,recovery_required)");
+        .not("status", "in", "(paid,confirmed,cancelled,refunded,transferred,recovery_required)");
       return { ok: false, error: "PayPal 결제 승인에 실패했습니다." };
     }
 
