@@ -6,8 +6,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { executeDeetzPaymentOperation, reconcileDeetzPaymentOperation, type PaymentExecutionResult } from "@/lib/admin/payment-execution";
+import { canExecutePaymentOperationsDirectly } from "@/lib/admin/payment-operation-permissions";
 import { loadPaymentSource, quotePaymentRefund, type CanonicalPaymentSource } from "@/lib/admin/payment-sources";
 import { requireAdmin } from "@/lib/auth/guard";
+import { buildInitialPaymentOperationState, type PaymentOperationExecutionMode } from "@/lib/payments/payment-operation-flow";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type PaymentOperationActionResult =
@@ -44,6 +46,7 @@ type OperationRow = {
   provider_amount: number;
   provider_currency: string;
   reason_detail: string;
+  execution_mode: PaymentOperationExecutionMode;
   status: string;
   requested_by: string;
   requested_by_name: string;
@@ -94,6 +97,7 @@ async function executeGrigoentOperation(
     ...(action === "refund" ? { amount: Math.round(Number(operation.ledger_amount)) } : {}),
     requestedBy: operation.requested_by,
     approvedBy: operation.approved_by ?? approverId,
+    executionMode: operation.execution_mode,
   });
   const timestamp = String(Date.now());
   const signature = createHmac("sha256", secret).update(`${timestamp}.${raw}`).digest("hex");
@@ -151,110 +155,13 @@ async function executeGrigoentOperation(
   }
 }
 
-export async function requestPaymentOperationAction(
-  input: z.input<typeof requestSchema>,
+async function executeAndFinalizeOperation(
+  client: SupabaseClient,
+  operation: OperationRow,
+  actorId: string,
 ): Promise<PaymentOperationActionResult> {
-  const profile = await requireAdmin();
-  const parsed = requestSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요." };
-
-  try {
-    const value = parsed.data;
-    const quoted = value.operationType === "refund"
-      ? await quotePaymentRefund(value.source, value.paymentId, value.amount as number)
-      : null;
-    const descriptor = quoted?.descriptor ?? await loadPaymentSource(value.source, value.paymentId);
-    if (value.operationType === "cancel" && !descriptor.canCancel) {
-      return { ok: false, error: "결제 전 대기·실패 건만 취소 요청할 수 있습니다." };
-    }
-    const quote = quoted?.quote ?? null;
-    const operationId = randomUUID();
-    const now = new Date().toISOString();
-    const { error } = await adminClient().from("payment_operations").insert({
-      id: operationId,
-      operation_type: value.operationType,
-      source_system: descriptor.sourceSystem,
-      source_type: descriptor.sourceType,
-      source_order_id: descriptor.orderId,
-      source_payment_id: descriptor.paymentId,
-      order_no: descriptor.orderNo,
-      provider: descriptor.provider,
-      ledger_amount: quote?.ledgerAmount ?? 0,
-      ledger_currency: descriptor.ledgerCurrency,
-      provider_amount: quote?.providerAmount ?? 0,
-      provider_currency: descriptor.providerCurrency,
-      reason_code: value.reasonCode,
-      reason_detail: value.reasonDetail,
-      status: "requested",
-      requested_by: profile.id,
-      requested_by_name: displayName(profile),
-      idempotency_key: operationId,
-      request_payload: {
-        sourceStatus: descriptor.status,
-        originalLedgerAmount: descriptor.originalLedgerAmount,
-        refundedLedgerAmount: descriptor.refundedLedgerAmount,
-        refundableLedgerAmount: descriptor.refundableLedgerAmount,
-        full: quote?.full ?? false,
-      },
-      requested_at: now,
-      updated_at: now,
-    });
-    if (error) {
-      if (error.code === "23505") return { ok: false, error: "이 결제에는 이미 승인 대기 또는 처리 중인 작업이 있습니다." };
-      console.error("[payment-operations] request insert failed", error);
-      return { ok: false, error: "결제 작업 요청을 저장하지 못했습니다." };
-    }
-    revalidatePath("/admin/payments");
-    return {
-      ok: true,
-      operationId,
-      status: "requested",
-      message: value.operationType === "refund" ? "환불 요청을 등록했습니다. 다른 관리자의 승인이 필요합니다." : "취소 요청을 등록했습니다. 다른 관리자의 승인이 필요합니다.",
-    };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "결제 정보를 확인하지 못했습니다." };
-  }
-}
-
-export async function approvePaymentOperationAction(
-  input: z.input<typeof operationIdSchema>,
-): Promise<PaymentOperationActionResult> {
-  const profile = await requireAdmin();
-  const parsed = operationIdSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "작업 ID를 확인해 주세요." };
-  const client = adminClient();
-  const { data: found, error: readError } = await client
-    .from("payment_operations")
-    .select("*")
-    .eq("id", parsed.data.operationId)
-    .maybeSingle();
-  if (readError || !found) return { ok: false, error: "결제 작업을 찾을 수 없습니다." };
-  const current = found as OperationRow;
-  if (current.requested_by === profile.id) return { ok: false, error: "요청자는 자신의 결제 작업을 승인할 수 없습니다." };
-  if (current.status !== "requested") return { ok: false, error: "이미 승인·거절되었거나 처리 중인 작업입니다." };
-
-  const approvedAt = new Date().toISOString();
-  const { data: claimed, error: claimError } = await client
-    .from("payment_operations")
-    .update({
-      status: "processing",
-      approved_by: profile.id,
-      approved_by_name: displayName(profile),
-      approved_at: approvedAt,
-      processed_at: approvedAt,
-      updated_at: approvedAt,
-      version: 2,
-    })
-    .eq("id", current.id)
-    .eq("status", "requested")
-    .neq("requested_by", profile.id)
-    .select("*")
-    .maybeSingle();
-  if (claimError || !claimed) return { ok: false, error: "다른 관리자가 먼저 처리했거나 상태가 변경되었습니다." };
-  const operation = claimed as OperationRow;
-
   const result = operation.source_system === "grigoent"
-    ? await executeGrigoentOperation(operation, profile.id)
+    ? await executeGrigoentOperation(operation, actorId)
     : await executeDeetzPaymentOperation({
         id: operation.id,
         operationType: operation.operation_type,
@@ -296,16 +203,140 @@ export async function approvePaymentOperationAction(
   if (updateError || !finalized) {
     console.error("[payment-operations] operation finalization failed", updateError);
     revalidatePath("/admin/payments");
-    return { ok: false, error: "PG 처리는 실행되었지만 통제 원장 갱신에 실패했습니다. 같은 작업을 다시 승인하지 마세요." };
+    return { ok: false, error: "PG 처리는 실행되었지만 통제 원장 갱신에 실패했습니다. 같은 작업을 다시 실행하지 마세요." };
   }
   revalidatePath("/admin/payments");
   if (!result.ok) return { ok: false, error: result.error };
   const message = result.status === "completed"
-    ? "결제 작업이 완료되었습니다."
+    ? operation.operation_type === "refund" ? "환불이 완료되었습니다." : "결제 전 취소가 완료되었습니다."
     : result.status === "provider_pending"
       ? "PG가 작업을 접수했으며 완료 확인을 기다리고 있습니다."
       : "PG 결과가 불확실해 대사가 필요합니다. 같은 작업을 다시 실행하지 마세요.";
   return { ok: true, operationId: operation.id, status: result.status, message };
+}
+
+export async function requestPaymentOperationAction(
+  input: z.input<typeof requestSchema>,
+): Promise<PaymentOperationActionResult> {
+  const profile = await requireAdmin();
+  const parsed = requestSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요." };
+
+  try {
+    const value = parsed.data;
+    const quoted = value.operationType === "refund"
+      ? await quotePaymentRefund(value.source, value.paymentId, value.amount as number)
+      : null;
+    const descriptor = quoted?.descriptor ?? await loadPaymentSource(value.source, value.paymentId);
+    if (value.operationType === "cancel" && !descriptor.canCancel) {
+      return { ok: false, error: "결제 전 대기·실패 건만 취소 요청할 수 있습니다." };
+    }
+    const quote = quoted?.quote ?? null;
+    const operationId = randomUUID();
+    const now = new Date().toISOString();
+    const client = adminClient();
+    const actorName = displayName(profile);
+    const initialState = buildInitialPaymentOperationState({
+      canExecuteDirectly: await canExecutePaymentOperationsDirectly(profile.id, client),
+      actorId: profile.id,
+      actorName,
+      now,
+    });
+    const { data: inserted, error } = await client.from("payment_operations").insert({
+      id: operationId,
+      operation_type: value.operationType,
+      source_system: descriptor.sourceSystem,
+      source_type: descriptor.sourceType,
+      source_order_id: descriptor.orderId,
+      source_payment_id: descriptor.paymentId,
+      order_no: descriptor.orderNo,
+      provider: descriptor.provider,
+      ledger_amount: quote?.ledgerAmount ?? 0,
+      ledger_currency: descriptor.ledgerCurrency,
+      provider_amount: quote?.providerAmount ?? 0,
+      provider_currency: descriptor.providerCurrency,
+      reason_code: value.reasonCode,
+      reason_detail: value.reasonDetail,
+      requested_by: profile.id,
+      requested_by_name: actorName,
+      idempotency_key: operationId,
+      request_payload: {
+        sourceStatus: descriptor.status,
+        originalLedgerAmount: descriptor.originalLedgerAmount,
+        refundedLedgerAmount: descriptor.refundedLedgerAmount,
+        refundableLedgerAmount: descriptor.refundableLedgerAmount,
+        full: quote?.full ?? false,
+        executionMode: initialState.execution_mode,
+      },
+      requested_at: now,
+      updated_at: now,
+      ...initialState,
+    }).select("*").maybeSingle();
+    if (error) {
+      if (error.code === "23505") return { ok: false, error: "이 결제에는 이미 승인 대기 또는 처리 중인 작업이 있습니다." };
+      console.error("[payment-operations] request insert failed", error);
+      return { ok: false, error: "결제 작업 요청을 저장하지 못했습니다." };
+    }
+    if (!inserted) return { ok: false, error: "결제 작업 요청을 저장했지만 다시 읽지 못했습니다." };
+    if (initialState.execution_mode === "direct") {
+      return executeAndFinalizeOperation(client, inserted as OperationRow, profile.id);
+    }
+    revalidatePath("/admin/payments");
+    return {
+      ok: true,
+      operationId,
+      status: "requested",
+      message: value.operationType === "refund" ? "환불 요청을 등록했습니다. 다른 관리자의 승인이 필요합니다." : "취소 요청을 등록했습니다. 다른 관리자의 승인이 필요합니다.",
+    };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "결제 정보를 확인하지 못했습니다." };
+  }
+}
+
+export async function approvePaymentOperationAction(
+  input: z.input<typeof operationIdSchema>,
+): Promise<PaymentOperationActionResult> {
+  const profile = await requireAdmin();
+  const parsed = operationIdSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "작업 ID를 확인해 주세요." };
+  const client = adminClient();
+  const { data: found, error: readError } = await client
+    .from("payment_operations")
+    .select("*")
+    .eq("id", parsed.data.operationId)
+    .maybeSingle();
+  if (readError || !found) return { ok: false, error: "결제 작업을 찾을 수 없습니다." };
+  const current = found as OperationRow;
+  if (current.status !== "requested") return { ok: false, error: "이미 승인·거절되었거나 처리 중인 작업입니다." };
+  const isOwnRequest = current.requested_by === profile.id;
+  const canExecuteOwnRequest = isOwnRequest
+    ? await canExecutePaymentOperationsDirectly(profile.id, client)
+    : false;
+  if (isOwnRequest && !canExecuteOwnRequest) {
+    return { ok: false, error: "요청자는 자신의 결제 작업을 승인할 수 없습니다." };
+  }
+
+  const approvedAt = new Date().toISOString();
+  let claimQuery = client
+    .from("payment_operations")
+    .update({
+      execution_mode: isOwnRequest ? "direct" : "two_person",
+      status: "processing",
+      approved_by: profile.id,
+      approved_by_name: displayName(profile),
+      approved_at: approvedAt,
+      processed_at: approvedAt,
+      updated_at: approvedAt,
+      version: 2,
+    })
+    .eq("id", current.id)
+    .eq("status", "requested");
+  claimQuery = isOwnRequest
+    ? claimQuery.eq("requested_by", profile.id)
+    : claimQuery.neq("requested_by", profile.id);
+  const { data: claimed, error: claimError } = await claimQuery.select("*").maybeSingle();
+  if (claimError || !claimed) return { ok: false, error: "다른 관리자가 먼저 처리했거나 상태가 변경되었습니다." };
+  return executeAndFinalizeOperation(client, claimed as OperationRow, profile.id);
 }
 
 export async function rejectPaymentOperationAction(
