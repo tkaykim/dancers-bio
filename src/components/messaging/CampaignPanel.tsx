@@ -86,7 +86,11 @@ export function CampaignPanel(props: {
       if (!okGo) return;
       const result = await remindCampaignUnreadAction({ campaignId: c.id });
       if (!result.ok) return void toast.error(result.error);
-      toast.success(`재촉 메일 발송 ${result.data!.sent}건 · 건너뜀 ${result.data!.skipped}건`);
+      toast.success(
+        result.data!.unread === 0
+          ? "재촉할 미읽음 인원이 없습니다."
+          : `미읽음 ${result.data!.unread}명 재촉 메일을 예약했습니다 — 1~2분 내 순차 발송됩니다.`,
+      );
     },
     [],
   );
@@ -259,6 +263,8 @@ function CampaignComposer(props: {
       body: body.trim(),
       segment,
       mailChannel: mail,
+      // 확인 화면에서 본 그 명단 — 서버는 이 명단을 넘어 발송하지 않는다.
+      confirmedDancerIds: (preview?.included ?? []).map((r) => r.dancerId),
       actionChoices: withAction ? ["가능", "불가", "일부만 가능"] : undefined,
       actionDeadline: withAction && deadline ? new Date(deadline).toISOString() : null,
       actionDetailFor: withAction ? ["일부만 가능"] : undefined,
@@ -269,7 +275,7 @@ function CampaignComposer(props: {
       `${result.data!.included}명에게 발송을 예약했습니다 — 30초 안에 취소할 수 있습니다.`,
     );
     props.onSent();
-  }, [sending, props, title, body, segment, mail, withAction, deadline]);
+  }, [sending, props, title, body, segment, mail, withAction, deadline, preview]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">

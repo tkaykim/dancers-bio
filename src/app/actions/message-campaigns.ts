@@ -8,7 +8,7 @@ import {
   cancelCampaign,
   createCampaign,
   listCampaignsWithStats,
-  remindCampaignUnread,
+  queueCampaignRemind,
   resolveCampaignAudience,
   type AudiencePreview,
   type CampaignSegment,
@@ -51,6 +51,8 @@ export async function sendCampaignAction(input: {
   body: string;
   segment: CampaignSegment;
   mailChannel: boolean;
+  /** 확인 화면에서 운영자가 본 명단 — 발송은 이 명단을 넘지 못한다. */
+  confirmedDancerIds: string[];
   actionChoices?: string[];
   actionDeadline?: string | null;
   actionDetailFor?: string[];
@@ -64,6 +66,7 @@ export async function sendCampaignAction(input: {
       body: z.string().trim().min(1, "내용을 입력해 주세요.").max(4000),
       segment: segmentSchema,
       mailChannel: z.boolean(),
+      confirmedDancerIds: z.array(z.string().uuid()).min(1, "수신 명단을 확인해 주세요.").max(1000),
       actionChoices: z.array(z.string().trim().min(1).max(40)).min(2).max(4).optional(),
       actionDeadline: z.string().datetime({ offset: true }).nullable().optional(),
       actionDetailFor: z.array(z.string()).optional(),
@@ -94,6 +97,7 @@ export async function sendCampaignAction(input: {
     action,
     segment: parsed.data.segment,
     mailChannel: parsed.data.mailChannel,
+    confirmedDancerIds: parsed.data.confirmedDancerIds,
   });
   if (!created.ok) return created;
   return {
@@ -143,7 +147,7 @@ export async function listCampaignsAction(input: {
 
 export async function remindCampaignUnreadAction(input: {
   campaignId: string;
-}): Promise<ActionResult<{ sent: number; skipped: number }>> {
+}): Promise<ActionResult<{ unread: number }>> {
   if (!messagingEnabled()) return { ok: false, error: MESSAGING_DISABLED_ERROR };
   await requireUser();
   const parsed = z.object({ campaignId: z.string().uuid() }).safeParse(input);
@@ -159,7 +163,8 @@ export async function remindCampaignUnreadAction(input: {
   if (!(await assertProjectManageAccess(campaign.project_id as string))) {
     return { ok: false, error: "이 프로젝트의 운영 권한이 없습니다." };
   }
-  const result = await remindCampaignUnread(parsed.data.campaignId);
+  // 발송 자체는 크론이 청크로 처리한다 — 인원×스로틀로 서버 액션이 죽지 않게.
+  const result = await queueCampaignRemind(parsed.data.campaignId);
   if (!result.ok) return result;
-  return { ok: true, data: { sent: result.sent, skipped: result.skipped } };
+  return { ok: true, data: { unread: result.unread } };
 }

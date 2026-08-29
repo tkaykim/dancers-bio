@@ -3,7 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notify } from "@/lib/notify";
 import { resolveMemberMailTarget, sendUnreadNudgeMail } from "@/lib/notify/message-mail";
-import { runCampaignFanout } from "./campaigns";
+import { runCampaignFanout, runCampaignRemind } from "./campaigns";
 import { messagingExternalEnabled } from "./flags";
 import { getMemberSeat, listProjectStaffUserIds } from "./rooms";
 import type { JobHandlers, MessageJob } from "./jobs";
@@ -87,8 +87,14 @@ async function handleCampaignFanout(job: MessageJob) {
   return runCampaignFanout(job.campaign_id);
 }
 
+async function handleCampaignRemind(job: MessageJob) {
+  if (!job.campaign_id) return { done: true as const, note: "bad payload" };
+  return runCampaignRemind(job.campaign_id);
+}
+
 export const messageJobHandlers: JobHandlers = {
   unread_mail: handleUnreadMail,
   staff_sla: handleStaffSla,
   campaign_fanout: handleCampaignFanout,
+  campaign_remind: handleCampaignRemind,
 };

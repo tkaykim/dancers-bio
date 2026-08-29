@@ -24,6 +24,7 @@ export type MessageJob = {
 
 const MAX_ATTEMPTS = 3;
 
+/** true = 잡 존재 보장(신규 생성 또는 멱등 중복). false = 실제 실패 — 호출부가 처리해야 한다. */
 export async function enqueueJob(params: {
   jobType: string;
   idemKey: string;
@@ -32,7 +33,7 @@ export async function enqueueJob(params: {
   dancerId?: string | null;
   campaignId?: string | null;
   payload?: Record<string, unknown>;
-}): Promise<void> {
+}): Promise<boolean> {
   const admin = createAdminClient();
   const { error } = await admin.from("message_jobs").insert({
     job_type: params.jobType,
@@ -43,10 +44,11 @@ export async function enqueueJob(params: {
     campaign_id: params.campaignId ?? null,
     payload: params.payload ?? {},
   });
-  // 23505 = 같은 에피소드 잡이 이미 있음 — 멱등이므로 무시.
-  if (error && error.code !== "23505") {
-    console.error("[message_jobs] enqueue failed:", error.message);
-  }
+  if (!error) return true;
+  // 23505 = 같은 에피소드 잡이 이미 있음 — 멱등이므로 성공으로 본다.
+  if (error.code === "23505") return true;
+  console.error("[message_jobs] enqueue failed:", error.message);
+  return false;
 }
 
 /** 방의 대기 중 잡 취소(읽음·답장·처리 완료 시). jobTypes 미지정이면 전체. */

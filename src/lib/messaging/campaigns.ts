@@ -53,7 +53,7 @@ export async function resolveCampaignAudience(
   const { data: apps } = await admin
     .from("applications")
     .select(
-      "dancer_id, status, passed_round, confirmed_at, dancer:dancers!applications_dancer_id_fkey ( id, stage_name, profile_id )",
+      "dancer_id, status, passed_round, confirmed_at, created_at, dancer:dancers!applications_dancer_id_fkey ( id, stage_name, profile_id )",
     )
     .in("project_id", scopeIds)
     .is("archived_at", null)
@@ -64,18 +64,30 @@ export async function resolveCampaignAudience(
     status: string;
     passed_round: number | null;
     confirmed_at: string | null;
+    created_at: string;
     dancer:
       | { id: string; stage_name: string | null; profile_id: string | null }
       | Array<{ id: string; stage_name: string | null; profile_id: string | null }>
       | null;
   };
 
-  // 댄서별 대표 지원서 1건(살아있는 상태 우선: accepted > pending > 그 외 최신).
+  // 댄서별 대표 지원서 1건 — 결정적 우선순위로 고른다(쿼리 반환 순서에 좌우되면 안 된다).
+  // 같은 (프로젝트, 댄서) 다중 지원서가 실측 116건이라 이 타이브레이크는 실제로 작동한다.
   const rank = (s: string) => (s === "accepted" ? 2 : s === "pending" ? 1 : 0);
+  const better = (a: AppRow, b: AppRow): boolean => {
+    if (rank(a.status) !== rank(b.status)) return rank(a.status) > rank(b.status);
+    const ar = Number(a.passed_round ?? 0);
+    const br = Number(b.passed_round ?? 0);
+    if (ar !== br) return ar > br;
+    const ac = a.confirmed_at ? 1 : 0;
+    const bc = b.confirmed_at ? 1 : 0;
+    if (ac !== bc) return ac > bc;
+    return a.created_at > b.created_at;
+  };
   const byDancer = new Map<string, AppRow>();
   for (const raw of (apps ?? []) as unknown as AppRow[]) {
     const prev = byDancer.get(raw.dancer_id);
-    if (!prev || rank(raw.status) > rank(prev.status)) byDancer.set(raw.dancer_id, raw);
+    if (!prev || better(raw, prev)) byDancer.set(raw.dancer_id, raw);
   }
 
   const matches = (a: AppRow): boolean => {
@@ -111,7 +123,11 @@ export async function resolveCampaignAudience(
   return { included, excluded };
 }
 
-/** 캠페인 생성 — 30초 취소 창 뒤 크론이 발송한다. delivery 는 지금 전량 확정. */
+/**
+ * 캠페인 생성 — 30초 취소 창 뒤 크론이 발송한다. delivery 는 지금 전량 확정.
+ * confirmedDancerIds = 운영자가 확인 화면에서 본 명단. 발송은 이 명단을 넘지 못한다 —
+ * 미리보기와 발송 사이에 대상이 바뀌어도 "안 본 사람에게 나가는" 일이 없게 한다.
+ */
 export async function createCampaign(params: {
   projectId: string;
   createdBy: string;
@@ -120,11 +136,27 @@ export async function createCampaign(params: {
   action: MessageAction | null;
   segment: CampaignSegment;
   mailChannel: boolean;
+  confirmedDancerIds: string[];
 }): Promise<{ ok: true; campaignId: string; included: number; excluded: number } | { ok: false; error: string }> {
   const admin = createAdminClient();
-  const audience = await resolveCampaignAudience(params.projectId, params.segment);
+  const fresh = await resolveCampaignAudience(params.projectId, params.segment);
+  const confirmed = new Set(params.confirmedDancerIds);
+  const freshIncluded = new Map(fresh.included.map((r) => [r.dancerId, r]));
+
+  // 확인 명단 ∩ 현재 자격자만 발송. 사이에 자격을 잃은 인원은 stale 로 기록만 한다.
+  const audience = {
+    included: params.confirmedDancerIds
+      .filter((id) => freshIncluded.has(id))
+      .map((id) => freshIncluded.get(id)!),
+    excluded: [
+      ...fresh.excluded.filter((r) => confirmed.has(r.dancerId)),
+      ...params.confirmedDancerIds
+        .filter((id) => !freshIncluded.has(id) && !fresh.excluded.some((e) => e.dancerId === id))
+        .map((id) => ({ dancerId: id, name: "(자격 변경)", hasAccount: false, reason: "no_account" as const })),
+    ],
+  };
   if (audience.included.length === 0) {
-    return { ok: false, error: "발송 대상이 없습니다." };
+    return { ok: false, error: "발송 대상이 없습니다. 명단을 다시 확인해 주세요." };
   }
 
   const sendAfter = new Date(Date.now() + 30_000);
@@ -172,12 +204,17 @@ export async function createCampaign(params: {
     return { ok: false, error: "발송 대상 확정에 실패했습니다." };
   }
 
-  await enqueueJob({
+  // 잡 생성 실패를 성공으로 은폐하면 캠페인이 영구 scheduled 로 남는다 — 실패 시 통째로 되돌린다.
+  const enqueued = await enqueueJob({
     jobType: "campaign_fanout",
     idemKey: campaignFanoutIdemKey(campaign.id as string),
     availableAt: sendAfter,
     campaignId: campaign.id as string,
   });
+  if (!enqueued) {
+    await admin.from("broadcast_campaigns").delete().eq("id", campaign.id); // deliveries cascade
+    return { ok: false, error: "발송 예약에 실패했습니다. 잠시 후 다시 시도해 주세요." };
+  }
 
   return {
     ok: true,
@@ -477,41 +514,66 @@ export async function listCampaignsWithStats(projectId: string): Promise<Campaig
   });
 }
 
-/** 미읽음 인원에게만 재촉 메일. 운영자 명시 버튼으로만 호출된다(자동 없음). */
-export async function remindCampaignUnread(
+/**
+ * 미읽음 재촉을 잡으로 예약한다(운영자 명시 버튼 전용).
+ * 서버 액션 안에서 전원 직렬 발송하면 인원×스로틀로 요청이 죽는다 — 크론이 청크로 처리한다.
+ */
+export async function queueCampaignRemind(
   campaignId: string,
-): Promise<{ ok: true; sent: number; skipped: number } | { ok: false; error: string }> {
+): Promise<{ ok: true; unread: number } | { ok: false; error: string }> {
   if (!messagingExternalEnabled()) {
     return { ok: false, error: "외부 발송이 아직 꺼져 있습니다." };
   }
   const admin = createAdminClient();
   const { data: campaign } = await admin
     .from("broadcast_campaigns")
-    .select("id, project_id, title")
+    .select("id")
     .eq("id", campaignId)
     .maybeSingle();
   if (!campaign) return { ok: false, error: "캠페인을 찾을 수 없습니다." };
 
-  const { data: project } = await admin
-    .from("projects")
-    .select("title")
-    .eq("id", campaign.project_id)
+  const targets = await listRemindTargets(campaignId);
+  if (targets.length === 0) return { ok: true, unread: 0 };
+
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+  const enqueued = await enqueueJob({
+    jobType: "campaign_remind",
+    idemKey: `campaign_remind:${campaignId}:${minuteBucket}`,
+    availableAt: new Date(),
+    campaignId,
+  });
+  if (!enqueued) return { ok: false, error: "재촉 예약에 실패했습니다." };
+  return { ok: true, unread: targets.length };
+}
+
+type RemindTarget = { dancerId: string; roomId: string; userId: string | null };
+
+/** 미읽음 + 미뮤트 + 아직 재촉 안 한 대상. (재촉은 캠페인당 1인 1회 — claim 로그가 잠근다.) */
+async function listRemindTargets(campaignId: string): Promise<RemindTarget[]> {
+  const admin = createAdminClient();
+  const channel = `bcremind_${String(campaignId).slice(0, 8)}`;
+  const { data: campaign } = await admin
+    .from("broadcast_campaigns")
+    .select("project_id")
+    .eq("id", campaignId)
     .maybeSingle();
-  const projectTitle = ((project?.title as string | undefined) ?? "프로젝트").replace(
-    /\s*\(모집채널 통합\)\s*/g,
-    "",
-  );
+  if (!campaign) return [];
 
   const { data: rows } = await admin
     .from("broadcast_deliveries")
     .select("dancer_id, room_id, message_id")
     .eq("campaign_id", campaignId)
     .eq("status", "sent");
+  const { data: claimed } = await admin
+    .from("project_notification_log")
+    .select("recipient_id")
+    .eq("project_id", campaign.project_id)
+    .eq("channel", channel);
+  const already = new Set((claimed ?? []).map((c) => c.recipient_id as string));
 
-  let sent = 0;
-  let skipped = 0;
+  const targets: RemindTarget[] = [];
   for (const d of rows ?? []) {
-    if (!d.room_id || !d.message_id) continue;
+    if (!d.room_id || !d.message_id || already.has(d.dancer_id as string)) continue;
     const { data: msg } = await admin
       .from("chat_messages")
       .select("room_seq")
@@ -525,45 +587,85 @@ export async function remindCampaignUnread(
       .maybeSingle();
     if (!msg || !seat) continue;
     const unread = Number(seat.last_read_seq) < Number(msg.room_seq);
-    const muted = !!seat.muted_until && new Date(seat.muted_until as string).getTime() > Date.now();
-    if (!unread || muted) {
-      skipped += 1;
-      continue;
+    const muted =
+      !!seat.muted_until && new Date(seat.muted_until as string).getTime() > Date.now();
+    if (unread && !muted) {
+      targets.push({
+        dancerId: d.dancer_id as string,
+        roomId: d.room_id as string,
+        userId: (seat.user_id as string | null) ?? null,
+      });
     }
+  }
+  return targets;
+}
+
+const REMIND_CHUNK = 20;
+
+/** 크론 핸들러 — 재촉 메일을 청크로 발송. 잔여가 있으면 continue. */
+export async function runCampaignRemind(
+  campaignId: string,
+): Promise<{ done: true; note?: string } | { continue: true } | { retry: true; error: string }> {
+  if (!messagingExternalEnabled()) return { done: true, note: "external_disabled" };
+  const admin = createAdminClient();
+  const { data: campaign } = await admin
+    .from("broadcast_campaigns")
+    .select("id, project_id")
+    .eq("id", campaignId)
+    .maybeSingle();
+  if (!campaign) return { done: true, note: "campaign missing" };
+
+  const { data: project } = await admin
+    .from("projects")
+    .select("title")
+    .eq("id", campaign.project_id)
+    .maybeSingle();
+  const projectTitle = ((project?.title as string | undefined) ?? "프로젝트").replace(
+    /\s*\(모집채널 통합\)\s*/g,
+    "",
+  );
+  const channel = `bcremind_${String(campaignId).slice(0, 8)}`;
+
+  const targets = await listRemindTargets(campaignId);
+  const chunk = targets.slice(0, REMIND_CHUNK);
+
+  for (const t of chunk) {
     const target = await resolveMemberMailTarget({
-      dancerId: d.dancer_id as string,
-      memberUserId: (seat.user_id as string | null) ?? null,
+      dancerId: t.dancerId,
+      memberUserId: t.userId,
     });
     if (!target.ok) {
-      skipped += 1;
+      // 수신 불가(수신거부·주소 없음)는 claim 으로 종결 표시 — 다음 턴에 또 잡히지 않게.
+      await admin.from("project_notification_log").insert({
+        project_id: campaign.project_id,
+        recipient_id: t.dancerId,
+        channel,
+      });
       continue;
     }
     const claim = await admin.from("project_notification_log").insert({
       project_id: campaign.project_id,
-      recipient_id: d.dancer_id,
-      channel: `bcremind_${String(campaignId).slice(0, 8)}`,
+      recipient_id: t.dancerId,
+      channel,
     });
-    if (claim.error) {
-      skipped += 1; // 이미 재촉함
-      continue;
-    }
+    if (claim.error) continue; // 이미 재촉함(동시 크론 경합 포함)
     const res = await sendUnreadNudgeMail({
       email: target.email,
       name: target.name,
       projectTitle,
-      roomId: d.room_id as string,
+      roomId: t.roomId,
     });
-    if (res.ok) sent += 1;
-    else {
+    if (!res.ok) {
       await admin
         .from("project_notification_log")
         .delete()
         .eq("project_id", campaign.project_id)
-        .eq("recipient_id", d.dancer_id)
-        .eq("channel", `bcremind_${String(campaignId).slice(0, 8)}`);
-      skipped += 1;
+        .eq("recipient_id", t.dancerId)
+        .eq("channel", channel);
     }
     await sleep(MAIL_THROTTLE_MS);
   }
-  return { ok: true, sent, skipped };
+
+  if (targets.length > chunk.length) return { continue: true };
+  return { done: true };
 }

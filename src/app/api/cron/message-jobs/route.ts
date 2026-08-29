@@ -15,9 +15,13 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 export async function GET(request: NextRequest) {
-  // CRON_SECRET 이 설정돼 있으면 Vercel 이 Authorization 헤더를 자동으로 붙인다.
+  // fail-closed: CRON_SECRET 이 없으면 아예 돌지 않는다(누구나 잡 실행 가능해지는 fail-open 금지).
+  // Vercel 은 CRON_SECRET 이 설정돼 있으면 Authorization 헤더를 자동으로 붙인다.
   const secret = process.env.CRON_SECRET;
-  if (secret && request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!secret) {
+    return NextResponse.json({ ok: false, error: "cron secret not configured" }, { status: 503 });
+  }
+  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
   if (!messagingEnabled()) {

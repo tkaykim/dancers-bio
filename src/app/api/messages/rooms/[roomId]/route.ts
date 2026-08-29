@@ -33,20 +33,40 @@ export async function GET(
     .maybeSingle();
   if (!room) return NextResponse.json({ messages: [] }, { status: 404, headers: NO_STORE });
 
-  const { data: messages } = await supabase
-    .from("chat_messages")
-    .select(
-      "id, room_id, room_seq, sender_user_id, sender_role, kind, body, action, deleted_at, created_at",
-    )
-    .eq("room_id", roomId)
-    .gt("room_seq", afterSeq)
-    .order("room_seq", { ascending: true })
-    .limit(100);
+  // 초기 로드(after_seq=0)는 "최신 100개" — 오래된 100개를 주면 100개 초과 대화에서
+  // 중간 이후가 영구 누락된다(커서는 최신 seq 로 시작하므로).
+  const MSG_COLS =
+    "id, room_id, room_seq, sender_user_id, sender_role, kind, body, action, deleted_at, created_at";
+  let messages: Array<Record<string, unknown>> = [];
+  if (afterSeq === 0) {
+    const { data } = await supabase
+      .from("chat_messages")
+      .select(MSG_COLS)
+      .eq("room_id", roomId)
+      .order("room_seq", { ascending: false })
+      .limit(100);
+    messages = ((data ?? []) as Array<Record<string, unknown>>).slice().reverse();
+  } else {
+    const { data } = await supabase
+      .from("chat_messages")
+      .select(MSG_COLS)
+      .eq("room_id", roomId)
+      .gt("room_seq", afterSeq)
+      .order("room_seq", { ascending: true })
+      .limit(100);
+    messages = (data ?? []) as Array<Record<string, unknown>>;
+  }
 
-  // 내(들)의 응답 상태 — action_request 카드 렌더용.
-  const actionIds = (messages ?? [])
-    .filter((m) => m.kind === "action_request")
-    .map((m) => m.id as string);
+  // 응답 상태는 델타와 무관하게 방의 action_request 전체(최근 20개) 기준으로 항상 준다 —
+  // 새 메시지가 없어도 응답 변경이 화면에 반영되게(운영자 집계 실시간성).
+  const { data: actionMsgs } = await supabase
+    .from("chat_messages")
+    .select("id")
+    .eq("room_id", roomId)
+    .eq("kind", "action_request")
+    .order("room_seq", { ascending: false })
+    .limit(20);
+  const actionIds = (actionMsgs ?? []).map((m) => m.id as string);
   let responses: Array<{ message_id: string; dancer_id: string; choice: string; detail: string | null }> = [];
   if (actionIds.length > 0) {
     const { data: resp } = await supabase
@@ -87,7 +107,7 @@ export async function GET(
         resolved: !!room.resolved_at,
         awaitingSince: room.awaiting_staff_since,
       },
-      messages: (messages ?? []).map((m) => ({
+      messages: messages.map((m) => ({
         ...m,
         body: m.deleted_at ? "" : m.body,
       })),

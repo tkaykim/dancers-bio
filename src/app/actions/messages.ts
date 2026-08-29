@@ -174,11 +174,12 @@ export async function muteThreadAction(input: {
         : new Date(Date.now() + parsed.data.hours * 3_600_000).toISOString();
 
   const admin = createAdminClient();
-  await admin
+  const { error } = await admin
     .from("chat_room_members")
     .update({ muted_until: mutedUntil })
     .eq("room_id", access.room.id)
     .eq("dancer_id", access.actor.dancerId);
+  if (error) return { ok: false, error: "알림 설정 변경에 실패했습니다." };
   return { ok: true };
 }
 

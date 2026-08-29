@@ -102,7 +102,7 @@ export async function resolveThreadAction(input: { roomId: string }): Promise<Ac
   if (access.actor.role !== "staff") return { ok: false, error: "운영자만 사용할 수 있습니다." };
 
   const admin = createAdminClient();
-  await admin
+  const { error } = await admin
     .from("chat_rooms")
     .update({
       resolved_at: new Date().toISOString(),
@@ -110,6 +110,7 @@ export async function resolveThreadAction(input: { roomId: string }): Promise<Ac
       updated_at: new Date().toISOString(),
     })
     .eq("id", access.room.id);
+  if (error) return { ok: false, error: "처리 완료 표시에 실패했습니다." };
   await cancelPendingRoomJobs(access.room.id, ["staff_sla"]);
   return { ok: true };
 }
@@ -126,14 +127,40 @@ export async function markUnansweredAction(input: { roomId: string }): Promise<A
   if (access.actor.role !== "staff") return { ok: false, error: "운영자만 사용할 수 있습니다." };
 
   const admin = createAdminClient();
-  await admin
+  const since = new Date().toISOString();
+  const { error } = await admin
     .from("chat_rooms")
     .update({
-      awaiting_staff_since: new Date().toISOString(),
+      awaiting_staff_since: since,
       resolved_at: null,
-      updated_at: new Date().toISOString(),
+      updated_at: since,
     })
     .eq("id", access.room.id);
+  if (error) return { ok: false, error: "미답변 표시에 실패했습니다." };
+
+  // 수동 재플래그도 4h/24h 에스컬레이션을 받아야 한다(자동 설정과 동일 대우).
+  const { data: project } = await admin
+    .from("projects")
+    .select("title")
+    .eq("id", access.room.project_id)
+    .maybeSingle();
+  const projectTitle = (project?.title as string | undefined) ?? "프로젝트";
+  const epoch = new Date(since).getTime();
+  const { enqueueJob } = await import("@/lib/messaging/jobs");
+  await enqueueJob({
+    jobType: "staff_sla",
+    idemKey: `staff_sla4:${access.room.id}:${epoch}`,
+    availableAt: new Date(epoch + 4 * 3_600_000),
+    roomId: access.room.id,
+    payload: { since, tier: 4, projectTitle },
+  });
+  await enqueueJob({
+    jobType: "staff_sla",
+    idemKey: `staff_sla24:${access.room.id}:${epoch}`,
+    availableAt: new Date(epoch + 24 * 3_600_000),
+    roomId: access.room.id,
+    payload: { since, tier: 24, projectTitle },
+  });
   return { ok: true };
 }
 

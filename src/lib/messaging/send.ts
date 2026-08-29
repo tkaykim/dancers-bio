@@ -2,6 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notify } from "@/lib/notify";
+import { messagingExternalEnabled } from "./flags";
 import {
   getMemberSeat,
   listDancerActorUserIds,
@@ -121,12 +122,15 @@ export async function notifyMemberOfTeamMessage(params: {
   const muted = !!seat?.muted_until && new Date(seat.muted_until).getTime() > Date.now();
   const userIds = await listDancerActorUserIds(dancerId);
 
+  // 지원자 대상 푸시도 외부 발송 차단기를 따른다 — 차단기 off 상태에서
+  // 사용자에게 도달하는 채널은 인앱 목록뿐이어야 한다(단계적 출시 안전판).
+  const pushAllowed = messagingExternalEnabled() && !muted;
   for (const uid of userIds) {
     await notify({
       recipientId: uid,
       type: "message_received",
       payload: { roomId: room.id, projectId: room.project_id, projectTitle },
-      push: muted
+      push: !pushAllowed
         ? undefined
         : {
             title: `${projectTitle} 운영팀`,
@@ -204,17 +208,27 @@ async function notifyStaffOfMemberMessage(params: {
   }
 }
 
-/** 같은 발신자가 같은 본문을 15초 안에 반복 전송하는 것 차단(고의 플러딩 1차 방어). */
-async function isDuplicateBurst(roomId: string, senderUserId: string, body: string): Promise<boolean> {
+/**
+ * 같은 발신자가 같은 본문을 15초 안에 반복 전송하는 것 차단(고의 플러딩 1차 방어).
+ * 단, 같은 clientMessageId 는 "응답을 잃은 재시도"라 멱등 경로(23505→기존 행 반환)로
+ * 흘려보내야 하므로 버스트로 취급하지 않는다.
+ */
+async function isDuplicateBurst(
+  roomId: string,
+  senderUserId: string,
+  body: string,
+  clientMessageId: string,
+): Promise<boolean> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("chat_messages")
-    .select("body, created_at, sender_user_id")
+    .select("body, created_at, sender_user_id, client_message_id")
     .eq("room_id", roomId)
     .order("room_seq", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (!data) return false;
+  if (data.client_message_id === clientMessageId) return false; // 재시도 — 멱등 처리로
   return (
     data.sender_user_id === senderUserId &&
     data.body === body &&
@@ -236,7 +250,7 @@ export async function sendRoomMessage(params: {
   if (actor.role === "member" && room.closed_at) {
     return { ok: false, error: "종료된 대화방입니다. contact@deetz.kr 로 문의해 주세요." };
   }
-  if (await isDuplicateBurst(room.id, actor.userId, body)) {
+  if (await isDuplicateBurst(room.id, actor.userId, body, clientMessageId)) {
     return { ok: false, error: "같은 내용을 연속해서 보낼 수 없습니다." };
   }
 
