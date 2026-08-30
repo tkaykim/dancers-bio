@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import {
-  normalizeRecruitmentShareCode,
   RECRUITMENT_ATTRIBUTION_MAX_AGE_SECONDS,
   recruitmentAttributionCookieName,
+  resolveRecruitmentChannelDestination,
+  shouldStoreRecruitmentAttributionCookie,
 } from "@/lib/recruitment-attribution";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -11,42 +12,49 @@ export async function GET(
   { params }: { params: Promise<{ code: string }> },
 ) {
   const { code } = await params;
-  const shareCode = normalizeRecruitmentShareCode(code);
-  if (!shareCode) return new Response(null, { status: 404 });
-
   const admin = createAdminClient();
-  const { data: channel } = await admin
-    .from("recruitment_channels")
-    .select("project_id, legacy_project_id, share_code, status")
-    .eq("share_code", shareCode)
-    .maybeSingle();
+  const resolved = await resolveRecruitmentChannelDestination({
+    shareCode: code,
+    findChannel: async (shareCode) => {
+      const { data } = await admin
+        .from("recruitment_channels")
+        .select("project_id, legacy_project_id, share_code, status")
+        .eq("share_code", shareCode)
+        .maybeSingle();
+      return data;
+    },
+    findProject: async (projectId) => {
+      const { data } = await admin
+        .from("projects")
+        .select("short_code, deleted_at")
+        .eq("id", projectId)
+        .maybeSingle();
+      return data;
+    },
+  });
 
-  if (!channel || channel.status !== "active") {
+  if (!resolved) {
     return new Response(null, { status: 404 });
   }
-  const targetProjectId =
-    ((channel.legacy_project_id as string | null) ?? null) ||
-    (channel.project_id as string);
 
-  const { data: project } = await admin
-    .from("projects")
-    .select("short_code, deleted_at")
-    .eq("id", targetProjectId)
-    .maybeSingle();
-
-  if (!project || project.deleted_at) {
-    return new Response(null, { status: 404 });
-  }
-
-  const destination = new URL(`/projects/${project.short_code}`, request.url);
-  destination.searchParams.set("channel", shareCode);
+  const destination = new URL(
+    `/projects/${resolved.projectShortCode}`,
+    request.url,
+  );
+  destination.searchParams.set("channel", resolved.shareCode);
   const response = NextResponse.redirect(destination);
-  const cookieName = recruitmentAttributionCookieName(targetProjectId);
+  const cookieName = recruitmentAttributionCookieName(resolved.projectId);
+  const storedShareCode = request.cookies.get(cookieName)?.value;
 
-  // 같은 프로젝트에서 먼저 유입된 채널을 유지한다.
-  // 가입·프로필 생성 중 URL 파라미터가 사라져도 지원 저장 단계에서 이 값을 복구한다.
-  if (!request.cookies.has(cookieName)) {
-    response.cookies.set(cookieName, shareCode, {
+  // 마지막으로 확인된 유효 링크를 유지해 URL 채널과 가입 후 복구되는 채널을 일치시킨다.
+  // 같은 링크 재방문 때는 쿠키 만료를 불필요하게 갱신하지 않는다.
+  if (
+    shouldStoreRecruitmentAttributionCookie({
+      storedShareCode,
+      incomingShareCode: resolved.shareCode,
+    })
+  ) {
+    response.cookies.set(cookieName, resolved.shareCode, {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",

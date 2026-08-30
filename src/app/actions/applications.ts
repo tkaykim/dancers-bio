@@ -88,13 +88,11 @@ export async function applyToProjectAction(
     const { data: channel, error: channelError } =
       await channelQuery.maybeSingle();
     if (channelError) {
-      if (attributionSource.kind === "id") {
-        return { ok: false, error: "모집채널 확인에 실패했습니다." };
-      }
       console.error("[apply] 저장된 모집채널 확인 실패", {
         projectId: project_id,
         code: channelError.code,
       });
+      return { ok: false, error: "모집채널 확인에 실패했습니다." };
     }
     const matchesProject = recruitmentChannelMatchesProject(channel, project_id);
     if (attributionSource.kind === "id" && !matchesProject) {

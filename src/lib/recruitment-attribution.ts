@@ -9,6 +9,21 @@ export type RecruitmentChannelProjectRef = {
   status: string;
 };
 
+type RecruitmentChannelLinkRecord = RecruitmentChannelProjectRef & {
+  share_code: string;
+};
+
+type RecruitmentProjectLinkRecord = {
+  short_code: string;
+  deleted_at: string | null;
+};
+
+export type RecruitmentChannelDestination = {
+  projectId: string;
+  projectShortCode: string;
+  shareCode: string;
+};
+
 export type RecruitmentAttributionSource =
   | { kind: "id"; value: string }
   | { kind: "share_code"; value: string };
@@ -46,4 +61,47 @@ export function recruitmentChannelMatchesProject(
   return (
     channel.project_id === projectId || channel.legacy_project_id === projectId
   );
+}
+
+export function shouldStoreRecruitmentAttributionCookie({
+  storedShareCode,
+  incomingShareCode,
+}: {
+  storedShareCode: string | null | undefined;
+  incomingShareCode: string;
+}): boolean {
+  const stored = normalizeRecruitmentShareCode(storedShareCode);
+  return stored !== incomingShareCode;
+}
+
+export async function resolveRecruitmentChannelDestination({
+  shareCode,
+  findChannel,
+  findProject,
+}: {
+  shareCode: string | null | undefined;
+  findChannel: (
+    normalizedShareCode: string,
+  ) => Promise<RecruitmentChannelLinkRecord | null>;
+  findProject: (
+    projectId: string,
+  ) => Promise<RecruitmentProjectLinkRecord | null>;
+}): Promise<RecruitmentChannelDestination | null> {
+  const normalizedShareCode = normalizeRecruitmentShareCode(shareCode);
+  if (!normalizedShareCode) return null;
+
+  const channel = await findChannel(normalizedShareCode);
+  if (!channel || channel.status !== "active") return null;
+
+  const projectId = channel.legacy_project_id || channel.project_id;
+  if (!projectId) return null;
+
+  const project = await findProject(projectId);
+  if (!project || project.deleted_at) return null;
+
+  return {
+    projectId,
+    projectShortCode: project.short_code,
+    shareCode: normalizedShareCode,
+  };
 }
