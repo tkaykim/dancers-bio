@@ -54,6 +54,7 @@ export function ApplyForm({
   /** 지원 단계에서 한 번에 가능여부를 받을 후보 일정. */
   availabilitySchedules?: ApplicationAvailabilitySchedule[];
 }) {
+  const collectsCompanionInstagram = projectShortCode === "7weep2";
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   // 지원 직후 바로 열어볼 제작 가이드. 확정 안내 메일을 기다리는 사이 이탈하는 걸 막는다.
@@ -151,8 +152,13 @@ export function ApplyForm({
       className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4"
     >
       <Label htmlFor="cover_message" className="text-xs uppercase tracking-[0.14em] text-ink-3">
-        ↳ 한 줄 자기소개 (선택)
+        {collectsCompanionInstagram ? "↳ 지원 한마디 (선택)" : "↳ 한 줄 자기소개 (선택)"}
       </Label>
+      {collectsCompanionInstagram ? (
+        <p className="text-xs leading-relaxed text-ink-3">
+          동반인이 있다면 Instagram 핸들(@인스타그램아이디)을 남겨 주세요.
+        </p>
+      ) : null}
       {recruitmentChannelName ? (
         <p className="rounded-lg bg-secondary/60 px-3 py-2 text-xs text-ink-2">
           모집채널: <span className="font-medium">{recruitmentChannelName}</span>
@@ -163,7 +169,11 @@ export function ApplyForm({
         name="cover_message"
         rows={3}
         maxLength={500}
-        placeholder="예: 무대 댄서 7년차, K-pop 다수 경험 보유. 빠른 캐치 자신 있어요."
+        placeholder={
+          collectsCompanionInstagram
+            ? "예: 함께 참여할 동반인 @instagram_id"
+            : "예: 무대 댄서 7년차, K-pop 다수 경험 보유. 빠른 캐치 자신 있어요."
+        }
         className="rounded-md border border-input bg-background px-3 py-2 text-sm"
       />
 
