@@ -289,6 +289,7 @@ export function ApplicantsConsole({
       dancerId: a.dancerId,
       name: a.name,
       status: a.status,
+      coverMessage: a.cover_message,
       publicHref: a.publicHref,
       rejectionReason: a.rejection_reason,
       confirmedAt: a.confirmedAt,
