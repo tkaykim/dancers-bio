@@ -23,6 +23,7 @@ export type SheetApplicant = {
   dancerId: string | null;
   name: string;
   status: string;
+  coverMessage: string | null;
   publicHref: string | null;
   rejectionReason: string | null;
   confirmedAt: string | null;
@@ -364,6 +365,17 @@ export function ApplicantPortfolioSheet({
             ) : null}
           </div>
         </div>
+
+        {applicant?.coverMessage ? (
+          <section className="flex flex-col gap-1.5 rounded-xl border border-border bg-secondary/30 p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
+              지원 한마디
+            </p>
+            <p className="whitespace-pre-wrap break-words text-sm text-foreground">
+              {applicant.coverMessage}
+            </p>
+          </section>
+        ) : null}
 
         {cEmail || cPhone ? (
           <div className="rounded-xl border border-border bg-secondary/30 px-3 py-2.5 text-sm">
