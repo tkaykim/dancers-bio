@@ -2,10 +2,13 @@
 
 ## Unreleased
 
+## 0.1.7.0 - 2026-08-30
+
 - Let selected casting posts request a companion's Instagram handle in the application message and show that message in the applicant detail panel.
 - Register mixed-rate receivables in one form with server-calculated supply, VAT, and contract-cap validation.
 - Compare the contracted supply amount with confirmed revenue and flag matching, missing, or excess amounts.
 - Group multiple confirmed revenue items under one immutable tax-invoice record, with one issuance date, due date, and document total.
+- Preserve the last valid recruitment-channel link through signup and onboarding, validate it again when applying, and restore the missing Baw attribution for Punchbunny.
 
 ## 0.1.6 - 2026-08-12
 

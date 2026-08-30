@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -17,6 +18,11 @@ import {
 } from "@/lib/nationality";
 import type { ActionResult } from "./auth";
 import { resolveAvailabilitySelection } from "@/lib/application-availability";
+import {
+  chooseRecruitmentAttributionSource,
+  recruitmentAttributionCookieName,
+  recruitmentChannelMatchesProject,
+} from "@/lib/recruitment-attribution";
 
 // Lite MVP: 1계정 = 1댄서 가정. team apply / manager-as-actor 분기 모두 제거.
 // 항상 본인 own dancer (profile_id = user.id) 중 가장 오래된 1개로 INSERT.
@@ -59,25 +65,40 @@ export async function applyToProjectAction(
     return { ok: false, error: "지원 마감일이 지났습니다." };
   }
 
+  const attributionCookieStore = await cookies();
+  const storedShareCode = requestedChannelId
+    ? null
+    : attributionCookieStore.get(recruitmentAttributionCookieName(project_id))
+        ?.value;
+  const attributionSource = chooseRecruitmentAttributionSource({
+    requestedChannelId,
+    storedShareCode,
+  });
+
   let recruitment_channel_id: string | null = null;
-  if (requestedChannelId) {
+  if (attributionSource) {
     const admin = createAdminClient();
-    const { data: channel, error: channelError } = await admin
+    let channelQuery = admin
       .from("recruitment_channels")
-      .select("id, project_id, legacy_project_id, status")
-      .eq("id", requestedChannelId)
-      .maybeSingle();
+      .select("id, project_id, legacy_project_id, status");
+    channelQuery =
+      attributionSource.kind === "id"
+        ? channelQuery.eq("id", attributionSource.value)
+        : channelQuery.eq("share_code", attributionSource.value);
+    const { data: channel, error: channelError } =
+      await channelQuery.maybeSingle();
     if (channelError) {
+      console.error("[apply] 저장된 모집채널 확인 실패", {
+        projectId: project_id,
+        code: channelError.code,
+      });
       return { ok: false, error: "모집채널 확인에 실패했습니다." };
     }
-    const channelProjectId = (channel?.project_id as string | null) ?? null;
-    const legacyProjectId = (channel?.legacy_project_id as string | null) ?? null;
-    const matchesProject =
-      channelProjectId === project_id || legacyProjectId === project_id;
-    if (!channel || !matchesProject || channel.status !== "active") {
+    const matchesProject = recruitmentChannelMatchesProject(channel, project_id);
+    if (attributionSource.kind === "id" && !matchesProject) {
       return { ok: false, error: "유효하지 않은 모집채널입니다." };
     }
-    recruitment_channel_id = channel.id as string;
+    if (matchesProject) recruitment_channel_id = channel?.id as string;
   }
 
   // 본인 own dancer 1개 조회 (multi-dancer는 Lite에서 미지원 — 가장 오래된 1개)
@@ -250,6 +271,9 @@ export async function applyToProjectAction(
     }
     return { ok: false, error: humanizeDbError(error.message) };
   }
+
+  // 프로젝트별 귀속 쿠키는 지원이 실제 저장된 뒤에만 소비한다.
+  attributionCookieStore.delete(recruitmentAttributionCookieName(project_id));
 
   if (availabilitySelection.responses.length > 0) {
     const respondedAt = new Date().toISOString();

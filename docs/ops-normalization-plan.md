@@ -156,12 +156,14 @@ Implemented app surface:
 
 - New projects automatically create a `기본 모집` recruitment channel.
 - Public channel entry URL: `/c/[share_code]`
+- `/c/[share_code]` validates the active channel and target project, redirects to the project detail with `?channel=[share_code]`, and stores the latest valid channel for that project in a 30-day HttpOnly cookie.
 - Project detail accepts `?channel=[share_code]` and stores the matching `recruitment_channel_id` on new applications.
+- If signup or onboarding drops the channel query, application submission restores the project-scoped cookie, revalidates the active current or legacy project mapping, and consumes the cookie only after the application is saved.
 - Parent project applicant console can filter applicants by recruitment channel.
 - Parent project settings includes recruitment channel creation, share-link copy, manager-list link, and channel manager assignment.
 - Channel manager applicant list URL: `/channels/[share_code]/applicants`
 - Channel manager applicant list is read-only and scoped by RLS to that channel.
-- Signup/login return paths now preserve channel-linked application URLs.
+- Signup/login return paths preserve channel-linked application URLs, with the project-scoped cookie as the recovery path when the query is lost.
 - Project managers can create reusable operation events from the applicant console.
 - Accepted applicants can be copied into `event_participants` per event without changing application status.
 - Generic event ops URL: `/ops/events/[ops_code]`

@@ -200,6 +200,11 @@
 - [ ] **APP-013** status=pending일 때 본인/팀리드만 `withdrawApplicationAction`
 - [ ] **APP-014** accepted/rejected 상태에서 철회 시도 → 차단
 - [ ] **APP-015** 철회 후 status=withdrawn, 재지원 가능 여부 정책 확인
+- [ ] **CHN-001** `/c/[share_code]` 진입 시 활성 현재·레거시 채널만 프로젝트의 `?channel=` URL로 이동하고 프로젝트별 30일 HttpOnly 쿠키를 저장
+- [ ] **CHN-002** 모집채널 링크에서 비가입자가 가입·온보딩 후 지원해도 URL에서 채널 값이 사라진 경우 저장된 채널을 복구해 `recruitment_channel_id` 기록
+- [ ] **CHN-003** 명시적으로 제출된 채널 ID가 저장된 채널보다 우선하며, 다른 프로젝트·비활성·조작된 저장 채널은 귀속에 사용하지 않음
+- [ ] **CHN-004** 중복 지원·검증 오류 등 지원 저장 실패 시 채널 쿠키를 유지하고, 지원 저장 성공 후에만 소비
+- [ ] **CHN-005** 같은 프로젝트의 다른 유효 모집채널 링크로 다시 들어오면 저장 채널을 최신 링크로 교체
 
 ### 7.3 다이렉트 제안 (direct_proposal)
 - [ ] **PROP-001** 오너만 `SendProposalDialog` 노출

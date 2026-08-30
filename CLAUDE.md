@@ -39,6 +39,7 @@
 - `npm run start` — 프로덕션 서버
 - `npm run typecheck` — `tsc --noEmit`
 - `npm run lint` — eslint
+- `npm run test:recruitment-attribution` — 모집채널 링크·가입 후 귀속 복구 회귀 테스트
 - `npm run db:types` — Supabase 타입 재생성 → `src/lib/supabase/types.ts`
 
 ## 디렉토리 규칙
