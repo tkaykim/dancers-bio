@@ -17,6 +17,11 @@ import type { DancerDocsState } from "@/components/settlement/DancerDocuments";
 import { settlementRoleLabel, type SettlementStatus } from "@/lib/settlement";
 import { expectedPayoutLabel } from "@/lib/payout-schedule";
 import {
+  computeSettlementPayouts,
+  type LedgerEntryInput,
+  resolvePayoutStage,
+} from "@/lib/payout-state";
+import {
   isPayoutAccountValid,
   isPayoutInfoComplete,
   isResidentNumberValid,
@@ -168,6 +173,37 @@ export default async function WithdrawSharePage({
   const accountNumber = normalizeAccountNumber(pi?.bank_account_number);
   const hasAccount = isPayoutAccountValid(pi);
 
+  // 이 프로젝트 정산이 실제로 지급됐는지는 원장으로만 알 수 있다.
+  const [{ data: ledgerRows }, { data: wrRows }] = await Promise.all([
+    admin
+      .from("dancer_ledger_entries")
+      .select("entry_type, ref_type, ref_id, amount, created_at")
+      .eq("dancer_id", dancerId),
+    admin
+      .from("withdrawal_requests")
+      .select("amount")
+      .eq("dancer_id", dancerId)
+      .eq("status", "requested"),
+  ]);
+  const ledger: LedgerEntryInput[] = ((ledgerRows ?? []) as Array<{
+    entry_type: string;
+    ref_type: string | null;
+    ref_id: string | null;
+    amount: number;
+    created_at: string;
+  }>).map((l) => ({
+    entryType: l.entry_type,
+    refType: l.ref_type,
+    refId: l.ref_id,
+    amount: Number(l.amount),
+    createdAt: l.created_at,
+  }));
+  const requestedTotal = ((wrRows ?? []) as Array<{ amount: number }>).reduce(
+    (sum, w) => sum + Number(w.amount),
+    0,
+  );
+  const payouts = computeSettlementPayouts(ledger, requestedTotal);
+
   const settlements: MySettlementRow[] = sRows.map((s) => ({
     id: s.id,
     dancerId,
@@ -186,6 +222,8 @@ export default async function WithdrawSharePage({
       s.status === "requested"
         ? expectedPayoutLabel(s.requested_at ?? s.created_at ?? new Date())
         : null,
+    payoutStage: resolvePayoutStage(s.status, s.gross_amount, payouts.get(s.id)),
+    payoutPaidAt: payouts.get(s.id)?.paidAt ?? s.paid_at,
   }));
   const accounts: Record<string, PayoutAccount | null> = {
     [dancerId]:

@@ -12,9 +12,12 @@ import {
 import {
   calcSettlement,
   formatWon,
-  SETTLEMENT_STATUS_LABEL,
   type SettlementStatus,
 } from "@/lib/settlement";
+import {
+  PAYOUT_STAGE_LABEL,
+  type SettlementPayoutStage,
+} from "@/lib/payout-state";
 import {
   DancerDocuments,
   type DancerDocsState,
@@ -33,6 +36,9 @@ export type MySettlementRow = {
   status: SettlementStatus;
   createdAt: string | null;
   paidAt: string | null;
+  // 원장 기준 실제 지급 단계 — status는 잔액 출금 후에도 pending에 머문다.
+  payoutStage: SettlementPayoutStage;
+  payoutPaidAt: string | null;
   // 지급 처리 중(requested) 건의 안내용 입금 예정일 라벨("9/5(금)").
   // 하이드레이션 불일치를 피하려고 서버에서 계산해 내려준다.
   expectedPayoutLabel: string | null;
@@ -254,7 +260,7 @@ function SettlementCard({
           </span>
           <span className="text-xs text-ink-3">{s.dancerName}</span>
         </div>
-        <StatusBadge status={s.status} />
+        <StatusBadge stage={s.payoutStage} />
       </div>
 
       <div className="flex flex-col gap-1 rounded-xl bg-secondary/60 p-3">
@@ -266,15 +272,15 @@ function SettlementCard({
         </div>
         <p className="text-[11px] text-ink-3">
           세금 {(calc.rate * 100).toFixed(1)}%(−{formatWon(calc.tax)})
-          {s.status === "paid"
-            ? ` 공제 후 ${formatWon(calc.net)} 입금 완료`
-            : s.status === "requested"
+          {s.payoutStage === "paid"
+            ? ` 공제 후 ${formatWon(calc.net)} 지급 완료`
+            : s.payoutStage === "requested" || s.payoutStage === "partially_paid"
               ? ` 공제 후 ${formatWon(calc.net)} 입금 예정`
               : ` 공제 후 ${formatWon(calc.net)}이 출금 가능 잔액에 반영돼요`}
         </p>
       </div>
 
-      {s.status === "pending" ? (
+      {s.payoutStage === "withdrawable" ? (
         payoutReady ? (
           variant === "share" ? (
             <Link
@@ -296,7 +302,7 @@ function SettlementCard({
           </p>
         )
       ) : null}
-      {s.status === "requested" ? (
+      {s.payoutStage === "requested" || s.payoutStage === "partially_paid" ? (
         <p className="text-xs text-ink-3">
           출금 신청이 접수됐어요.
           {s.expectedPayoutLabel
@@ -304,10 +310,10 @@ function SettlementCard({
             : " 담당자 확인 후 등록하신 계좌로 입금됩니다."}
         </p>
       ) : null}
-      {s.status === "paid" ? (
+      {s.payoutStage === "paid" ? (
         <p className="text-xs text-emerald-600">
           입금이 완료되었어요.
-          {s.paidAt ? ` · ${fmtDateKST(s.paidAt)} 입금` : ""}
+          {s.payoutPaidAt ? ` · ${fmtDateKST(s.payoutPaidAt)} 입금` : ""}
         </p>
       ) : null}
     </li>
@@ -460,20 +466,20 @@ function ResidentNumberCard({
   );
 }
 
-function StatusBadge({ status }: { status: SettlementStatus }) {
+function StatusBadge({ stage }: { stage: SettlementPayoutStage }) {
   const tone =
-    status === "paid"
+    stage === "paid"
       ? "bg-emerald-100 text-emerald-700"
-      : status === "requested"
+      : stage === "requested" || stage === "partially_paid"
         ? "bg-amber-100 text-amber-700"
-        : status === "cancelled"
+        : stage === "awaiting_amount"
           ? "bg-secondary text-ink-3"
           : "bg-blue-100 text-blue-700";
   return (
     <span
       className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${tone}`}
     >
-      {SETTLEMENT_STATUS_LABEL[status]}
+      {PAYOUT_STAGE_LABEL[stage]}
     </span>
   );
 }

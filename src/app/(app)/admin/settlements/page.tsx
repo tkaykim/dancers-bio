@@ -10,7 +10,13 @@ import {
   WithdrawalRequests,
   type WithdrawalRow,
 } from "@/components/admin/WithdrawalRequests";
-import type { SettlementStatus } from "@/lib/settlement";
+import { calcSettlement, type SettlementStatus } from "@/lib/settlement";
+import {
+  computeSettlementPayouts,
+  type LedgerEntryInput,
+  type SettlementPayoutStage,
+  resolvePayoutStage,
+} from "@/lib/payout-state";
 
 export default async function AdminSettlementsPage() {
   const profile = await requireProfile();
@@ -101,12 +107,87 @@ export default async function AdminSettlementsPage() {
     }
   }
 
+  // ⭐ 지급 여부는 settlements.status로 알 수 없다.
+  // 출금이 잔액 경로로 일원화된 뒤 status는 pending에 머물고, 실제 이체는
+  // 원장(withdraw)과 withdrawal_requests에 남는다. 그래서 이미 이체가 끝난 건도
+  // status만 보면 계속 '출금신청 전'으로 보였다(담당자 오독의 직접 원인).
+  // 원장을 정산 건별로 FIFO 배분해 실제 지급 상태를 계산한다.
+  const payoutBySettlement = new Map<
+    string,
+    ReturnType<typeof computeSettlementPayouts> extends Map<string, infer V>
+      ? V
+      : never
+  >();
+  if (dancerIds.length > 0) {
+    const [{ data: ledgerRows }, { data: wrAll }] = await Promise.all([
+      admin
+        .from("dancer_ledger_entries")
+        .select("dancer_id, entry_type, ref_type, ref_id, amount, created_at")
+        .in("dancer_id", dancerIds),
+      admin
+        .from("withdrawal_requests")
+        .select("dancer_id, amount, status")
+        .in("dancer_id", dancerIds)
+        .eq("status", "requested"),
+    ]);
+    const ledgerByDancer = new Map<string, LedgerEntryInput[]>();
+    for (const l of (ledgerRows ?? []) as Array<{
+      dancer_id: string;
+      entry_type: string;
+      ref_type: string | null;
+      ref_id: string | null;
+      amount: number;
+      created_at: string;
+    }>) {
+      const list = ledgerByDancer.get(l.dancer_id) ?? [];
+      list.push({
+        entryType: l.entry_type,
+        refType: l.ref_type,
+        refId: l.ref_id,
+        amount: Number(l.amount),
+        createdAt: l.created_at,
+      });
+      ledgerByDancer.set(l.dancer_id, list);
+    }
+    const requestedByDancer = new Map<string, number>();
+    for (const w of (wrAll ?? []) as Array<{ dancer_id: string; amount: number }>) {
+      requestedByDancer.set(
+        w.dancer_id,
+        (requestedByDancer.get(w.dancer_id) ?? 0) + Number(w.amount),
+      );
+    }
+    for (const dancerId of dancerIds) {
+      // 구 경로(settlements.status='requested')도 예약분으로 함께 넘긴다.
+      const legacyNet = rows
+        .filter((r) => r.dancer_id === dancerId && r.status === "requested")
+        .reduce(
+          (sum, r) => sum + calcSettlement(r.gross_amount, Number(r.withholding_rate)).net,
+          0,
+        );
+      const payouts = computeSettlementPayouts(
+        ledgerByDancer.get(dancerId) ?? [],
+        requestedByDancer.get(dancerId) ?? 0,
+        legacyNet,
+      );
+      for (const [settlementId, payout] of payouts) {
+        payoutBySettlement.set(settlementId, payout);
+      }
+    }
+  }
+
   const list: WithdrawalRow[] = rows.map((r) => {
     const proj = Array.isArray(r.project) ? r.project[0] ?? null : r.project;
     const acct = acctById.get(r.dancer_id) ?? null;
     const doc = docsById.get(r.dancer_id) ?? { idCard: false, bankbook: false };
     const dancer = dancerById.get(r.dancer_id);
+    const payout = payoutBySettlement.get(r.id);
     return {
+      payoutStage: resolvePayoutStage(
+        r.status,
+        r.gross_amount,
+        payout,
+      ) as SettlementPayoutStage,
+      payoutPaidAt: payout?.paidAt ?? r.paid_at,
       id: r.id,
       projectId: r.project_id,
       dancerId: r.dancer_id,

@@ -24,6 +24,12 @@ import {
   type SettlementStatus,
 } from "@/lib/settlement";
 import {
+  computeSettlementPayouts,
+  type LedgerEntryInput,
+  resolvePayoutStage,
+  type SettlementPayout,
+} from "@/lib/payout-state";
+import {
   expectedPayoutLabel,
   kstYear,
   nextPayoutLabel,
@@ -57,7 +63,7 @@ export default async function MySettlementsPage() {
   const dancerIds = dancers.map((d) => d.id);
   const nameById = new Map(dancers.map((d) => [d.id, d.stage_name ?? "내 프로필"]));
 
-  let settlements: MySettlementRow[] = [];
+  let settlements: Omit<MySettlementRow, "payoutStage" | "payoutPaidAt">[] = [];
   const accounts: Record<string, PayoutAccount | null> = {};
   const payoutReady: Record<string, boolean> = {};
   const residentNumberRegistered: Record<string, boolean> = {};
@@ -161,10 +167,14 @@ export default async function MySettlementsPage() {
   const receivedByYear: Record<number, number> = {};
   let processingTotal = 0;
   let processingCount = 0;
+  const payoutBySettlement = new Map<string, SettlementPayout>();
   if (dancerIds.length > 0) {
     const svc = createAdminClient();
     const [{ data: ledgerRows }, { data: wrRows }] = await Promise.all([
-      svc.from("dancer_ledger_entries").select("dancer_id, amount").in("dancer_id", dancerIds),
+      svc
+        .from("dancer_ledger_entries")
+        .select("dancer_id, entry_type, ref_type, ref_id, amount, created_at")
+        .in("dancer_id", dancerIds),
       svc
         .from("withdrawal_requests")
         .select(
@@ -225,8 +235,45 @@ export default async function MySettlementsPage() {
         };
       });
       processingCount += reqs.length;
+
+      // 정산 건별 실제 지급 여부(FIFO 배분) — status만으로는 알 수 없다.
+      const ledgerForDancer: LedgerEntryInput[] = (ledgerRows ?? [])
+        .filter((r) => (r as { dancer_id: string }).dancer_id === id)
+        .map((r) => {
+          const row = r as {
+            entry_type: string;
+            ref_type: string | null;
+            ref_id: string | null;
+            amount: number;
+            created_at: string;
+          };
+          return {
+            entryType: row.entry_type,
+            refType: row.ref_type,
+            refId: row.ref_id,
+            amount: Number(row.amount),
+            createdAt: row.created_at,
+          };
+        });
+      const payouts = computeSettlementPayouts(
+        ledgerForDancer,
+        held,
+        legacyHeld,
+      );
+      for (const [settlementId, payout] of payouts) {
+        payoutBySettlement.set(settlementId, payout);
+      }
     }
   }
+
+  const settlementsWithStage = settlements.map((s) => {
+    const payout = payoutBySettlement.get(s.id);
+    return {
+      ...s,
+      payoutStage: resolvePayoutStage(s.status, s.grossAmount, payout),
+      payoutPaidAt: payout?.paidAt ?? s.paidAt,
+    };
+  });
 
   // 요약 카드 데이터 (전 프로필 합산).
   for (const s of settlements) {
@@ -302,7 +349,7 @@ export default async function MySettlementsPage() {
         </div>
       ) : (
         <MySettlements
-          settlements={settlements}
+          settlements={settlementsWithStage}
           accounts={accounts}
           payoutReady={payoutReady}
           residentNumberRegistered={residentNumberRegistered}
