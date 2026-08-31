@@ -32,9 +32,12 @@ import {
   calcSettlement,
   formatWon,
   isAwaitingAmount,
-  settlementStageLabel,
   type SettlementStatus,
 } from "@/lib/settlement";
+import {
+  PAYOUT_STAGE_LABEL,
+  type SettlementPayoutStage,
+} from "@/lib/payout-state";
 
 export type WithdrawalRow = {
   id: string;
@@ -47,6 +50,10 @@ export type WithdrawalRow = {
   grossAmount: number;
   rate: number;
   status: SettlementStatus;
+  // 원장 기준 실제 지급 상태 — settlements.status는 잔액 출금 이후에도
+  // pending에 머물러서 status만으로는 지급 여부를 알 수 없다.
+  payoutStage: SettlementPayoutStage;
+  payoutPaidAt: string | null;
   requestedAt: string | null;
   paidAt: string | null;
   bankName: string | null;
@@ -76,11 +83,13 @@ function dancerDisplayName(row: WithdrawalRow): string {
   return nickname || realName || row.dancerName || "(이름 없음)";
 }
 
-const STATUS_TONE: Record<SettlementStatus, string> = {
-  pending: "bg-amber-100 text-amber-700",
-  requested: "bg-blue-100 text-blue-700",
+// 배지는 실제 지급 단계(원장 기준)로 칠한다.
+const STAGE_TONE: Record<SettlementPayoutStage, string> = {
+  awaiting_amount: "bg-secondary text-ink-3",
+  withdrawable: "bg-blue-100 text-blue-700",
+  requested: "bg-amber-100 text-amber-700",
+  partially_paid: "bg-amber-100 text-amber-700",
   paid: "bg-emerald-100 text-emerald-700",
-  cancelled: "bg-secondary text-ink-3",
 };
 
 export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
@@ -88,14 +97,16 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [searchInput, setSearchInput] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | SettlementStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | SettlementPayoutStage>(
+    "all",
+  );
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [bulkBusy, startBulk] = useTransition();
   const normalizedQuery = normalizeSearch(searchInput);
   const filteredRows = useMemo(() => {
     const filtered = rows.filter((row) => {
-      if (statusFilter !== "all" && row.status !== statusFilter) return false;
+      if (statusFilter !== "all" && row.payoutStage !== statusFilter) return false;
       if (!normalizedQuery) return true;
       return normalizeSearch(
         [
@@ -137,15 +148,16 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
     () => new Map(filteredRows.map((row, index) => [row.id, index + 1])),
     [filteredRows],
   );
-  const requested = filteredRows.filter((r) => r.status === "requested");
-  // 금액 미입력(셀프 계좌제출만 한) pending = '정산대기'. '정산완료'와 분리한다.
-  const awaitingAmount = filteredRows.filter((r) =>
-    isAwaitingAmount(r.status, r.grossAmount),
+  // 섹션은 원장 기준 실제 지급 단계로 나눈다.
+  // (settlements.status로 나누면 이미 이체가 끝난 건이 '출금신청 전'에 남는다.)
+  const requested = filteredRows.filter(
+    (r) => r.payoutStage === "requested" || r.payoutStage === "partially_paid",
   );
-  const awaiting = filteredRows.filter(
-    (r) => r.status === "pending" && !isAwaitingAmount(r.status, r.grossAmount),
+  const awaitingAmount = filteredRows.filter(
+    (r) => r.payoutStage === "awaiting_amount",
   );
-  const paid = filteredRows.filter((r) => r.status === "paid");
+  const awaiting = filteredRows.filter((r) => r.payoutStage === "withdrawable");
+  const paid = filteredRows.filter((r) => r.payoutStage === "paid");
   const selected = rows.find((r) => r.id === selectedId) ?? null;
 
   // 출금신청 완료 + 유효 계좌·주민번호 + 금액 입력 건만 실제 지급 대상으로 선택한다.
@@ -175,7 +187,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
     setSelectedId(null);
   }
 
-  function updateStatusFilter(value: "all" | SettlementStatus) {
+  function updateStatusFilter(value: "all" | SettlementPayoutStage) {
     setStatusFilter(value);
     setChecked(new Set());
     setSelectedId(null);
@@ -296,15 +308,17 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={statusFilter}
-            onChange={(event) => updateStatusFilter(event.target.value as "all" | SettlementStatus)}
-            aria-label="정산 상태 필터"
+            onChange={(event) =>
+              updateStatusFilter(event.target.value as "all" | SettlementPayoutStage)
+            }
+            aria-label="지급 상태 필터"
             className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-ink-2"
           >
             <option value="all">상태 전체</option>
-            <option value="requested">출금신청(이체 대기)</option>
-            <option value="pending">정산 확정·대기</option>
-            <option value="paid">입금완료</option>
-            <option value="cancelled">취소</option>
+            <option value="requested">출금 신청됨 (이체 대기)</option>
+            <option value="withdrawable">출금 가능 (미신청)</option>
+            <option value="awaiting_amount">정산 확정 대기</option>
+            <option value="paid">지급 완료</option>
           </select>
           <select
             value={sortKey}
@@ -398,7 +412,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
       ) : null}
 
       {!normalizedQuery || requested.length > 0 ? (
-        <Section title="출금신청 · 이체 대기" count={requested.length} empty="처리할 출금 신청이 없어요.">
+        <Section title="출금 신청됨 · 이체 대기" count={requested.length} empty="처리할 출금 신청이 없어요.">
           {requested.map((r) => (
             <Row
               key={r.id}
@@ -416,7 +430,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
       ) : null}
 
       {awaiting.length > 0 ? (
-        <Section title="정산 확정 · 출금신청 전" count={awaiting.length}>
+        <Section title="출금 가능 · 본인 신청 대기" count={awaiting.length}>
           {awaiting.map((r) => (
             <Row
               key={r.id}
@@ -442,7 +456,7 @@ export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {
       ) : null}
 
       {paid.length > 0 ? (
-        <Section title="입금완료" count={paid.length}>
+        <Section title="지급 완료" count={paid.length}>
           {paid.map((r) => (
             <Row key={r.id} row={r} number={displayNumberById.get(r.id)} onOpen={() => setSelectedId(r.id)} />
           ))}
@@ -548,9 +562,9 @@ function Row({
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-semibold">{dancerDisplayName(row)}</span>
             <span
-              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_TONE[row.status]}`}
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STAGE_TONE[row.payoutStage]}`}
             >
-              {settlementStageLabel(row.status, row.grossAmount)}
+              {PAYOUT_STAGE_LABEL[row.payoutStage]}
             </span>
           </div>
           <span className="truncate text-xs text-ink-3">{row.projectTitle}</span>
@@ -682,9 +696,9 @@ function SettlementDetail({
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-ink-3">{row.projectTitle}</span>
         <span
-          className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_TONE[row.status]}`}
+          className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STAGE_TONE[row.payoutStage]}`}
         >
-          {settlementStageLabel(row.status, row.grossAmount)}
+          {PAYOUT_STAGE_LABEL[row.payoutStage]}
         </span>
       </div>
 
@@ -745,9 +759,11 @@ function SettlementDetail({
         </button>
       ) : null}
 
-      {row.status === "paid" ? (
+      {/* 지급 완료 판정은 원장 기준 — 잔액 출금으로 나간 건은 status가 pending이다. */}
+      {row.payoutStage === "paid" ? (
         <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-          {fmtDate(row.paidAt)} 입금완료 — {formatWon(calc.net)}
+          {fmtDate(row.payoutPaidAt)} 지급 완료 — {formatWon(calc.net)}
+          {row.status !== "paid" ? " (잔액 출금으로 이체)" : ""}
         </p>
       ) : null}
 

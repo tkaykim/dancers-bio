@@ -11,6 +11,7 @@
     "test:phone": "node --test src/lib/phone.test.ts",
     "test:payout-validation": "node --test src/lib/payout-validation.test.mjs",
     "test:payout-schedule": "node --test src/lib/payout-schedule.test.ts",
+    "test:payout-state": "node --test src/lib/payout-state.test.ts",
     "test:receivables": "node --test src/lib/receivables.test.ts",
     "test:payment-refunds": "node --test src/lib/payments/refund-calculation.test.ts src/lib/payments/payment-operation-flow.test.ts",
     "test:recruitment-attribution": "node --test src/lib/recruitment-attribution.test.ts",
