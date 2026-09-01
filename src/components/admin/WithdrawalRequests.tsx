@@ -90,6 +90,7 @@ const STAGE_TONE: Record<SettlementPayoutStage, string> = {
   requested: "bg-amber-100 text-amber-700",
   partially_paid: "bg-amber-100 text-amber-700",
   paid: "bg-emerald-100 text-emerald-700",
+  cancelled: "bg-secondary text-ink-3",
 };
 
 export function WithdrawalRequests({ rows }: { rows: WithdrawalRow[] }) {

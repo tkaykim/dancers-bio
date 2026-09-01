@@ -16,9 +16,13 @@ import {
   formatWon,
   formatWonInput,
   settlementRoleLabel,
-  settlementStageLabel,
+
   type SettlementStatus,
 } from "@/lib/settlement";
+import {
+  PAYOUT_STAGE_LABEL,
+  type SettlementPayoutStage,
+} from "@/lib/payout-state";
 
 export type OwnerSettlementRow = {
   id: string;
@@ -31,6 +35,8 @@ export type OwnerSettlementRow = {
   origin: string;
   hasBank: boolean;
   hasRrn: boolean;
+  // 실제 지급 단계(원장 기준) — status는 잔액 출금 후에도 pending이다.
+  payoutStage: SettlementPayoutStage;
 };
 
 export function OwnerSettlementConsole({
@@ -617,8 +623,19 @@ function DancerRow({
           </div>
         </div>
         </div>
-        <span className="shrink-0 rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold text-ink-2">
-          {settlementStageLabel(row.status, row.grossAmount)}
+        <span
+          className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+            row.payoutStage === "paid"
+              ? "bg-emerald-100 text-emerald-700"
+              : row.payoutStage === "requested" ||
+                  row.payoutStage === "partially_paid"
+                ? "bg-amber-100 text-amber-700"
+                : row.payoutStage === "withdrawable"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-secondary text-ink-2"
+          }`}
+        >
+          {PAYOUT_STAGE_LABEL[row.payoutStage]}
         </span>
       </div>
 

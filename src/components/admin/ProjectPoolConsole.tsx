@@ -21,9 +21,12 @@ import {
   formatWon,
   formatWonInput,
   settlementRoleLabel,
-  settlementStageLabel,
   type SettlementStatus,
 } from "@/lib/settlement";
+import {
+  PAYOUT_STAGE_LABEL,
+  type SettlementPayoutStage,
+} from "@/lib/payout-state";
 
 export type PoolRow = {
   id: string;
@@ -36,6 +39,8 @@ export type PoolRow = {
   vatAmount: number;
   taxInvoiceReceived: boolean;
   status: SettlementStatus;
+  // 실제 지급 단계(원장 기준) — status는 잔액 출금 후에도 pending이다.
+  payoutStage: SettlementPayoutStage;
   memo: string | null;
   payoutReady: boolean;
   payeeTaxMode: string;
@@ -477,7 +482,7 @@ function PoolRowCard({
           </div>
         </div>
         <span className="shrink-0 rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold text-ink-2">
-          {settlementStageLabel(row.status, row.grossAmount)}
+          {PAYOUT_STAGE_LABEL[row.payoutStage]}
         </span>
       </div>
 
