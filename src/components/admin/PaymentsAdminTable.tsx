@@ -34,6 +34,7 @@ const STATUS_LABEL: Record<string, string> = {
   partially_refunded: "부분환불",
   cancelled: "취소",
   failed: "결제 실패",
+  abandoned: "결제창 이탈",
   confirmed: "참가 확정",
   transferred: "양도 처리",
   recovery_required: "확인 필요",
@@ -66,6 +67,7 @@ const STATUS_OPTIONS = [
   ["pending", "결제 대기"],
   ["active", "분할 결제 중"],
   ["failed", "결제 실패"],
+  ["abandoned", "결제창 이탈"],
   ["cancelled", "취소"],
   ["recovery_required", "확인 필요"],
 ] as const;
@@ -176,6 +178,9 @@ export function PaymentsAdminTable({
         item.productLabel,
         item.planLabel,
         item.attentionReason,
+        item.auditFingerprint,
+        item.auditUserAgent,
+        item.auditReferrer,
         ...item.paymentLines.map((line) => line.id),
       ]
         .filter(Boolean)
@@ -451,6 +456,9 @@ function PaymentDetailDrawer({ item, currentUserId, canExecuteDirectly, generate
             <DetailRow label="전화" value={item.customerPhone ?? "-"} />
             <DetailRow label="주문일" value={formatDate(item.createdAt)} />
             <DetailRow label="결제일" value={formatDate(item.paidAt)} />
+            {item.auditFingerprint ? <DetailRow label="익명 접속 식별자" value={item.auditFingerprint} /> : null}
+            {item.auditReferrer ? <DetailRow label="유입 경로" value={item.auditReferrer} /> : null}
+            {item.auditUserAgent ? <DetailRow label="브라우저" value={item.auditUserAgent} /> : null}
             {item.planLabel ? <DetailRow label="플랜·세션" value={item.planLabel} /> : null}
             {item.memo ? <DetailRow label="메모" value={item.memo} /> : null}
           </DetailSection>

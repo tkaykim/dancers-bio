@@ -96,6 +96,9 @@ export type AdminPaymentRow = {
   memo: string | null;
   paymentCount: number;
   failedPaymentCount: number;
+  auditFingerprint: string | null;
+  auditUserAgent: string | null;
+  auditReferrer: string | null;
   isTest: boolean;
   needsAttention: boolean;
   attentionReason: string | null;
@@ -264,6 +267,7 @@ function attentionFor(input: {
 }): string | null {
   if (input.operations.some((operation) => operation.status === "reconciliation_required")) return "PG 결과 대사가 필요한 환불·취소 작업이 있습니다";
   if (input.operations.some((operation) => operation.status === "provider_pending")) return "PG 처리 완료 확인을 기다리는 작업이 있습니다";
+  if (input.status === "abandoned") return null;
   if (input.isTest) return "내부 결제 테스트 상품";
   if (input.status === "recovery_required") return "결제는 되었지만 수동 복구가 필요합니다";
   if (input.failedPaymentCount > 0 && input.paidAmount === 0) return "결제 실패 이력이 있습니다";
@@ -393,10 +397,17 @@ async function loadGrigoent(operationRows: UnknownRow[]): Promise<GrigoentLoad> 
     const refundedAmount = lines.reduce((sum, line) => sum + line.refundedAmount, 0);
     const gross = captured.reduce((sum, line) => sum + line.amount, 0);
     const paidAmount = Math.max(0, gross - refundedAmount);
-    const status = refundedAmount > 0 && paidAmount <= 0 ? "refunded" : stringValue(order, "status") ?? "unknown";
     const failedPaymentCount = lines.filter((line) => line.status === "failed").length;
+    const abandonedPaymentCount = lines.filter((line) => line.status === "abandoned").length;
+    const orderStatus = stringValue(order, "status") ?? "unknown";
+    const status = refundedAmount > 0 && paidAmount <= 0
+      ? "refunded"
+      : paidAmount === 0 && failedPaymentCount === 0 && abandonedPaymentCount > 0
+        ? "abandoned"
+        : orderStatus;
     const applicationId = stringValue(order, "visa_application_id");
     const orderNo = stringValue(order, "order_no");
+    const requestAudit = jsonObject(jsonObject(order.metadata).request_audit);
 
     items.push(finishRow({
       id: `grigoent:${orderId}`,
@@ -424,6 +435,9 @@ async function loadGrigoent(operationRows: UnknownRow[]): Promise<GrigoentLoad> 
       memo: stringValue(order, "memo"),
       paymentCount: lines.length,
       failedPaymentCount,
+      auditFingerprint: stringValue(requestAudit, "request_fingerprint"),
+      auditUserAgent: stringValue(requestAudit, "user_agent"),
+      auditReferrer: stringValue(requestAudit, "referrer_path"),
       isTest: slug === "payment-test",
       paymentLines: lines,
       operations,
@@ -522,6 +536,9 @@ async function loadDeetzRows(grigoent: GrigoentLoad, operationRows: UnknownRow[]
       memo: stringValue(app, "memo"),
       paymentCount: orderNo ? 1 : 0,
       failedPaymentCount: 0,
+      auditFingerprint: null,
+      auditUserAgent: null,
+      auditReferrer: null,
       isTest: slug === "payment-test",
       paymentLines: [],
       operations: [],
@@ -570,6 +587,9 @@ async function loadDeetzRows(grigoent: GrigoentLoad, operationRows: UnknownRow[]
       memo: stringValue(reservation, "memo"),
       paymentCount: 1,
       failedPaymentCount: line.status === "failed" ? 1 : 0,
+      auditFingerprint: null,
+      auditUserAgent: null,
+      auditReferrer: null,
       isTest: false,
       paymentLines: [line],
       operations,
@@ -619,6 +639,9 @@ async function loadDeetzRows(grigoent: GrigoentLoad, operationRows: UnknownRow[]
       memo: stringValue(order, "memo"),
       paymentCount: 1,
       failedPaymentCount: line.status === "failed" ? 1 : 0,
+      auditFingerprint: null,
+      auditUserAgent: null,
+      auditReferrer: null,
       isTest: false,
       paymentLines: [line],
       operations,
