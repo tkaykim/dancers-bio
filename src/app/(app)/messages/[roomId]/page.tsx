@@ -102,7 +102,9 @@ export default async function MessageRoomPage({
 
   let staffDancerName = "지원자";
   if (role === "staff" && room.direct_dancer_id) {
-    const { data: dancer } = await supabase
+    // 승인 전 댄서는 세션(RLS)에서 안 보인다 — 방 접근은 이미 판정됐으니 admin 으로 이름만 읽는다.
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const { data: dancer } = await createAdminClient()
       .from("dancers")
       .select("stage_name")
       .eq("id", room.direct_dancer_id)

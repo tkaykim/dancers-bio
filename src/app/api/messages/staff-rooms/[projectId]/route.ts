@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { messagingEnabled } from "@/lib/messaging/flags";
 import { previewText } from "@/lib/messaging/types";
@@ -39,7 +40,7 @@ export async function GET(
   const { data: rows } = await supabase
     .from("chat_rooms")
     .select(
-      "id, direct_dancer_id, last_seq, staff_last_read_seq, awaiting_staff_since, resolved_at, closed_at, last_message_at, dancer:dancers!chat_rooms_direct_dancer_id_fkey ( stage_name )",
+      "id, direct_dancer_id, last_seq, staff_last_read_seq, awaiting_staff_since, resolved_at, closed_at, last_message_at",
     )
     .eq("project_id", projectId)
     .is("archived_at", null)
@@ -55,10 +56,25 @@ export async function GET(
     resolved_at: string | null;
     closed_at: string | null;
     last_message_at: string | null;
-    dancer: { stage_name: string | null } | Array<{ stage_name: string | null }> | null;
   };
 
   const list = ((rows ?? []) as unknown as Row[]).filter((r) => Number(r.last_seq) > 0);
+
+  // 댄서 이름은 admin client 로 붙인다 — dancers 테이블 RLS 가 승인 전(pending) 댄서를
+  // 비admin 매니저 세션에 숨겨 세션 조인이 "(이름 없음)"으로 비던 결함의 수정.
+  // 방 접근 자체는 위 세션 조회(RLS)가 이미 판정했으므로 이름 노출은 안전하다.
+  const nameByDancer = new Map<string, string>();
+  const dancerIds = [...new Set(list.map((r) => r.direct_dancer_id).filter(Boolean))] as string[];
+  if (dancerIds.length > 0) {
+    const admin = createAdminClient();
+    const { data: dancers } = await admin
+      .from("dancers")
+      .select("id, stage_name")
+      .in("id", dancerIds);
+    for (const d of dancers ?? []) {
+      if (d.stage_name) nameByDancer.set(d.id as string, d.stage_name as string);
+    }
+  }
 
   // 미리보기는 최근 30개 방만(폴링 비용 절제).
   const previews = new Map<string, string>();
@@ -80,11 +96,10 @@ export async function GET(
   );
 
   const result: StaffRoom[] = list.map((r) => {
-    const dancer = Array.isArray(r.dancer) ? r.dancer[0] ?? null : r.dancer;
     return {
       roomId: r.id,
       dancerId: r.direct_dancer_id,
-      dancerName: dancer?.stage_name ?? "(이름 없음)",
+      dancerName: (r.direct_dancer_id && nameByDancer.get(r.direct_dancer_id)) || "(이름 없음)",
       lastSeq: Number(r.last_seq),
       staffUnread: Math.max(0, Number(r.last_seq) - Number(r.staff_last_read_seq)),
       awaitingSince: r.awaiting_staff_since,
