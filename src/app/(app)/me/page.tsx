@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ProfileCard } from "@/components/profile/ProfileCard";
 import { ProfileShareCard } from "@/components/share/ProfileShareCard";
 import { PushPrompt } from "@/components/layout/PushPrompt";
+import { MessagesTextLink } from "@/components/messaging/MessagesBadge";
 import { BugReportRow } from "@/components/feedback/BugReport";
 import { listManagedProjects } from "@/lib/projects/managed";
 import { visaByCode } from "@/lib/data/korea-visas";
@@ -126,6 +127,7 @@ export default async function MePage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-bold text-ink-2">계정</h2>
         <p className="px-1 text-xs text-ink-3">{user.email}</p>
+        <MessagesTextLink className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-ink-2 hover:bg-secondary" />
         <Link
           href="/me/notifications"
           className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-ink-2 hover:bg-secondary"

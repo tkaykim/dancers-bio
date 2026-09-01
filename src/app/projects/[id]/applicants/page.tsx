@@ -789,9 +789,19 @@ export default async function ApplicantsPage({
         ← 프로젝트
       </Link>
 
-      <h1 className="text-xl font-bold leading-tight tracking-tight">
-        {p.title}
-      </h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold leading-tight tracking-tight">
+          {p.title}
+        </h1>
+        {process.env.NEXT_PUBLIC_MESSAGING_ENABLED === "true" ? (
+          <Link
+            href={`/projects/${p.id}/messages`}
+            className="shrink-0 rounded-md border border-border px-3 py-1.5 text-[12px] font-bold text-ink-2 hover:bg-secondary"
+          >
+            메시지 콘솔 →
+          </Link>
+        ) : null}
+      </div>
 
       {/*
         PC(lg+) = 2컬럼 운영 대시보드: 좌 = 지원자 심사(메인) / 우 = 운영 도구 사이드바.

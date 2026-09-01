@@ -23,7 +23,7 @@ const RESERVED_FIRST_SEGMENTS = new Set([
   "claim", "forgot-password", "login", "signup",
   "d", "dancers", "feed", "t", "u",
   "api", "h", "onboarding", "projects", "reset-password", "s", "sr", "fr", "fit", "sz", "welcome",
-  "workshops",
+  "workshops", "messages",
 ]);
 
 // 원클릭 수신거부(RFC 8058)는 List-Unsubscribe 헤더의 URL 로 **POST** 가 온다.

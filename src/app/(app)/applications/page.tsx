@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { DeclineOfferButton, WithdrawButton } from "@/components/project/ApplyForm";
+import { MessagesTextLink } from "@/components/messaging/MessagesBadge";
+import { OpenThreadButton } from "@/components/messaging/OpenThreadButton";
 import {
   getApplicationStage,
   needsNotFinalCaveat,
@@ -115,7 +117,10 @@ export default async function ApplicationsPage() {
         <h1 className="text-2xl font-bold tracking-tight leading-tight">
           내 지원
         </h1>
-        <p className="text-sm text-ink-2">총 {list.length}건</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-ink-2">총 {list.length}건</p>
+          <MessagesTextLink className="text-sm font-semibold text-ink-2" />
+        </div>
       </header>
 
       {list.length === 0 ? (
@@ -171,6 +176,9 @@ export default async function ApplicationsPage() {
                               </span>
                             </p>
                           </Link>
+                          {r.project ? (
+                            <OpenThreadButton projectId={r.project.id} label="메시지" />
+                          ) : null}
                           {stage === "pending" ? (
                             <WithdrawButton applicationId={r.id} />
                           ) : null}

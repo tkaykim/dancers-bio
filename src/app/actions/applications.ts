@@ -418,6 +418,23 @@ export async function setApplicationRoundAction(
     .eq("id", application_id);
   if (error) return { ok: false, error: humanizeDbError(error.message) };
 
+  // 메시지 스레드가 이미 있으면 운영 타임라인으로 남긴다(방 신규 생성은 안 함). 비치명적.
+  try {
+    const { appendStageSystemMessage } = await import("@/lib/messaging/send");
+    await appendStageSystemMessage({
+      projectId: app.project_id as string,
+      dancerId: (app.dancer_id as string | null) ?? null,
+      body:
+        roundRaw === 0
+          ? "선발 단계가 검토 중으로 변경되었습니다."
+          : isFinal
+            ? "최종 합격이 확정되었습니다."
+            : `${roundRaw}차 합격 처리되었습니다. (최종 확정 아님)`,
+    });
+  } catch (e) {
+    console.error("[messaging] stage log 실패:", e);
+  }
+
   if (roundRaw > 0 && app.applicant_id) {
     try {
       const { sendStageEmail } = await import("@/lib/notify/stage-mail");
@@ -635,6 +652,18 @@ export async function declineAcceptedApplicationAction(
     .is("confirmed_at", null);
   if (error) return { ok: false, error: humanizeDbError(error.message) };
 
+  // 메시지 스레드가 이미 있으면 운영 타임라인으로 남긴다. 비치명적.
+  try {
+    const { appendStageSystemMessage } = await import("@/lib/messaging/send");
+    await appendStageSystemMessage({
+      projectId: (app.project_id as string | null) ?? "",
+      dancerId: (app.dancer_id as string | null) ?? null,
+      body: "지원자가 참여를 포기했습니다.",
+    });
+  } catch (e) {
+    console.error("[messaging] decline log 실패:", e);
+  }
+
   // 대체 인원을 바로 검토할 수 있도록 운영자에게 알린다. 비치명적.
   try {
     const { sendSelfDeclineNotice } = await import("@/lib/notify/stage-mail");
@@ -787,6 +816,25 @@ export async function decideApplicationAction(
     .update(update)
     .eq("id", application_id);
   if (error) return { ok: false, error: humanizeDbError(error.message) };
+
+  // 메시지 스레드가 이미 있으면 운영 타임라인으로 남긴다(방 신규 생성은 안 함). 비치명적.
+  if (decision !== "pending") {
+    try {
+      const { appendStageSystemMessage } = await import("@/lib/messaging/send");
+      await appendStageSystemMessage({
+        projectId: app.project_id as string,
+        dancerId: (app.dancer_id as string | null) ?? null,
+        body:
+          decision === "accepted"
+            ? acceptIsFinal
+              ? "최종 합격이 확정되었습니다."
+              : "1차 합격 처리되었습니다. (최종 확정 아님)"
+            : "선발 결과가 메일로 안내되었습니다.",
+      });
+    } catch (e) {
+      console.error("[messaging] stage log 실패:", e);
+    }
+  }
 
   // 거절 시 댄서에게 거절 안내 메일 발송(사유 있으면 포함). 비치명적 — 실패해도 거절은 유효.
   if (decision === "rejected") {
