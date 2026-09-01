@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Button } from "@/components/ui/button";
 import { ApplyForm } from "@/components/project/ApplyForm";
+import { OpenThreadButton } from "@/components/messaging/OpenThreadButton";
 import { DeleteProjectButton } from "@/components/project/DeleteProjectButton";
 import { ShareButton } from "@/components/project/ShareButton";
 import { ProjectMediaGallery } from "@/components/project/ProjectMediaGallery";
@@ -728,9 +729,12 @@ export default async function ProjectDetailPage({
             <section className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 내 지원 상태</p>
               <p className="font-mono text-sm">{labelStatus(mineMostRecent.status)}</p>
-              <Link href="/applications" className="text-xs text-ink-3 underline-offset-4 hover:underline">
-                지원 목록에서 보기 →
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link href="/applications" className="text-xs text-ink-3 underline-offset-4 hover:underline">
+                  지원 목록에서 보기 →
+                </Link>
+                <OpenThreadButton projectId={p.id} />
+              </div>
             </section>
           ) : null}
           {applyOpen && !mineActive ? (

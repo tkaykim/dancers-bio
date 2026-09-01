@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { DeclineOfferButton, WithdrawButton } from "@/components/project/ApplyForm";
 import { MessagesTextLink } from "@/components/messaging/MessagesBadge";
+import { OpenThreadButton } from "@/components/messaging/OpenThreadButton";
 import {
   getApplicationStage,
   needsNotFinalCaveat,
@@ -175,6 +176,9 @@ export default async function ApplicationsPage() {
                               </span>
                             </p>
                           </Link>
+                          {r.project ? (
+                            <OpenThreadButton projectId={r.project.id} label="메시지" />
+                          ) : null}
                           {stage === "pending" ? (
                             <WithdrawButton applicationId={r.id} />
                           ) : null}
