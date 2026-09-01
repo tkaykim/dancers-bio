@@ -7,6 +7,12 @@ import {
   type OwnerSettlementRow,
 } from "@/components/settlement/OwnerSettlementConsole";
 import type { SettlementStatus } from "@/lib/settlement";
+import {
+  computeSettlementPayouts,
+  type LedgerEntryInput,
+  resolvePayoutStage,
+  type SettlementPayout,
+} from "@/lib/payout-state";
 import { GRIGO_SETTLE_ORIGIN } from "@/lib/brand";
 import { canManagePool, isAdminUser } from "@/lib/settlement-pool";
 
@@ -106,6 +112,58 @@ export default async function ProjectSettlementsPage({
     }
   }
 
+  // 지급 여부는 status로 알 수 없다(잔액 출금 이후에도 pending에 머문다).
+  // 원장을 정산 건별로 배분해 실제 지급 단계를 계산한다.
+  const payoutBySettlement = new Map<string, SettlementPayout>();
+  if (dancerIds.length > 0) {
+    const [{ data: ledgerRows }, { data: wrRows }] = await Promise.all([
+      admin
+        .from("dancer_ledger_entries")
+        .select("dancer_id, entry_type, ref_type, ref_id, amount, created_at")
+        .in("dancer_id", dancerIds),
+      admin
+        .from("withdrawal_requests")
+        .select("dancer_id, amount")
+        .in("dancer_id", dancerIds)
+        .eq("status", "requested"),
+    ]);
+    const ledgerByDancer = new Map<string, LedgerEntryInput[]>();
+    for (const l of (ledgerRows ?? []) as Array<{
+      dancer_id: string;
+      entry_type: string;
+      ref_type: string | null;
+      ref_id: string | null;
+      amount: number;
+      created_at: string;
+    }>) {
+      const list = ledgerByDancer.get(l.dancer_id) ?? [];
+      list.push({
+        entryType: l.entry_type,
+        refType: l.ref_type,
+        refId: l.ref_id,
+        amount: Number(l.amount),
+        createdAt: l.created_at,
+      });
+      ledgerByDancer.set(l.dancer_id, list);
+    }
+    const requestedByDancer = new Map<string, number>();
+    for (const w of (wrRows ?? []) as Array<{ dancer_id: string; amount: number }>) {
+      requestedByDancer.set(
+        w.dancer_id,
+        (requestedByDancer.get(w.dancer_id) ?? 0) + Number(w.amount),
+      );
+    }
+    for (const dancerId of dancerIds) {
+      const payouts = computeSettlementPayouts(
+        ledgerByDancer.get(dancerId) ?? [],
+        requestedByDancer.get(dancerId) ?? 0,
+      );
+      for (const [settlementId, payout] of payouts) {
+        payoutBySettlement.set(settlementId, payout);
+      }
+    }
+  }
+
   const rows: OwnerSettlementRow[] = settlements.map((s) => ({
     id: s.id,
     dancerId: s.dancer_id,
@@ -117,6 +175,11 @@ export default async function ProjectSettlementsPage({
     origin: s.origin,
     hasBank: payoutById.get(s.dancer_id)?.hasBank ?? false,
     hasRrn: payoutById.get(s.dancer_id)?.hasRrn ?? false,
+    payoutStage: resolvePayoutStage(
+      s.status,
+      s.gross_amount,
+      payoutBySettlement.get(s.id),
+    ),
   }));
 
   return (

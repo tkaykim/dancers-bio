@@ -21,7 +21,8 @@ export default async function AdminHomePage() {
     { count: pendingTeams },
     { count: discoveredCount },
     { count: draftIngestions },
-    { count: pendingWithdrawals },
+    { count: legacyPendingWithdrawals },
+    { count: balancePendingWithdrawals },
   ] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase
@@ -53,7 +54,15 @@ export default async function AdminHomePage() {
       .from("settlements")
       .select("id", { count: "exact", head: true })
       .eq("status", "requested"),
+    supabase
+      .from("withdrawal_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "requested"),
   ]);
+
+  // 출금 대기 = 구 경로(settlements.requested) + 잔액 출금 신청(withdrawal_requests.requested).
+  const pendingWithdrawals =
+    (legacyPendingWithdrawals ?? 0) + (balancePendingWithdrawals ?? 0);
 
   // 비자 신청은 RLS default deny → service-role로만 카운트. 키 미설정 시 0.
   let newVisaApps = 0;

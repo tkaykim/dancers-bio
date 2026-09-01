@@ -15,7 +15,8 @@ export type SettlementPayoutStage =
   | "withdrawable" // 잔액에 남아 있음 (본인 출금 신청 전)
   | "requested" // 출금 신청됨, 이체 대기
   | "partially_paid" // 일부만 지급됨
-  | "paid"; // 전액 지급 완료
+  | "paid" // 전액 지급 완료
+  | "cancelled"; // 취소됨 (관리 콘솔에서만 보임)
 
 export const PAYOUT_STAGE_LABEL: Record<SettlementPayoutStage, string> = {
   awaiting_amount: "정산 확정 대기",
@@ -23,6 +24,7 @@ export const PAYOUT_STAGE_LABEL: Record<SettlementPayoutStage, string> = {
   requested: "출금 신청됨",
   partially_paid: "일부 지급",
   paid: "지급 완료",
+  cancelled: "취소됨",
 };
 
 export type LedgerEntryInput = {
@@ -120,6 +122,7 @@ export function resolvePayoutStage(
   gross: number | null | undefined,
   payout: SettlementPayout | undefined,
 ): SettlementPayoutStage {
+  if (status === "cancelled") return "cancelled";
   if (status === "pending" && (gross == null || gross <= 0))
     return "awaiting_amount";
   if (status === "paid") return "paid";

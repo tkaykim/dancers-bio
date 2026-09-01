@@ -95,3 +95,8 @@ test("구 경로 paid 정산은 그대로 지급 완료", () => {
 test("원장 정보가 없으면 출금 가능으로 폴백", () => {
   assert.equal(resolvePayoutStage("pending", 100000, undefined), "withdrawable");
 });
+
+test("취소된 정산은 원장과 무관하게 취소됨", () => {
+  assert.equal(resolvePayoutStage("cancelled", null, undefined), "cancelled");
+  assert.equal(resolvePayoutStage("cancelled", 100000, undefined), "cancelled");
+});
