@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyVisaPaymentRef } from "@/lib/visa/payment-link";
@@ -15,13 +16,47 @@ function noStoreJson(body: Record<string, unknown>, status = 200) {
   });
 }
 
-// 개인 결제 링크의 ref를 검증한 뒤 결제 화면에 필요한 최소 정보만 돌려준다.
-// 이메일을 ref payload나 URL query에 넣지 않아 브라우저 주소와 메일 링크에 PII가 노출되지 않는다.
+// 링크로 결제하는 사람 확인용 정보를 돌려준다.
+//
+// 링크(ref)에는 유효기간이 없다. 대신 **링크만 가진 요청에게는 가려진 값만** 준다 —
+// 링크가 메일 전달·화면 공유로 새더라도 그것만으로 지원자의 실제 연락처를 알 수 없다.
+// 실제 이름·이메일·전화·국적은 공유 시크릿(VISA_PAYMENT_LINK_SECRET)으로 ref 를 서명한
+// 서버 대 서버 요청(grigoent 결제 서버)에만 준다.
+function isSignedRequest(request: NextRequest, ref: string): boolean {
+  const signature = request.headers.get("x-visa-signature");
+  const key = process.env.VISA_PAYMENT_LINK_SECRET;
+  if (!signature || !key) return false;
+  try {
+    const expected = createHmac("sha256", key).update(ref).digest("base64url");
+    const a = Buffer.from(signature);
+    const b = Buffer.from(expected);
+    return a.length === b.length && timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+/** 이름: 첫 글자만 남긴다. "김주성" → "김••" / "Alicia" → "A•••••" */
+function maskName(value: string): string {
+  const name = value.trim();
+  if (!name) return "";
+  return `${name.slice(0, 1)}${"•".repeat(Math.max(name.length - 1, 2))}`;
+}
+
+/** 이메일: 로컬파트 앞 2자 + 도메인. "hwanheeyang404@gmail.com" → "hw•••@gmail.com" */
+function maskEmail(value: string): string {
+  const [local = "", domain = ""] = value.split("@");
+  if (!local || !domain) return "";
+  return `${local.slice(0, 2)}•••@${domain}`;
+}
+
 export async function GET(request: NextRequest) {
-  const paymentRef = verifyVisaPaymentRef(request.nextUrl.searchParams.get("ref"));
-  if (!paymentRef) {
+  const rawRef = request.nextUrl.searchParams.get("ref");
+  const paymentRef = verifyVisaPaymentRef(rawRef);
+  if (!paymentRef || !rawRef) {
     return noStoreJson({ success: false, reason: "invalid_or_expired" }, 401);
   }
+  const full = isSignedRequest(request, rawRef);
 
   const admin = createAdminClient();
   const { data: application, error: applicationError } = await admin
@@ -70,14 +105,24 @@ export async function GET(request: NextRequest) {
 
   return noStoreJson({
     success: true,
+    masked: !full,
     applicationId: paymentRef.applicationId,
     productSlug: paymentRef.productSlug,
-    customer: {
-      name,
-      email,
-      phone,
-      nationality,
-      preferredLang: preferredLang(application.preferred_lang),
-    },
+    customer: full
+      ? {
+          name,
+          email,
+          phone,
+          nationality,
+          preferredLang: preferredLang(application.preferred_lang),
+        }
+      : {
+          // 링크만 가진 요청 — 본인 확인에 필요한 만큼만 가려서 준다.
+          name: maskName(name),
+          email: maskEmail(email),
+          phone: "",
+          nationality: "",
+          preferredLang: preferredLang(application.preferred_lang),
+        },
   });
 }

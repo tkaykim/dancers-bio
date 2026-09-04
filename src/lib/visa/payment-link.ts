@@ -11,10 +11,17 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 // 두 앱은 Supabase 프로젝트가 서로 다르므로 각자의 service role key 를 쓸 수 없다.
 // 전용 공유 비밀 VISA_PAYMENT_LINK_SECRET 을 양쪽 Vercel 에 동일하게 넣는다.
 //
-// 토큰은 URL 에 노출되므로 만료를 둔다. 만료돼도 결제 자체는 막지 않고
-// "케이스 연결"만 끊기게 설계했다 — 돈은 받았는데 결제가 실패하는 상황을 만들지 않기 위함.
-
-export const VISA_PAYMENT_REF_TTL_DAYS = 30;
+// **링크에 유효기간을 두지 않는다** (대표 결정 2026-09-04).
+// 결제하려는 사람이 링크 만료로 막히는 상황을 만들지 않는 것이 우선이다.
+//
+// 대신 "링크로 결제할 수 있다"와 "링크로 개인정보를 볼 수 있다"를 분리했다 —
+// /api/visa/payment-context 는 링크만 가진 요청에게 가려진 이름·이메일만 주고,
+// 실제 이름·이메일·전화·국적은 공유 시크릿으로 서명한 서버 요청에만 준다.
+// 결제가 끝난 링크는 payment_status='paid' 로 자동 무력화된다(already_paid).
+//
+// payload 네 번째 칸은 과거 만료 시각 자리다. 하위호환을 위해 형식만 유지하고
+// 0(=무기한)을 넣는다. 옛 토큰의 만료 시각도 검증에 쓰지 않는다.
+const NO_EXPIRY = 0;
 
 // 상품 slug ↔ grigoent 결제 페이지 경로. grigoent 쪽 라우트와 1:1로 맞춰야 한다.
 // 어드민 발급(visa-payment.ts)과 케이스 포털 노출(case page)이 같은 정의를 쓴다.
@@ -30,7 +37,7 @@ export type VisaPaymentProductSlug = keyof typeof VISA_PAYMENT_PAGES;
 const PAY_SITE_URL = (process.env.NEXT_PUBLIC_GRIGOENT_URL || "https://grigoent.co.kr").replace(/\/$/, "");
 
 /**
- * 결제 페이지 전체 URL. 토큰은 호출 시점에 새로 서명한다(만료 걱정 없음).
+ * 결제 페이지 전체 URL. 토큰은 호출 시점에 새로 서명한다.
  * subjectId 는 상품에 따라 대상이 다르다 — village-deposit 은 village_waitlist 행 id,
  * 나머지는 dancer_visa_applications 행 id 다. 콜백이 이 id 로 대상 테이블을 찾는다.
  */
@@ -45,7 +52,6 @@ export type VisaPaymentRef = {
   applicationId: string;
   /** 결제 대상 상품 slug (grigoent training_products.slug) */
   productSlug: string;
-  expiresAt: number;
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -69,13 +75,8 @@ function safeEqual(a: string, b: string): boolean {
   return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
 }
 
-export function makeVisaPaymentRef(
-  applicationId: string,
-  productSlug: string,
-  ttlDays = VISA_PAYMENT_REF_TTL_DAYS,
-): string {
-  const expiresAt = Math.floor(Date.now() / 1000) + ttlDays * 24 * 60 * 60;
-  const payload = `vp:${applicationId}:${productSlug}:${expiresAt}`;
+export function makeVisaPaymentRef(applicationId: string, productSlug: string): string {
+  const payload = `vp:${applicationId}:${productSlug}:${NO_EXPIRY}`;
   return `${Buffer.from(payload, "utf8").toString("base64url")}.${sign(payload, paymentLinkSecret())}`;
 }
 
@@ -89,15 +90,13 @@ export function verifyVisaPaymentRef(token: string | null | undefined): VisaPaym
     const payload = Buffer.from(token.slice(0, dot), "base64url").toString("utf8");
     if (!safeEqual(token.slice(dot + 1), sign(payload, key))) return null;
 
-    const [prefix, applicationId, productSlug, expiresRaw] = payload.split(":");
+    const [prefix, applicationId, productSlug] = payload.split(":");
     if (prefix !== "vp") return null;
     if (!UUID_RE.test(applicationId ?? "")) return null;
     if (!SLUG_RE.test(productSlug ?? "")) return null;
 
-    const expiresAt = Number(expiresRaw);
-    if (!Number.isFinite(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000)) return null;
-
-    return { applicationId, productSlug, expiresAt };
+    // 만료 판정 없음 — 옛 토큰(만료 시각 포함)도 그대로 통과시킨다.
+    return { applicationId, productSlug };
   } catch {
     return null;
   }
