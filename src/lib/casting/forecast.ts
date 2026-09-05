@@ -286,12 +286,16 @@ export function buildForecastSummary(
   };
 }
 
-// 147만 / 7.3만 / 8,358 형태의 한국어 축약 표기.
+// 147만 / 4.7만 / 8천 / 600 형태의 한국어 축약 표기.
+// 1만 미만은 천 단위로 반올림하고 9천 이상은 1만으로 올린다(대표 지시: 9,306→1만, 7,979→8천, 7,192→7천).
 export function formatKoCount(value: number): string {
   if (!Number.isFinite(value)) return "-";
   const v = Math.round(value);
   if (v >= 100_000) return `${Math.round(v / 10_000).toLocaleString("ko-KR")}만`;
   if (v >= 10_000) return `${(v / 10_000).toFixed(1).replace(/\.0$/, "")}만`;
+  if (v >= 9_000) return "1만";
+  if (v >= 1_000) return `${Math.round(v / 1_000)}천`;
+  if (v >= 100) return `${Math.round(v / 100) * 100}`;
   return v.toLocaleString("ko-KR");
 }
 
