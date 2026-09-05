@@ -121,6 +121,8 @@ test("후보 라벨·안내문·조회 예측 표시 설정", () => {
   assert.equal(defaults.candidateNotice, null);
   assert.equal(defaults.showViewsForecast, true);
   assert.equal(defaults.showFollowersTotal, true);
+  assert.equal(defaults.showSummary, true);
+  assert.equal(normalizeForecastSettings({ enabled: true, showSummary: false }).showSummary, false);
   assert.equal(normalizeForecastSettings({ enabled: true, showFollowersTotal: false }).showFollowersTotal, false);
   const custom = normalizeForecastSettings({
     enabled: true,

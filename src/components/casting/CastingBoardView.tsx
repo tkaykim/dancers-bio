@@ -218,7 +218,9 @@ export function CastingBoardView({
         </div>
       </header>
 
-      {forecast ? <ForecastSummary forecast={forecast} /> : null}
+      {forecast && forecast.settings.showSummary ? (
+        <ForecastSummary forecast={forecast} />
+      ) : null}
 
       <ProposalRateTable table={settings.rateTable} cards={cards} />
 

@@ -55,6 +55,8 @@ export type ForecastSettings = {
   showViewsForecast?: boolean;
   // 팔로워 합계 카드·섹션 설명 표시 여부.
   showFollowersTotal?: boolean;
+  // 상단 요약 블록(카드·안내문) 전체 표시 여부. 끄면 헤더 칩과 섹션만 남는다.
+  showSummary?: boolean;
 };
 
 export type ResolvedForecastSettings = {
@@ -73,6 +75,7 @@ export type ResolvedForecastSettings = {
   candidateNotice: string | null;
   showViewsForecast: boolean;
   showFollowersTotal: boolean;
+  showSummary: boolean;
 };
 
 // 실현율 기본값: 직전 브랜드 음원 챌린지(LG) 실측 재생 ÷ 계정 평상시 기대조회 중앙값 0.52를 보수값으로 둔다.
@@ -118,6 +121,7 @@ export function normalizeForecastSettings(
     candidateNotice: text(raw?.candidateNotice),
     showViewsForecast: raw?.showViewsForecast !== false,
     showFollowersTotal: raw?.showFollowersTotal !== false,
+    showSummary: raw?.showSummary !== false,
   };
 }
 
