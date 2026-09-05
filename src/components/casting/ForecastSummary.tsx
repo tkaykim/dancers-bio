@@ -52,41 +52,64 @@ function Stat({
 export function ForecastSummary({ forecast }: { forecast: ForecastSummaryData }) {
   const { counts, all, confirmed, tiers, settings, byStatus } = forecast;
   const visibleTiers = tiers.filter((tier) => tier.share > 0);
+  const statusMode = settings.groupBy === "status";
+  const candidateCount = byStatus
+    .filter((entry) => entry.status !== "confirmed")
+    .reduce((sum, entry) => sum + entry.group.count, 0);
   const statusLine = byStatus
     .filter((entry) => entry.group.count > 0)
     .map((entry) => `${entry.label} ${entry.group.count}`)
     .join(" · ");
+  const showViews = settings.showViewsForecast;
+  const gridClass = showViews
+    ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+    : "grid gap-3 sm:grid-cols-2";
 
   return (
     <section className="mt-5">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={gridClass}>
+        {statusMode ? (
+          <Stat
+            label="크리에이터"
+            value={`확정 진행 ${counts.confirmed}명`}
+            sub={candidateCount > 0 ? `${settings.candidateLabel} ${candidateCount}명` : undefined}
+          />
+        ) : (
+          <Stat
+            label="진행 크리에이터"
+            value={`${counts.total}명`}
+            sub={statusLine || undefined}
+          />
+        )}
         <Stat
-          label="진행 크리에이터"
-          value={`${counts.total}명`}
-          sub={statusLine || undefined}
-        />
-        <Stat
-          label="팔로워 합계"
+          label={statusMode && candidateCount > 0 ? "팔로워 합계 · 후보 포함" : "팔로워 합계"}
           value={formatKoCount(all.followers)}
           sub={confirmed.count > 0 ? `확정 진행 ${formatKoCount(confirmed.followers)}` : undefined}
         />
-        <Stat
-          label={`예상 조회수 · ${settings.horizonLabel}`}
-          value={`${formatKoRange(all.views.low, all.views.high)} 회`}
-          sub={
-            confirmed.count > 0
-              ? `확정 진행 ${formatKoRange(confirmed.views.low, confirmed.views.high)} 회`
-              : undefined
-          }
-          accent
-        />
-        <Stat
-          label="예상 상호작용"
-          value={`좋아요 ${formatKoRange(all.engagement.like.low, all.engagement.like.high)}`}
-          sub={`댓글 ${formatKoRange(all.engagement.comment.low, all.engagement.comment.high)} · 공유 ${formatKoRange(all.engagement.share.low, all.engagement.share.high)}`}
-        />
+        {showViews ? (
+          <>
+            <Stat
+              label={`예상 조회수 · ${settings.horizonLabel}`}
+              value={`${formatKoRange(all.views.low, all.views.high)} 회`}
+              sub={
+                confirmed.count > 0
+                  ? `확정 진행 ${formatKoRange(confirmed.views.low, confirmed.views.high)} 회`
+                  : undefined
+              }
+              accent
+            />
+            <Stat
+              label="예상 상호작용"
+              value={`좋아요 ${formatKoRange(all.engagement.like.low, all.engagement.like.high)}`}
+              sub={`댓글 ${formatKoRange(all.engagement.comment.low, all.engagement.comment.high)} · 공유 ${formatKoRange(all.engagement.share.low, all.engagement.share.high)}`}
+            />
+          </>
+        ) : null}
       </div>
-      {counts.unmeasured > 0 ? (
+      {settings.candidateNotice ? (
+        <p className="mt-2 text-[12px] leading-relaxed text-ink-2">{settings.candidateNotice}</p>
+      ) : null}
+      {showViews && counts.unmeasured > 0 ? (
         <p className="mt-2 text-[11px] text-ink-3">
           지표 확인 중인 {counts.unmeasured}명은 인원과 팔로워 합계에만 포함하고 예상 조회수와 상호작용에서는 제외했습니다.
         </p>

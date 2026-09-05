@@ -106,7 +106,9 @@ export function CastingBoardView({
           label: entry.label,
           description:
             entry.group.count > 0
-              ? `팔로워 합계 ${formatKoCount(entry.group.followers)} · 예상 조회수 ${formatKoRange(entry.group.views.low, entry.group.views.high)} 회`
+              ? forecast.settings.showViewsForecast
+                ? `팔로워 합계 ${formatKoCount(entry.group.followers)} · 예상 조회수 ${formatKoRange(entry.group.views.low, entry.group.views.high)} 회`
+                : `팔로워 합계 ${formatKoCount(entry.group.followers)}`
               : undefined,
           cards: cards.filter((card) => card.lineupStatus === entry.status),
         }))
@@ -185,7 +187,7 @@ export function CastingBoardView({
                 확정 진행 <b>{forecast.counts.confirmed}</b>
               </span>
               <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
-                협의 중 <b>{forecast.counts.negotiating}</b>
+                {forecast.settings.candidateLabel} <b>{forecast.counts.negotiating}</b>
               </span>
               {includeProposed ? (
                 <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">

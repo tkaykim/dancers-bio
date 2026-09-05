@@ -114,3 +114,29 @@ test("상태별 그룹은 제안 예정 포함 여부를 따르고 표시 설정
   assert.equal(summary.byStatus[1].group.followers, 2000);
   assert.deepEqual(summary.byStatus[1].group.views, { low: 10000, base: 15000, high: 20000 });
 });
+
+test("후보 라벨·안내문·조회 예측 표시 설정", () => {
+  const defaults = normalizeForecastSettings({ enabled: true });
+  assert.equal(defaults.candidateLabel, "협의 중");
+  assert.equal(defaults.candidateNotice, null);
+  assert.equal(defaults.showViewsForecast, true);
+  const custom = normalizeForecastSettings({
+    enabled: true,
+    groupBy: "status",
+    candidateLabel: " 협의 중 후보 ",
+    candidateNotice: "후보는 일부만 진행됩니다.",
+    showViewsForecast: false,
+  });
+  assert.equal(custom.candidateLabel, "협의 중 후보");
+  assert.equal(custom.candidateNotice, "후보는 일부만 진행됩니다.");
+  assert.equal(custom.showViewsForecast, false);
+  const summary = buildForecastSummary(
+    [
+      { lineupStatus: "confirmed", followers: 1000, expectedViews: 1000, tier: null },
+      { lineupStatus: "negotiating", followers: 2000, expectedViews: 2000, tier: null },
+    ],
+    custom,
+  );
+  assert.equal(summary.byStatus.find((entry) => entry.status === "negotiating")?.label, "협의 중 후보");
+  assert.equal(summary.byStatus.find((entry) => entry.status === "confirmed")?.label, "확정 진행");
+});
