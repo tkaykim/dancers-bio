@@ -106,9 +106,16 @@ export function CastingBoardView({
           label: entry.label,
           description:
             entry.group.count > 0
-              ? forecast.settings.showViewsForecast
-                ? `팔로워 합계 ${formatKoCount(entry.group.followers)} · 예상 조회수 ${formatKoRange(entry.group.views.low, entry.group.views.high)} 회`
-                : `팔로워 합계 ${formatKoCount(entry.group.followers)}`
+              ? [
+                  forecast.settings.showFollowersTotal
+                    ? `팔로워 합계 ${formatKoCount(entry.group.followers)}`
+                    : null,
+                  forecast.settings.showViewsForecast
+                    ? `예상 조회수 ${formatKoRange(entry.group.views.low, entry.group.views.high)} 회`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || undefined
               : undefined,
           cards: cards.filter((card) => card.lineupStatus === entry.status),
         }))
