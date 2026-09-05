@@ -49,6 +49,10 @@ export type ForecastSettings = {
   showComposition?: boolean;
   showMethodology?: boolean;
   showBadges?: boolean;
+  // 협의 중 그룹의 표시 라벨(예: "협의 중 후보")과 한 줄 안내문. 예상 조회·상호작용 카드 표시 여부.
+  candidateLabel?: string | null;
+  candidateNotice?: string | null;
+  showViewsForecast?: boolean;
 };
 
 export type ResolvedForecastSettings = {
@@ -63,6 +67,9 @@ export type ResolvedForecastSettings = {
   showComposition: boolean;
   showMethodology: boolean;
   showBadges: boolean;
+  candidateLabel: string;
+  candidateNotice: string | null;
+  showViewsForecast: boolean;
 };
 
 // 실현율 기본값: 직전 브랜드 음원 챌린지(LG) 실측 재생 ÷ 계정 평상시 기대조회 중앙값 0.52를 보수값으로 둔다.
@@ -104,6 +111,9 @@ export function normalizeForecastSettings(
     showComposition: raw?.showComposition !== false,
     showMethodology: raw?.showMethodology !== false,
     showBadges: raw?.showBadges !== false,
+    candidateLabel: text(raw?.candidateLabel) ?? LINEUP_STATUS_LABEL.negotiating,
+    candidateNotice: text(raw?.candidateNotice),
+    showViewsForecast: raw?.showViewsForecast !== false,
   };
 }
 
@@ -263,7 +273,8 @@ export function buildForecastSummary(
     (status) => settings.includeProposed || status !== "proposed",
   ).map((status) => ({
     status,
-    label: LINEUP_STATUS_LABEL[status],
+    label:
+      status === "negotiating" ? settings.candidateLabel : LINEUP_STATUS_LABEL[status],
     group: buildGroup(
       curated.filter((member) => member.lineupStatus === status),
       settings,
