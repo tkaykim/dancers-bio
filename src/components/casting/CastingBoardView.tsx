@@ -10,6 +10,8 @@ import { CommentDock } from "@/components/casting/CommentDock";
 import { BoardNotesEditor } from "@/components/casting/BoardNotesEditor";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { ProposalRateTable } from "@/components/casting/ProposalRateTable";
+import { ForecastSummary } from "@/components/casting/ForecastSummary";
+import { TIER_DESCRIPTION, TIER_LABEL, TIER_ORDER } from "@/lib/casting/forecast";
 import { submitCastingBoardReviewAction } from "@/app/actions/casting-review";
 
 export function CastingBoardView({
@@ -24,6 +26,9 @@ export function CastingBoardView({
   const router = useRouter();
   const [submitting, startSubmit] = useTransition();
   const { settings, cards, counts } = board;
+  const forecast = board.forecast;
+  const forecastMode = Boolean(forecast);
+  const showAccountMetrics = forecast?.settings.showAccountMetrics !== false;
   const isReview = Boolean(reviewToken && board.review.authorized);
   const initialChoices = useMemo(
     () =>
@@ -85,6 +90,23 @@ export function CastingBoardView({
     />
   );
   const ordered = gp === "female" ? [femaleSec, maleSec] : [maleSec, femaleSec];
+  // 예측 보드는 성별 대신 티어별 섹션으로 배열한다. 미측정 인원은 마지막 섹션.
+  const tierSections = forecastMode
+    ? [
+        ...TIER_ORDER.map((tier) => ({
+          key: tier as string,
+          label: TIER_LABEL[tier],
+          description: TIER_DESCRIPTION[tier],
+          cards: cards.filter((card) => card.tier === tier),
+        })),
+        {
+          key: "unmeasured",
+          label: "지표 확인 중",
+          description: "팔로워·조회수 측정 전 인원",
+          cards: cards.filter((card) => !card.tier),
+        },
+      ]
+    : [];
 
   function submitReview() {
     if (!reviewToken) return;
@@ -135,17 +157,38 @@ export function CastingBoardView({
           </h1>
         ) : null}
         <div className="mt-3 flex flex-wrap gap-2 text-sm">
-          <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
-            총 <b>{counts.total}</b>명
-          </span>
-          <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
-            남 <b>{counts.male}</b>
-          </span>
-          <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
-            여 <b>{counts.female}</b>
-          </span>
+          {forecast ? (
+            <>
+              <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
+                총 <b>{forecast.counts.total}</b>명
+              </span>
+              <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
+                확정 <b>{forecast.counts.confirmed}</b>
+              </span>
+              <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
+                협의 중 <b>{forecast.counts.negotiating}</b>
+              </span>
+              <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
+                제안 예정 <b>{forecast.counts.proposed}</b>
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
+                총 <b>{counts.total}</b>명
+              </span>
+              <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
+                남 <b>{counts.male}</b>
+              </span>
+              <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
+                여 <b>{counts.female}</b>
+              </span>
+            </>
+          )}
         </div>
       </header>
+
+      {forecast ? <ForecastSummary forecast={forecast} /> : null}
 
       <ProposalRateTable table={settings.rateTable} cards={cards} />
 
@@ -202,6 +245,21 @@ export function CastingBoardView({
 
       {counts.total === 0 ? (
         <p className="mt-10 text-center text-sm text-ink-3">표시할 인원이 없습니다.</p>
+      ) : forecastMode ? (
+        <>
+          {tierSections.map((section) => (
+            <CardSection
+              key={section.key}
+              label={section.label}
+              description={section.description}
+              cards={section.cards}
+              fields={settings.fields}
+              review={reviewControls}
+              forecastMode
+              showAccountMetrics={showAccountMetrics}
+            />
+          ))}
+        </>
       ) : (
         <>
           {ordered}

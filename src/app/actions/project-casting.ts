@@ -201,7 +201,13 @@ export async function syncCastingBoardMembersAction(
   const candidates = await candidateApplications(admin, projectId, settings);
 
   if (!settings.clientReview?.enabled) {
-    await admin.from("casting_board_members").delete().eq("board_id", boardId);
+    // 라인업 상태나 지표가 입력된 큐레이션 멤버(예측 보드)는 동기화로 지우지 않는다.
+    await admin
+      .from("casting_board_members")
+      .delete()
+      .eq("board_id", boardId)
+      .is("lineup_status", null)
+      .is("expected_views", null);
   }
   if (candidates.length) {
     await admin

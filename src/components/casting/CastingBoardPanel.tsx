@@ -36,6 +36,8 @@ type Settings = {
     applicationDetails?: boolean;
   };
   clientReview?: ClientReviewSettings;
+  sortBy?: "height" | "manual" | "expectedViews";
+  forecast?: { enabled?: boolean } | null;
 };
 
 export type CastingBoardSend = {
@@ -158,7 +160,9 @@ export function CastingBoardPanel({
         minHeight: minHeight.trim() ? Number(minHeight) : null,
         notes: notes.map((n) => n.trim()).filter(Boolean),
         note: null,
-        sortBy: "height",
+        sortBy: board.settings.forecast?.enabled
+          ? (board.settings.sortBy ?? "expectedViews")
+          : "height",
         fields: {
           ...(board.settings.fields ?? {}),
           instagram: !hideContact,
