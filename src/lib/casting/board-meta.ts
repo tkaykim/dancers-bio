@@ -1,5 +1,4 @@
 import type { BoardView } from "@/lib/casting/board-data";
-import { LINEUP_STATUS_LABEL } from "@/lib/casting/forecast";
 
 // 공유 링크 미리보기(OG)용 제목·설명. 금액·아티스트명·연락처는 절대 넣지 않는다.
 export function shareTitleOf(board: BoardView | null, fallback = "캐스팅 보드"): string {
@@ -17,15 +16,7 @@ export const CASTING_BOARD_OG_IMAGE = {
   alt: "deetz casting board",
 } as const;
 
-export function shareDescriptionOf(board: BoardView | null): string {
-  const base = "deetz 캐스팅 보드";
-  if (!board) return base;
-  if (board.forecast) {
-    const { counts, settings } = board.forecast;
-    const parts = [`${LINEUP_STATUS_LABEL.confirmed} ${counts.confirmed}명`];
-    const candidates = counts.negotiating + counts.proposed;
-    if (candidates > 0) parts.push(`${settings.candidateLabel} ${candidates}명`);
-    return `${base} · ${parts.join(" · ")}`;
-  }
-  return `${base} · 총 ${board.counts.total}명`;
+export function shareDescriptionOf(): string {
+  // 인원 수는 계속 바뀌므로 미리보기 설명에는 넣지 않는다(대표 지시).
+  return "deetz 캐스팅보드";
 }
