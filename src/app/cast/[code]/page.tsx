@@ -26,7 +26,7 @@ export async function generateMetadata({
   const { code } = await params;
   const board = code ? await loadBoard(code) : null;
   const title = shareTitleOf(board);
-  const description = shareDescriptionOf(board);
+  const description = shareDescriptionOf();
   const fullTitle = `${title} · deetz`;
   return {
     title,
