@@ -79,7 +79,14 @@ test("한국어 축약 표기", () => {
   assert.equal(formatKoCount(736224), "74만");
   assert.equal(formatKoCount(72940), "7.3만");
   assert.equal(formatKoCount(10000), "1만");
-  assert.equal(formatKoCount(8358), "8,358");
+  assert.equal(formatKoCount(9306), "1만");
+  assert.equal(formatKoCount(8358), "8천");
+  assert.equal(formatKoCount(7979), "8천");
+  assert.equal(formatKoCount(7192), "7천");
+  assert.equal(formatKoCount(12731), "1.3만");
+  assert.equal(formatKoCount(1099), "1천");
+  assert.equal(formatKoCount(634), "600");
+  assert.equal(formatKoCount(42), "42");
   assert.equal(formatKoRange(736224, 1472448), "74만~147만");
   assert.equal(formatKoRange(5, 5), "5");
 });

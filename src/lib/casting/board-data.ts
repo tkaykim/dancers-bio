@@ -403,10 +403,10 @@ async function buildBoardView(
           heightOf.get(member.dancer_id as string) ??
           member.height_cm ??
           null,
+        // 보드 전용 사진(photo_url)이 있으면 댄서 프로필 사진보다 우선한다(운영자 교체용).
         photo:
-          live.profile_img && live.profile_img.trim()
-            ? live.profile_img
-            : member.photo_url?.trim() || null,
+          member.photo_url?.trim() ||
+          (live.profile_img && live.profile_img.trim() ? live.profile_img : null),
         instagram: instaUrl(
           live.social_links?.instagram ?? member.ig_handle ?? null,
         ),

@@ -158,13 +158,13 @@ function Card({
                 <div>
                   <p className="text-[9px] font-semibold text-ink-3">팔로워</p>
                   <p className="text-[12px] font-extrabold tabular-nums text-ink-1">
-                    {c.followers != null ? formatKoCount(c.followers) : "-"}
+                    {c.followers != null ? `약 ${formatKoCount(c.followers)}` : "-"}
                   </p>
                 </div>
                 <div>
                   <p className="text-[9px] font-semibold text-ink-3">최근 릴스 평균 조회</p>
                   <p className="text-[12px] font-extrabold tabular-nums text-ink-1">
-                    {c.expectedViews != null ? `${formatKoCount(c.expectedViews)} 회` : "확인 중"}
+                    {c.expectedViews != null ? `약 ${formatKoCount(c.expectedViews)} 회` : "확인 중"}
                   </p>
                 </div>
               </div>
