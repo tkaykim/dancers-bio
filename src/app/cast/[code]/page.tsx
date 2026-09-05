@@ -2,7 +2,11 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getCastingBoardByCode } from "@/lib/casting/board-data";
-import { shareDescriptionOf, shareTitleOf } from "@/lib/casting/board-meta";
+import {
+  CASTING_BOARD_OG_IMAGE,
+  shareDescriptionOf,
+  shareTitleOf,
+} from "@/lib/casting/board-meta";
 import { CastingBoardView } from "@/components/casting/CastingBoardView";
 import { canManageProject } from "@/lib/auth/guard";
 
@@ -34,8 +38,14 @@ export async function generateMetadata({
       siteName: "deetz",
       type: "website",
       url: `https://deetz.kr/cast/${code}`,
+      images: [CASTING_BOARD_OG_IMAGE],
     },
-    twitter: { card: "summary", title: fullTitle, description },
+    twitter: {
+      card: "summary_large_image",
+      title: fullTitle,
+      description,
+      images: [CASTING_BOARD_OG_IMAGE.url],
+    },
   };
 }
 
