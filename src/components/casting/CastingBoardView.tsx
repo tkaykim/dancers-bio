@@ -11,7 +11,13 @@ import { BoardNotesEditor } from "@/components/casting/BoardNotesEditor";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { ProposalRateTable } from "@/components/casting/ProposalRateTable";
 import { ForecastSummary } from "@/components/casting/ForecastSummary";
-import { TIER_DESCRIPTION, TIER_LABEL, TIER_ORDER } from "@/lib/casting/forecast";
+import {
+  TIER_DESCRIPTION,
+  TIER_LABEL,
+  TIER_ORDER,
+  formatKoCount,
+  formatKoRange,
+} from "@/lib/casting/forecast";
 import { submitCastingBoardReviewAction } from "@/app/actions/casting-review";
 
 export function CastingBoardView({
@@ -29,6 +35,8 @@ export function CastingBoardView({
   const forecast = board.forecast;
   const forecastMode = Boolean(forecast);
   const showAccountMetrics = forecast?.settings.showAccountMetrics !== false;
+  const showBadges = forecast?.settings.showBadges !== false;
+  const includeProposed = forecast?.settings.includeProposed !== false;
   const isReview = Boolean(reviewToken && board.review.authorized);
   const initialChoices = useMemo(
     () =>
@@ -90,23 +98,34 @@ export function CastingBoardView({
     />
   );
   const ordered = gp === "female" ? [femaleSec, maleSec] : [maleSec, femaleSec];
-  // 예측 보드는 성별 대신 티어별 섹션으로 배열한다. 미측정 인원은 마지막 섹션.
-  const tierSections = forecastMode
-    ? [
-        ...TIER_ORDER.map((tier) => ({
-          key: tier as string,
-          label: TIER_LABEL[tier],
-          description: TIER_DESCRIPTION[tier],
-          cards: cards.filter((card) => card.tier === tier),
-        })),
-        {
-          key: "unmeasured",
-          label: "지표 확인 중",
-          description: "팔로워·조회수 측정 전 인원",
-          cards: cards.filter((card) => !card.tier),
-        },
-      ]
-    : [];
+  // 예측 보드는 성별 대신 티어별 또는 진행 상태별 섹션으로 배열한다.
+  const tierSections =
+    forecast && forecast.settings.groupBy === "status"
+      ? forecast.byStatus.map((entry) => ({
+          key: entry.status as string,
+          label: entry.label,
+          description:
+            entry.group.count > 0
+              ? `팔로워 합계 ${formatKoCount(entry.group.followers)} · 예상 조회수 ${formatKoRange(entry.group.views.low, entry.group.views.high)} 회`
+              : undefined,
+          cards: cards.filter((card) => card.lineupStatus === entry.status),
+        }))
+      : forecastMode
+        ? [
+            ...TIER_ORDER.map((tier) => ({
+              key: tier as string,
+              label: TIER_LABEL[tier],
+              description: TIER_DESCRIPTION[tier] as string | undefined,
+              cards: cards.filter((card) => card.tier === tier),
+            })),
+            {
+              key: "unmeasured",
+              label: "지표 확인 중",
+              description: "팔로워·조회수 측정 전 인원" as string | undefined,
+              cards: cards.filter((card) => !card.tier),
+            },
+          ]
+        : [];
 
   function submitReview() {
     if (!reviewToken) return;
@@ -163,14 +182,16 @@ export function CastingBoardView({
                 총 <b>{forecast.counts.total}</b>명
               </span>
               <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
-                확정 <b>{forecast.counts.confirmed}</b>
+                확정 진행 <b>{forecast.counts.confirmed}</b>
               </span>
               <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
                 협의 중 <b>{forecast.counts.negotiating}</b>
               </span>
-              <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
-                제안 예정 <b>{forecast.counts.proposed}</b>
-              </span>
+              {includeProposed ? (
+                <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
+                  제안 예정 <b>{forecast.counts.proposed}</b>
+                </span>
+              ) : null}
             </>
           ) : (
             <>
@@ -257,6 +278,7 @@ export function CastingBoardView({
               review={reviewControls}
               forecastMode
               showAccountMetrics={showAccountMetrics}
+              showBadges={showBadges}
             />
           ))}
         </>

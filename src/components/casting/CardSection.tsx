@@ -80,6 +80,7 @@ function Card({
   onProfileOpen,
   forecastMode = false,
   showAccountMetrics = true,
+  showBadges = true,
 }: {
   c: BoardCard;
   fields: BoardView["settings"]["fields"];
@@ -87,6 +88,7 @@ function Card({
   onProfileOpen?: (card: BoardCard) => void;
   forecastMode?: boolean;
   showAccountMetrics?: boolean;
+  showBadges?: boolean;
 }) {
   const handle = instaHandle(c.instagram);
   const visibleFields = resolveCastingCardFields(fields);
@@ -133,7 +135,7 @@ function Card({
           <div className="min-w-0 flex-1 truncate text-[13px] font-bold leading-tight">
             {c.name}
           </div>
-          {forecastMode && c.lineupStatus ? (
+          {forecastMode && showBadges && c.lineupStatus ? (
             <span
               className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold ${LINEUP_BADGE_CLASS[c.lineupStatus]}`}
             >
@@ -167,11 +169,13 @@ function Card({
                 </div>
               </div>
             ) : null}
-            <div className={`${showAccountMetrics ? "mt-1.5 " : ""}flex flex-wrap gap-1`}>
-              <span className="rounded-full border border-border bg-card px-1.5 py-0.5 text-[9px] font-semibold text-ink-2">
-                {c.tier ? TIER_LABEL[c.tier] : "지표 확인 중"}
-              </span>
-            </div>
+            {showBadges ? (
+              <div className={`${showAccountMetrics ? "mt-1.5 " : ""}flex flex-wrap gap-1`}>
+                <span className="rounded-full border border-border bg-card px-1.5 py-0.5 text-[9px] font-semibold text-ink-2">
+                  {c.tier ? TIER_LABEL[c.tier] : "지표 확인 중"}
+                </span>
+              </div>
+            ) : null}
           </div>
         ) : null}
         {forecastMode && c.contentDirection ? (
@@ -286,6 +290,7 @@ export function CardSection({
   review,
   forecastMode = false,
   showAccountMetrics = true,
+  showBadges = true,
 }: {
   label: string;
   description?: string;
@@ -294,6 +299,7 @@ export function CardSection({
   review?: ReviewControls;
   forecastMode?: boolean;
   showAccountMetrics?: boolean;
+  showBadges?: boolean;
 }) {
   const [cols, setCols] = useState(5);
   const [rows, setRows] = useState(INITIAL_ROWS);
@@ -337,6 +343,7 @@ export function CardSection({
             onProfileOpen={setProfileCard}
             forecastMode={forecastMode}
             showAccountMetrics={showAccountMetrics}
+            showBadges={showBadges}
           />
         ))}
       </div>
