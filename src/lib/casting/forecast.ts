@@ -5,6 +5,7 @@
 export type LineupStatus = "confirmed" | "negotiating" | "proposed";
 export type AccountType = "individual" | "team" | "format";
 export type LineupTier = "anchor" | "mid" | "longtail";
+export type ForecastGroupBy = "tier" | "status";
 
 export const LINEUP_STATUSES: readonly LineupStatus[] = [
   "confirmed",
@@ -12,7 +13,7 @@ export const LINEUP_STATUSES: readonly LineupStatus[] = [
   "proposed",
 ];
 export const LINEUP_STATUS_LABEL: Record<LineupStatus, string> = {
-  confirmed: "확정",
+  confirmed: "확정 진행",
   negotiating: "협의 중",
   proposed: "제안 예정",
 };
@@ -42,6 +43,12 @@ export type ForecastSettings = {
   engagementRates?: { like?: number; comment?: number; share?: number } | null;
   showAccountMetrics?: boolean;
   includeProposed?: boolean;
+  // 섹션 기준: tier(앵커·미드·롱테일) 또는 status(확정 진행·협의 중·제안 예정).
+  groupBy?: ForecastGroupBy;
+  // 구성 막대(LINEUP MIX)·산출 근거 문구·카드 배지 표시 여부. 기본은 모두 표시.
+  showComposition?: boolean;
+  showMethodology?: boolean;
+  showBadges?: boolean;
 };
 
 export type ResolvedForecastSettings = {
@@ -52,6 +59,10 @@ export type ResolvedForecastSettings = {
   engagementRates: { like: number; comment: number; share: number };
   showAccountMetrics: boolean;
   includeProposed: boolean;
+  groupBy: ForecastGroupBy;
+  showComposition: boolean;
+  showMethodology: boolean;
+  showBadges: boolean;
 };
 
 // 실현율 기본값: 직전 브랜드 음원 챌린지(LG) 실측 재생 ÷ 계정 평상시 기대조회 중앙값 0.52를 보수값으로 둔다.
@@ -89,6 +100,10 @@ export function normalizeForecastSettings(
     },
     showAccountMetrics: raw?.showAccountMetrics !== false,
     includeProposed: raw?.includeProposed !== false,
+    groupBy: raw?.groupBy === "status" ? "status" : "tier",
+    showComposition: raw?.showComposition !== false,
+    showMethodology: raw?.showMethodology !== false,
+    showBadges: raw?.showBadges !== false,
   };
 }
 
@@ -152,6 +167,12 @@ export type ForecastTier = {
   share: number;
 };
 
+export type ForecastStatusGroup = {
+  status: LineupStatus;
+  label: string;
+  group: ForecastGroup;
+};
+
 export type ForecastSummary = {
   settings: ResolvedForecastSettings;
   counts: {
@@ -164,6 +185,7 @@ export type ForecastSummary = {
   confirmed: ForecastGroup;
   all: ForecastGroup;
   tiers: ForecastTier[];
+  byStatus: ForecastStatusGroup[];
 };
 
 function scaleTotal(
@@ -237,6 +259,16 @@ export function buildForecastSummary(
       share: all.expectedViews > 0 ? expectedViews / all.expectedViews : 0,
     };
   });
+  const byStatus = LINEUP_STATUSES.filter(
+    (status) => settings.includeProposed || status !== "proposed",
+  ).map((status) => ({
+    status,
+    label: LINEUP_STATUS_LABEL[status],
+    group: buildGroup(
+      curated.filter((member) => member.lineupStatus === status),
+      settings,
+    ),
+  }));
   return {
     settings,
     counts: {
@@ -250,6 +282,7 @@ export function buildForecastSummary(
     confirmed: buildGroup(confirmed, settings),
     all,
     tiers,
+    byStatus,
   };
 }
 

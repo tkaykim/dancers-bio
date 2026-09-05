@@ -83,3 +83,27 @@ test("한국어 축약 표기", () => {
   assert.equal(formatKoRange(736224, 1472448), "74만~147만");
   assert.equal(formatKoRange(5, 5), "5");
 });
+
+test("상태별 그룹은 제안 예정 포함 여부를 따르고 표시 설정 기본값은 전부 켜져 있다", () => {
+  const settings = normalizeForecastSettings({ enabled: true, includeProposed: false, groupBy: "status", showComposition: false, showMethodology: false, showBadges: false });
+  assert.equal(settings.groupBy, "status");
+  assert.equal(settings.showComposition, false);
+  assert.equal(settings.showMethodology, false);
+  assert.equal(settings.showBadges, false);
+  const defaults = normalizeForecastSettings({ enabled: true });
+  assert.equal(defaults.groupBy, "tier");
+  assert.equal(defaults.showComposition, true);
+  assert.equal(defaults.showBadges, true);
+  const summary = buildForecastSummary(
+    [
+      { lineupStatus: "confirmed", followers: 1000, expectedViews: 10000, tier: null },
+      { lineupStatus: "negotiating", followers: 2000, expectedViews: 20000, tier: null },
+      { lineupStatus: "proposed", followers: 3000, expectedViews: 30000, tier: null },
+    ],
+    settings,
+  );
+  assert.deepEqual(summary.byStatus.map((entry) => entry.status), ["confirmed", "negotiating"]);
+  assert.equal(summary.byStatus[0].label, "확정 진행");
+  assert.equal(summary.byStatus[1].group.followers, 2000);
+  assert.deepEqual(summary.byStatus[1].group.views, { low: 10000, base: 15000, high: 20000 });
+});
