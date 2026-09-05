@@ -92,6 +92,8 @@ export type BoardSettings = {
   rateTable?: BoardRateTable | null;
   clientReview?: ClientReviewSettings;
   forecast?: ForecastSettings | null;
+  // 공유 링크 미리보기 제목(짧게). 비우면 보드 제목을 쓴다.
+  shareTitle?: string | null;
 };
 
 export type BoardView = {

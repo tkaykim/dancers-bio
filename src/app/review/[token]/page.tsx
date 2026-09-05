@@ -2,7 +2,11 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getCastingBoardByReviewToken } from "@/lib/casting/board-data";
-import { shareDescriptionOf, shareTitleOf } from "@/lib/casting/board-meta";
+import {
+  CASTING_BOARD_OG_IMAGE,
+  shareDescriptionOf,
+  shareTitleOf,
+} from "@/lib/casting/board-meta";
 import { CastingBoardView } from "@/components/casting/CastingBoardView";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +27,19 @@ export async function generateMetadata({
     title,
     description,
     robots: { index: false, follow: false },
-    openGraph: { title: fullTitle, description, siteName: "deetz", type: "website" },
-    twitter: { card: "summary", title: fullTitle, description },
+    openGraph: {
+      title: fullTitle,
+      description,
+      siteName: "deetz",
+      type: "website",
+      images: [CASTING_BOARD_OG_IMAGE],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: fullTitle,
+      description,
+      images: [CASTING_BOARD_OG_IMAGE.url],
+    },
   };
 }
 
