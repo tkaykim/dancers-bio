@@ -9,6 +9,18 @@ import {
   type ClientDecision,
   type ClientReviewSettings,
 } from "@/lib/casting/review";
+import {
+  buildForecastSummary,
+  normalizeAccountType,
+  normalizeForecastSettings,
+  normalizeLineupStatus,
+  resolveTier,
+  type AccountType,
+  type ForecastSettings,
+  type ForecastSummary,
+  type LineupStatus,
+  type LineupTier,
+} from "@/lib/casting/forecast";
 
 // 클라이언트 공유 캐스팅 보드의 안전 데이터(전화 등 민감정보 제외).
 export type BoardCard = {
@@ -30,6 +42,17 @@ export type BoardCard = {
   danceVideoUrl: string | null;
   backupDancerHistory: string | null;
   personalProfileUrl: string | null;
+  // 라인업 예측 보드용 지표(금액 없음). 큐레이션되지 않은 멤버는 전부 null.
+  lineupStatus: LineupStatus | null;
+  accountType: AccountType | null;
+  igHandle: string | null;
+  followers: number | null;
+  expectedViews: number | null;
+  medianViews: number | null;
+  viewsLow: number | null;
+  viewsHigh: number | null;
+  tier: LineupTier | null;
+  contentDirection: string | null;
   clientDecision?: ClientDecision;
   clientDecidedAt?: string | null;
   clientDecidedBy?: string | null;
@@ -53,7 +76,7 @@ export type BoardRateTable = {
 
 export type BoardSettings = {
   genderPriority?: "male" | "female" | null;
-  sortBy?: "height" | "manual";
+  sortBy?: "height" | "manual" | "expectedViews";
   requirePhoto?: boolean;
   genders?: string[];
   minHeight?: number | null;
@@ -68,6 +91,7 @@ export type BoardSettings = {
   notes?: string[];
   rateTable?: BoardRateTable | null;
   clientReview?: ClientReviewSettings;
+  forecast?: ForecastSettings | null;
 };
 
 export type BoardView = {
@@ -79,6 +103,7 @@ export type BoardView = {
   notes: string[];
   cards: BoardCard[];
   counts: { total: number; male: number; female: number; withPhoto: number };
+  forecast: ForecastSummary | null;
   review: {
     authorized: boolean;
     enabled: boolean;
@@ -115,6 +140,17 @@ type MemberRow = {
   client_decision: ClientDecision;
   client_decided_at: string | null;
   client_decided_by: string | null;
+  lineup_status: string | null;
+  account_type: string | null;
+  ig_handle: string | null;
+  photo_url: string | null;
+  followers: number | null;
+  expected_views: number | null;
+  median_views: number | null;
+  views_low: number | null;
+  views_high: number | null;
+  tier: string | null;
+  content_direction: string | null;
 };
 
 type ApplicationRow = {
@@ -170,6 +206,22 @@ function instaUrl(value: string | null | undefined): string | null {
   return "https://www.instagram.com/" + value.replace(/^@/, "");
 }
 
+function lineupFieldsOf(member: MemberRow) {
+  const expectedViews = member.expected_views ?? null;
+  return {
+    lineupStatus: normalizeLineupStatus(member.lineup_status),
+    accountType: normalizeAccountType(member.account_type),
+    igHandle: member.ig_handle?.trim() || null,
+    followers: member.followers ?? null,
+    expectedViews,
+    medianViews: member.median_views ?? null,
+    viewsLow: member.views_low ?? null,
+    viewsHigh: member.views_high ?? null,
+    tier: resolveTier(expectedViews, member.tier),
+    contentDirection: member.content_direction?.trim() || null,
+  };
+}
+
 function isUsableBoard(board: BoardRow): boolean {
   if (board.is_active === false) return false;
   return !board.expires_at || new Date(board.expires_at).getTime() >= Date.now();
@@ -196,7 +248,7 @@ async function buildBoardView(
     admin
       .from("casting_board_members")
       .select(
-        "id, dancer_id, application_id, sort_order, display_name, korean_name, gender, height_cm, client_decision, client_decided_at, client_decided_by",
+        "id, dancer_id, application_id, sort_order, display_name, korean_name, gender, height_cm, client_decision, client_decided_at, client_decided_by, lineup_status, account_type, ig_handle, photo_url, followers, expected_views, median_views, views_low, views_high, tier, content_direction",
       )
       .eq("board_id", board.id)
       .order("sort_order", { ascending: true }),
@@ -226,7 +278,13 @@ async function buildBoardView(
 
   // 짧은 공개 /cast 링크에는 수락자와 레거시 멤버만 남긴다.
   // 대기자는 강한 서명 토큰을 검증한 /review 링크에서만 직렬화한다.
+  const forecastSettings = normalizeForecastSettings(settings.forecast);
   const visibleMembers = members.filter((member) => {
+    // 운영자가 라인업 상태를 지정한 큐레이션 멤버는 지원 상태와 무관하게 노출한다.
+    const lineupStatus = normalizeLineupStatus(member.lineup_status);
+    if (lineupStatus) {
+      return forecastSettings.includeProposed || lineupStatus !== "proposed";
+    }
     if (!member.application_id) return true;
     const application = applicationById.get(member.application_id);
     if (!application) return false;
@@ -346,8 +404,12 @@ async function buildBoardView(
           member.height_cm ??
           null,
         photo:
-          live.profile_img && live.profile_img.trim() ? live.profile_img : null,
-        instagram: instaUrl(live.social_links?.instagram ?? null),
+          live.profile_img && live.profile_img.trim()
+            ? live.profile_img
+            : member.photo_url?.trim() || null,
+        instagram: instaUrl(
+          live.social_links?.instagram ?? member.ig_handle ?? null,
+        ),
         career:
           application?.backup_dancer_history ??
           careerOf.get(member.dancer_id as string) ??
@@ -358,6 +420,7 @@ async function buildBoardView(
         danceVideoUrl: application?.dance_video_url ?? null,
         backupDancerHistory: application?.backup_dancer_history ?? null,
         personalProfileUrl: application?.personal_profile_url ?? null,
+        ...lineupFieldsOf(member),
         ...reviewFields,
       };
     }
@@ -371,8 +434,8 @@ async function buildBoardView(
       koreanName: member.korean_name,
       gender: member.gender,
       height: member.height_cm ?? null,
-      photo: null,
-      instagram: null,
+      photo: member.photo_url?.trim() || null,
+      instagram: instaUrl(member.ig_handle ?? null),
       career: null,
       slug: null,
       birthYear: application?.birth_year ?? null,
@@ -380,6 +443,7 @@ async function buildBoardView(
       danceVideoUrl: application?.dance_video_url ?? null,
       backupDancerHistory: application?.backup_dancer_history ?? null,
       personalProfileUrl: application?.personal_profile_url ?? null,
+      ...lineupFieldsOf(member),
       ...reviewFields,
     };
   });
@@ -398,6 +462,14 @@ async function buildBoardView(
   }
 
   const cards = filtered.slice().sort((a, b) => {
+    if (settings.sortBy === "expectedViews") {
+      // 기대조회 내림차순(미측정은 뒤로) → 팔로워 내림차순 → 이름.
+      const viewOrder = (b.expectedViews ?? -1) - (a.expectedViews ?? -1);
+      if (viewOrder !== 0) return viewOrder;
+      const followerOrder = (b.followers ?? -1) - (a.followers ?? -1);
+      if (followerOrder !== 0) return followerOrder;
+      return a.name.localeCompare(b.name, "ko");
+    }
     const photoOrder = Number(Boolean(b.photo)) - Number(Boolean(a.photo));
     if (photoOrder !== 0) return photoOrder;
     return (
@@ -425,6 +497,17 @@ async function buildBoardView(
     shareCode: board.share_code,
     settings,
     notes: resolveNotes(settings),
+    forecast: forecastSettings.enabled
+      ? buildForecastSummary(
+          cards.map((card) => ({
+            lineupStatus: card.lineupStatus,
+            followers: card.followers,
+            expectedViews: card.expectedViews,
+            tier: card.tier,
+          })),
+          forecastSettings,
+        )
+      : null,
     cards,
     counts: {
       total: cards.length,
