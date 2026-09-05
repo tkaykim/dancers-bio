@@ -61,9 +61,16 @@ export function ForecastSummary({ forecast }: { forecast: ForecastSummaryData })
     .map((entry) => `${entry.label} ${entry.group.count}`)
     .join(" · ");
   const showViews = settings.showViewsForecast;
-  const gridClass = showViews
-    ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-    : "grid gap-3 sm:grid-cols-2";
+  const showFollowers = settings.showFollowersTotal;
+  const cardCount = 1 + (showFollowers ? 1 : 0) + (showViews ? 2 : 0);
+  const gridClass =
+    cardCount >= 4
+      ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+      : cardCount === 3
+        ? "grid gap-3 sm:grid-cols-3"
+        : cardCount === 2
+          ? "grid gap-3 sm:grid-cols-2"
+          : "grid gap-3 sm:max-w-xs";
 
   return (
     <section className="mt-5">
@@ -81,11 +88,13 @@ export function ForecastSummary({ forecast }: { forecast: ForecastSummaryData })
             sub={statusLine || undefined}
           />
         )}
-        <Stat
-          label={statusMode && candidateCount > 0 ? "팔로워 합계 · 후보 포함" : "팔로워 합계"}
-          value={formatKoCount(all.followers)}
-          sub={confirmed.count > 0 ? `확정 진행 ${formatKoCount(confirmed.followers)}` : undefined}
-        />
+        {showFollowers ? (
+          <Stat
+            label={statusMode && candidateCount > 0 ? "팔로워 합계 · 후보 포함" : "팔로워 합계"}
+            value={formatKoCount(all.followers)}
+            sub={confirmed.count > 0 ? `확정 진행 ${formatKoCount(confirmed.followers)}` : undefined}
+          />
+        ) : null}
         {showViews ? (
           <>
             <Stat
