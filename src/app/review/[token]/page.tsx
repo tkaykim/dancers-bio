@@ -7,6 +7,10 @@ import { CastingBoardView } from "@/components/casting/CastingBoardView";
 
 export const dynamic = "force-dynamic";
 
+// 페이지가 openGraph 를 직접 내보내면 루트의 파일 기반 opengraph-image 가 합쳐지지 않는다(운영 실측).
+// 사이트 전역 썸네일(2단 로고 카드)을 명시적으로 지정한다.
+const SITE_OG_IMAGE = { url: "/opengraph-image", width: 1200, height: 630, alt: "deetz" };
+
 const loadBoard = cache(getCastingBoardByReviewToken);
 
 export async function generateMetadata({
@@ -28,8 +32,9 @@ export async function generateMetadata({
       description,
       siteName: "deetz",
       type: "website",
+      images: [SITE_OG_IMAGE],
     },
-    twitter: { card: "summary_large_image", title: fullTitle, description },
+    twitter: { card: "summary_large_image", title: fullTitle, description, images: [SITE_OG_IMAGE.url] },
   };
 }
 
