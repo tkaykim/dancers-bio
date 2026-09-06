@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/guard";
+import { requireProfile } from "@/lib/auth/guard";
 import { collectInstagramRate, RateCheckCollectionError } from "@/lib/rate-check/apify";
 import { calculateRate, normalizeInstagramHandle } from "@/lib/rate-check/pricing";
 import { kstDayStart, rateChecksTable, RATE_CHECK_COLUMNS, toRateCheckData, type RateCheckRow } from "@/lib/rate-check/repository";
@@ -15,8 +15,8 @@ const schema = z.object({
 
 export async function checkInstagramRateAction(fd: FormData): Promise<{ ok: true; data: RateCheckData } | { ok: false; error: string }> {
   let profile;
-  try { profile = await requireAdmin(); }
-  catch { return { ok: false, error: "권한이 없습니다." }; }
+  try { profile = await requireProfile(); }
+  catch { return { ok: false, error: "로그인이 필요합니다." }; }
 
   const parsed = schema.safeParse({ handle: fd.get("handle"), force: fd.get("force") });
   if (!parsed.success || !parsed.data.handle) return { ok: false, error: "올바른 인스타그램 핸들을 입력해 주세요(영문·숫자·점·밑줄, 1~30자)." };
@@ -35,7 +35,7 @@ export async function checkInstagramRateAction(fd: FormData): Promise<{ ok: true
     if (!enabled) return { ok: false, error: RATE_CHECK_DISABLED };
     const { count, error: countError } = await rateChecksTable().select("id", { count: "exact", head: true }).gte("created_at", kstDayStart());
     if (countError || count === null) return { ok: false, error: "오늘 측정 횟수를 확인할 수 없습니다." };
-    if (count >= 30) return { ok: false, error: "오늘 측정 한도(한국 시간 기준 30회)에 도달했습니다. 내일 다시 시도해 주세요." };
+    if (count >= 60) return { ok: false, error: "오늘 측정 한도(한국 시간 기준 60회)에 도달했습니다. 내일 다시 시도해 주세요." };
 
     let collected;
     try {
@@ -49,7 +49,7 @@ export async function checkInstagramRateAction(fd: FormData): Promise<{ ok: true
         profile_pic_url: failure?.profile?.profilePicUrl ?? null, is_private: failure?.profile?.isPrivate ?? false,
         raw: failure?.raw ?? null, error: message,
       });
-      revalidatePath("/admin/rate-check");
+      revalidatePath("/tools/rate-check");
       return { ok: false, error: saveError ? `${message} 오류 기록 저장에도 실패했습니다.` : message };
     }
 
@@ -61,10 +61,10 @@ export async function checkInstagramRateAction(fd: FormData): Promise<{ ok: true
       trimmed_mean: pricing.trimmedMean, median_views: pricing.median, views_low: pricing.viewsLow,
       views_high: pricing.viewsHigh, expected_views: pricing.expectedViews, tier: pricing.tier,
       f_base: pricing.fBase, v_base: pricing.vBase, formula_rate: pricing.formulaRate,
-      out_of_ladder: pricing.outOfLadder, raw: collected.raw, created_by: profile.id,
+      raw: collected.raw, created_by: profile.id,
     }).select(RATE_CHECK_COLUMNS).single();
     if (error || !data) return { ok: false, error: "측정 결과를 저장하지 못했습니다. DB 연결을 확인해 주세요." };
-    revalidatePath("/admin/rate-check");
+    revalidatePath("/tools/rate-check");
     return { ok: true, data: toRateCheckData(data as unknown as RateCheckRow) };
   } catch {
     return { ok: false, error: enabled ? "측정 처리에 실패했습니다. 서버 설정과 DB 연결을 확인해 주세요." : RATE_CHECK_DISABLED };

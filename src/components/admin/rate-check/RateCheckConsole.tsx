@@ -81,8 +81,7 @@ function RateCheckResult({ result }: { result: RateCheckData }) {
               <p className="text-xs text-ink-2">{result.formulaRate === null ? "F 기준 참고가" : "산식가 · 안내가"}</p>
               <p className="mt-1 text-3xl font-bold tabular-nums">{money(result.formulaRate ?? result.fBase)}</p>
               {result.formulaRate === null && <p className="mt-2 text-xs text-ink-2">표본이 6개 미만으로 산식가를 계산하지 않았습니다.</p>}
-              <p className="mt-2 text-xs text-ink-3">하한 50,000원 · 상한 500,000원</p>
-              {result.outOfLadder && <p className="mt-2 text-sm font-semibold text-primary">단가표 밖 인물 · 개별 협의</p>}
+              <p className="mt-2 text-xs text-ink-3">산식가 = max(F÷2, V) · 하한 5만원 · 상한 없음</p>
             </div>
             <p className="text-xs leading-relaxed text-ink-2">오퍼가 = 희망가와 산식가 중 낮은 쪽.<br />희망가가 산식가보다 높으면 산식가로 협의.<br />상업(브랜드) 챌린지는 별도 협의.</p>
           </div>
@@ -123,7 +122,7 @@ export function RateCheckConsole({ history, historyError }: { history: RateCheck
           <Button type="submit" disabled={pending}>{pending && <Loader2 size={16} className="animate-spin" aria-hidden />}{pending ? "측정 중" : "측정"}</Button>
         </div>
         <label className="flex items-center gap-2 text-sm text-ink-2"><input type="checkbox" name="force" value="true" disabled={pending} className="accent-primary" />캐시 무시하고 재측정</label>
-        <p className="text-xs text-ink-3">7일 이내 결과는 캐시로 표시합니다.<br />새 측정은 한국 시간 기준 하루 30회까지 가능합니다.</p>
+        <p className="text-xs text-ink-3">7일 이내 결과는 캐시로 표시합니다.<br />새 측정은 한국 시간 기준 하루 60회까지 가능합니다.</p>
         {pending && <p role="status" className="text-xs text-ink-2">프로필과 릴스를 수집하고 있습니다.</p>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </form>

@@ -4,25 +4,30 @@
 
 ## 0. 한 줄 요약
 
-관리자가 Instagram 핸들을 입력하면 서버가 Apify로 팔로워 수와 최근 릴스 조회수를 수집하고, 팀 단가표(음원 챌린지 기준)로 계산한 **안내가**를 보여주는 admin 전용 페이지 `/admin/rate-check` 를 만든다.
+로그인한 사용자가 Instagram 핸들을 입력하면 서버가 Apify로 팔로워 수와 최근 릴스 조회수를 수집하고, 팀 단가표(음원 챌린지 기준)로 계산한 **안내가**를 보여주는 페이지 `/tools/rate-check` 를 제공한다.
 결과는 DB에 남겨 같은 계정을 7일 안에 다시 조회하면 재수집 없이 보여준다.
+조회 기록은 로그인한 모든 사용자에게 동일하게 보인다.
 
 ## 1. 범위
 
 ### 만든다
 
-1. 페이지 `src/app/(app)/admin/rate-check/page.tsx` (admin 전용, `requireAdmin()` 사용, 기존 admin 페이지 패턴 따를 것).
+1. 페이지 `src/app/(app)/tools/rate-check/page.tsx`는 `requireProfile()`로 로그인한 사용자의 접근을 허용한다.
+   `(app)/layout.tsx`의 `requireUser()`와 `AppShell`을 사용하며, 최상위 컨테이너는 `/me`와 같은 `flex flex-col gap-6 px-6 pb-10 pt-8 lg:mx-auto lg:max-w-2xl`로 감싼다.
+   기존 `src/app/(app)/admin/rate-check/page.tsx`는 `redirect("/tools/rate-check")`만 수행해 기존 관리자 링크·북마크를 연결한다.
 2. 서버 액션 `src/app/actions/rate-check.ts` — `checkInstagramRateAction(fd)` 하나. 반환은 `{ ok: true, data } | { ok: false, error }`.
 3. 순수 계산 모듈 `src/lib/rate-check/pricing.ts` + 테스트 `src/lib/rate-check/pricing.test.ts` (`node --test`로 실행 가능한 형태, 기존 `test:*` 스크립트와 같은 방식. package.json 에 `test:rate-check` 추가).
 4. Apify 호출 모듈 `src/lib/rate-check/apify.ts` (`import "server-only"`). npm 의존성 추가 없이 `fetch` 로 REST 호출.
 5. 마이그레이션 `db/migrations/20260906_001_rate_checks.sql` — 테이블 `rate_checks`.
-6. `AdminNav`(관리자 메뉴)에 "페이 산정" 항목 추가. 기존 메뉴 구조·아이콘 규칙을 그대로 따른다.
+6. `AdminNav`(관리자 메뉴)의 "페이 산정" 링크는 `/tools/rate-check`를 가리킨다.
+   기존 정산 그룹 위치와 아이콘은 유지한다.
 
 ### 만들지 않는다
 
 - 여러 계정 일괄 조회, CSV, 자동 스케줄, 댄서 프로필과의 연결·갱신(`dancers.follower_counts` 등 건드리지 않는다).
 - 상업(브랜드) 챌린지 단가표. 화면에는 "상업 챌린지는 별도 협의" 한 줄만.
-- 클라이언트 노출. 이 페이지는 admin 전용이며 공개 라우트에 어떤 정보도 내보내지 않는다.
+- 비로그인 사용자에게 결과를 공개하지 않는다.
+  클라이언트 컴포넌트에는 표시용 데이터만 전달하며 토큰과 수집 원본은 서버에 둔다.
 
 ## 2. 계산 규칙 (정본 — 그대로 구현)
 
@@ -54,7 +59,14 @@
 | 10만 이상 20만 미만 | 200,000 |
 | 20만 이상 30만 미만 | 300,000 |
 | 30만 이상 40만 미만 | 400,000 |
-| 40만 이상 | 500,000 |
+| 40만 이상 50만 미만 | 500,000 |
+| 50만 이상 60만 미만 | 600,000 |
+| 이후 10만 단위로 확장 | 구간마다 100,000 증가 |
+
+10만 이상은 `F = (floor(followers / 100_000) + 1) * 100_000`이며 상한은 없다.
+정확히 10만의 배수인 값도 다음 구간에 포함한다(20만 → 30만원, 40만 → 50만원).
+이 규칙에 따라 팔로워 1,000만의 F는 1,010만원이며, 릴스 조회수 10개가 모두 1,000만이면 산식가는 505만원이다.
+추가 작업 지시서의 500만원 예시는 경계 규칙과 충돌하므로 경계 규칙을 우선한다.
 
 도달 단가 V (원, `expectedViews` 기준):
 
@@ -66,11 +78,17 @@
 | 3만 이상 6만 미만 | 200,000 |
 | 6만 이상 12만 미만 | 300,000 |
 | 12만 이상 20만 미만 | 400,000 |
-| 20만 이상 | 500,000 |
+| 20만 이상 40만 미만 | 500,000 |
+| 40만 이상 80만 미만 | 600,000 |
+| 80만 이상 160만 미만 | 700,000 |
+| 160만 이상 320만 미만 | 800,000 |
+| 이후 구간 경계를 두 배씩 확장 | 구간마다 100,000 증가 |
 
-- **산식가** `formulaRate = max(floor(F / 2), V)` — 단, 하한 50,000, 상한 500,000.
+20만 이상은 `k = floor(log2(expectedViews / 200_000))`, `V = 500_000 + 100_000 * k`이며 상한은 없다.
+구현은 로그 대신 40만부터 경계를 두 배씩 늘리는 정수 루프로 계산해 정확한 경계값을 유지한다.
+
+- **산식가** `formulaRate = max(50_000, floor(F / 2), V)`이며 하한은 50,000원이고 상한은 없다.
 - `expectedViews` 가 없으면(`insufficient`) 산식가 대신 "F 기준 참고가 = F" 만 표시하고 `formulaRate = null`.
-- 팔로워 40만 이상이면 `outOfLadder = true` 로 표시하고 "단가표 밖 인물 · 개별 협의" 안내.
 - 화면 안내 문구(고정): "오퍼가 = 희망가와 산식가 중 낮은 쪽. 희망가가 산식가보다 높으면 산식가로 협의. 상업(브랜드) 챌린지는 별도 협의."
 
 ### 2.4 핸들 정규화
@@ -86,7 +104,8 @@
   2. 릴스: `POST https://api.apify.com/v2/acts/apify~instagram-reel-scraper/run-sync-get-dataset-items?token=<T>&timeout=90` body `{ "username": [handle], "resultsLimit": 12, "includeSharesCount": false, "includeTranscript": false, "includeDownloadedVideo": false }` → 항목별 `shortCode`, `url`, `timestamp`, `videoPlayCount`, `videoViewCount`, `likesCount`(-1 = 미확인), `commentsCount`, `ownerUsername`.
 - `fetch` 에 `AbortController` 100초 타임아웃. HTTP 오류·비어 있는 결과·`private=true` 는 사용자에게 읽히는 한국어 오류로 변환한다("비공개 계정", "계정을 찾을 수 없음", "Apify 응답 지연" 등).
 - 응답 JSON 의 원본은 `rate_checks.raw` 에 그대로 저장한다(재분석용).
-- 비용 상한: 하루(KST) 30회를 넘으면 액션이 거부한다(`rate_checks` 오늘 생성 행 수로 판단, 캐시 히트는 세지 않는다).
+- 측정 한도: 전체 사용자 합산 하루(KST) 60회까지 허용한다.
+  `rate_checks`의 오늘 생성 행 수가 60개 이상이면 새 측정을 거부하며, 실패 기록도 포함하고 캐시 히트는 세지 않는다.
 
 ## 4. 데이터 (`db/migrations/20260906_001_rate_checks.sql`)
 
@@ -120,37 +139,39 @@ create table if not exists public.rate_checks (
 create index if not exists rate_checks_handle_created_idx on public.rate_checks (ig_handle, created_at desc);
 alter table public.rate_checks enable row level security;
 revoke all on public.rate_checks from anon, authenticated;
--- 정책 없음: 서버 액션이 requireAdmin 통과 후 service-role(admin client)로만 읽고 쓴다.
+-- 정책 없음: 서버 액션이 requireProfile 통과 후 service-role(admin client)로만 읽고 쓴다.
 comment on table public.rate_checks is '관리자 페이 산정 도구 조회 기록. 금액은 안내가(산식)이며 계약가가 아니다.';
 ```
 
-- 이 마이그레이션은 Codex가 파일만 만든다. 운영 DB 적용은 Claude가 Supabase MCP로 한다(적용 후 `npm run db:types` 는 Claude가 실행).
+- 기존 마이그레이션과 DB 컬럼 `out_of_ladder`는 기본값 `false`와 함께 그대로 둔다.
+  애플리케이션 타입·조회·저장·화면에서는 이 필드를 사용하지 않으며 이번 변경에는 마이그레이션이 필요 없다.
 - `types.ts` 가 아직 없는 테이블이라 서버 액션에서는 `admin.from("rate_checks")` 에 명시적 타입 캐스팅을 써도 된다(기존 코드에 같은 패턴이 있으면 따른다).
 
 ## 5. 서버 액션 `checkInstagramRateAction(fd: FormData)`
 
 입력: `handle`(문자열), `force`("true"면 캐시 무시).
 
-1. `requireAdmin()` (실패 시 `{ok:false,error:"권한이 없습니다."}`).
+1. `requireProfile()` (실패 시 `{ok:false,error:"로그인이 필요합니다."}`).
 2. 핸들 정규화(2.4). 실패 시 오류.
 3. `force` 가 아니면 `rate_checks` 에서 같은 `ig_handle`·`error is null`·7일 이내 최신 1건을 찾아 있으면 그대로 반환(`cached: true`).
 4. 토큰 확인(3장). 없으면 오류.
 5. 일일 상한 확인(3장).
 6. Apify 프로필 → 릴스 순서로 호출. 프로필이 비공개거나 없으면 릴스 호출 없이 오류 행(`error` 채움)을 저장하고 오류 반환.
 7. `pricing.ts` 로 계산 → `rate_checks` insert(`created_by` = 현재 사용자 profile id) → 결과 반환.
-8. `revalidatePath("/admin/rate-check")`.
+8. `revalidatePath("/tools/rate-check")`.
 
-반환 `data` 는 화면이 그대로 그릴 수 있는 형태(핸들·팔로워·프로필 사진·릴스 목록(조회수 오름차순 정렬 + 절사 제외 여부 플래그)·통계·티어·F·V·산식가·outOfLadder·sampleStatus·cached·createdAt).
+반환 `data` 는 화면이 그대로 그릴 수 있는 형태(핸들·팔로워·프로필 사진·릴스 목록(조회수 오름차순 정렬 + 절사 제외 여부 플래그)·통계·티어·F·V·산식가·sampleStatus·cached·createdAt).
 
-## 6. 화면 `/admin/rate-check`
+## 6. 화면 `/tools/rate-check`
 
-- 상단: 제목 "페이 산정 (음원 챌린지 기준)", 토큰 미설정이면 노란 안내.
+- 상단: 브레드크럼 "↳ 도구 / 페이 산정", 제목 "페이 산정 (음원 챌린지 기준)", 토큰 미설정이면 노란 안내.
 - 입력 폼: 핸들 입력 1개 + "측정" 버튼 + "캐시 무시하고 재측정" 체크박스. 진행 중 버튼 비활성·스피너.
 - 결과 카드(측정 직후 또는 히스토리에서 클릭):
   - 계정: 프로필 사진(있으면), 핸들(instagram 링크), 이름, 팔로워(`formatKoCount`), 측정 시각, `cached` 표시.
   - 릴스 조회수: 10개를 오름차순 목록으로, 절사(상·하위 2개)된 항목은 흐리게 + "제외" 라벨. 각 항목은 게시일·조회수·게시물 링크.
   - 통계: 절사평균 / 중앙값 / 보정 기대치 / 티어 배지 / 표본 상태.
-  - 안내가: F(팔로워 기본단가), V(도달 단가), **산식가**(크게), 하한·상한, `outOfLadder` 면 "단가표 밖 · 개별 협의". 아래 고정 문구(2.3).
+  - 안내가: F(팔로워 기본단가), V(도달 단가), **산식가**(크게), "산식가 = max(F÷2, V) · 하한 5만원 · 상한 없음"을 표시한다.
+    아래에는 고정 문구(2.3)를 둔다.
   - "요약 복사" 버튼: `@handle · 팔로워 N · 최근 릴스 평균 N회 · 티어 · 안내가 N원` 한 줄을 클립보드로.
 - 히스토리: **테이블**(카드 나열 금지) — 컬럼: 시각, 핸들, 팔로워, 보정 기대치, 티어, 산식가, 표본, 조회자. 핸들 검색창(즉시 필터), 티어 필터 칩, 최신순, 최근 200건. 행 클릭 시 결과 카드로 표시. 모바일은 가로 스크롤 래퍼.
 - 스타일은 기존 admin 페이지(`/admin/rate-cards`, `/admin/finance/receivables` 등)의 컴포넌트·토큰(`text-ink-*`, `border-border`, `bg-card`)을 따른다. 새 디자인 시스템을 만들지 않는다.
@@ -158,10 +179,11 @@ comment on table public.rate_checks is '관리자 페이 산정 도구 조회 �
 
 ## 7. 검증 기준 (Codex가 끝내기 전에 직접 확인)
 
-- `npm run typecheck` 통과.
-- `npx eslint` 대상 파일 오류 0.
-- `npx tsx --test src/lib/rate-check/pricing.test.ts` 통과. 테스트는 최소: 핸들 정규화 5케이스(URL·@·쿼리·대문자·잘못된 값), 절사평균(10개), short(7개), insufficient(4개), 보정 기대치(중앙값×1.5 캡), F·V 사다리 경계값, 산식가 하한·상한, outOfLadder.
-- `npm run build` 통과(시간이 오래 걸리면 typecheck·lint까지만 하고 보고에 명시).
+- `npx tsc --noEmit` 통과.
+- `npm run lint` 오류 0, 기존 경고 수준 유지.
+- `npm run test:rate-check` 통과.
+  가격 테스트는 핸들 정규화, 절사평균, 표본 부족, 보정 기대치, 기존·확장 F·V 경계값, 산식가 하한과 상한 없는 계산을 확인한다.
+  서버 테스트는 비로그인 거부, 비관리자 측정, 59회 사용 후 측정 허용, 60회 이상 거부, 캐시 히트의 한도 미차감, 기존 경로 리다이렉트를 확인한다.
 - 토큰이 없는 로컬에서는 페이지가 안내 문구를 띄우고 액션이 정상 오류를 돌려주는지 확인(실제 Apify 호출은 하지 않는다 — 로컬에 토큰을 넣지 말 것).
 
 ## 8. 하지 말 것

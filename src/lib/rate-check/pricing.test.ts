@@ -88,12 +88,34 @@ test("F and V ladder exact boundaries and adjacent values", () => {
   }
 });
 
-test("formula floor, ceiling, follower half and out-of-ladder threshold", () => {
+test("F ladder extends in 100,000-follower steps with boundaries in the next bracket", () => {
+  for (const [followers, expected] of [
+    [400_000, 500_000], [499_999, 500_000], [500_000, 600_000],
+    [500_001, 600_000], [770_000, 800_000], [4_317_106, 4_400_000],
+  ]) assert.equal(followerBase(followers), expected);
+});
+
+test("V ladder extends at exact doubling boundaries without a ceiling", () => {
+  for (const [views, expected] of [
+    [200_000, 500_000], [399_999, 500_000], [400_000, 600_000],
+    [400_001, 600_000], [799_999, 600_000], [800_000, 700_000],
+    [800_001, 700_000], [1_599_999, 700_000], [1_600_000, 800_000],
+    [2_180_393, 800_000], [3_199_999, 800_000], [3_200_000, 900_000],
+  ]) assert.equal(viewBase(views), expected);
+});
+
+test("formula keeps its floor and uses follower half or views without a ceiling", () => {
   assert.equal(calculateRate(0, reels(Array(10).fill(0))).formulaRate, 50_000);
-  assert.equal(calculateRate(10_000_000, reels(Array(10).fill(10_000_000))).formulaRate, 500_000);
   assert.equal(calculateRate(100_000, reels(Array(10).fill(1))).formulaRate, 100_000);
-  assert.equal(calculateRate(399_999, []).outOfLadder, false);
-  assert.equal(calculateRate(400_000, []).outOfLadder, true);
+  // Exact multiples enter the next F bracket: 10,000,000 followers => F 10,100,000.
+  assert.equal(calculateRate(10_000_000, reels(Array(10).fill(10_000_000))).formulaRate, 5_050_000);
+  assert.equal(calculateRate(9_999_999, reels(Array(10).fill(10_000_000))).formulaRate, 5_000_000);
+  assert.equal(calculateRate(0, reels(Array(10).fill(2_180_393))).formulaRate, 800_000);
+  const result = calculateRate(4_317_106, reels(Array(10).fill(2_180_393)));
+  assert.equal(result.expectedViews, 2_180_393);
+  assert.equal(result.fBase, 4_400_000);
+  assert.equal(result.vBase, 800_000);
+  assert.equal(result.formulaRate, 2_200_000);
 });
 
 test("sample and tier thresholds", () => {

@@ -47,14 +47,14 @@ function collector(fetch, timers = {}) {
   });
 }
 
-function actionHarness({ enabled = false, admin = true, replies = [], collect } = {}) {
+function actionHarness({ enabled = false, authenticated = true, replies = [], collect } = {}) {
   const calls = [];
   const tables = [];
   let revalidated = 0;
   const apify = collector(() => { throw new Error("Unexpected network"); });
   const action = load("src/app/actions/rate-check.ts", {
-    "next/cache": { revalidatePath(value) { assert.equal(value, "/admin/rate-check"); revalidated++; } },
-    "@/lib/auth/guard": { async requireAdmin() { calls.push("guard"); if (!admin) throw new Error("redirect"); return { id: "admin-id" }; } },
+    "next/cache": { revalidatePath(value) { assert.equal(value, "/tools/rate-check"); revalidated++; } },
+    "@/lib/auth/guard": { async requireProfile() { calls.push("guard"); if (!authenticated) throw new Error("redirect"); return { id: "member-id", is_admin: false }; } },
     "@/lib/rate-check/pricing": pricing,
     "@/lib/rate-check/types": types,
     "@/lib/rate-check/apify": { ...apify, async collectInstagramRate(handle) { calls.push("collect"); return collect(handle, apify); } },
@@ -83,14 +83,14 @@ const row = {
   profile_pic_url: null, is_private: false, reels: [], reels_used: 0,
   sample_status: "insufficient", trimmed_mean: null, median_views: null,
   views_low: null, views_high: null, expected_views: null, tier: null,
-  f_base: 50000, v_base: null, formula_rate: null, out_of_ladder: false,
+  f_base: 50000, v_base: null, formula_rate: null,
   created_at: "2026-09-06T00:00:00Z", created_by: "admin-id", error: null,
   creator: { display_name: "관리자" }, raw: { confidential: true },
 };
 
 test("guard rejects before DB or collection; form validation precedes DB", async () => {
-  const denied = actionHarness({ admin: false });
-  assert.equal((await denied.run()).error, "권한이 없습니다.");
+  const denied = actionHarness({ authenticated: false });
+  assert.equal((await denied.run()).error, "로그인이 필요합니다.");
   assert.deepEqual(denied.calls, ["guard"]);
   const invalid = actionHarness();
   invalid.fd.set("handle", "bad handle");
@@ -121,19 +121,21 @@ test("cache works without token, uses successful seven-day rows and excludes raw
   assert.ok(!repository.RATE_CHECK_COLUMNS.split(",").includes("raw"));
 });
 
-test("KST day boundary and 30-count limit fail closed before collection", async () => {
+test("KST day boundary and 60-count limit fail closed before collection", async () => {
   assert.equal(repository.kstDayStart(new Date("2026-09-05T14:59:59Z")), "2026-09-04T15:00:00.000Z");
   assert.equal(repository.kstDayStart(new Date("2026-09-05T15:00:00Z")), "2026-09-05T15:00:00.000Z");
-  for (const reply of [{ count: 30, error: null }, { count: null, error: {} }]) {
+  for (const reply of [{ count: 60, error: null }, { count: 61, error: null }, { count: null, error: {} }]) {
     const h = actionHarness({ enabled: true, replies: [reply] });
     h.fd.set("force", "true");
-    assert.equal((await h.run()).ok, false);
+    const result = await h.run();
+    assert.equal(result.ok, false);
+    if (reply.count !== null) assert.match(result.error, /60회/);
     assert.ok(!h.calls.includes("collect"));
   }
 });
 
-test("force bypasses cache, saves calculation and raw, revalidates and returns safe DTO", async () => {
-  const h = actionHarness({ enabled: true, replies: [{ count: 29, error: null }, { data: row, error: null }],
+test("non-admin can make the 60th measurement, bypass cache, save and revalidate", async () => {
+  const h = actionHarness({ enabled: true, replies: [{ count: 59, error: null }, { data: row, error: null }],
     collect: async () => ({ profile: { followers: 1234, fullName: "Dancer", profilePicUrl: null }, reels: [], raw: { profile: [{ followersCount: 1234 }] } }),
   });
   h.fd.set("force", "true");
@@ -142,7 +144,7 @@ test("force bypasses cache, saves calculation and raw, revalidates and returns s
   assert.equal(result.data.cached, false);
   assert.equal(Object.hasOwn(result.data, "raw"), false);
   const insert = h.tables[1].find(([method]) => method === "insert")[1];
-  assert.equal(insert.created_by, "admin-id");
+  assert.equal(insert.created_by, "member-id");
   assert.equal(insert.raw.profile[0].followersCount, 1234);
   assert.equal(insert.formula_rate, null);
   assert.equal(h.revalidated(), 1);
@@ -157,7 +159,7 @@ test("collection errors persist raw, private flag, user and error before returni
   const insert = h.tables[1].find(([method]) => method === "insert")[1];
   assert.equal(insert.is_private, true);
   assert.equal(insert.raw.profile[0].private, true);
-  assert.equal(insert.created_by, "admin-id");
+  assert.equal(insert.created_by, "member-id");
   assert.equal(h.revalidated(), 1);
 });
 
@@ -200,8 +202,8 @@ test("HTTP failures, timeout and network errors become safe Korean messages", as
 
 test("actual page renders the token-disabled banner even when history DB is unavailable", async () => {
   let guarded = false;
-  const page = load("src/app/(app)/admin/rate-check/page.tsx", {
-    "@/lib/auth/guard": { async requireAdmin() { guarded = true; } },
+  const page = load("src/app/(app)/tools/rate-check/page.tsx", {
+    "@/lib/auth/guard": { async requireProfile() { guarded = true; return { id: "member-id", is_admin: false }; } },
     "@/lib/rate-check/types": types,
     "@/lib/rate-check/repository": { ...repository, rateChecksTable() { assert.equal(guarded, true); throw new Error("Missing table"); } },
     "@/components/admin/rate-check/RateCheckConsole": { RateCheckConsole: ({ historyError }) => React.createElement("p", null, historyError) },
@@ -210,4 +212,22 @@ test("actual page renders the token-disabled banner even when history DB is unav
   assert.ok(html.includes(types.RATE_CHECK_DISABLED));
   assert.ok(html.includes("페이 산정 (음원 챌린지 기준)"));
   assert.ok(html.includes("조회 기록을 불러오지 못했습니다."));
+  assert.ok(html.includes("↳ 도구 / 페이 산정"));
+});
+
+test("tools page rejects unauthenticated access before loading shared history", async () => {
+  const page = load("src/app/(app)/tools/rate-check/page.tsx", {
+    "@/lib/auth/guard": { async requireProfile() { throw new Error("login redirect"); } },
+    "@/lib/rate-check/types": types,
+    "@/lib/rate-check/repository": { ...repository, rateChecksTable() { assert.fail("Unauthenticated history read"); } },
+    "@/components/admin/rate-check/RateCheckConsole": {},
+  });
+  await assert.rejects(page.default(), /login redirect/);
+});
+
+test("legacy admin page redirects to tools page", () => {
+  const page = load("src/app/(app)/admin/rate-check/page.tsx", {
+    "next/navigation": { redirect(value) { assert.equal(value, "/tools/rate-check"); throw new Error("redirect"); } },
+  });
+  assert.throws(() => page.default(), /redirect/);
 });
