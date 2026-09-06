@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { checkInstagramRateAction } from "@/app/actions/rate-check";
 import { formatKoCount, TIER_LABEL, TIER_ORDER, type LineupTier } from "@/lib/casting/forecast";
-import type { RateCheckData } from "@/lib/rate-check/types";
+import { RATE_CHECK_DAILY_LIMIT, type RateCheckData } from "@/lib/rate-check/types";
 
 const money = (value: number | null) => value === null ? "—" : `${value.toLocaleString("ko-KR")}원`;
 const views = (value: number | null) => value === null ? "미측정" : `${value.toLocaleString("ko-KR")}회`;
@@ -122,7 +122,7 @@ export function RateCheckConsole({ history, historyError }: { history: RateCheck
           <Button type="submit" disabled={pending}>{pending && <Loader2 size={16} className="animate-spin" aria-hidden />}{pending ? "측정 중" : "측정"}</Button>
         </div>
         <label className="flex items-center gap-2 text-sm text-ink-2"><input type="checkbox" name="force" value="true" disabled={pending} className="accent-primary" />캐시 무시하고 재측정</label>
-        <p className="text-xs text-ink-3">7일 이내 결과는 캐시로 표시합니다.<br />새 측정은 한국 시간 기준 하루 60회까지 가능합니다.</p>
+        <p className="text-xs text-ink-3">7일 이내 결과는 캐시로 표시합니다.<br />새 측정은 한국 시간 기준 하루 {RATE_CHECK_DAILY_LIMIT}회까지 가능합니다.</p>
         {pending && <p role="status" className="text-xs text-ink-2">프로필과 릴스를 수집하고 있습니다.</p>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </form>

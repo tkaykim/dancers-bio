@@ -104,8 +104,8 @@
   2. 릴스: `POST https://api.apify.com/v2/acts/apify~instagram-reel-scraper/run-sync-get-dataset-items?token=<T>&timeout=90` body `{ "username": [handle], "resultsLimit": 12, "includeSharesCount": false, "includeTranscript": false, "includeDownloadedVideo": false }` → 항목별 `shortCode`, `url`, `timestamp`, `videoPlayCount`, `videoViewCount`, `likesCount`(-1 = 미확인), `commentsCount`, `ownerUsername`.
 - `fetch` 에 `AbortController` 100초 타임아웃. HTTP 오류·비어 있는 결과·`private=true` 는 사용자에게 읽히는 한국어 오류로 변환한다("비공개 계정", "계정을 찾을 수 없음", "Apify 응답 지연" 등).
 - 응답 JSON 의 원본은 `rate_checks.raw` 에 그대로 저장한다(재분석용).
-- 측정 한도: 전체 사용자 합산 하루(KST) 60회까지 허용한다.
-  `rate_checks`의 오늘 생성 행 수가 60개 이상이면 새 측정을 거부하며, 실패 기록도 포함하고 캐시 히트는 세지 않는다.
+- 측정 한도: 전체 사용자 합산 하루(KST) 300회까지 허용한다.
+  `rate_checks`의 오늘 생성 행 수가 300개 이상이면 새 측정을 거부하며, 실패 기록도 포함하고 캐시 히트는 세지 않는다.
 
 ## 4. 데이터 (`db/migrations/20260906_001_rate_checks.sql`)
 
@@ -183,7 +183,7 @@ comment on table public.rate_checks is '관리자 페이 산정 도구 조회 �
 - `npm run lint` 오류 0, 기존 경고 수준 유지.
 - `npm run test:rate-check` 통과.
   가격 테스트는 핸들 정규화, 절사평균, 표본 부족, 보정 기대치, 기존·확장 F·V 경계값, 산식가 하한과 상한 없는 계산을 확인한다.
-  서버 테스트는 비로그인 거부, 비관리자 측정, 59회 사용 후 측정 허용, 60회 이상 거부, 캐시 히트의 한도 미차감, 기존 경로 리다이렉트를 확인한다.
+  서버 테스트는 비로그인 거부, 비스태프 측정 거부, 299회 사용 후 측정 허용, 300회 이상 거부, 캐시 히트의 한도 미차감, 기존 경로 리다이렉트를 확인한다.
 - 토큰이 없는 로컬에서는 페이지가 안내 문구를 띄우고 액션이 정상 오류를 돌려주는지 확인(실제 Apify 호출은 하지 않는다 — 로컬에 토큰을 넣지 말 것).
 
 ## 8. 하지 말 것

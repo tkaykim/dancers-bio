@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.8.0 - 2026-09-06
+
+- Raise the shared daily Instagram rate-check measurement limit from 60 to 300 while keeping seven-day cache hits free from the quota.
+
 ## 0.1.7.0 - 2026-08-30
 
 - Let selected casting posts request a companion's Instagram handle in the application message and show that message in the applicant detail panel.
