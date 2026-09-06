@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { requireProfile } from "@/lib/auth/guard";
+import { requireSuperAdmin } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import {
   RATE_SERVICE_TYPES,
@@ -55,8 +54,7 @@ function compactNum(n: number): string {
 }
 
 export default async function AdminRateCardsPage() {
-  const profile = await requireProfile();
-  if (!profile.is_admin) notFound();
+  await requireSuperAdmin();
 
   const supabase = await createClient();
   const { data, error } = await supabase

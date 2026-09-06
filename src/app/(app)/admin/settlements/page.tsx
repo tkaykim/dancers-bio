@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { requireProfile } from "@/lib/auth/guard";
+import { requireSuperAdmin } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   BalanceWithdrawalQueue,
@@ -19,8 +18,7 @@ import {
 } from "@/lib/payout-state";
 
 export default async function AdminSettlementsPage() {
-  const profile = await requireProfile();
-  if (!profile.is_admin) notFound();
+  await requireSuperAdmin();
 
   const admin = createAdminClient();
   const { data: sRows } = await admin

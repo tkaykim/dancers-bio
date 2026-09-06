@@ -12,6 +12,7 @@ type Row = {
   avatar_url: string | null;
   can_create_project: boolean;
   is_admin: boolean;
+  is_super_admin: boolean;
   is_verified_badge: boolean;
   instagram_handle: string | null;
   instagram_verified_at: string | null;
@@ -32,7 +33,7 @@ export default async function AdminUsersPage({
   let query = supabase
     .from("profiles")
     .select(
-      "id, display_name, avatar_url, can_create_project, is_admin, is_verified_badge, instagram_handle, instagram_verified_at, created_at",
+      "id, display_name, avatar_url, can_create_project, is_admin, is_super_admin, is_verified_badge, instagram_handle, instagram_verified_at, created_at",
     )
     .order("created_at", { ascending: false })
     .limit(50);
@@ -92,6 +93,9 @@ export default async function AdminUsersPage({
                 {u.instagram_handle ? ` · @${u.instagram_handle}` : ""}
               </p>
               <div className="mt-1 flex flex-wrap gap-1">
+                {u.is_super_admin ? (
+                  <Tag tone="warn">super admin</Tag>
+                ) : null}
                 {u.is_admin ? (
                   <Tag tone="warn">admin</Tag>
                 ) : null}

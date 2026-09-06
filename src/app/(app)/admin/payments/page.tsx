@@ -1,16 +1,14 @@
-import { notFound } from "next/navigation";
 
 import { PaymentsAdminTable } from "@/components/admin/PaymentsAdminTable";
 import { canExecutePaymentOperationsDirectly } from "@/lib/admin/payment-operation-permissions";
 import { loadAdminPayments } from "@/lib/admin/payments";
-import { requireProfile } from "@/lib/auth/guard";
+import { requireSuperAdmin } from "@/lib/auth/guard";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "통합 결제 장부 | deetz admin" };
 
 export default async function AdminPaymentsPage() {
-  const profile = await requireProfile();
-  if (!profile.is_admin) notFound();
+  const profile = await requireSuperAdmin();
 
   const [data, canExecuteDirectly] = await Promise.all([
     loadAdminPayments(),

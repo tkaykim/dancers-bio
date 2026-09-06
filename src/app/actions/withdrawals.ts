@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import * as XLSX from "xlsx";
 import { z } from "zod";
-import { requireAdmin, requireUser } from "@/lib/auth/guard";
+import { requireSuperAdmin, requireUser } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   isPayeePayoutReady,
@@ -120,7 +120,7 @@ async function notifyAdminsPartialWithdrawal(requestId: string): Promise<void> {
     if (!r) return;
     const [{ data: d }, { data: admins }] = await Promise.all([
       admin.from("dancers").select("stage_name").eq("id", r.dancer_id).maybeSingle(),
-      admin.from("profiles").select("id").eq("is_admin", true),
+      admin.from("profiles").select("id").eq("is_admin", true).eq("is_super_admin", true),
     ]);
     const name = (d?.stage_name as string) ?? "댄서";
     const url = "/admin/settlements";
@@ -195,7 +195,7 @@ export async function cancelMyWithdrawalAction(
 export async function markWithdrawalPaidAction(
   fd: FormData,
 ): Promise<ActionResult> {
-  const adminProfile = await requireAdmin();
+  const adminProfile = await requireSuperAdmin();
   const id = (fd.get("request_id") ?? "").toString().trim();
   if (!id) return { ok: false, error: "잘못된 요청입니다." };
 
@@ -264,7 +264,7 @@ export async function buildBalanceTransferFileAction(
     total: number;
   }>
 > {
-  await requireAdmin();
+  await requireSuperAdmin();
   let ids: string[] = [];
   try {
     const p = JSON.parse((fd.get("ids") ?? "[]").toString());
@@ -396,7 +396,7 @@ export async function buildBalanceTransferFileAction(
 export async function markWithdrawalsPaidBulkAction(
   fd: FormData,
 ): Promise<ActionResult<{ done: number; failed: number }>> {
-  const adminProfile = await requireAdmin();
+  const adminProfile = await requireSuperAdmin();
   let ids: string[] = [];
   try {
     const p = JSON.parse((fd.get("ids") ?? "[]").toString());

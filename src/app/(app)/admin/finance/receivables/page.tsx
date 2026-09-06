@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth/guard";
+import { requireSuperAdmin } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   BILLABLE_LINE_STATUSES,
@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 // 받을 돈(매출채권) 콘솔 — 설계 정본 docs/design-client-receivables.md rev1.
 // 경영지원실(admin) 전용(대표 결정 3). 테이블 RLS default-deny라 service-role로만 읽는다.
 export default async function ReceivablesPage() {
-  await requireAdmin();
+  await requireSuperAdmin();
   const admin = createAdminClient();
 
   const [
