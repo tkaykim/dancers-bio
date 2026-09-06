@@ -44,9 +44,11 @@
 이 상태에서 열만 추가하면 운영 관리자가 브라우저에서 `is_super_admin`을 직접 true로 바꿀 수 있다.
 
 `protect_super_admin_flag()`와 `profiles_protect_super_admin_flag` 트리거가 이 우회를 막는다.
-`anon`·`authenticated`는 true 값을 가진 새 행을 삽입하거나 기존 행의 슈퍼관리자 값을 변경할 수 없다.
-SQL 운영자·service_role의 부여·회수와 일반 프로필 필드 수정은 유지한다.
-이 보호는 새 등급 필드에만 적용하며 기존 운영 권한 정책을 재설계하지 않는다.
+같은 점검에서 `authenticated` 역할이 `profiles.is_admin` 열의 UPDATE 권한도 갖고 있어, 로그인 사용자가 REST 경로로 자기 행의 `is_admin`을 직접 켤 수 있는 상태였다(2026-09-06 Claude 검토에서 발견).
+그래서 트리거는 `is_super_admin`뿐 아니라 `is_admin`도 함께 보호한다. 오류 코드는 `ROLE_FLAG_SQL_ONLY`(42501)다.
+`anon`·`authenticated`는 두 플래그 중 하나라도 true 인 새 행을 삽입하거나 기존 행의 두 플래그 값을 변경할 수 없다.
+SQL 운영자·service_role·SECURITY DEFINER 함수의 부여·회수와 일반 프로필 필드 수정은 유지한다.
+앱 코드에는 `is_admin`을 쓰는 경로가 없어 동작 영향이 없다. `can_create_project`는 관리자 토글 액션이 쓰므로 이번 보호 대상에서 제외했다.
 
 ### RLS 정책
 
@@ -217,9 +219,14 @@ SQL 운영자·service_role의 부여·회수와 일반 프로필 필드 수정�
 
 PowerShell 실행 정책이 `npx.ps1`을 차단하므로 같은 명령을 `npx.cmd`로 실행했다.
 ESLint 범위는 사용자 지시에 따라 변경 파일로 한정했다.
-운영 DB에서는 기존 정책과 트리거·권한만 읽기 전용으로 확인했다.
-마이그레이션 적용 후의 DB 권한 회귀 검증과 로그인 브라우저 검증은 아직 수행하지 않았다.
-`npm run db:types`와 git commit은 실행하지 않았다.
+운영 DB 적용: 2026-09-06 Claude 가 `super_admin_20260906` 이름으로 적용했다(Supabase MCP `apply_migration`, `begin/commit` 제외 동일 본문).
+적용 후 SQL 로 JWT 클레임을 주입해(`set_config('request.jwt.claims', …)` + `set local role authenticated`) 다음을 확인했다.
+- 일반 사용자(이원영)가 자기 `is_admin`을 켜는 UPDATE → `ROLE_FLAG_SQL_ONLY` 로 차단. 같은 사용자의 `bio` 수정은 허용.
+- 운영 관리자(김주성/Baw)가 자기 `is_super_admin`을 켜거나 남에게 `is_admin`을 주는 UPDATE → 차단. `is_super_admin()` = false.
+- 운영 관리자의 RLS 조회: `withdrawal_requests` 22건 중 본인 댄서 1건, `dancer_ledger_entries` 204건 중 2건, `dancer_rate_cards` 0건만 보인다.
+- 운영 관리자는 `settlements` 127건 중 124건(dancer·travel 역할)을 여전히 읽는다. `can_manage_project()`가 `is_admin()`을 포함하기 때문이며 의도된 잔여 범위다. 전역 장부 화면·집계 액션은 코드 게이트(`requireSuperAdmin`)로만 막힌다.
+- 슈퍼관리자(대표)는 `is_super_admin()` = true 이고 네 테이블 전부를 읽는다.
+로그인 브라우저 검증은 Claude 가 자격 증명을 입력할 수 없어 수행하지 않았다.
+`npm run db:types`는 실행하지 않았다(이 PC의 0바이트 파일 함정).
 
-공유 기능 정본 `C:\Users\tkay\.claude\CAPABILITY_MAP.md`의 갱신은 현재 작업 공간 쓰기 허용 범위 밖이라 남아 있다.
-해당 정본에는 이 문서 경로와 함께 로컬 구현 완료·운영 적용 전 상태를 반영해야 한다.
+공유 기능 정본 `C:\Users\tkay\.claude\CAPABILITY_MAP.md`와 메모리 `business_dancersbio_roles.md`는 Claude 가 같은 turn 에 갱신한다.
