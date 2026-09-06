@@ -2,11 +2,13 @@
 
 import { useRef, useState, useTransition } from "react";
 import { Copy, ExternalLink, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { checkInstagramRateAction } from "@/app/actions/rate-check";
 import { formatKoCount, TIER_LABEL, TIER_ORDER, type LineupTier } from "@/lib/casting/forecast";
+import { parseInstagramHandleLines } from "@/lib/rate-check/pricing";
 import { RATE_CHECK_DAILY_LIMIT, type RateCheckData } from "@/lib/rate-check/types";
 
 const money = (value: number | null) => value === null ? "—" : `${value.toLocaleString("ko-KR")}원`;
@@ -14,6 +16,14 @@ const views = (value: number | null) => value === null ? "미측정" : `${value.
 const followers = (value: number | null) => value === null ? "미확인" : formatKoCount(value);
 const sampleLabel = (value: string) => value === "ok" ? "정상" : value === "short" ? "표본 부족(참고치)" : "표본 부족(산정 불가)";
 const date = (value: string) => new Date(value).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+
+type BatchItem = {
+  input: string;
+  handle: string | null;
+  status: "queued" | "running" | "success" | "error";
+  data?: RateCheckData;
+  error?: string;
+};
 
 function safeUrl(value: string | null): string | undefined {
   if (!value) return undefined;
@@ -92,9 +102,12 @@ function RateCheckResult({ result }: { result: RateCheckData }) {
 }
 
 export function RateCheckConsole({ history, historyError }: { history: RateCheckData[]; historyError: string | null }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<RateCheckData | null>(null);
+  const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
+  const [progress, setProgress] = useState({ completed: 0, total: 0 });
   const [search, setSearch] = useState("");
   const [tier, setTier] = useState<LineupTier | "all" | "unmeasured">("all");
   const resultRef = useRef<HTMLDivElement>(null);
@@ -104,28 +117,97 @@ export function RateCheckConsole({ history, historyError }: { history: RateCheck
   function submit(fd: FormData) {
     setError(null);
     setResult(null);
+    const entries = parseInstagramHandleLines(String(fd.get("handles") ?? ""));
+    if (!entries.length) {
+      setBatchItems([]);
+      setError("인스타그램 핸들을 한 줄에 하나씩 입력해 주세요.");
+      return;
+    }
+    if (entries.length > RATE_CHECK_DAILY_LIMIT) {
+      setBatchItems([]);
+      setError(`한 번에 최대 ${RATE_CHECK_DAILY_LIMIT}개 계정까지 조회할 수 있습니다.`);
+      return;
+    }
+    const force = fd.get("force") === "true";
+    const initialItems: BatchItem[] = entries.map((entry) => entry.handle
+      ? { ...entry, status: "queued" }
+      : { ...entry, status: "error", error: "올바른 인스타그램 핸들이 아닙니다." });
+    const invalidCount = initialItems.filter((item) => item.status === "error").length;
+    setBatchItems(initialItems);
+    setProgress({ completed: invalidCount, total: initialItems.length });
     startTransition(async () => {
-      try {
-        const response = await checkInstagramRateAction(fd);
-        if (!response.ok) setError(response.error);
-        else setResult(response.data);
-      } catch { setError("측정 요청을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요."); }
+      let completed = invalidCount;
+      for (const entry of entries) {
+        if (!entry.handle) continue;
+        setBatchItems((items) => items.map((item) => item.handle !== entry.handle
+          ? item
+          : { ...item, status: "running", error: undefined }));
+        const request = new FormData();
+        request.set("handle", entry.handle);
+        if (force) request.set("force", "true");
+        try {
+          const response = await checkInstagramRateAction(request);
+          if (response.ok) {
+            setBatchItems((items) => items.map((item) => item.handle === entry.handle
+              ? { ...item, status: "success", data: response.data }
+              : item));
+            setResult((current) => current ?? response.data);
+          } else {
+            setBatchItems((items) => items.map((item) => item.handle === entry.handle
+              ? { ...item, status: "error", error: response.error }
+              : item));
+          }
+        } catch {
+          setBatchItems((items) => items.map((item) => item.handle === entry.handle
+            ? { ...item, status: "error", error: "측정 요청을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요." }
+            : item));
+        }
+        completed += 1;
+        setProgress({ completed, total: initialItems.length });
+      }
+      router.refresh();
     });
   }
+
+  const succeeded = batchItems.filter((item) => item.status === "success").length;
+  const failed = batchItems.filter((item) => item.status === "error").length;
 
   return (
     <div className="flex flex-col gap-6">
       <form action={submit} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4" aria-busy={pending}>
-        <label htmlFor="rate-check-handle" className="text-sm font-medium">인스타그램 핸들 또는 프로필 URL</label>
-        <div className="flex gap-2">
-          <Input id="rate-check-handle" name="handle" placeholder="@handle 또는 instagram.com/handle" required maxLength={2048} disabled={pending} autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-          <Button type="submit" disabled={pending}>{pending && <Loader2 size={16} className="animate-spin" aria-hidden />}{pending ? "측정 중" : "측정"}</Button>
+        <label htmlFor="rate-check-handles" className="text-sm font-medium">인스타그램 핸들 또는 프로필 URL</label>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+          <textarea id="rate-check-handles" name="handles" placeholder={'@handle_one\n@handle_two\ninstagram.com/handle_three'} required maxLength={100_000} rows={5} disabled={pending} autoCapitalize="none" autoCorrect="off" spellCheck={false} className="min-h-28 w-full resize-y rounded-lg border border-input bg-transparent px-3 py-2 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 md:text-sm" />
+          <Button type="submit" disabled={pending} className="sm:min-w-28">{pending && <Loader2 size={16} className="animate-spin" aria-hidden />}{pending ? `${progress.completed}/${progress.total} 측정 중` : "한번에 측정"}</Button>
         </div>
         <label className="flex items-center gap-2 text-sm text-ink-2"><input type="checkbox" name="force" value="true" disabled={pending} className="accent-primary" />캐시 무시하고 재측정</label>
-        <p className="text-xs text-ink-3">7일 이내 결과는 캐시로 표시합니다.<br />새 측정은 한국 시간 기준 하루 {RATE_CHECK_DAILY_LIMIT}회까지 가능합니다.</p>
-        {pending && <p role="status" className="text-xs text-ink-2">프로필과 릴스를 수집하고 있습니다.</p>}
+        <p className="text-xs text-ink-3">한 줄에 한 계정씩 입력하면 중복을 제외하고 순서대로 조회합니다.<br />7일 이내 결과는 캐시로 표시하며, 새 측정은 한국 시간 기준 하루 {RATE_CHECK_DAILY_LIMIT}회까지 가능합니다.</p>
+        {pending && <p role="status" className="text-xs text-ink-2">{progress.total}개 계정 중 {progress.completed}개를 처리했습니다.<br />현재 계정의 프로필과 릴스를 수집하고 있습니다.</p>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </form>
+      {batchItems.length > 0 && <section aria-label="일괄 조회 결과" className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">일괄 조회 결과 <span className="text-sm font-normal text-ink-3">완료 {progress.completed}/{progress.total} · 성공 {succeeded} · 실패 {failed}</span></h2>
+        <div className="overflow-x-auto rounded-xl border border-border bg-card" aria-live="polite">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="border-b border-border bg-secondary text-xs text-ink-3"><tr>{["계정", "상태", "팔로워", "보정 기대치", "티어", "안내가"].map((label) => <th key={label} scope="col" className="px-3 py-3 font-medium">{label}</th>)}</tr></thead>
+            <tbody className="divide-y divide-border">
+              {batchItems.map((item) => {
+                const data = item.data;
+                return <tr key={item.handle ?? item.input.toLowerCase()} className={data ? "hover:bg-secondary/60" : undefined}>
+                  <td className="px-3 py-3 font-semibold">{data
+                    ? <button type="button" className="hover:underline" onClick={() => setResult(data)}>@{data.handle}</button>
+                    : item.handle ? `@${item.handle}` : item.input}</td>
+                  <td className="max-w-64 px-3 py-3 text-xs">{item.status === "queued" ? "대기" : item.status === "running" ? "측정 중" : item.status === "success" ? (data?.cached ? "완료 · 캐시" : "완료 · 새 측정") : <span className="text-destructive">실패 · {item.error}</span>}</td>
+                  <td className="px-3 py-3 tabular-nums">{data ? followers(data.followers) : "—"}</td>
+                  <td className="px-3 py-3 tabular-nums">{data ? views(data.expectedViews) : "—"}</td>
+                  <td className="px-3 py-3">{data ? <TierBadge tier={data.tier} /> : "—"}</td>
+                  <td className="px-3 py-3 tabular-nums">{data ? money(data.formulaRate ?? data.fBase) : "—"}</td>
+                </tr>;
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>}
       <div ref={resultRef}>{result && <RateCheckResult result={result} />}</div>
       <section aria-label="조회 히스토리" className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">조회 히스토리 <span className="text-sm font-normal text-ink-3">최근 200건 · {rows.length}건 표시</span></h2>
