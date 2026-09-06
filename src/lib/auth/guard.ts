@@ -3,6 +3,7 @@ import "server-only";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { safeReturnTo } from "@/lib/safeRedirect";
 import { isSuperAdmin } from "./super-admin";
 
@@ -84,6 +85,27 @@ export async function requireSuperAdmin() {
   const profile = await requireProfile();
   if (!isSuperAdmin(profile)) {
     redirect("/admin?super_required=1");
+  }
+  return profile;
+}
+
+// 운영 스태프 = 운영 관리자(is_admin, 슈퍼관리자 포함) OR 프로젝트 공동관리자(project_managers 행 1건 이상).
+// 페이 산정 같은 내부 도구의 게이트. 일반 댄서(본인 지원자)는 통과하지 못한다.
+// 공동관리자 여부는 RLS 와 무관하게 service-role 로 읽는다(자기 행만 조회).
+export async function isStaff(profile: { id: string; is_admin: boolean }): Promise<boolean> {
+  if (profile.is_admin) return true;
+  const { data } = await createAdminClient()
+    .from("project_managers")
+    .select("project_id")
+    .eq("profile_id", profile.id)
+    .limit(1);
+  return Array.isArray(data) && data.length > 0;
+}
+
+export async function requireStaff() {
+  const profile = await requireProfile();
+  if (!(await isStaff(profile))) {
+    redirect("/me?staff_required=1");
   }
   return profile;
 }

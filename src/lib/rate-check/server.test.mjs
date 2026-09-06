@@ -54,7 +54,7 @@ function actionHarness({ enabled = false, authenticated = true, replies = [], co
   const apify = collector(() => { throw new Error("Unexpected network"); });
   const action = load("src/app/actions/rate-check.ts", {
     "next/cache": { revalidatePath(value) { assert.equal(value, "/tools/rate-check"); revalidated++; } },
-    "@/lib/auth/guard": { async requireProfile() { calls.push("guard"); if (!authenticated) throw new Error("redirect"); return { id: "member-id", is_admin: false }; } },
+    "@/lib/auth/guard": { async requireStaff() { calls.push("guard"); if (!authenticated) throw new Error("redirect"); return { id: "member-id", is_admin: false }; } },
     "@/lib/rate-check/pricing": pricing,
     "@/lib/rate-check/types": types,
     "@/lib/rate-check/apify": { ...apify, async collectInstagramRate(handle) { calls.push("collect"); return collect(handle, apify); } },
@@ -90,7 +90,7 @@ const row = {
 
 test("guard rejects before DB or collection; form validation precedes DB", async () => {
   const denied = actionHarness({ authenticated: false });
-  assert.equal((await denied.run()).error, "로그인이 필요합니다.");
+  assert.equal((await denied.run()).error, "관리자 또는 프로젝트 공동관리자만 사용할 수 있습니다.");
   assert.deepEqual(denied.calls, ["guard"]);
   const invalid = actionHarness();
   invalid.fd.set("handle", "bad handle");
@@ -203,7 +203,7 @@ test("HTTP failures, timeout and network errors become safe Korean messages", as
 test("actual page renders the token-disabled banner even when history DB is unavailable", async () => {
   let guarded = false;
   const page = load("src/app/(app)/tools/rate-check/page.tsx", {
-    "@/lib/auth/guard": { async requireProfile() { guarded = true; return { id: "member-id", is_admin: false }; } },
+    "@/lib/auth/guard": { async requireStaff() { guarded = true; return { id: "member-id", is_admin: false }; } },
     "@/lib/rate-check/types": types,
     "@/lib/rate-check/repository": { ...repository, rateChecksTable() { assert.equal(guarded, true); throw new Error("Missing table"); } },
     "@/components/admin/rate-check/RateCheckConsole": { RateCheckConsole: ({ historyError }) => React.createElement("p", null, historyError) },
@@ -217,7 +217,7 @@ test("actual page renders the token-disabled banner even when history DB is unav
 
 test("tools page rejects unauthenticated access before loading shared history", async () => {
   const page = load("src/app/(app)/tools/rate-check/page.tsx", {
-    "@/lib/auth/guard": { async requireProfile() { throw new Error("login redirect"); } },
+    "@/lib/auth/guard": { async requireStaff() { throw new Error("login redirect"); } },
     "@/lib/rate-check/types": types,
     "@/lib/rate-check/repository": { ...repository, rateChecksTable() { assert.fail("Unauthenticated history read"); } },
     "@/components/admin/rate-check/RateCheckConsole": {},
