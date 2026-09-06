@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireProfile } from "@/lib/auth/guard";
+import { requireStaff } from "@/lib/auth/guard";
 import { collectInstagramRate, RateCheckCollectionError } from "@/lib/rate-check/apify";
 import { calculateRate, normalizeInstagramHandle } from "@/lib/rate-check/pricing";
 import { kstDayStart, rateChecksTable, RATE_CHECK_COLUMNS, toRateCheckData, type RateCheckRow } from "@/lib/rate-check/repository";
@@ -15,8 +15,8 @@ const schema = z.object({
 
 export async function checkInstagramRateAction(fd: FormData): Promise<{ ok: true; data: RateCheckData } | { ok: false; error: string }> {
   let profile;
-  try { profile = await requireProfile(); }
-  catch { return { ok: false, error: "로그인이 필요합니다." }; }
+  try { profile = await requireStaff(); }
+  catch { return { ok: false, error: "관리자 또는 프로젝트 공동관리자만 사용할 수 있습니다." }; }
 
   const parsed = schema.safeParse({ handle: fd.get("handle"), force: fd.get("force") });
   if (!parsed.success || !parsed.data.handle) return { ok: false, error: "올바른 인스타그램 핸들을 입력해 주세요(영문·숫자·점·밑줄, 1~30자)." };

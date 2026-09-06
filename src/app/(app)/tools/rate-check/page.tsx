@@ -1,4 +1,4 @@
-import { requireProfile } from "@/lib/auth/guard";
+import { requireStaff } from "@/lib/auth/guard";
 import { RateCheckConsole } from "@/components/admin/rate-check/RateCheckConsole";
 import { rateChecksTable, RATE_CHECK_COLUMNS, toRateCheckData, type RateCheckRow } from "@/lib/rate-check/repository";
 import { RATE_CHECK_DISABLED, type RateCheckData } from "@/lib/rate-check/types";
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 240;
 
 export default async function RateCheckPage() {
-  await requireProfile();
+  await requireStaff();
   let history: RateCheckData[] = [];
   let historyError: string | null = null;
   try {

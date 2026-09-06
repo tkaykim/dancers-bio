@@ -4,15 +4,15 @@
 
 ## 0. 한 줄 요약
 
-로그인한 사용자가 Instagram 핸들을 입력하면 서버가 Apify로 팔로워 수와 최근 릴스 조회수를 수집하고, 팀 단가표(음원 챌린지 기준)로 계산한 **안내가**를 보여주는 페이지 `/tools/rate-check` 를 제공한다.
+운영 스태프(운영 관리자·슈퍼관리자·프로젝트 공동관리자)가 Instagram 핸들을 입력하면 서버가 Apify로 팔로워 수와 최근 릴스 조회수를 수집하고, 팀 단가표(음원 챌린지 기준)로 계산한 **안내가**를 보여주는 페이지 `/tools/rate-check` 를 제공한다.
 결과는 DB에 남겨 같은 계정을 7일 안에 다시 조회하면 재수집 없이 보여준다.
-조회 기록은 로그인한 모든 사용자에게 동일하게 보인다.
+조회 기록은 운영 스태프 모두에게 동일하게 보인다. 일반 댄서는 페이지·액션 모두 통과하지 못한다(2026-09-06 대표 지시: 본인에게 안내가가 보이면 안 된다).
 
 ## 1. 범위
 
 ### 만든다
 
-1. 페이지 `src/app/(app)/tools/rate-check/page.tsx`는 `requireProfile()`로 로그인한 사용자의 접근을 허용한다.
+1. 페이지 `src/app/(app)/tools/rate-check/page.tsx`는 `requireStaff()`(`is_admin` OR `project_managers` 행 보유)로 운영 스태프만 허용한다. 미통과 시 `/me?staff_required=1`.
    `(app)/layout.tsx`의 `requireUser()`와 `AppShell`을 사용하며, 최상위 컨테이너는 `/me`와 같은 `flex flex-col gap-6 px-6 pb-10 pt-8 lg:mx-auto lg:max-w-2xl`로 감싼다.
    기존 `src/app/(app)/admin/rate-check/page.tsx`는 `redirect("/tools/rate-check")`만 수행해 기존 관리자 링크·북마크를 연결한다.
 2. 서버 액션 `src/app/actions/rate-check.ts` — `checkInstagramRateAction(fd)` 하나. 반환은 `{ ok: true, data } | { ok: false, error }`.
@@ -139,7 +139,7 @@ create table if not exists public.rate_checks (
 create index if not exists rate_checks_handle_created_idx on public.rate_checks (ig_handle, created_at desc);
 alter table public.rate_checks enable row level security;
 revoke all on public.rate_checks from anon, authenticated;
--- 정책 없음: 서버 액션이 requireProfile 통과 후 service-role(admin client)로만 읽고 쓴다.
+-- 정책 없음: 서버 액션이 requireStaff 통과 후 service-role(admin client)로만 읽고 쓴다.
 comment on table public.rate_checks is '관리자 페이 산정 도구 조회 기록. 금액은 안내가(산식)이며 계약가가 아니다.';
 ```
 
@@ -151,7 +151,7 @@ comment on table public.rate_checks is '관리자 페이 산정 도구 조회 �
 
 입력: `handle`(문자열), `force`("true"면 캐시 무시).
 
-1. `requireProfile()` (실패 시 `{ok:false,error:"로그인이 필요합니다."}`).
+1. `requireStaff()` (실패 시 `{ok:false,error:"관리자 또는 프로젝트 공동관리자만 사용할 수 있습니다."}`).
 2. 핸들 정규화(2.4). 실패 시 오류.
 3. `force` 가 아니면 `rate_checks` 에서 같은 `ig_handle`·`error is null`·7일 이내 최신 1건을 찾아 있으면 그대로 반환(`cached: true`).
 4. 토큰 확인(3장). 없으면 오류.
