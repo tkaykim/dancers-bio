@@ -3,7 +3,13 @@
 import * as XLSX from "xlsx";
 import { matchBank } from "@/lib/banks";
 import { revalidatePath } from "next/cache";
-import { canManageProject, requireAdmin, requireUser } from "@/lib/auth/guard";
+import {
+  canManageProject,
+  getProfile,
+  isSuperAdmin,
+  requireSuperAdmin,
+  requireUser,
+} from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -70,6 +76,7 @@ function kstStamp(): string {
   return `${g("year")}${g("month")}${g("day")}_${g("hour")}${g("minute")}`;
 }
 
+// 프로젝트 단위 역할·수주액 권한에만 사용한다.
 async function isAdmin(userId: string): Promise<boolean> {
   const admin = createAdminClient();
   const { data } = await admin
@@ -603,7 +610,8 @@ export async function savePayoutAccountAction(
     return { ok: false, error: "계좌번호는 숫자 8~20자리로 입력해 주세요." };
 
   // 본인 댄서 또는 슈퍼관리자(담당자가 사진 보고 대신 입력)만 허용.
-  if (!(await isAdmin(user.id))) {
+  const profile = await getProfile();
+  if (!profile || !isSuperAdmin(profile)) {
     const mine = await myDancerIds(user.id);
     if (!mine.has(dancerId))
       return { ok: false, error: "본인 댄서 프로필만 계좌를 등록할 수 있습니다." };
@@ -630,7 +638,7 @@ export async function savePayoutAccountAction(
 export async function sendWithdrawalRequestEmailAction(
   fd: FormData,
 ): Promise<ActionResult> {
-  await requireAdmin();
+  await requireSuperAdmin();
   const settlementId = (fd.get("settlement_id") ?? "").toString().trim();
   if (!settlementId) return { ok: false, error: "잘못된 요청입니다." };
 
@@ -719,10 +727,11 @@ export async function saveResidentNumberAction(
   if (!rrn || !isResidentNumberValid(rrn))
     return { ok: false, error: "유효한 주민(외국인)등록번호를 입력해 주세요." };
 
-  if (!(await isAdmin(user.id))) {
+  const profile = await getProfile();
+  if (!profile || !isSuperAdmin(profile)) {
     const mine = await myDancerIds(user.id);
     if (!mine.has(dancerId))
-      return { ok: false, error: "권한이 없습니다." };
+      return { ok: false, error: "본인 댄서 프로필만 계좌를 등록할 수 있습니다." };
   }
 
   const admin = createAdminClient();
@@ -755,7 +764,7 @@ export async function saveResidentNumberAction(
 export async function cancelSettlementAction(
   fd: FormData,
 ): Promise<ActionResult> {
-  await requireAdmin();
+  await requireSuperAdmin();
   const settlementId = (fd.get("settlement_id") ?? "").toString().trim();
   if (!settlementId) return { ok: false, error: "잘못된 요청입니다." };
 
@@ -796,7 +805,7 @@ export async function cancelSettlementAction(
 export async function markSettlementPaidAction(
   fd: FormData,
 ): Promise<ActionResult> {
-  const admin_profile = await requireAdmin();
+  const admin_profile = await requireSuperAdmin();
   const settlementId = (fd.get("settlement_id") ?? "").toString().trim();
   if (!settlementId) return { ok: false, error: "잘못된 요청입니다." };
 
@@ -839,7 +848,7 @@ export async function markSettlementPaidAction(
 export async function markSettlementsPaidAction(
   fd: FormData,
 ): Promise<ActionResult<{ updated: number }>> {
-  const admin_profile = await requireAdmin();
+  const admin_profile = await requireSuperAdmin();
   let ids: string[] = [];
   try {
     const p = JSON.parse((fd.get("ids") ?? "[]").toString());
@@ -877,7 +886,7 @@ export async function markSettlementsPaidAction(
 export async function requestSettlementInfoAction(
   fd: FormData,
 ): Promise<ActionResult> {
-  await requireAdmin();
+  await requireSuperAdmin();
   const settlementId = (fd.get("settlement_id") ?? "").toString().trim();
   if (!settlementId) return { ok: false, error: "잘못된 요청입니다." };
   await notifyDancerSettlement(settlementId, "info_required");
@@ -898,7 +907,7 @@ export async function buildTransferFileAction(
     skipped: number;
   }>
 > {
-  await requireAdmin();
+  await requireSuperAdmin();
   let ids: string[] = [];
   try {
     const p = JSON.parse((fd.get("ids") ?? "[]").toString());

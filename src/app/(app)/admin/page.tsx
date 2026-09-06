@@ -1,13 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireProfile } from "@/lib/auth/guard";
+import { isSuperAdmin, requireProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { RecomputeScoresButton } from "@/components/admin/RecomputeScoresButton";
 
-export default async function AdminHomePage() {
+export default async function AdminHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ super_required?: string }>;
+}) {
   const profile = await requireProfile();
   if (!profile.is_admin) notFound();
+  const superAdmin = isSuperAdmin(profile);
+  const params = await searchParams;
 
   const supabase = await createClient();
   const [
@@ -50,14 +56,18 @@ export default async function AdminHomePage() {
       .from("dancer_ingestions")
       .select("id", { count: "exact", head: true })
       .eq("status", "draft"),
-    supabase
-      .from("settlements")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "requested"),
-    supabase
-      .from("withdrawal_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "requested"),
+    superAdmin
+      ? supabase
+          .from("settlements")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "requested")
+      : { count: null },
+    superAdmin
+      ? supabase
+          .from("withdrawal_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "requested")
+      : { count: null },
   ]);
 
   // 출금 대기 = 구 경로(settlements.requested) + 잔액 출금 신청(withdrawal_requests.requested).
@@ -79,6 +89,11 @@ export default async function AdminHomePage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {params.super_required === "1" ? (
+        <p role="status" className="rounded-xl border border-border bg-secondary px-4 py-3 text-sm text-ink-2">
+          이 메뉴는 슈퍼관리자만 볼 수 있습니다.
+        </p>
+      ) : null}
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
           ↳ 관리자
@@ -97,12 +112,14 @@ export default async function AdminHomePage() {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <Tile
-          href="/admin/payments"
-          title="통합 결제 장부"
-          desc="비자·트레이닝·Village·워크샵 결제를 상품·상태·주문번호별로 한 곳에서 확인"
-          accent
-        />
+        {superAdmin ? (
+          <Tile
+            href="/admin/payments"
+            title="통합 결제 장부"
+            desc="비자·트레이닝·Village·워크샵 결제를 상품·상태·주문번호별로 한 곳에서 확인"
+            accent
+          />
+        ) : null}
         <Tile
           href="/admin/analytics"
           title="성장 · KPI 분석"
@@ -172,13 +189,15 @@ export default async function AdminHomePage() {
           title="LLM 설정"
           desc="Anthropic / Gemini 토글 + 연결 상태 + 테스트"
         />
-        <Tile
-          href="/admin/settlements"
-          title="정산 · 출금 처리"
-          desc="댄서 출금 신청 확인 → 통장 이체 후 완료 처리"
-          badge={pendingWithdrawals ? `${pendingWithdrawals} 대기` : undefined}
-          accent={Boolean(pendingWithdrawals)}
-        />
+        {superAdmin ? (
+          <Tile
+            href="/admin/settlements"
+            title="정산 · 출금 처리"
+            desc="댄서 출금 신청 확인 → 통장 이체 후 완료 처리"
+            badge={pendingWithdrawals ? `${pendingWithdrawals} 대기` : undefined}
+            accent={Boolean(pendingWithdrawals)}
+          />
+        ) : null}
         <Tile
           href="/admin/alimtalk"
           title="알림톡 발송내역"

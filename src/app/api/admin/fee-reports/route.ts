@@ -1,7 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getProfile } from "@/lib/auth/guard";
+import { getProfile, isSuperAdmin } from "@/lib/auth/guard";
 
 // 제네릭 없는 service-role 클라이언트 (생성 Database 타입에 새 테이블/버킷이 없어도 동작)
 function adminClient() {
@@ -18,8 +18,8 @@ type EvidenceFile = { path: string; name: string; size: number; type: string };
 
 export async function GET() {
   const profile = await getProfile();
-  if (!profile?.is_admin) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!profile || !isSuperAdmin(profile)) {
+    return NextResponse.json({ error: "슈퍼관리자만 실행할 수 있습니다." }, { status: 403 });
   }
 
   const admin = adminClient();

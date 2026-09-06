@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
-import { requireProfile } from "@/lib/auth/guard";
+import { isSuperAdmin, requireProfile } from "@/lib/auth/guard";
 import { AdminSidebarNav, AdminTopNav } from "@/components/admin/AdminNav";
 
 export default async function AdminLayout({
@@ -11,6 +11,7 @@ export default async function AdminLayout({
 }) {
   const profile = await requireProfile();
   if (!profile.is_admin) notFound();
+  const superAdmin = isSuperAdmin(profile);
 
   return (
     <div className="min-h-svh bg-background lg:flex">
@@ -21,7 +22,7 @@ export default async function AdminLayout({
           <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
           <span className="ml-1 text-[11px] font-medium text-ink-3">admin</span>
         </Link>
-        <AdminSidebarNav />
+        <AdminSidebarNav superAdmin={superAdmin} />
         <Link
           href="/feed"
           className="mt-auto px-3 text-xs text-ink-3 hover:text-foreground"
@@ -41,7 +42,7 @@ export default async function AdminLayout({
             앱으로 →
           </Link>
         </div>
-        <AdminTopNav />
+        <AdminTopNav superAdmin={superAdmin} />
       </header>
 
       {/* Content */}

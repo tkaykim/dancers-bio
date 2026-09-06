@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { requireProfile } from "@/lib/auth/guard";
+import { requireSuperAdmin } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   SettlementLedger,
@@ -41,8 +40,7 @@ export default async function SettlementLedgerPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const profile = await requireProfile();
-  if (!profile.is_admin) notFound();
+  await requireSuperAdmin();
 
   const sp = await searchParams;
   const rawPeriod = (Array.isArray(sp.period) ? sp.period[0] : sp.period) ?? "month";

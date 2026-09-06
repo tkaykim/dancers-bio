@@ -31,6 +31,7 @@ type Item = {
   label: string;
   Icon: typeof LayoutDashboard;
   exact?: boolean;
+  superOnly?: boolean;
 };
 
 type Group = { title: string | null; items: Item[] };
@@ -78,10 +79,10 @@ const GROUPS: Group[] = [
     title: "정산",
     items: [
       { href: "/tools/rate-check", label: "페이 산정", Icon: Calculator },
-      { href: "/admin/payments", label: "통합 결제 장부", Icon: CreditCard, exact: true },
-      { href: "/admin/settlements", label: "정산 처리", Icon: Wallet, exact: true },
-      { href: "/admin/settlements/ledger", label: "지급 장부", Icon: Receipt },
-      { href: "/admin/finance/receivables", label: "매출·수금", Icon: HandCoins },
+      { href: "/admin/payments", label: "통합 결제 장부", Icon: CreditCard, exact: true, superOnly: true },
+      { href: "/admin/settlements", label: "정산 처리", Icon: Wallet, exact: true, superOnly: true },
+      { href: "/admin/settlements/ledger", label: "지급 장부", Icon: Receipt, superOnly: true },
+      { href: "/admin/finance/receivables", label: "매출·수금", Icon: HandCoins, superOnly: true },
     ],
   },
   {
@@ -94,7 +95,13 @@ const GROUPS: Group[] = [
   },
 ];
 
-const FLAT: Item[] = GROUPS.flatMap((g) => g.items);
+function visibleGroups(superAdmin: boolean): Group[] {
+  return GROUPS.map((group) => {
+    const items = group.items.filter((item) => !item.superOnly || superAdmin);
+    const toolsOnly = items.length === 1 && items[0].href === "/tools/rate-check";
+    return { title: toolsOnly ? "도구" : group.title, items };
+  }).filter((group) => group.items.length > 0);
+}
 
 function isActive(item: Item, pathname: string): boolean {
   if (item.exact) return pathname === item.href;
@@ -102,11 +109,11 @@ function isActive(item: Item, pathname: string): boolean {
 }
 
 /** Vertical grouped nav for the desktop sidebar (lg+). */
-export function AdminSidebarNav() {
+export function AdminSidebarNav({ superAdmin }: { superAdmin: boolean }) {
   const pathname = usePathname() ?? "/admin";
   return (
     <nav aria-label="관리자" className="flex flex-col gap-5">
-      {GROUPS.map((group, gi) => (
+      {visibleGroups(superAdmin).map((group, gi) => (
         <div key={gi} className="flex flex-col gap-1">
           {group.title ? (
             <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-4">
@@ -139,14 +146,14 @@ export function AdminSidebarNav() {
 }
 
 /** Horizontal scrollable chips for the mobile top bar (<lg). */
-export function AdminTopNav() {
+export function AdminTopNav({ superAdmin }: { superAdmin: boolean }) {
   const pathname = usePathname() ?? "/admin";
   return (
     <nav
       aria-label="관리자"
       className="scrollbar-none flex gap-1.5 overflow-x-auto px-4 pb-2"
     >
-      {FLAT.map((item) => {
+      {visibleGroups(superAdmin).flatMap((group) => group.items).map((item) => {
         const active = isActive(item, pathname);
         return (
           <Link

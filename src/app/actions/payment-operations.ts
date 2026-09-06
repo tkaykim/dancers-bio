@@ -8,7 +8,7 @@ import { z } from "zod";
 import { executeDeetzPaymentOperation, reconcileDeetzPaymentOperation, type PaymentExecutionResult } from "@/lib/admin/payment-execution";
 import { canExecutePaymentOperationsDirectly } from "@/lib/admin/payment-operation-permissions";
 import { loadPaymentSource, quotePaymentRefund, type CanonicalPaymentSource } from "@/lib/admin/payment-sources";
-import { requireAdmin } from "@/lib/auth/guard";
+import { requireSuperAdmin } from "@/lib/auth/guard";
 import { buildInitialPaymentOperationState, type PaymentOperationExecutionMode } from "@/lib/payments/payment-operation-flow";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -218,7 +218,7 @@ async function executeAndFinalizeOperation(
 export async function requestPaymentOperationAction(
   input: z.input<typeof requestSchema>,
 ): Promise<PaymentOperationActionResult> {
-  const profile = await requireAdmin();
+  const profile = await requireSuperAdmin();
   const parsed = requestSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요." };
 
@@ -296,7 +296,7 @@ export async function requestPaymentOperationAction(
 export async function approvePaymentOperationAction(
   input: z.input<typeof operationIdSchema>,
 ): Promise<PaymentOperationActionResult> {
-  const profile = await requireAdmin();
+  const profile = await requireSuperAdmin();
   const parsed = operationIdSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "작업 ID를 확인해 주세요." };
   const client = adminClient();
@@ -342,7 +342,7 @@ export async function approvePaymentOperationAction(
 export async function rejectPaymentOperationAction(
   input: z.input<typeof operationIdSchema>,
 ): Promise<PaymentOperationActionResult> {
-  const profile = await requireAdmin();
+  const profile = await requireSuperAdmin();
   const parsed = operationIdSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "작업 ID를 확인해 주세요." };
   const client = adminClient();
@@ -382,7 +382,7 @@ export async function rejectPaymentOperationAction(
 export async function reconcilePaymentOperationAction(
   input: z.input<typeof operationIdSchema>,
 ): Promise<PaymentOperationActionResult> {
-  const profile = await requireAdmin();
+  const profile = await requireSuperAdmin();
   const parsed = operationIdSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "작업 ID를 확인해 주세요." };
   const client = adminClient();

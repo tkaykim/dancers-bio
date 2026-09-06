@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/guard";
+import { requireSuperAdmin } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionResult } from "./auth";
 import {
@@ -12,7 +12,7 @@ import {
 } from "@/lib/receivables";
 
 // 매출채권(받을 돈) 액션 — 설계 정본 docs/design-client-receivables.md rev1.
-// 전부 requireAdmin(경영지원실 전용, 대표 결정 3) + service-role(테이블 RLS default-deny).
+// 전부 requireSuperAdmin(경영지원실 전용, 대표 결정 3) + service-role(테이블 RLS default-deny).
 // 불변식(수납 라인 불변·입금 append-only·수납 전환=입금 합계)은 DB 트리거가 최종 방어선이고,
 // 여기서는 같은 규칙을 선검사해 사람이 읽을 수 있는 오류로 돌려준다.
 
@@ -65,7 +65,7 @@ const partySchema = z.object({
 export async function createClientPartyAction(
   fd: FormData,
 ): Promise<ActionResult<{ id: string }>> {
-  const profile = await requireAdmin();
+  const profile = await requireSuperAdmin();
   const brnDigits = str(fd.get("business_registration_number")).replace(
     /\D/g,
     "",
@@ -209,7 +209,7 @@ async function parseDealForm(fd: FormData): Promise<DealFormParse> {
 export async function createDealAction(
   fd: FormData,
 ): Promise<ActionResult<{ id: string }>> {
-  const profile = await requireAdmin();
+  const profile = await requireSuperAdmin();
   const r = await parseDealForm(fd);
   if (!r.ok) return { ok: false, error: r.error };
 
@@ -233,7 +233,7 @@ export async function createDealAction(
 }
 
 export async function updateDealAction(fd: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  await requireSuperAdmin();
   const dealId = str(fd.get("deal_id"));
   if (!uuid.safeParse(dealId).success)
     return { ok: false, error: "잘못된 요청입니다." };
@@ -274,7 +274,7 @@ const LINE_TYPES = [
 export async function createLineAction(
   fd: FormData,
 ): Promise<ActionResult<{ id: string }>> {
-  const profile = await requireAdmin();
+  const profile = await requireSuperAdmin();
   const dealId = str(fd.get("deal_id"));
   const lineType = str(fd.get("line_type")) as (typeof LINE_TYPES)[number];
   const title = str(fd.get("title"));
@@ -373,7 +373,7 @@ const mixedUnitLineSchema = z.object({
 export async function createMixedUnitLinesAction(
   fd: FormData,
 ): Promise<ActionResult<{ count: number }>> {
-  const profile = await requireAdmin();
+  const profile = await requireSuperAdmin();
   const dealId = str(fd.get("deal_id"));
   const initialStatus =
     str(fd.get("status")) === "draft" ? "draft" : "confirmed";
@@ -469,7 +469,7 @@ export async function createMixedUnitLinesAction(
 export async function recordTaxInvoiceAction(
   fd: FormData,
 ): Promise<ActionResult<{ id: string; count: number }>> {
-  const profile = await requireAdmin();
+  const profile = await requireSuperAdmin();
   const dealId = str(fd.get("deal_id"));
   const invoiceDate = str(fd.get("invoice_issued_at"));
   const dueDate = str(fd.get("due_date"));
@@ -547,7 +547,7 @@ export async function recordTaxInvoiceAction(
 }
 
 export async function updateLineAction(fd: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  await requireSuperAdmin();
   const lineId = str(fd.get("line_id"));
   if (!uuid.safeParse(lineId).success)
     return { ok: false, error: "잘못된 요청입니다." };
@@ -616,7 +616,7 @@ const LINE_TRANSITIONS: Record<string, RevenueLineStatus[]> = {
 };
 
 export async function setLineStatusAction(fd: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  await requireSuperAdmin();
   const lineId = str(fd.get("line_id"));
   const next = str(fd.get("next_status")) as RevenueLineStatus;
   if (!uuid.safeParse(lineId).success)
@@ -656,7 +656,7 @@ export async function setLineStatusAction(fd: FormData): Promise<ActionResult> {
 }
 
 export async function deleteLineAction(fd: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  await requireSuperAdmin();
   const lineId = str(fd.get("line_id"));
   if (!uuid.safeParse(lineId).success)
     return { ok: false, error: "잘못된 요청입니다." };
@@ -684,7 +684,7 @@ export async function deleteLineAction(fd: FormData): Promise<ActionResult> {
 export async function addReceiptAction(
   fd: FormData,
 ): Promise<ActionResult<{ id: string }>> {
-  const profile = await requireAdmin();
+  const profile = await requireSuperAdmin();
   const dealId = str(fd.get("deal_id"));
   const lineId = strOrNull(fd.get("line_id"));
   const amount = parseAmount(fd.get("amount"), { allowNegative: true });

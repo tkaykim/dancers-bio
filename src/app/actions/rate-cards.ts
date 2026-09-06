@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth/guard";
+import { isSuperAdmin, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import {
   RATE_SERVICE_TYPES,
@@ -46,10 +46,12 @@ async function resolveTargetDancer(
     if (!allowed) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("is_admin")
+        .select("is_admin, is_super_admin")
         .eq("id", userId)
         .maybeSingle();
-      allowed = Boolean(profile?.is_admin);
+      allowed = profile != null && isSuperAdmin(
+        profile as { is_admin: boolean; is_super_admin: boolean },
+      );
     }
     if (!allowed)
       return { ok: false, error: "이 댄서의 단가를 수정할 권한이 없습니다." };
