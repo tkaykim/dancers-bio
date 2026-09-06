@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:rate-check": "node --test src/lib/rate-check/pricing.test.ts src/lib/rate-check/server.test.mjs",
     "test:phone": "node --test src/lib/phone.test.ts",
     "test:payout-validation": "node --test src/lib/payout-validation.test.mjs",
     "test:payout-schedule": "node --test src/lib/payout-schedule.test.ts",

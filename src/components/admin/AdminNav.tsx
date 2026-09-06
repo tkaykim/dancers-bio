@@ -23,6 +23,7 @@ import {
   Home,
   Flame,
   CalendarDays,
+  Calculator,
 } from "lucide-react";
 
 type Item = {
@@ -76,6 +77,7 @@ const GROUPS: Group[] = [
   {
     title: "정산",
     items: [
+      { href: "/admin/rate-check", label: "페이 산정", Icon: Calculator },
       { href: "/admin/payments", label: "통합 결제 장부", Icon: CreditCard, exact: true },
       { href: "/admin/settlements", label: "정산 처리", Icon: Wallet, exact: true },
       { href: "/admin/settlements/ledger", label: "지급 장부", Icon: Receipt },
