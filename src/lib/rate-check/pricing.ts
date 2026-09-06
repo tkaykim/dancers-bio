@@ -37,10 +37,7 @@ export function followerBase(followers: number): number {
   if (followers < 30_000) return 50_000;
   if (followers < 50_000) return 100_000;
   if (followers < 100_000) return 150_000;
-  if (followers < 200_000) return 200_000;
-  if (followers < 300_000) return 300_000;
-  if (followers < 400_000) return 400_000;
-  return 500_000;
+  return (Math.floor(followers / 100_000) + 1) * 100_000;
 }
 
 export function viewBase(views: number): number {
@@ -50,7 +47,11 @@ export function viewBase(views: number): number {
   if (views < 60_000) return 200_000;
   if (views < 120_000) return 300_000;
   if (views < 200_000) return 400_000;
-  return 500_000;
+  let base = 500_000;
+  for (let threshold = 400_000; views >= threshold; threshold *= 2) {
+    base += 100_000;
+  }
+  return base;
 }
 
 function count(value: number | null | undefined): number | null {
@@ -94,8 +95,7 @@ export function calculateRate(followers: number, input: ReelInput[]) {
     viewsLow: n >= 6 ? used[0].plays : null,
     viewsHigh: n >= 6 ? used[used.length - 1].plays : null,
     expectedViews, tier: resolveTier(expectedViews), fBase, vBase,
-    formulaRate: vBase === null ? null : Math.min(500_000, Math.max(50_000, Math.floor(fBase / 2), vBase)),
-    outOfLadder: followers >= 400_000,
+    formulaRate: vBase === null ? null : Math.max(50_000, Math.floor(fBase / 2), vBase),
   };
 }
 
