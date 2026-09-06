@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Native Node TypeScript imports require the extension.
-import { calculateRate, followerBase, normalizeInstagramHandle, viewBase } from "./pricing.ts";
+import { calculateRate, followerBase, normalizeInstagramHandle, parseInstagramHandleLines, viewBase } from "./pricing.ts";
 
 const reels = (counts: number[]) => counts.map((plays, index) => ({
   shortCode: `reel${index}`, timestamp: new Date(Date.UTC(2026, 8, index + 1)).toISOString(), videoPlayCount: plays,
@@ -21,6 +21,21 @@ test("rejects invalid, empty, foreign URL and overlong handles", () => {
     assert.equal(normalizeInstagramHandle(input), null, input);
   }
   assert.equal(normalizeInstagramHandle("a".repeat(30)), "a".repeat(30));
+});
+
+test("parses newline-separated handles, removes blanks and normalized duplicates", () => {
+  assert.deepEqual(parseInstagramHandleLines([
+    "@Dancer",
+    "",
+    "https://www.instagram.com/dancer/",
+    " second_account ",
+    "bad handle",
+    "BAD HANDLE",
+  ].join("\r\n")), [
+    { input: "@Dancer", handle: "dancer" },
+    { input: "second_account", handle: "second_account" },
+    { input: "bad handle", handle: null },
+  ]);
 });
 
 test("ten samples trim two on each side", () => {

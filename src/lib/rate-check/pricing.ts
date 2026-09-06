@@ -33,6 +33,28 @@ export function normalizeInstagramHandle(input: string): string | null {
   return /^[a-z0-9._]{1,30}$/.test(value) ? value : null;
 }
 
+export type InstagramHandleInput = {
+  input: string;
+  handle: string | null;
+};
+
+export function parseInstagramHandleLines(input: string): InstagramHandleInput[] {
+  const seen = new Set<string>();
+  const entries: InstagramHandleInput[] = [];
+
+  for (const line of input.split(/\r?\n/)) {
+    const value = line.trim();
+    if (!value) continue;
+    const handle = normalizeInstagramHandle(value);
+    const key = handle ? `handle:${handle}` : `invalid:${value.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    entries.push({ input: value, handle });
+  }
+
+  return entries;
+}
+
 export function followerBase(followers: number): number {
   if (followers < 30_000) return 50_000;
   if (followers < 50_000) return 100_000;

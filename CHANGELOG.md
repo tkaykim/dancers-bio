@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.9.0 - 2026-09-06
+
+- Let staff measure multiple Instagram accounts from newline-separated handles or profile URLs with duplicate removal, progress tracking, and per-account results.
+
 ## 0.1.8.0 - 2026-09-06
 
 - Raise the shared daily Instagram rate-check measurement limit from 60 to 300 while keeping seven-day cache hits free from the quota.
