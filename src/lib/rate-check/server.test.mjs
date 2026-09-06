@@ -121,21 +121,21 @@ test("cache works without token, uses successful seven-day rows and excludes raw
   assert.ok(!repository.RATE_CHECK_COLUMNS.split(",").includes("raw"));
 });
 
-test("KST day boundary and 60-count limit fail closed before collection", async () => {
+test("KST day boundary and 300-count limit fail closed before collection", async () => {
   assert.equal(repository.kstDayStart(new Date("2026-09-05T14:59:59Z")), "2026-09-04T15:00:00.000Z");
   assert.equal(repository.kstDayStart(new Date("2026-09-05T15:00:00Z")), "2026-09-05T15:00:00.000Z");
-  for (const reply of [{ count: 60, error: null }, { count: 61, error: null }, { count: null, error: {} }]) {
+  for (const reply of [{ count: 300, error: null }, { count: 301, error: null }, { count: null, error: {} }]) {
     const h = actionHarness({ enabled: true, replies: [reply] });
     h.fd.set("force", "true");
     const result = await h.run();
     assert.equal(result.ok, false);
-    if (reply.count !== null) assert.match(result.error, /60회/);
+    if (reply.count !== null) assert.match(result.error, /300회/);
     assert.ok(!h.calls.includes("collect"));
   }
 });
 
-test("non-admin can make the 60th measurement, bypass cache, save and revalidate", async () => {
-  const h = actionHarness({ enabled: true, replies: [{ count: 59, error: null }, { data: row, error: null }],
+test("staff can make the 300th measurement, bypass cache, save and revalidate", async () => {
+  const h = actionHarness({ enabled: true, replies: [{ count: 299, error: null }, { data: row, error: null }],
     collect: async () => ({ profile: { followers: 1234, fullName: "Dancer", profilePicUrl: null }, reels: [], raw: { profile: [{ followersCount: 1234 }] } }),
   });
   h.fd.set("force", "true");

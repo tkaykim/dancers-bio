@@ -15,3 +15,4 @@ export type RateCheckData = Omit<RatePricing, "fBase"> & {
 };
 
 export const RATE_CHECK_DISABLED = "측정 기능이 꺼져 있습니다(RATE_CHECK_APIFY_TOKEN 미설정).";
+export const RATE_CHECK_DAILY_LIMIT = 300;

@@ -6,7 +6,7 @@ import { requireStaff } from "@/lib/auth/guard";
 import { collectInstagramRate, RateCheckCollectionError } from "@/lib/rate-check/apify";
 import { calculateRate, normalizeInstagramHandle } from "@/lib/rate-check/pricing";
 import { kstDayStart, rateChecksTable, RATE_CHECK_COLUMNS, toRateCheckData, type RateCheckRow } from "@/lib/rate-check/repository";
-import { RATE_CHECK_DISABLED, type RateCheckData } from "@/lib/rate-check/types";
+import { RATE_CHECK_DAILY_LIMIT, RATE_CHECK_DISABLED, type RateCheckData } from "@/lib/rate-check/types";
 
 const schema = z.object({
   handle: z.string().max(2048).transform(normalizeInstagramHandle).refine((value) => value !== null),
@@ -35,7 +35,7 @@ export async function checkInstagramRateAction(fd: FormData): Promise<{ ok: true
     if (!enabled) return { ok: false, error: RATE_CHECK_DISABLED };
     const { count, error: countError } = await rateChecksTable().select("id", { count: "exact", head: true }).gte("created_at", kstDayStart());
     if (countError || count === null) return { ok: false, error: "오늘 측정 횟수를 확인할 수 없습니다." };
-    if (count >= 60) return { ok: false, error: "오늘 측정 한도(한국 시간 기준 60회)에 도달했습니다. 내일 다시 시도해 주세요." };
+    if (count >= RATE_CHECK_DAILY_LIMIT) return { ok: false, error: `오늘 측정 한도(한국 시간 기준 ${RATE_CHECK_DAILY_LIMIT}회)에 도달했습니다. 내일 다시 시도해 주세요.` };
 
     let collected;
     try {
