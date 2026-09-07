@@ -1,4 +1,5 @@
 import "server-only";
+import { normalizeInstagramHandle } from "@/lib/instagram/handle";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyCastingReviewToken } from "@/lib/quick-token";
@@ -213,7 +214,7 @@ function lineupFieldsOf(member: MemberRow) {
   return {
     lineupStatus: normalizeLineupStatus(member.lineup_status),
     accountType: normalizeAccountType(member.account_type),
-    igHandle: member.ig_handle?.trim() || null,
+    igHandle: normalizeInstagramHandle(member.ig_handle ?? ""),
     followers: member.followers ?? null,
     expectedViews,
     medianViews: member.median_views ?? null,

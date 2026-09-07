@@ -22,16 +22,9 @@ export type RateReel = {
   excluded: boolean;
 };
 
-export function normalizeInstagramHandle(input: string): string | null {
-  let value = input.trim().toLowerCase();
-  if (/^(?:https?:\/\/)?(?:www\.)?instagram\.com(?:\/|$)/.test(value)) {
-    value = value.replace(/^(?:https?:\/\/)?(?:www\.)?instagram\.com\/?/, "");
-  } else if (value.includes("://")) {
-    return null;
-  }
-  value = value.replace(/^@/, "").split(/[?/]/)[0];
-  return /^[a-z0-9._]{1,30}$/.test(value) ? value : null;
-}
+// @ts-expect-error Native node tests require an explicit TypeScript extension.
+import { normalizeInstagramHandle } from "../instagram/handle.ts";
+export { normalizeInstagramHandle };
 
 export type InstagramHandleInput = {
   input: string;

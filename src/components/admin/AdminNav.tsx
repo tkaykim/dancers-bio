@@ -55,6 +55,7 @@ const GROUPS: Group[] = [
   {
     title: "콘텐츠",
     items: [
+      { href: "/tools/campaigns", label: "캠페인 성과", Icon: BarChart3 },
       { href: "/admin/projects", label: "공고 관리", Icon: Megaphone, exact: true },
       { href: "/admin/projects/import", label: "공고 수집", Icon: Download },
     ],

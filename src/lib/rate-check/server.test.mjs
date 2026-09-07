@@ -36,7 +36,10 @@ function load(file, mocks = {}, globals = {}) {
 
 const types = load("src/lib/rate-check/types.ts");
 const forecast = load("src/lib/casting/forecast.ts");
-const pricing = load("src/lib/rate-check/pricing.ts", { "../casting/forecast.ts": forecast });
+const pricing = load("src/lib/rate-check/pricing.ts", {
+  "../casting/forecast.ts": forecast,
+  "../instagram/handle.ts": load("src/lib/instagram/handle.ts"),
+});
 const repository = load("src/lib/rate-check/repository.ts", {
   "@/lib/supabase/admin": { createAdminClient() { throw new Error("DB is mocked"); } },
 });
