@@ -1,9 +1,18 @@
 "use client";
-import { useState, useTransition } from "react";
+import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { mutateSubmissionAction } from "@/app/actions/campaign-submissions";
 import type { Submission } from "@/lib/campaign/submissions";
 import { buttonClass, inputClass } from "@/components/admin/campaign/Controls";
+const FeedbackContext = createContext<((message: string) => void) | null>(null);
+// Keep completion feedback outside refreshed, version-keyed forms and collapsed details.
+export function SubmissionFeedback({ children }: { children: ReactNode }) {
+  const [message, setMessage] = useState("");
+  return <FeedbackContext.Provider value={setMessage}>
+    {message && <p role="status" aria-live="polite" className="whitespace-pre-line rounded-xl border border-border bg-secondary p-4 text-sm">{message}</p>}
+    {children}
+  </FeedbackContext.Provider>;
+}
 export function SubmissionForm({
   projectId,
   participantId,
@@ -18,6 +27,7 @@ export function SubmissionForm({
   onSaved?: () => void;
 }) {
   const router = useRouter();
+  const reportFeedback = useContext(FeedbackContext);
   const [url, setUrl] = useState(initialUrl),
     [message, setMessage] = useState(""),
     [pending, start] = useTransition();
@@ -28,6 +38,7 @@ export function SubmissionForm({
       onSubmit={(e) => {
         e.preventDefault();
         setMessage("");
+        reportFeedback?.("");
         start(async () => {
           try {
             const r = await mutateSubmissionAction(projectId, "submit", {
@@ -41,11 +52,11 @@ export function SubmissionForm({
               setMessage(r.error);
               return;
             }
-            setMessage(
-              r.data.duplicate
+            const success = r.data.duplicate
                 ? "이미 제출된 링크입니다."
-                : "링크가 제출되었습니다.\n운영자가 확인하면 상태가 변경됩니다.",
-            );
+                : "링크가 제출되었습니다.\n운영자가 확인하면 상태가 변경됩니다.";
+            if (reportFeedback) reportFeedback(success);
+            else setMessage(success);
             router.refresh();
             onSaved?.();
           } catch {

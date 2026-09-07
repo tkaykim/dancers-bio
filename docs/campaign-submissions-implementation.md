@@ -6,9 +6,11 @@
 ## 제공 기능
 
 - 운영자는 기존 `/tools/campaigns/[projectId]?tab=submissions`에서 확정 참여자 전체를 표로 관리한다.
+- PR #223의 최신 `(ops)` 관리자 셸과 통합했으며 기존 게시물·추이·보고서 UI 개선을 유지한다.
 - 상태·담당자·기한 필터, 이름·계정 검색, 명단·제출 안내 문구 복사, 50행 페이지 이동을 제공한다.
 - 관리자는 참여자 행에서 게시물 링크를 대신 등록하고, 수정 요청·확인 완료를 처리한다.
 - 회원은 `/applications`에서 진입해 `/campaigns/[projectId]/submit`에서 링크와 검토 결과를 확인하고 수정·재제출한다.
+- 제출 완료 안내는 서버에서 최신 상태를 받아 폼이 교체되거나 접혀도 화면 상단에 유지한다.
 - 직접 섭외한 보드 참여자는 지원서 없이도 등록할 수 있으며 담당자가 회원 연결 근거를 기록하면 본인 제출을 사용할 수 있다.
 - 별도 등록된 미연결 게시물은 확정 참여자에게 연결할 수 있다.
 - 공개 설정이 켜진 캐스팅 보드에는 승인된 링크의 배지와 업로드 현황 보기가 나타난다.
@@ -50,9 +52,10 @@ RPC는 SECURITY INVOKER이며 anon·authenticated에는 실행 권한을 주지 
 - 신규 SQL은 실제 마이그레이션을 PGlite PostgreSQL에 적용하고 service_role 권한으로 검증했다.
 - 로컬 Next.js와 격리된 Auth·REST 어댑터를 연결해 실제 서버 액션을 실행했다.
 - 브라우저에서 미제출 필터, 관리자 대신 등록, 검토 체크 필수, 승인, 수정 요청, 본인 재제출, 타인 404, 로그인 복귀, 공개 미리보기의 승인 링크 한정, 모바일 가로 넘침을 검증했다.
+- 공개 `/cast`의 승인 링크 한정·공개 설정과 재제출 완료 안내 유지까지 총 15개 브라우저 시나리오를 통과했다.
 - 전역 Playwright를 사용하며 실행 명령은 PowerShell에서 `$env:NODE_PATH = (npm root -g); node scripts/campaign-submissions-browser.cjs`다.
 - 시각 증빙과 실행 결과는 `C:/Users/tkay/Desktop/deliverables/deetz-campaign-submissions-20260907/`에 있다.
-- 최종 린트·타입 검사·프로덕션 빌드 결과는 PR에 기록한다.
+- 변경 TypeScript 파일 ESLint와 `next build --webpack` 전체 타입 검사·프로덕션 빌드를 통과했다.
 
 브라우저 검증의 인증·REST 계층은 로컬 테스트 어댑터다.
 운영 Supabase 인증 세션으로 쓴 이력이 아니며, 배포 후 운영 인증 스모크 검증이 필요하다.

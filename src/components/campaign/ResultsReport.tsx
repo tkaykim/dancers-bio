@@ -1,5 +1,5 @@
-import Image from "next/image";
 import { UploadProgress } from "./UploadProgress";
+import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import type {
   PublicReport,
   PublicPost,
@@ -8,7 +8,7 @@ import type {
 } from "@/lib/campaign/types";
 export const number = (v: number | null | undefined) =>
   v == null
-    ? "미확인"
+    ? "—"
     : v.toLocaleString("ko-KR", {
         maximumFractionDigits: 1,
       });
@@ -22,8 +22,14 @@ export const date = (v: string | null) => {
         .replace("T", " ") + " KST"
     : "—";
 };
+export const shortDate = (v: string | null, time = true) => {
+  if (!v) return "—";
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", ...(time ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" as const } : {}) }).formatToParts(new Date(v));
+  const get = (type: string) => parts.find(p => p.type === type)?.value ?? "";
+  return `${get("month")}/${get("day")}${time ? ` ${get("hour")}:${get("minute")}` : ""}`;
+};
 export const tableClass =
-  "w-full text-left text-sm [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:p-3 [&_th]:text-ink-3 [&_td]:border-b [&_td]:border-border [&_td]:p-3";
+  "w-full border-collapse text-left text-sm [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:px-3 [&_th]:py-3 [&_th]:text-[11px] [&_th]:font-medium [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-ink-3 [&_td]:border-b [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_tr]:h-11 [&_tbody_tr]:odd:bg-secondary/40 [&_td]:tabular-nums";
 export function Bars({
   rows,
 }: {
@@ -67,10 +73,22 @@ export function Bars({
     </svg>
   );
 }
+export function Histogram({ rows }: { rows: { label: string; value: number }[] }) {
+  const max = Math.max(1, ...rows.map(r => r.value));
+  return <svg role="img" aria-label="재생 구간별 게시물 수" viewBox="0 0 480 230" className="w-full">
+    <title>재생 구간별 게시물 수</title>
+    {[0, .5, 1].map(tick => <g key={tick} className="text-ink-3"><line x1="36" x2="474" y1={184 - tick * 144} y2={184 - tick * 144} stroke="currentColor" strokeOpacity=".2" /><text x="29" y={188 - tick * 144} textAnchor="end" fontSize="10" fill="currentColor">{number(max * tick)}</text></g>)}
+    {rows.map((r, i) => { const width = 438 / Math.max(1, rows.length), x = 36 + width * i, height = r.value / max * 144; return <g key={r.label}>
+      <rect x={x + width * .18} y={184 - height} width={width * .64} height={height} rx="2" className="fill-primary" opacity=".8" />
+      <text x={x + width / 2} y={176 - height} textAnchor="middle" fontSize="11" className="fill-foreground">{r.value}</text>
+      <text x={x + width / 2} y="205" textAnchor="middle" fontSize="10" className="fill-ink-3"><title>{r.label}</title>{["500 미만", "~1천", "~2천", "~5천", "~1만", "1만 이상"][i] ?? r.label}</text>
+    </g>; })}
+  </svg>;
+}
 export function TiersTable({ rows }: { rows: Tier[] }) {
   return (
     <div className="overflow-x-auto">
-      <table className={tableClass}>
+      <table className={tableClass + " [&_td:not(:first-child)]:text-right [&_th:not(:first-child)]:text-right"}>
         <caption className="text-left font-semibold">
           팔로워 구간별 게시물 · 전체 참여 계정 팔로워 확인 건 기준
         </caption>
@@ -84,7 +102,7 @@ export function TiersTable({ rows }: { rows: Tier[] }) {
               "평균 재생",
               "재생/팔로워",
             ].map((h) => (
-              <th key={h}>{h}</th>
+              <th scope="col" key={h}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -108,20 +126,19 @@ export function ForecastTable({ data }: { data: Forecast }) {
   return (
     <section className="space-y-3">
       <h3 className="font-semibold">계정별 예측 대비 실현율</h3>
-      <p>
-        {data.label} · 중앙값 {number(data.median)}%
-      </p>
+      <p className="text-xs text-ink-3">{data.label} · 중앙값 <strong className="text-lg text-foreground tabular-nums">{number(data.median)}{data.median == null ? "" : "%"}</strong></p>
       <div className="overflow-x-auto">
-        <table className={tableClass}>
+        <table className={tableClass + " [&_td:not(:first-child)]:text-right [&_th:not(:first-child)]:text-right"}>
           <thead>
             <tr>
-              <th>계정</th>
-              <th>재생 합</th>
-              <th>기대조회</th>
-              <th>실현율</th>
+              <th scope="col">계정</th>
+              <th scope="col">재생 합</th>
+              <th scope="col">기대조회</th>
+              <th scope="col">실현율</th>
             </tr>
           </thead>
           <tbody>
+            {!data.accounts.length && <tr><td colSpan={4} className="text-center text-ink-3">예측 기준과 연결된 측정 계정이 없습니다.</td></tr>}
             {data.accounts.map((a) => (
               <tr key={a.handle}>
                 <td>@{a.handle}</td>
@@ -139,7 +156,7 @@ export function ForecastTable({ data }: { data: Forecast }) {
 function PostTable({ posts, title }: { posts: PublicPost[]; title: string }) {
   return (
     <div className="overflow-x-auto">
-      <table className={tableClass}>
+      <table className={tableClass + " [&_td:not(:first-child)]:text-right [&_th:not(:first-child)]:text-right"}>
         <caption className="text-left font-semibold">{title}</caption>
         <thead>
           <tr>
@@ -154,7 +171,7 @@ function PostTable({ posts, title }: { posts: PublicPost[]; title: string }) {
               ...(posts.some((p) => p.followers) ? ["팔로워"] : []),
               ...(posts.some((p) => p.compliance) ? ["준수"] : []),
             ].map((h) => (
-              <th key={h}>{h}</th>
+              <th scope="col" key={h}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -223,23 +240,16 @@ function PostTable({ posts, title }: { posts: PublicPost[]; title: string }) {
 export function ResultsReport({ report }: { report: PublicReport }) {
   const s = report.summary;
   return (
-    <article className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-10 text-ink-1">
-      <header className="space-y-3 border-b border-border pb-6">
-        <Image
-          src="/brand/deetz-logo-black.png"
-          alt="deetz"
-          width={110}
-          height={40}
-          className="h-auto w-28"
-        />
+    <article className="mx-auto flex w-full max-w-[900px] flex-col gap-10 bg-background px-5 py-12 text-foreground sm:px-8 [&_h2]:border-t [&_h2]:border-foreground/30 [&_h2]:pt-4 [&_h2]:text-lg [&_h2]:font-semibold [&_caption]:pb-3 [&_caption]:text-sm [&_small]:text-[11px] [&_small]:text-ink-3 [&_td:not(:first-child)]:text-right [&_th:not(:first-child)]:text-right">
+      <header className="space-y-3 border-b border-foreground/40 pb-6">
+        <DeetzLogo className="h-auto w-24 dark:invert" />
         <p className="text-ink-3">
           {report.settings.brandLabel ?? report.clientLabel}
         </p>
-        <h1 className="text-3xl font-bold">{report.title}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">{report.title}</h1>
         <p>
           재생 기준 {report.snapshot.label} · {date(report.snapshot.takenAt)}
         </p>
-        <p className="text-xs text-ink-3">스냅샷 {report.snapshot.id}</p>
         {"followersSnapshot" in report && (
           <p>
             팔로워 기준{" "}
@@ -250,7 +260,7 @@ export function ResultsReport({ report }: { report: PublicReport }) {
         )}
       </header>
       {report.uploads && <UploadProgress uploads={report.uploads} />}
-      <section className="grid grid-cols-2 gap-5 md:grid-cols-4">
+      <section className="grid grid-cols-2 gap-0 border-y border-border bg-secondary/30 text-xs text-ink-2 sm:grid-cols-4 [&>div]:border-b [&>div]:border-border [&>div]:px-4 [&>div]:py-5 [&_p]:mt-2 [&_p]:text-foreground [&_p]:tabular-nums">
         <div>
           게시물<p className="text-2xl font-bold">{s.posts}개</p>
         </div>
@@ -301,14 +311,14 @@ export function ResultsReport({ report }: { report: PublicReport }) {
           }))}
         />
         <div className="overflow-x-auto">
-          <table className={tableClass}>
+          <table className={tableClass + " [&_td:not(:first-child)]:text-right [&_th:not(:first-child)]:text-right"}>
             <thead>
               <tr>
-                <th>회차</th>
-                <th>측정 시각</th>
-                <th>공개 확인</th>
-                <th>재생</th>
-                <th>동일집합 증가율</th>
+                <th scope="col">회차</th>
+                <th scope="col">측정 시각</th>
+                <th scope="col">공개 확인</th>
+                <th scope="col">재생</th>
+                <th scope="col">동일집합 증가율</th>
               </tr>
             </thead>
             <tbody>
@@ -335,7 +345,7 @@ export function ResultsReport({ report }: { report: PublicReport }) {
       {report.distribution && (
         <section>
           <h2 className="text-xl font-semibold">재생 분포</h2>
-          <Bars
+          <Histogram
             rows={report.distribution.map((d) => ({
               label: d.label,
               value: d.count,
@@ -379,7 +389,7 @@ export function ResultsReport({ report }: { report: PublicReport }) {
         </section>
       )}
       {report.forecast && <ForecastTable data={report.forecast} />}
-      <footer className="space-y-4 border-t border-border pt-6 text-sm text-ink-3">
+      <footer className="space-y-3 border-t border-border pt-5 text-xs leading-relaxed text-ink-3">
         <p className="whitespace-pre-line">{report.notice}</p>
         <p>보고서 문의는 캠페인 담당자에게 연락해 주세요.</p>
         <a href="https://www.deetz.kr" className="underline">

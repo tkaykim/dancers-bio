@@ -2,7 +2,7 @@
 
 작성일: 2026-09-07.
 상태: 구현 완료·운영 반영 대기이며, 최종 구현과 검증 범위는 `docs/campaign-submissions-implementation.md`를 참조한다.
-기존 구현 확인 기준: 로컬 `origin/main`의 `fab3e76`와 캠페인·챌린지 운영 메모리.
+기존 구현 확인 기준: 캠페인 성과 `fab3e76`와 운영자 UI 개편 `5660558`, 캠페인·챌린지 운영 메모리.
 
 기존 캠페인 성과 도구에 ‘제출 현황’을 추가하고, 참여자 화면과 클라이언트 보드를 같은 게시물 기록에 연결한다.
 운영자는 확정 참여자 전체에서 미제출자를 찾고, 참여자는 본인이 제출한 링크와 검토 결과를 확인한다.
@@ -203,7 +203,7 @@ URL 정규화와 `(project_id, short_code)` 중복 제약을 유지한다.
 
 ## 8. 구현 시 참조할 기존 파일
 
-- `src/app/(app)/tools/campaigns/[projectId]/page.tsx`
+- `src/app/(ops)/tools/campaigns/[projectId]/page.tsx`
 - `src/app/actions/campaign-results.ts`
 - `src/lib/campaign/repository.ts`
 - `src/lib/campaign/report-data.ts`

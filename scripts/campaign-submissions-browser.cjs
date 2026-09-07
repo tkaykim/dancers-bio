@@ -248,6 +248,9 @@ const failures = [];
   browser = await chromium.launch();
   async function context(user, width = 1440) {
     const ctx = await browser.newContext({ viewport: { width, height: 1000 } });
+    ctx.on("console", message => {
+      if (message.type() === "error" && /hydrat|didn't match/i.test(message.text())) failures.push(message.text());
+    });
     await ctx.route("**/*", (route) => {
       const u = new URL(route.request().url());
       return ["127.0.0.1", "localhost"].includes(u.hostname)
@@ -307,7 +310,7 @@ const failures = [];
   assert.match(await page.locator("body").innerText(), /확정 참여 2명/);
   await page.screenshot({
     path: path.join(output, "admin-desktop.png"),
-    fullPage: true,
+    fullPage: true, caret: "initial",
   });
   await page.getByRole("button", { name: "미제출 1", exact: true }).click();
   assert.equal(await page.getByRole("table").getByRole("row").count(), 2);
@@ -342,7 +345,7 @@ const failures = [];
   );
   await page.screenshot({
     path: path.join(output, "admin-review.png"),
-    fullPage: true,
+    fullPage: true, caret: "initial",
   });
   await dialog.getByRole("button", { name: "닫기", exact: true }).click();
   await page.getByRole("button", { name: "전체 2", exact: true }).click();
@@ -375,7 +378,7 @@ const failures = [];
   );
   await mine.screenshot({
     path: path.join(output, "member-mobile-correction.png"),
-    fullPage: true,
+    fullPage: true, caret: "initial",
   });
   await mine
     .getByRole("button", { name: "수정·재검토 요청", exact: true })
@@ -390,10 +393,13 @@ const failures = [];
     ).rows[0].status,
     "pending_review",
   );
-  await mine.reload({ waitUntil: "networkidle" });
+  await mine.waitForLoadState("networkidle");
+  await mine.getByText("리우 · 검토 대기", { exact: true }).waitFor();
+  await mine.getByRole("button", { name: "저장 중…", exact: true }).waitFor({ state: "hidden" });
+  await mine.getByRole("status").filter({ hasText: "링크가 제출되었습니다." }).waitFor();
   await mine.screenshot({
     path: path.join(output, "member-mobile-submitted.png"),
-    fullPage: true,
+    fullPage: true, caret: "initial",
   });
   assert.equal(
     await mine.evaluate(
@@ -425,12 +431,12 @@ const failures = [];
   assert.equal(await preview.getByRole("link").count(), 1);
   await progressPage.screenshot({
     path: path.join(output, "client-progress-preview.png"),
-    fullPage: true,
+    fullPage: true, caret: "initial",
   });
   await progressPage.setViewportSize({ width: 390, height: 844 });
   await progressPage.screenshot({
     path: path.join(output, "admin-mobile.png"),
-    fullPage: true,
+    fullPage: true, caret: "initial",
   });
   assert.equal(
     await progressPage.evaluate(
@@ -438,6 +444,21 @@ const failures = [];
     ),
     false,
   );
+  const cfg = (await pg.query("select * from campaign_submission_settings where project_id=$1", [ids.project])).rows[0];
+  await mutate(pg, ids.admin, "configure", { ...cfg, client_visible: true });
+  const shared = await anon.newPage();
+  shared.on("pageerror", e => failures.push(e.message));
+  await shared.goto(`${origin}/cast/fixture`, { waitUntil: "networkidle", timeout: 120000 });
+  await shared.getByRole("button", { name: "업로드 현황 1/2", exact: true }).click();
+  const sharedUploads = shared.getByRole("region", { name: "업로드 현황" });
+  await sharedUploads.waitFor();
+  assert.equal(await sharedUploads.getByRole("link").count(), 1);
+  assert.ok(!(await shared.content()).includes("Dc-2MpLTvXV"));
+  assert.ok(!(await shared.content()).includes("캡션에 필수 태그"));
+  await shared.screenshot({ path: path.join(output, "client-board-uploads.png"), fullPage: true, caret: "initial" });
+  await mutate(pg, ids.admin, "configure", { ...cfg, version: cfg.version + 1, client_visible: false });
+  await shared.reload({ waitUntil: "networkidle" });
+  assert.equal(await shared.getByRole("button", { name: /업로드 현황/ }).count(), 0);
   assert.deepEqual(failures, []);
   fs.writeFileSync(
     path.join(output, "browser-result.json"),
@@ -453,10 +474,12 @@ const failures = [];
           "correction request",
           "own mobile proxy record",
           "resubmit saved",
+          "completion feedback survives refreshed state",
           "own privacy",
           "foreign user denied",
           "anonymous login return",
           "public preview approved only",
+          "shared board approved only and publication gate",
           "mobile no overflow",
         ],
         pageErrors: failures,

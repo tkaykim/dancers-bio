@@ -12,7 +12,7 @@ import {
   uploadLabels,
   uploadStatus,
 } from "@/lib/campaign/submissions";
-import { SubmissionForm } from "@/components/campaign/SubmissionForm";
+import { SubmissionFeedback, SubmissionForm } from "@/components/campaign/SubmissionForm";
 import { date } from "@/components/campaign/ResultsReport";
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -43,6 +43,7 @@ export default async function SubmitPage({
     subs = currentSubmissions(data, person.id);
   return (
     <main className="mx-auto max-w-xl space-y-6 px-5 py-8">
+      <SubmissionFeedback>
       <Link href="/applications" className="text-sm text-ink-3">
         ← 내 지원 현황
       </Link>
@@ -138,6 +139,7 @@ export default async function SubmitPage({
         같은 게시물의 캡션을 수정했다면 ‘링크 수정·재검토’를 눌러 다시 요청해
         주세요.
       </p>
+      </SubmissionFeedback>
     </main>
   );
 }
