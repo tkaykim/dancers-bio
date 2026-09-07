@@ -27,6 +27,7 @@ const failures = [];
     client_visible: false,
   });
   await mutate(pg, ids.admin, "sync", {});
+  await pg.query("select campaign_budget_mutate($1,$2,'configure',$3)",[ids.project,ids.admin,JSON.stringify({version:0,total_amount:88000000,operations_reserve:100000,basis:"QA 예산 근거"})]);
   const people = (await pg.query("select * from campaign_participants")).rows;
   const riwoo = people.find((p) => p.dancer_id === ids.dancer),
     external = people.find((p) => !p.dancer_id);
@@ -124,6 +125,7 @@ const failures = [];
       }
       const rpc = url.pathname.match(/^\/rest\/v1\/rpc\/(\w+)$/);
       if (rpc) {
+        if(rpc[1] === "campaign_budget_mutate") return send((await pg.query("select campaign_budget_mutate($1,$2,$3,$4) as result",[input.p_project,input.p_actor,input.p_action,JSON.stringify(input.p_data)])).rows[0].result);
         if (rpc[1] === "can_manage_project")
           return send(
             actor === ids.admin ||
@@ -459,6 +461,34 @@ const failures = [];
   await mutate(pg, ids.admin, "configure", { ...cfg, version: cfg.version + 1, client_visible: false });
   await shared.reload({ waitUntil: "networkidle" });
   assert.equal(await shared.getByRole("button", { name: /업로드 현황/ }).count(), 0);
+  assert.ok(!(await shared.content()).includes("QA 예산 근거"));
+  const budgetPage=await admin.newPage();
+  budgetPage.on("pageerror",e=>failures.push(e.message));
+  await budgetPage.goto(`${origin}/tools/campaigns/${ids.project}?tab=budget`,{waitUntil:"networkidle"});
+  await budgetPage.getByRole("heading",{name:"예산 소요 현황",exact:true}).waitFor();
+  const feeRow=budgetPage.getByRole("row").filter({hasText:"리우"});
+  await feeRow.getByRole("button",{name:"금액 입력",exact:true}).click();
+  const feeDialog=budgetPage.getByRole("dialog");
+  await feeDialog.getByLabel("예상 총지출 (원)").fill("200000");
+  await feeDialog.getByLabel("금액 상태").selectOption("agreed");
+  await feeDialog.getByLabel("확인 근거·변경 사유").fill("QA 테스트 합의");
+  await feeDialog.getByRole("button",{name:"금액 저장",exact:true}).click();
+  await feeRow.getByText("합의 완료",{exact:true}).waitFor();
+  assert.equal((await pg.query("select amount from campaign_budget_fees where participant_id=$1",[riwoo.id])).rows[0].amount,200000);
+  await budgetPage.screenshot({path:path.join(output,"budget-desktop.png"),fullPage:true,caret:"initial"});
+  await budgetPage.setViewportSize({width:390,height:844});
+  assert.equal(await budgetPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await budgetPage.screenshot({path:path.join(output,"budget-mobile.png"),fullPage:true,caret:"initial"});
+  const managerContext=await context(ids.manager),managerPage=await managerContext.newPage();
+  await managerPage.goto(`${origin}/tools/campaigns/${ids.project}?tab=submissions`,{waitUntil:"networkidle"});
+  assert.equal(await managerPage.getByRole("link",{name:"예산",exact:true}).count(),0);
+  assert.ok(!(await managerPage.content()).includes("QA 예산 근거"));
+  const deniedBudget=await managerPage.goto(`${origin}/tools/campaigns/${ids.project}?tab=budget`,{waitUntil:"networkidle"});
+  // Next's loading boundary can stream HTTP 200 before rendering notFound().
+  assert.ok([200,404].includes(deniedBudget.status()));
+  await managerPage.getByRole("heading",{name:"404",exact:true}).waitFor();
+  assert.equal(await managerPage.getByRole("heading",{name:"예산 소요 현황",exact:true}).count(),0);
+  assert.ok(!(await managerPage.content()).includes("QA 예산 근거"));
   assert.deepEqual(failures, []);
   fs.writeFileSync(
     path.join(output, "browser-result.json"),
@@ -481,6 +511,9 @@ const failures = [];
           "public preview approved only",
           "shared board approved only and publication gate",
           "mobile no overflow",
+          "super admin budget edit and mobile layout",
+          "manager submission access and budget denial",
+          "public board excludes budget data",
         ],
         pageErrors: failures,
       },

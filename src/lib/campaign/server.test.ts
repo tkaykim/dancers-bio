@@ -490,6 +490,7 @@ test("detail page denies another project before service-role data queries", asyn
     },
     "@/lib/campaign/metrics": {},
     "@/lib/campaign/submission-repository": {},
+    "@/lib/campaign/budget-repository": {},
     ...Object.fromEntries(
       [
         "PostsTable",
@@ -499,6 +500,8 @@ test("detail page denies another project before service-role data queries", asyn
         "ReportsPanel",
         "TrendPanel",
         "SubmissionsPanel",
+        "BudgetPanel",
+        "CampaignShare",
         "SnapshotBar",
       ].map((name) => [`@/components/admin/campaign/${name}`, {}]),
     ),

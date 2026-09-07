@@ -24,6 +24,8 @@ export async function createTestDb() {
     create table profiles(id uuid primary key,is_admin boolean default false,is_super_admin boolean default false,display_name text,avatar_url text,bio text,can_create_project boolean default false,is_verified_badge boolean default false,instagram_handle text,instagram_verified_at timestamptz);
     create table projects(id uuid primary key,owner_id uuid,title text,short_code text,deleted_at timestamptz);
     create table project_managers(project_id uuid,profile_id uuid);
+    create table project_finances(project_id uuid,expense_amount integer);
+    create table settlements(id uuid primary key,project_id uuid,dancer_id uuid,gross_amount integer,vat_amount integer default 0,role text,status text);
     create table dancers(id uuid primary key,profile_id uuid,stage_name text,social_links jsonb);
     create table applications(id uuid primary key,project_id uuid,dancer_id uuid,status text,confirmed_at timestamptz,archived_at timestamptz);
     create table casting_boards(id uuid primary key,project_id uuid,title text,share_code text);
@@ -61,6 +63,8 @@ export async function createTestDb() {
   await pg.exec(
     "grant select on profiles,projects,project_managers,dancers,applications,casting_boards,casting_board_members to service_role; grant update on projects to service_role;",
   );
+  await pg.exec(await fs.readFile(new URL("../db/migrations/20260907150544_campaign_budget.sql",import.meta.url),"utf8"));
+  await pg.exec("grant select on project_finances,settlements to service_role;");
   return pg;
 }
 export async function mutate(pg, actor, action, data, project = ids.project) {

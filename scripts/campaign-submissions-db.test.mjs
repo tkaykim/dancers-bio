@@ -365,3 +365,26 @@ test("submission lifecycle executes against the actual migrations in isolated Po
     },
   );
 });
+test("budget RPC enforces super-only access, versions, project scope and audit", async () => {
+  const pg = await createTestDb();
+  try {
+    await mutate(pg, ids.admin, "configure", {version:0,enabled:true,board_id:ids.board});
+    await mutate(pg, ids.admin, "sync", {});
+    const person=(await pg.query("select id from campaign_participants where dancer_id=$1",[ids.dancer])).rows[0];
+    await pg.exec("set role service_role");
+    const budget=(actor,action,data,project=ids.project)=>pg.query("select campaign_budget_mutate($1,$2,$3,$4)",[project,actor,action,JSON.stringify(data)]);
+    await assert.rejects(budget(ids.manager,"configure",{version:0,total_amount:1000000,basis:"source"}),/CAMPAIGN_DENIED/);
+    await assert.rejects(budget(ids.member,"configure",{version:0,total_amount:1000000,basis:"source"}),/CAMPAIGN_DENIED/);
+    await budget(ids.admin,"configure",{version:0,total_amount:1000000,basis:"source"});
+    await assert.rejects(budget(ids.admin,"configure",{version:0,total_amount:1000000,basis:"source"}),/CAMPAIGN_STALE/);
+    await assert.rejects(budget(ids.admin,"fee",{participant_id:person.id,version:0,amount:100000,status:"agreed",note:"source"},ids.otherProject),/CAMPAIGN_DENIED/);
+    await assert.rejects(budget(ids.admin,"fee",{participant_id:person.id,version:0,amount:-1,status:"agreed",note:"source"}),/check constraint/);
+    await budget(ids.admin,"fee",{participant_id:person.id,version:0,amount:100000,status:"agreed",note:"합의"});
+    await budget(ids.admin,"fee",{participant_id:person.id,version:1,amount:0,status:"agreed",note:"무료 변경 합의"});
+    const audit=(await pg.query("select detail from campaign_budget_events where action='fee' order by created_at desc limit 1")).rows[0];
+    assert.equal(audit.detail.previous.amount,100000);
+    await pg.exec("set role anon");
+    await assert.rejects(pg.query("select * from campaign_budget_fees"),/permission denied/);
+    await assert.rejects(budget(ids.admin,"configure",{version:1,basis:"forged"}),/permission denied/);
+  } finally { await pg.close(); }
+});
