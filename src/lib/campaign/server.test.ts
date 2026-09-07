@@ -489,6 +489,7 @@ test("detail page denies another project before service-role data queries", asyn
       },
     },
     "@/lib/campaign/metrics": {},
+    "@/lib/campaign/submission-repository": {},
     ...Object.fromEntries(
       [
         "PostsTable",
@@ -497,6 +498,7 @@ test("detail page denies another project before service-role data queries", asyn
         "RulesPanel",
         "ReportsPanel",
         "TrendPanel",
+        "SubmissionsPanel",
       ].map((name) => [`@/components/admin/campaign/${name}`, {}]),
     ),
     "@/components/campaign/ResultsReport": {},
@@ -626,6 +628,7 @@ test("public SSR shows separate follower basis, coverage, no thumbnails or priva
   const component = loadModule<
     typeof import("../../components/campaign/ResultsReport")
   >("src/components/campaign/ResultsReport.tsx", {
+    "./UploadProgress": loadModule("src/components/campaign/UploadProgress.tsx"),
     "next/image": {
       default: (props: Record<string, unknown>) =>
         React.createElement("img", props),

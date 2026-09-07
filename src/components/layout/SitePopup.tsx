@@ -22,7 +22,7 @@ const EXCLUDED_PREFIXES = [
   "/report", "/admin", "/ops", "/login", "/signup", "/claim",
   "/forgot-password", "/reset-password", "/onboarding", "/welcome",
   "/fit", "/fr", "/sz", "/h/", "/s/", "/sr", "/settle", "/w/", "/cast",
-  "/visa", "/program", "/api", "/results",
+  "/visa", "/program", "/api", "/results", "/campaigns/", "/tools/campaigns",
 ];
 
 const HIDE_KEY = (id: string) => `deetz-popup-hide-${id}`;

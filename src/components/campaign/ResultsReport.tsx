@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { UploadProgress } from "./UploadProgress";
 import type {
   PublicReport,
   PublicPost,
@@ -11,12 +12,16 @@ export const number = (v: number | null | undefined) =>
     : v.toLocaleString("ko-KR", {
         maximumFractionDigits: 1,
       });
-export const date = (v: string | null) =>
-  v
-    ? new Date(v).toLocaleString("ko-KR", {
-        timeZone: "Asia/Seoul",
-      }) + " KST"
+// Explicit KST formatting avoids Node/Chromium ICU differences (PM vs 오후) during hydration.
+export const date = (v: string | null) => {
+  const time = v ? Date.parse(v) : NaN;
+  return Number.isFinite(time)
+    ? new Date(time + 9 * 3600000)
+        .toISOString()
+        .slice(0, 19)
+        .replace("T", " ") + " KST"
     : "—";
+};
 export const tableClass =
   "w-full text-left text-sm [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-border [&_th]:p-3 [&_th]:text-ink-3 [&_td]:border-b [&_td]:border-border [&_td]:p-3";
 export function Bars({
@@ -244,6 +249,7 @@ export function ResultsReport({ report }: { report: PublicReport }) {
           </p>
         )}
       </header>
+      {report.uploads && <UploadProgress uploads={report.uploads} />}
       <section className="grid grid-cols-2 gap-5 md:grid-cols-4">
         <div>
           게시물<p className="text-2xl font-bold">{s.posts}개</p>

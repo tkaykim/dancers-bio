@@ -793,6 +793,8 @@ export default async function ApplicantsPage({
         <h1 className="text-xl font-bold leading-tight tracking-tight">
           {p.title}
         </h1>
+        <Link href={`/tools/campaigns/${p.id}?tab=submissions`} className="shrink-0 rounded-md border border-border px-3 py-1.5 text-xs font-bold">업로드 관리 →</Link>
+
         {process.env.NEXT_PUBLIC_MESSAGING_ENABLED === "true" ? (
           <Link
             href={`/projects/${p.id}/messages`}

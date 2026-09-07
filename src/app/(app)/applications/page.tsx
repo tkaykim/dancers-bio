@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth/guard";
+import { ownParticipants } from "@/lib/campaign/submission-repository";
 import { createClient } from "@/lib/supabase/server";
-import { DeclineOfferButton, WithdrawButton } from "@/components/project/ApplyForm";
+import {
+  DeclineOfferButton,
+  WithdrawButton,
+} from "@/components/project/ApplyForm";
 import { MessagesTextLink } from "@/components/messaging/MessagesBadge";
 import { OpenThreadButton } from "@/components/messaging/OpenThreadButton";
 import {
@@ -70,6 +74,7 @@ const GROUP_LABELS: Record<ApplicationStage, string> = {
 
 export default async function ApplicationsPage() {
   const user = await requireUser();
+  const campaignParticipants = await ownParticipants(user.id);
   const supabase = await createClient();
 
   const { data: rows } = await supabase
@@ -86,13 +91,23 @@ export default async function ApplicationsPage() {
   // 영상 제출을 받는 공고는 업로드 링크를 여기서도 보여준다.
   // 지금까지 링크가 있는 곳은 안내 메일과 접수 직후 화면뿐이라,
   // 메일을 못 찾으면 제출할 방법이 없었다("제출 버튼이 어디냐"는 문의 다수).
-  const submitTokenByApp = new Map<string, { token: string; uploaded: boolean }>();
+  const submitTokenByApp = new Map<
+    string,
+    { token: string; uploaded: boolean }
+  >();
   if (list.length) {
     const { data: subs } = await supabase
       .from("project_submissions")
       .select("application_id, token, uploaded_at")
-      .in("application_id", list.map((r) => r.id));
-    for (const sub of (subs ?? []) as Array<{ application_id: string; token: string; uploaded_at: string | null }>) {
+      .in(
+        "application_id",
+        list.map((r) => r.id),
+      );
+    for (const sub of (subs ?? []) as Array<{
+      application_id: string;
+      token: string;
+      uploaded_at: string | null;
+    }>) {
       submitTokenByApp.set(sub.application_id, {
         token: sub.token,
         uploaded: sub.uploaded_at != null,
@@ -123,6 +138,25 @@ export default async function ApplicationsPage() {
         </div>
       </header>
 
+      {campaignParticipants.length > 0 && (
+        <section className="rounded-2xl border border-border bg-card p-4">
+          <h2 className="font-bold">참여 중인 챌린지 · 게시물 제출</h2>
+          <ul className="mt-3 space-y-2">
+            {campaignParticipants.map((p) => (
+              <li key={p.id}>
+                <Link
+                  className="block rounded-lg bg-secondary px-4 py-3 text-sm font-semibold"
+                  href={`/campaigns/${p.project_id}/submit`}
+                >
+                  {list.find((r) => r.project?.id === p.project_id)?.project
+                    ?.title ?? "확정 참여 챌린지"}{" "}
+                  · 링크 제출·확인 →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {list.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-hairline-2 p-8 text-center">
           <p className="text-sm text-ink-3">아직 지원한 프로젝트가 없습니다.</p>
@@ -177,7 +211,10 @@ export default async function ApplicationsPage() {
                             </p>
                           </Link>
                           {r.project ? (
-                            <OpenThreadButton projectId={r.project.id} label="메시지" />
+                            <OpenThreadButton
+                              projectId={r.project.id}
+                              label="메시지"
+                            />
                           ) : null}
                           {stage === "pending" ? (
                             <WithdrawButton applicationId={r.id} />
@@ -195,8 +232,8 @@ export default async function ApplicationsPage() {
                           <p className="rounded-md bg-amber-500/10 px-2 py-1.5 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
                             {notFinalCaveat(r, r.project)}
                             <br />
-                            일정에 변동이 있으시다면 <b>참여 포기</b>로 미리 반영
-                            부탁드립니다.
+                            일정에 변동이 있으시다면 <b>참여 포기</b>로 미리
+                            반영 부탁드립니다.
                           </p>
                         ) : null}
 
@@ -228,7 +265,9 @@ export default async function ApplicationsPage() {
                                   : "bg-foreground text-background")
                               }
                             >
-                              {sub.uploaded ? "제출한 영상 확인 · 다시 올리기" : "영상 제출하기 →"}
+                              {sub.uploaded
+                                ? "제출한 영상 확인 · 다시 올리기"
+                                : "영상 제출하기 →"}
                             </a>
                           );
                         })()}

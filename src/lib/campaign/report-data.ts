@@ -2,6 +2,8 @@ import "server-only";
 import { db, checked, loadCampaign, REPORT_COLUMNS } from "./repository";
 import { buildReport, publishedPayload } from "./report-builder";
 import type { PublicReport, Report } from "./types";
+import { loadSubmissions } from "./submission-repository";
+import { approvedCampaignData, publicUploads } from "./submissions";
 export async function prepareReport(
   project: string,
   reportId: string,
@@ -16,7 +18,28 @@ export async function prepareReport(
       .eq("id", reportId)
       .single(),
   ) as Report;
-  return buildReport(await loadCampaign(project), report, snapshotId, trendIds);
+  const [data, submissions] = await Promise.all([
+    loadCampaign(project),
+    loadSubmissions(project),
+  ]);
+  const result = buildReport(
+    approvedCampaignData(data, submissions),
+    report,
+    snapshotId,
+    trendIds,
+  );
+  if (submissions.settings.version) {
+    const uploads = publicUploads(submissions);
+    result.uploads = {
+      ...uploads,
+      participants: uploads.participants.map((p) => ({
+        memberId: null,
+        ...(result.settings.showDisplayNames ? { name: p.name } : {}),
+        urls: p.urls,
+      })),
+    };
+  }
+  return JSON.parse(JSON.stringify(result)) as PublicReport;
 }
 export async function loadPublishedReport(
   code: string,

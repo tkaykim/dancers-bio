@@ -1,4 +1,6 @@
 import "server-only";
+import { boardUploads } from "@/lib/campaign/submission-repository";
+import type { PublicUploads } from "@/lib/campaign/submissions";
 import { normalizeInstagramHandle } from "@/lib/instagram/handle";
 
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -25,6 +27,7 @@ import {
 
 // 클라이언트 공유 캐스팅 보드의 안전 데이터(전화 등 민감정보 제외).
 export type BoardCard = {
+  uploadUrls?: string[];
   memberId: string;
   dancerId: string;
   applicationId: string | null;
@@ -98,6 +101,7 @@ export type BoardSettings = {
 };
 
 export type BoardView = {
+  uploads?: PublicUploads | null;
   id: string;
   projectId: string;
   title: string | null;
@@ -227,7 +231,9 @@ function lineupFieldsOf(member: MemberRow) {
 
 function isUsableBoard(board: BoardRow): boolean {
   if (board.is_active === false) return false;
-  return !board.expires_at || new Date(board.expires_at).getTime() >= Date.now();
+  return (
+    !board.expires_at || new Date(board.expires_at).getTime() >= Date.now()
+  );
 }
 
 async function buildBoardView(
@@ -255,7 +261,11 @@ async function buildBoardView(
       )
       .eq("board_id", board.id)
       .order("sort_order", { ascending: true }),
-    admin.from("projects").select("title").eq("id", board.project_id).maybeSingle(),
+    admin
+      .from("projects")
+      .select("title")
+      .eq("id", board.project_id)
+      .maybeSingle(),
   ]);
   const members = (membersData ?? []) as MemberRow[];
 
@@ -332,14 +342,16 @@ async function buildBoardView(
   }
 
   const careerOf = new Map<string, string>();
-  const careerRows = ((careers ?? []) as Array<{
-    dancer_id: string;
-    title: string | null;
-    is_representative: boolean | null;
-    sort_order: number | null;
-    date: string | null;
-    is_public: boolean | null;
-  }>).filter((career) => career.is_public !== false && career.title);
+  const careerRows = (
+    (careers ?? []) as Array<{
+      dancer_id: string;
+      title: string | null;
+      is_representative: boolean | null;
+      sort_order: number | null;
+      date: string | null;
+      is_public: boolean | null;
+    }>
+  ).filter((career) => career.is_public !== false && career.title);
   careerRows.sort(
     (a, b) =>
       Number(b.is_representative) - Number(a.is_representative) ||
@@ -409,7 +421,9 @@ async function buildBoardView(
         // 보드 전용 사진(photo_url)이 있으면 댄서 프로필 사진보다 우선한다(운영자 교체용).
         photo:
           member.photo_url?.trim() ||
-          (live.profile_img && live.profile_img.trim() ? live.profile_img : null),
+          (live.profile_img && live.profile_img.trim()
+            ? live.profile_img
+            : null),
         instagram: instaUrl(
           live.social_links?.instagram ?? member.ig_handle ?? null,
         ),
@@ -476,8 +490,7 @@ async function buildBoardView(
     const photoOrder = Number(Boolean(b.photo)) - Number(Boolean(a.photo));
     if (photoOrder !== 0) return photoOrder;
     return (
-      (b.height ?? -1) - (a.height ?? -1) ||
-      a.name.localeCompare(b.name, "ko")
+      (b.height ?? -1) - (a.height ?? -1) || a.name.localeCompare(b.name, "ko")
     );
   });
 
@@ -493,7 +506,25 @@ async function buildBoardView(
     }
   }
 
+  const rawUploads = await boardUploads(board.project_id, board.id);
+  const visibleUploads = rawUploads
+    ? rawUploads.participants.filter((p) =>
+        cards.some((c) => c.memberId === p.memberId),
+      )
+    : [];
+  const uploads = rawUploads
+    ? {
+        total: visibleUploads.length,
+        approved: visibleUploads.filter((p) => p.urls.length).length,
+        participants: visibleUploads,
+      }
+    : null;
+  for (const card of cards) {
+    const upload = visibleUploads.find((p) => p.memberId === card.memberId);
+    if (upload) card.uploadUrls = upload.urls;
+  }
   return {
+    uploads,
     id: board.id,
     projectId: board.project_id,
     title: board.title ?? (project?.title as string | null) ?? null,
@@ -589,7 +620,9 @@ export async function getCastingReviewProfileByToken(
   }
 
   const board = await getCastingBoardByReviewToken(token);
-  const card = board?.cards.find((candidate) => candidate.memberId === memberId);
+  const card = board?.cards.find(
+    (candidate) => candidate.memberId === memberId,
+  );
   if (!card || !/^[0-9a-f-]{36}$/i.test(card.dancerId)) return null;
 
   const admin = createAdminClient();
