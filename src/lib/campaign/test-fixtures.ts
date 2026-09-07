@@ -1,0 +1,96 @@
+import type { CampaignData, Metric, Post, Rules, Snapshot } from "./types";
+export const projectId = "11111111-1111-4111-8111-111111111111";
+export const snapshotId = "22222222-2222-4222-8222-222222222222";
+export const rules: Rules = {
+  project_id: projectId,
+  audio_id: null,
+  required_tags: [],
+  required_mentions: [],
+  forecast_board_id: null,
+  first_posted_at: null,
+};
+export const post = (id: string, patch: Partial<Post> = {}): Post => ({
+  id,
+  project_id: projectId,
+  short_code: `code${id}`,
+  post_url: `https://www.instagram.com/reel/code${id}/`,
+  owner_handle: `account${id}`,
+  owner_confirmed_at: null,
+  collab_handles: [],
+  dancer_id: null,
+  application_id: null,
+  display_name: null,
+  forecast_member_id: null,
+  forecast_expected_views: null,
+  posted_at: null,
+  source: "admin_paste",
+  status: "active",
+  note: null,
+  created_by: null,
+  created_at: "2026-09-07T00:00:00Z",
+  updated_at: "2026-09-07T00:00:00Z",
+  ...patch,
+});
+export const metric = (id: string, patch: Partial<Metric> = {}): Metric => ({
+  project_id: projectId,
+  snapshot_id: snapshotId,
+  post_id: id,
+  fetch_status: "found",
+  plays: 100,
+  views_legacy: null,
+  likes: null,
+  likes_source: null,
+  comments: null,
+  comments_disabled: false,
+  shares: null,
+  audio_id: null,
+  hashtags: [],
+  mentions: [],
+  paid_partnership: null,
+  caption_excerpt: null,
+  ...patch,
+});
+export const snapshot = (patch: Partial<Snapshot> = {}): Snapshot => ({
+  id: snapshotId,
+  project_id: projectId,
+  label: "T+1",
+  taken_at: "2026-09-07T00:00:00Z",
+  source: "apify",
+  status: "succeeded",
+  error: null,
+  reels_run_id: "secret-run",
+  profiles_run_id: null,
+  reels_dataset_id: null,
+  profiles_dataset_id: null,
+  apify_run_id: "secret-run",
+  include_shares: false,
+  posts_total: 1,
+  posts_found: 1,
+  target_post_ids: ["1"],
+  followers_collected: false,
+  followers_snapshot_id: null,
+  created_by: "private-staff",
+  created_at: "2026-09-07T00:00:00Z",
+  ...patch,
+});
+export const campaign = (): CampaignData => ({
+  posts: [
+    post("1", {
+      note: "private note",
+      application_id: "private application",
+      display_name: "검토된 이름",
+      forecast_expected_views: 50,
+    }),
+  ],
+  snapshots: [snapshot()],
+  metrics: [
+    metric("1", {
+      caption_excerpt: "private caption",
+    }),
+  ],
+  accounts: [],
+  rules: {
+    ...rules,
+  },
+  reports: [],
+});

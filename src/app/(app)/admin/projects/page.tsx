@@ -107,6 +107,9 @@ export default async function AdminProjectsPage() {
                   <ChevronRight size={18} className="mt-1 text-ink-3" aria-hidden />
                 </Link>
                 <div className="flex gap-2">
+                  <Link href={`/tools/campaigns/${p.id}`} className="flex-1">
+                    <Button variant="outline" size="sm" className="w-full">성과</Button>
+                  </Link>
                   <Link href={`/projects/${p.short_code}/edit`} className="flex-1">
                     <Button variant="outline" size="sm" className="w-full">
                       수정
