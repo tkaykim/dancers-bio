@@ -22,6 +22,7 @@ import { SubmissionForm } from "@/components/campaign/SubmissionForm";
 import { UploadProgress } from "@/components/campaign/UploadProgress";
 import { buttonClass, inputClass } from "./Controls";
 import { date, tableClass } from "@/components/campaign/ResultsReport";
+import { ManualParticipantEditor } from "./ManualParticipantEditor";
 
 function localDate(value: string | null) {
   return value
@@ -147,6 +148,7 @@ export function SubmissionsPanel({
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-xl font-bold">제출 현황</h2>
         <span className="text-sm text-ink-3">확정 참여 {counts.total}명</span>
+        {data.settings.enabled && <ManualParticipantEditor project={project} onSaved={reload}/>}
         <button
           className={buttonClass}
           disabled={pending || !data.settings.version}
@@ -582,6 +584,7 @@ function ParticipantSheet({
           이탈 처리된 참여자입니다. 다시 활성화하면 제출할 수 있습니다.
         </p>
       )}
+      {person.manual_entry_id && <ManualParticipantEditor project={project} person={person} onSaved={onSaved}/>}
       <div className="space-y-4">
         {subs.map((s) => (
           <div

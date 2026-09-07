@@ -21,10 +21,21 @@ test("zero fee is a known free agreement and inactive people do not reserve plan
   assert.equal(s.unpriced,0);assert.equal(s.complete,true);
   assert.equal(budgetSummary({...base,participants:[{...person,active:false}],fees:[{participant_id:"p",amount:50000,status:"agreed",note:"이탈",version:1}]}).agreedTotal,0);
 });
-test("budget reads and writes require super admin before touching the service database",async()=>{
+test("budget reads and writes reject non-staff before touching the service database",async()=>{
   let touched=false;
-  const mocks={"@/lib/auth/guard":{async requireSuperAdmin(){throw new Error("denied");}},"@/lib/campaign/repository":{db(){touched=true;}},"./repository":{},"./submission-repository":{},"@/lib/campaign/submissions":{},"next/cache":{}};
+  const mocks={"@/lib/auth/guard":{async requireStaff(){throw new Error("denied");}},"@/lib/campaign/repository":{db(){touched=true;}},"./repository":{},"./submission-repository":{},"@/lib/campaign/submissions":{},"next/cache":{}};
   const read=loadModule<typeof import("./budget-repository")>("src/lib/campaign/budget-repository.ts",mocks);
   const write=loadModule<typeof import("../../app/actions/campaign-budget")>("src/app/actions/campaign-budget.ts",mocks);
   await assert.rejects(read.loadBudget("project"),/denied/);await assert.rejects(write.saveBudgetAction("project","fee",{}),/denied/);assert.equal(touched,false);
+});
+test("project manager projection never reads or returns full finance",async()=>{
+  const tables:string[]=[];
+  const read=loadModule<typeof import("./budget-repository")>("src/lib/campaign/budget-repository.ts",{
+    "@/lib/auth/guard":{requireStaff:async()=>({id:"manager"}),canManageProject:async()=>true,isSuperAdmin:()=>false},
+    "./repository":{checked:(r:{data:unknown})=>r.data,db(){throw new Error("Finance query forbidden");},rows:async(table:string)=>{tables.push(table);return table==="applications"?[{id:"a",proposed_fee:50000},{id:"foreign",proposed_fee:999}]:[];}},
+    "./submission-repository":{loadSubmissions:async()=>({participants:[person]})},
+  });
+  const result=await read.loadBudget("project");
+  assert.equal(result.canViewFinance,false);assert.equal(result.settings.total_amount,null);assert.equal(result.settings.basis,"");assert.equal(result.expense,null);assert.equal(result.settlements.length,0);assert.equal(result.quotes.length,1);
+  assert.deepEqual(tables.sort(),["applications","campaign_budget_fees"]);
 });

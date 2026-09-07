@@ -3,7 +3,7 @@ export type BudgetSettings = { project_id: string; total_amount: number | null; 
 export type BudgetFee = { participant_id: string; amount: number | null; status: "estimate" | "agreed"; note: string; version: number };
 export type BudgetSettlement = { id: string; dancer_id: string; gross_amount: number | null; vat_amount: number | null; role: string; status: string };
 export type BudgetQuote = { id: string; proposed_fee: number | null; proposed_fee_currency: string | null; proposed_fee_unit: string | null };
-export type BudgetData = { settings: BudgetSettings; participants: Participant[]; fees: BudgetFee[]; settlements: BudgetSettlement[]; quotes: BudgetQuote[]; expense: number | null };
+export type BudgetData = { canViewFinance?: boolean; settings: BudgetSettings; participants: Participant[]; fees: BudgetFee[]; settlements: BudgetSettlement[]; quotes: BudgetQuote[]; expense: number | null };
 export function budgetSummary(data: BudgetData) {
   const settlements = data.settlements.filter(s => s.status !== "cancelled");
   const cost = (s: BudgetSettlement) => Number(s.gross_amount ?? 0) + Number(s.vat_amount ?? 0);

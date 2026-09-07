@@ -30,7 +30,10 @@ create function public.campaign_budget_mutate(p_project uuid,p_actor uuid,p_acti
 returns jsonb language plpgsql security invoker set search_path=public,pg_temp as $$
 declare cfg public.campaign_budget_settings; fee public.campaign_budget_fees; previous jsonb;
 begin
-  if not exists(select 1 from public.profiles where id=p_actor and is_admin and is_super_admin) then raise exception 'CAMPAIGN_DENIED'; end if;
+  if not exists(select 1 from public.profiles p where p.id=p_actor and
+    ((p_action='configure' and p.is_admin and p.is_super_admin) or (p_action='fee' and (p.is_admin
+      or exists(select 1 from public.projects where id=p_project and owner_id=p_actor)
+      or exists(select 1 from public.project_managers where project_id=p_project and profile_id=p_actor))))) then raise exception 'CAMPAIGN_DENIED'; end if;
   perform 1 from public.projects where id=p_project and deleted_at is null for update;
   if not found then raise exception 'CAMPAIGN_DENIED'; end if;
   if p_action='configure' then

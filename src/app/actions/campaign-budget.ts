@@ -1,13 +1,14 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { requireSuperAdmin } from "@/lib/auth/guard";
+import { requireStaff,canManageProject,isSuperAdmin } from "@/lib/auth/guard";
 import { checked, db } from "@/lib/campaign/repository";
 import { submissionError } from "@/lib/campaign/submissions";
 import type { ActionResult } from "@/lib/campaign/types";
 export async function saveBudgetAction(project: string,action:"configure"|"fee",input:Record<string,unknown>):Promise<ActionResult<null>> {
-  const profile=await requireSuperAdmin();
+  const profile=await requireStaff();
   try {
     if (!/^[0-9a-f-]{36}$/i.test(project) || !["configure","fee"].includes(action) || !input || JSON.stringify(input).length>10000) throw new Error("CAMPAIGN_DENIED");
+    if(!await canManageProject(project)||(action==="configure"&&!isSuperAdmin(profile)))throw new Error("CAMPAIGN_DENIED");
     const allowed=action==="configure" ? ["version","total_amount","operations_reserve","basis"] : ["participant_id","version","amount","status","note"];
     const data=Object.fromEntries(Object.entries(input).filter(([key])=>allowed.includes(key)));
     for(const key of ["amount","total_amount","operations_reserve"]) {

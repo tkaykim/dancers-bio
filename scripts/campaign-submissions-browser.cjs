@@ -125,6 +125,7 @@ const failures = [];
       }
       const rpc = url.pathname.match(/^\/rest\/v1\/rpc\/(\w+)$/);
       if (rpc) {
+        if(rpc[1] === "campaign_manual_participant") return send((await pg.query("select campaign_manual_participant($1,$2,$3) as result",[input.p_project,input.p_actor,JSON.stringify(input.p_data)])).rows[0].result);
         if(rpc[1] === "campaign_budget_mutate") return send((await pg.query("select campaign_budget_mutate($1,$2,$3,$4) as result",[input.p_project,input.p_actor,input.p_action,JSON.stringify(input.p_data)])).rows[0].result);
         if (rpc[1] === "can_manage_project")
           return send(
@@ -462,6 +463,7 @@ const failures = [];
   await shared.reload({ waitUntil: "networkidle" });
   assert.equal(await shared.getByRole("button", { name: /업로드 현황/ }).count(), 0);
   assert.ok(!(await shared.content()).includes("QA 예산 근거"));
+  for(const previousPage of [page,mine,progressPage,shared])await previousPage.close();
   const budgetPage=await admin.newPage();
   budgetPage.on("pageerror",e=>failures.push(e.message));
   await budgetPage.goto(`${origin}/tools/campaigns/${ids.project}?tab=budget`,{waitUntil:"networkidle"});
@@ -483,12 +485,67 @@ const failures = [];
   await managerPage.goto(`${origin}/tools/campaigns/${ids.project}?tab=submissions`,{waitUntil:"networkidle"});
   assert.equal(await managerPage.getByRole("link",{name:"예산",exact:true}).count(),0);
   assert.ok(!(await managerPage.content()).includes("QA 예산 근거"));
-  const deniedBudget=await managerPage.goto(`${origin}/tools/campaigns/${ids.project}?tab=budget`,{waitUntil:"networkidle"});
-  // Next's loading boundary can stream HTTP 200 before rendering notFound().
-  assert.ok([200,404].includes(deniedBudget.status()));
-  await managerPage.getByRole("heading",{name:"404",exact:true}).waitFor();
+  await managerPage.goto(`${origin}/tools/campaigns/${ids.project}?tab=budget`,{waitUntil:"networkidle"});
+  await managerPage.getByRole("heading",{name:"출연료 편성",exact:true}).waitFor();
   assert.equal(await managerPage.getByRole("heading",{name:"예산 소요 현황",exact:true}).count(),0);
   assert.ok(!(await managerPage.content()).includes("QA 예산 근거"));
+  assert.ok(!(await managerPage.content()).includes("88000000"));
+  assert.equal(await managerPage.getByRole("button",{name:"예산·운영비 설정",exact:true}).count(),0);
+  await managerPage.goto(`${origin}/tools/campaigns/${ids.project}?tab=submissions`,{waitUntil:"networkidle"});
+  await managerPage.getByRole("button",{name:"참여자 수기 추가",exact:true}).click();
+  let manualDialog=managerPage.getByRole("dialog");
+  await manualDialog.getByLabel("표시 이름",{exact:true}).fill("별도 연락 참여자");
+  await manualDialog.getByLabel("Instagram 계정 또는 프로필 URL").fill("@manual_creator");
+  await manualDialog.getByLabel("연락·확인 근거").fill("QA 담당 매니저 연락 확인");
+  await manualDialog.getByRole("button",{name:"확정 참여자 추가",exact:true}).click();
+  await managerPage.getByRole("button",{name:"별도 연락 참여자",exact:true}).waitFor();
+  const manualPerson=(await pg.query("select * from campaign_participants where ig_handle='manual_creator'")).rows[0];
+  assert.equal(manualPerson.dancer_id,null);assert.equal(manualPerson.client_visible,false);
+  await managerPage.getByRole("button",{name:"별도 연락 참여자",exact:true}).click();
+  manualDialog=managerPage.getByRole("dialog");
+  await manualDialog.getByLabel("Instagram 게시물 링크").fill("https://www.instagram.com/reel/manual_upload/");
+  await manualDialog.getByRole("button",{name:"링크 제출",exact:true}).click();
+  await manualDialog.locator("p").filter({hasText:"관리자 등록"}).waitFor();
+  await manualDialog.getByRole("button",{name:"닫기",exact:true}).click();
+  await managerPage.goto(`${origin}/tools/campaigns/${ids.project}?tab=budget`,{waitUntil:"networkidle"});
+  const manualFeeRow=managerPage.getByRole("row").filter({hasText:"별도 연락 참여자"});
+  await manualFeeRow.getByRole("button",{name:"금액 입력",exact:true}).click();
+  await managerPage.getByRole("dialog").getByLabel("예상 총지출 (원)").fill("150000");
+  await managerPage.getByRole("dialog").getByLabel("확인 근거·변경 사유").fill("QA 수기 출연료 편성");
+  await managerPage.getByRole("dialog").getByRole("button",{name:"금액 저장",exact:true}).click();
+  await manualFeeRow.getByText("협의 예상",{exact:true}).waitFor();
+  await managerPage.goto(`${origin}/tools/campaigns/${ids.project}?tab=submissions`,{waitUntil:"networkidle"});
+  await managerPage.getByRole("button",{name:"별도 연락 참여자",exact:true}).click();
+  manualDialog=managerPage.getByRole("dialog");
+  await manualDialog.getByText("수기 참여자 정보·프로필 연결 수정",{exact:true}).click();
+  await manualDialog.getByLabel("기존 프로필 검색어").fill("다른 회원");
+  await manualDialog.getByRole("button",{name:"프로필 검색",exact:true}).click();
+  await manualDialog.getByLabel("연결할 deetz 프로필").selectOption(ids.otherDancer);
+  await manualDialog.getByLabel("연락·확인 근거").fill("QA 본인 확인 후 기존 프로필 연결");
+  await manualDialog.getByRole("button",{name:"참여자 정보 저장",exact:true}).click();
+  await manualDialog.getByRole("heading",{name:"다른 회원 · 게시물 관리",exact:true}).waitFor();
+  assert.equal((await pg.query("select dancer_id from campaign_participants where id=$1",[manualPerson.id])).rows[0].dancer_id,ids.otherDancer);
+  assert.equal((await pg.query("select amount from campaign_budget_fees where participant_id=$1",[manualPerson.id])).rows[0].amount,150000);
+  const linkedContext=await context(ids.other),linkedPage=await linkedContext.newPage();
+  await linkedPage.goto(`${origin}/campaigns/${ids.project}/submit`,{waitUntil:"networkidle"});
+  await linkedPage.getByRole("heading",{name:"게시물 링크 제출",exact:true}).waitFor();
+  assert.ok((await linkedPage.content()).includes("manual_upload"));
+  await manualDialog.getByRole("button",{name:"닫기",exact:true}).click();
+  await managerPage.getByRole("button",{name:"참여자 수기 추가",exact:true}).click();
+  manualDialog=managerPage.getByRole("dialog");
+  await manualDialog.getByLabel("기존 프로필 검색어").fill("미가입");
+  await manualDialog.getByRole("button",{name:"프로필 검색",exact:true}).click();
+  await manualDialog.getByLabel("연결할 deetz 프로필").selectOption(ids.unclaimedDancer);
+  await manualDialog.getByLabel("연락·확인 근거").fill("QA 미가입 프로필 직접 섭외");
+  await manualDialog.getByRole("button",{name:"확정 참여자 추가",exact:true}).click();
+  await managerPage.getByRole("button",{name:"미가입 프로필",exact:true}).waitFor();
+  await managerPage.screenshot({path:path.join(output,"manual-participants-desktop.png"),fullPage:true,caret:"initial"});
+  await managerPage.setViewportSize({width:390,height:844});
+  await managerPage.getByRole("button",{name:"참여자 수기 추가",exact:true}).click();
+  assert.equal(await managerPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await managerPage.screenshot({path:path.join(output,"manual-participant-mobile.png"),animations:"disabled",caret:"initial"});
+  await managerPage.getByRole("dialog").getByRole("button",{name:"확정 참여자 추가",exact:true}).scrollIntoViewIfNeeded();
+  await managerPage.screenshot({path:path.join(output,"manual-participant-mobile-save.png"),animations:"disabled",caret:"initial"});
   assert.deepEqual(failures, []);
   fs.writeFileSync(
     path.join(output, "browser-result.json"),
@@ -512,7 +569,10 @@ const failures = [];
           "shared board approved only and publication gate",
           "mobile no overflow",
           "super admin budget edit and mobile layout",
-          "manager submission access and budget denial",
+          "manager fee planning with full finance excluded from response",
+          "manual participant without profile, proxy upload and fee planning",
+          "later member profile linkage preserves upload and fee and grants own access",
+          "manual participant with unclaimed profile",
           "public board excludes budget data",
         ],
         pageErrors: failures,

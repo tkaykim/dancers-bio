@@ -57,7 +57,6 @@ export default async function CampaignPage({
   );
   if (!project) notFound();
   const query = await searchParams;
-  if (query.tab === "budget" && !isSuperAdmin(profile)) notFound();
   const [data, boards, candidates, submissions] = await Promise.all([
     loadCampaign(projectId),
     boardOptions(projectId),
@@ -158,7 +157,7 @@ export default async function CampaignPage({
       {sum && sum.errors > 0 && <p role="status" className="text-xs text-warn">수집 오류 {sum.errors}개는 합계와 성과 분모에서 제외했습니다.</p>}
       </>}
       <nav aria-label="캠페인 보기" className="flex gap-6 border-b border-border">
-        {Object.entries({ submissions: "제출 현황", ...(isSuperAdmin(profile) ? {budget:"예산"} : {}), posts: "게시물", trend: "추이", reports: "보고서" }).map(([key, label]) => <Link key={key} href={href(key)} aria-current={key === tab ? "page" : undefined} className={`pb-3 text-sm ${key === tab ? "border-b-2 border-primary font-semibold" : "text-ink-3 hover:text-foreground"}`}>{label}</Link>)}
+        {Object.entries({ submissions: "제출 현황", budget:isSuperAdmin(profile)?"예산":"출연료 편성", posts: "게시물", trend: "추이", reports: "보고서" }).map(([key, label]) => <Link key={key} href={href(key)} aria-current={key === tab ? "page" : undefined} className={`pb-3 text-sm ${key === tab ? "border-b-2 border-primary font-semibold" : "text-ink-3 hover:text-foreground"}`}>{label}</Link>)}
       </nav>
       {tab === "submissions" && <SubmissionsPanel initial={submissions} boards={boards} />}
       {budget && <BudgetPanel data={budget} />}

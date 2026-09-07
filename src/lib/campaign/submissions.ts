@@ -18,6 +18,8 @@ export type SubmissionSettings = {
   version: number;
 };
 export type Participant = {
+  manual_entry_id?: string | null;
+  client_visible?: boolean;
   id: string;
   project_id: string;
   board_member_id: string | null;
@@ -121,7 +123,7 @@ export function isOverdue(
 // Explicit public projection. Internal notes, user ids, feedback and review checks never escape.
 export function publicUploads(data: SubmissionData): PublicUploads {
   const participants = data.participants
-    .filter((p) => p.active)
+    .filter((p) => p.active && (!p.manual_entry_id || p.client_visible))
     .map((p) => ({
       memberId: p.board_member_id,
       name: p.display_name,
@@ -150,7 +152,7 @@ export function approvedCampaignData(
   // Closing intake must never switch a configured campaign back to unreviewed legacy reporting.
   if (!submissions.settings.version) return data;
   const active = new Set(
-    submissions.participants.filter((p) => p.active).map((p) => p.id),
+    submissions.participants.filter((p) => p.active && (!p.manual_entry_id || p.client_visible)).map((p) => p.id),
   );
   const ids = new Set(
     submissions.submissions
@@ -184,6 +186,7 @@ export function participantView(
 export function submissionError(e: unknown) {
   const raw = e instanceof Error ? e.message : "";
   const messages: Record<string, string> = {
+    CAMPAIGN_DUPLICATE_PERSON: "이미 명단에 있는 프로필 또는 Instagram 계정입니다. 기존 참여자를 확인해 주세요.",
     CAMPAIGN_DEADLINE_REASON: "개별 마감 변경 사유를 내부 메모에 남겨 주세요.",
     CAMPAIGN_STALE:
       "다른 변경이 먼저 저장되었습니다. 새로고침한 뒤 다시 확인해 주세요.",
