@@ -9,7 +9,7 @@ import {
   type SubmissionSettings,
 } from "./submissions";
 export const PARTICIPANT_COLUMNS =
-  "id,project_id,board_member_id,application_id,dancer_id,display_name,ig_handle,owner_label,deadline,active,note,version";
+  "id,project_id,board_member_id,application_id,dancer_id,display_name,ig_handle,owner_label,deadline,active,note,version,manual_entry_id,client_visible";
 export const SUBMISSION_COLUMNS =
   "id,project_id,participant_id,post_id,status,feedback,submitted_at,source,reviewed_at,replaced_at,version";
 export async function submissionSettings(

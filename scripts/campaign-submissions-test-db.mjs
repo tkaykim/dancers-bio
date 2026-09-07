@@ -9,6 +9,7 @@ export const ids = {
   manager: "20000000-0000-4000-8000-000000000004",
   dancer: "30000000-0000-4000-8000-000000000001",
   otherDancer: "30000000-0000-4000-8000-000000000002",
+  unclaimedDancer: "30000000-0000-4000-8000-000000000003",
   board: "40000000-0000-4000-8000-000000000001",
   otherBoard: "40000000-0000-4000-8000-000000000002",
   memberBoard: "50000000-0000-4000-8000-000000000001",
@@ -24,6 +25,8 @@ export async function createTestDb() {
     create table profiles(id uuid primary key,is_admin boolean default false,is_super_admin boolean default false,display_name text,avatar_url text,bio text,can_create_project boolean default false,is_verified_badge boolean default false,instagram_handle text,instagram_verified_at timestamptz);
     create table projects(id uuid primary key,owner_id uuid,title text,short_code text,deleted_at timestamptz);
     create table project_managers(project_id uuid,profile_id uuid);
+    create table project_finances(project_id uuid,expense_amount integer);
+    create table settlements(id uuid primary key,project_id uuid,dancer_id uuid,gross_amount integer,vat_amount integer default 0,role text,status text);
     create table dancers(id uuid primary key,profile_id uuid,stage_name text,social_links jsonb);
     create table applications(id uuid primary key,project_id uuid,dancer_id uuid,status text,confirmed_at timestamptz,archived_at timestamptz);
     create table casting_boards(id uuid primary key,project_id uuid,title text,share_code text);
@@ -33,6 +36,7 @@ export async function createTestDb() {
     insert into projects values('${ids.project}','${ids.admin}','글로벌 여성 솔로 아티스트 음원 챌린지','fixture',null),('${ids.otherProject}','${ids.other}','다른 프로젝트','other',null);
     insert into project_managers values('${ids.project}','${ids.manager}');
     insert into dancers values('${ids.dancer}','${ids.member}','리우','{"instagram":"diakang__"}'),('${ids.otherDancer}','${ids.other}','다른 회원','{}');
+    insert into dancers values('${ids.unclaimedDancer}',null,'미가입 프로필','{"instagram":"unclaimed_creator"}');
     insert into applications values('${ids.app}','${ids.project}','${ids.dancer}','accepted',now(),null),('${ids.otherApp}','${ids.project}','${ids.otherDancer}','accepted',null,null);
     insert into casting_boards values('${ids.board}','${ids.project}','확정 크리에이터 라인업','fixture'),('${ids.otherBoard}','${ids.otherProject}','다른 보드','other');
     insert into casting_board_members values('${ids.memberBoard}','${ids.board}','${ids.dancer}','${ids.app}','리우','diakang__','confirmed',10000),
@@ -61,6 +65,9 @@ export async function createTestDb() {
   await pg.exec(
     "grant select on profiles,projects,project_managers,dancers,applications,casting_boards,casting_board_members to service_role; grant update on projects to service_role;",
   );
+  await pg.exec(await fs.readFile(new URL("../db/migrations/20260907150544_campaign_budget.sql",import.meta.url),"utf8"));
+  await pg.exec(await fs.readFile(new URL("../db/migrations/20260907151937_campaign_manual_participants.sql",import.meta.url),"utf8"));
+  await pg.exec("grant select on project_finances,settlements to service_role;");
   return pg;
 }
 export async function mutate(pg, actor, action, data, project = ids.project) {

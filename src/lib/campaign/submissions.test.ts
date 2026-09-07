@@ -90,6 +90,13 @@ test("public projection excludes pending links, feedback, staff and notes", () =
   ])
     assert.ok(!text.includes(secret));
 });
+test("manual participants require individual opt-in before client uploads and report metrics",()=>{
+  const data=fixture();data.participants[0]={...data.participants[0],manual_entry_id:"manual",board_member_id:null,client_visible:false};
+  assert.equal(lib.publicUploads(data).approved,0);
+  assert.equal(lib.approvedCampaignData({...campaign(),posts:data.posts as never},data).posts.length,0);
+  data.participants[0].client_visible=true;
+  assert.equal(lib.publicUploads(data).approved,1);
+});
 test("replacement and removed posts lose live approval without deleting audit records", () => {
   const data = fixture();
   data.submissions[0].replaced_at = "2026-09-08";

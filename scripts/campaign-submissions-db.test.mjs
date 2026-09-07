@@ -365,3 +365,57 @@ test("submission lifecycle executes against the actual migrations in isolated Po
     },
   );
 });
+test("budget RPC restricts full finance, allows manager fees, and enforces versions, scope and audit", async () => {
+  const pg = await createTestDb();
+  try {
+    await mutate(pg, ids.admin, "configure", {version:0,enabled:true,board_id:ids.board});
+    await mutate(pg, ids.admin, "sync", {});
+    const person=(await pg.query("select id from campaign_participants where dancer_id=$1",[ids.dancer])).rows[0];
+    await pg.exec("set role service_role");
+    const budget=(actor,action,data,project=ids.project)=>pg.query("select campaign_budget_mutate($1,$2,$3,$4)",[project,actor,action,JSON.stringify(data)]);
+    await assert.rejects(budget(ids.manager,"configure",{version:0,total_amount:1000000,basis:"source"}),/CAMPAIGN_DENIED/);
+    await assert.rejects(budget(ids.member,"configure",{version:0,total_amount:1000000,basis:"source"}),/CAMPAIGN_DENIED/);
+    await budget(ids.admin,"configure",{version:0,total_amount:1000000,basis:"source"});
+    await assert.rejects(budget(ids.admin,"configure",{version:0,total_amount:1000000,basis:"source"}),/CAMPAIGN_STALE/);
+    await assert.rejects(budget(ids.admin,"fee",{participant_id:person.id,version:0,amount:100000,status:"agreed",note:"source"},ids.otherProject),/CAMPAIGN_DENIED/);
+    await assert.rejects(budget(ids.admin,"fee",{participant_id:person.id,version:0,amount:-1,status:"agreed",note:"source"}),/check constraint/);
+    await budget(ids.admin,"fee",{participant_id:person.id,version:0,amount:100000,status:"agreed",note:"합의"});
+    await assert.rejects(budget(ids.member,"fee",{participant_id:person.id,version:1,amount:0,status:"agreed",note:"forged"}),/CAMPAIGN_DENIED/);
+    await budget(ids.manager,"fee",{participant_id:person.id,version:1,amount:0,status:"agreed",note:"무료 변경 합의"});
+    const audit=(await pg.query("select detail from campaign_budget_events where action='fee' order by created_at desc limit 1")).rows[0];
+    assert.equal(audit.detail.previous.amount,100000);
+    await pg.exec("set role anon");
+    await assert.rejects(pg.query("select * from campaign_budget_fees"),/permission denied/);
+    await assert.rejects(budget(ids.admin,"configure",{version:1,basis:"forged"}),/permission denied/);
+  } finally { await pg.close(); }
+});
+test("manual participants support missing and unclaimed profiles, safe linkage, budgets and submissions",async()=>{
+  const pg=await createTestDb();
+  try{
+    await mutate(pg,ids.admin,"configure",{version:0,enabled:true,board_id:ids.board});
+    await mutate(pg,ids.admin,"sync",{});
+    await pg.exec("set role service_role");
+    const manual=async(actor,data,project=ids.project)=>(await pg.query("select campaign_manual_participant($1,$2,$3) as result",[project,actor,JSON.stringify(data)])).rows[0].result;
+    const input={request_id:"70000000-0000-4000-8000-000000000001",display_name:"수기 참여자",ig_handle:"manual_creator",note:"담당자 연락 확인"};
+    await assert.rejects(manual(ids.member,input),/CAMPAIGN_DENIED/);
+    await assert.rejects(manual(ids.manager,input,ids.otherProject),/CAMPAIGN_DENIED/);
+    const person=await manual(ids.manager,input);
+    assert.equal((await manual(ids.manager,input)).id,person.id);
+    const saved=(await pg.query("select * from campaign_participants where id=$1",[person.id])).rows[0];
+    assert.equal(saved.dancer_id,null);assert.equal(saved.client_visible,false);
+    await assert.rejects(manual(ids.admin,{...input,request_id:"70000000-0000-4000-8000-000000000002"}),/CAMPAIGN_DUPLICATE_PERSON/);
+    await pg.query("select campaign_budget_mutate($1,$2,'fee',$3)",[ids.project,ids.manager,JSON.stringify({participant_id:person.id,version:0,amount:150000,status:"estimate",note:"제안 금액"})]);
+    const sub=await mutate(pg,ids.manager,"submit",{participant_id:person.id,url:"https://www.instagram.com/reel/manual/",short_code:"manual"});
+    await assert.rejects(mutate(pg,ids.other,"submit",{participant_id:person.id,url:"https://www.instagram.com/reel/foreign/",short_code:"foreign"}),/CAMPAIGN_DENIED/);
+    await manual(ids.manager,{...input,participant_id:person.id,version:1,dancer_id:ids.otherDancer,client_visible:true,note:"계정 본인 확인 후 연결"});
+    await assert.rejects(manual(ids.manager,{...input,participant_id:person.id,version:1}),/CAMPAIGN_STALE/);
+    await mutate(pg,ids.other,"submit",{participant_id:person.id,url:"https://www.instagram.com/reel/revised/",short_code:"revised",replace_id:sub.id,version:1});
+    assert.equal((await pg.query("select amount from campaign_budget_fees where participant_id=$1",[person.id])).rows[0].amount,150000);
+    assert.equal((await pg.query("select count(*)::int n from campaign_submission_events where participant_id=$1",[person.id])).rows[0].n,4);
+    const unclaimed=await manual(ids.manager,{...input,request_id:"70000000-0000-4000-8000-000000000003",dancer_id:ids.unclaimedDancer,display_name:"미가입 프로필",ig_handle:"unclaimed_creator"});
+    assert.ok(unclaimed.id);
+    await assert.rejects(manual(ids.manager,{...input,request_id:"70000000-0000-4000-8000-000000000004",dancer_id:ids.otherDancer,ig_handle:"different_handle"}),/CAMPAIGN_DUPLICATE_PERSON/);
+    await pg.exec("set role authenticated");
+    await assert.rejects(manual(ids.admin,input),/permission denied/);
+  }finally{await pg.close();}
+});

@@ -25,6 +25,9 @@ import { TrendPanel } from "@/components/admin/campaign/TrendPanel";
 import { SnapshotBar } from "@/components/admin/campaign/SnapshotBar";
 import { loadSubmissions } from "@/lib/campaign/submission-repository";
 import { SubmissionsPanel } from "@/components/admin/campaign/SubmissionsPanel";
+import { BudgetPanel } from "@/components/admin/campaign/BudgetPanel";
+import { CampaignShare } from "@/components/admin/campaign/CampaignShare";
+import { loadBudget } from "@/lib/campaign/budget-repository";
 import { date, number } from "@/components/campaign/ResultsReport";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -60,9 +63,10 @@ export default async function CampaignPage({
     candidatesFor(projectId),
     loadSubmissions(projectId),
   ]);
-  const tab = ["submissions", "posts", "trend", "reports"].includes(String(query.tab))
+  const tab = ["submissions", "budget", "posts", "trend", "reports"].includes(String(query.tab))
     ? String(query.tab)
     : submissions.settings.enabled ? "submissions" : "posts";
+  const budget = tab === "budget" ? await loadBudget(projectId) : null;
   const confirmed = data.snapshots.filter((s) => isConfirmed(s.status));
   const selected =
     typeof query.snapshot === "string"
@@ -133,14 +137,15 @@ export default async function CampaignPage({
           <Link href="/tools/campaigns" className="text-xs text-ink-3 hover:text-foreground">← 캠페인 성과</Link>
           <h1 className="text-2xl font-bold tracking-tight">{project.title}</h1>
           <p className="text-xs text-ink-3">게시물 {data.posts.length} · 마지막 확정 {latest ? `${latest.label} · ${date(latest.taken_at)}` : "측정 전"}</p>
+          <CampaignShare projectId={projectId} />
         </div>
-        {tab !== "submissions" && <div className="flex flex-wrap items-center gap-2">
+        {!["submissions","budget"].includes(tab) && <div className="flex flex-wrap items-center gap-2">
           <AddPostsDialog projectId={projectId} existingCodes={data.posts.map(p => p.short_code)} />
           <SnapshotDialog projectId={projectId} postsTotal={data.posts.filter(p => p.status !== "excluded").length} snapshots={data.snapshots} firstPostedAt={data.rules.first_posted_at} accountTotal={new Set(data.posts.filter(p => p.status !== "excluded").flatMap(p => [p.owner_handle, ...p.collab_handles].filter(Boolean))).size} {...(isSuperAdmin(profile) ? { showCost: true, costs: costProps.costs } : {})} />
           <RulesPanel rules={data.rules} boards={boards} />
         </div>}
       </header>
-      {tab !== "submissions" && <>
+      {!["submissions","budget"].includes(tab) && <>
       <SnapshotBar snapshots={data.snapshots} selectedId={selected?.id ?? ""} followersSnapshot={context?.followersSnapshot ?? null} />
       <section aria-label="캠페인 핵심 지표" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {cards.map(card => <div key={card.label} className="min-w-0 rounded-2xl border border-border bg-card p-4">
@@ -152,9 +157,10 @@ export default async function CampaignPage({
       {sum && sum.errors > 0 && <p role="status" className="text-xs text-warn">수집 오류 {sum.errors}개는 합계와 성과 분모에서 제외했습니다.</p>}
       </>}
       <nav aria-label="캠페인 보기" className="flex gap-6 border-b border-border">
-        {Object.entries({ submissions: "제출 현황", posts: "게시물", trend: "추이", reports: "보고서" }).map(([key, label]) => <Link key={key} href={href(key)} aria-current={key === tab ? "page" : undefined} className={`pb-3 text-sm ${key === tab ? "border-b-2 border-primary font-semibold" : "text-ink-3 hover:text-foreground"}`}>{label}</Link>)}
+        {Object.entries({ submissions: "제출 현황", budget:isSuperAdmin(profile)?"예산":"출연료 편성", posts: "게시물", trend: "추이", reports: "보고서" }).map(([key, label]) => <Link key={key} href={href(key)} aria-current={key === tab ? "page" : undefined} className={`pb-3 text-sm ${key === tab ? "border-b-2 border-primary font-semibold" : "text-ink-3 hover:text-foreground"}`}>{label}</Link>)}
       </nav>
       {tab === "submissions" && <SubmissionsPanel initial={submissions} boards={boards} />}
+      {budget && <BudgetPanel data={budget} />}
       {tab === "posts" && <PostsTable posts={data.posts} names={names} metrics={context?.metrics ?? []} accounts={context?.accounts ?? []} rules={data.rules} snapshots={data.snapshots} />}
       {tab === "trend" && <TrendPanel projectId={projectId} data={data} snapshotId={selected?.id ?? null} {...costProps} />}
       {tab === "reports" && <ReportsPanel projectId={projectId} reports={data.reports} snapshots={data.snapshots} />}

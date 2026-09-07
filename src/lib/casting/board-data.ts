@@ -509,7 +509,7 @@ async function buildBoardView(
   const rawUploads = await boardUploads(board.project_id, board.id);
   const visibleUploads = rawUploads
     ? rawUploads.participants.filter((p) =>
-        cards.some((c) => c.memberId === p.memberId),
+        p.memberId === null || cards.some((c) => c.memberId === p.memberId),
       )
     : [];
   const uploads = rawUploads
