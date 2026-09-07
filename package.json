@@ -18,7 +18,8 @@
     "test:recruitment-attribution": "node --test src/lib/recruitment-attribution.test.ts",
     "test:visa-documents": "node --test src/lib/visa/document-intake-schema.test.ts src/lib/visa/document-intake-copy.test.ts src/lib/visa/document-products.test.ts src/lib/visa/document-attachments.test.ts",
     "db:types": "supabase gen types typescript --project-id wvfmqiajdvbsevlhlgtl --schema public > src/lib/supabase/types.ts",
-    "seo:indexnow": "node scripts/submit-indexnow.mjs"
+    "seo:indexnow": "node scripts/submit-indexnow.mjs",
+    "test:campaigns": "tsx --test src/lib/campaign/*.test.ts scripts/campaign-submissions-db.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
@@ -57,6 +58,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",
@@ -67,6 +69,7 @@
     "sharp": "^0.34.5",
     "supabase": "^2.98.2",
     "tailwindcss": "^4",
+    "tsx": "4.21.0",
     "typescript": "^5"
   }
 }

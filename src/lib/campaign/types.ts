@@ -1,5 +1,9 @@
 export type SnapshotStatus =
-  "reserved" | "running" | "succeeded" | "partial" | "failed";
+  | "reserved"
+  | "running"
+  | "succeeded"
+  | "partial"
+  | "failed";
 export type PostStatus = "active" | "unverified" | "removed" | "excluded";
 export type Post = {
   id: string;
@@ -197,6 +201,7 @@ export type Forecast = {
   label: string;
 };
 export type PublicReport = {
+  uploads?: import("./submissions").PublicUploads;
   version: 1;
   title: string;
   clientLabel: string | null;

@@ -316,8 +316,19 @@ export async function validatedLinks(
         .eq("dancer_id", dancer)
         .limit(1),
     );
-    if (!app?.length)
-      throw new Error("이 프로젝트의 지원자만 연결할 수 있습니다.");
+    if (!app?.length) {
+      const participant = await db()
+        .from("campaign_participants")
+        .select("id")
+        .eq("project_id", project)
+        .eq("dancer_id", dancer)
+        .eq("active", true)
+        .limit(1);
+      if (!participant.data?.length)
+        throw new Error(
+          "이 프로젝트의 지원자 또는 확정 참여자만 연결할 수 있습니다.",
+        );
+    }
   }
   const rules = await rulesFor(project);
   const board = rules.forecast_board_id

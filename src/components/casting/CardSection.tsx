@@ -104,7 +104,9 @@ function Card({
     forecastMode
       ? [
           c.accountType ? ACCOUNT_TYPE_LABEL[c.accountType] : null,
-          c.gender === "male" || c.gender === "female" ? genderKo(c.gender) : null,
+          c.gender === "male" || c.gender === "female"
+            ? genderKo(c.gender)
+            : null,
         ]
       : [
           genderKo(c.gender),
@@ -119,10 +121,16 @@ function Card({
       <div className="aspect-[3/4] w-full bg-secondary">
         {c.photo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={c.photo} alt={c.name} className="h-full w-full object-cover" />
+          <img
+            src={c.photo}
+            alt={c.name}
+            className="h-full w-full object-cover"
+          />
         ) : forecastMode ? (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-secondary to-border">
-            <span className="text-4xl font-black text-ink-3">{initialOf(c.name)}</span>
+            <span className="text-4xl font-black text-ink-3">
+              {initialOf(c.name)}
+            </span>
           </div>
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs text-ink-3">
@@ -131,6 +139,24 @@ function Card({
         )}
       </div>
       <div className="px-2.5 py-2">
+        {!!c.uploadUrls?.length && (
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
+            <span className="rounded-full bg-emerald-50 px-2 py-1 font-semibold text-emerald-800">
+              업로드 확인
+            </span>
+            {c.uploadUrls.map((url, i) => (
+              <a
+                key={url}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                게시물 보기{c.uploadUrls!.length > 1 ? ` ${i + 1}` : ""} ↗
+              </a>
+            ))}
+          </div>
+        )}
         <div className="flex items-center gap-1.5">
           <div className="min-w-0 flex-1 truncate text-[13px] font-bold leading-tight">
             {c.name}
@@ -150,7 +176,9 @@ function Card({
         <div className="min-h-[14px] truncate text-[10.5px] text-ink-3">
           {c.koreanName ?? ""}
         </div>
-        {sub ? <div className="mt-0.5 text-[12px] font-semibold">{sub}</div> : null}
+        {sub ? (
+          <div className="mt-0.5 text-[12px] font-semibold">{sub}</div>
+        ) : null}
         {forecastMode ? (
           <div className="mt-1.5 rounded-lg bg-secondary/60 px-2 py-1.5">
             {showAccountMetrics ? (
@@ -158,19 +186,27 @@ function Card({
                 <div>
                   <p className="text-[9px] font-semibold text-ink-3">팔로워</p>
                   <p className="text-[12px] font-extrabold tabular-nums text-ink-1">
-                    {c.followers != null ? `약 ${formatKoCount(c.followers)}` : "-"}
+                    {c.followers != null
+                      ? `약 ${formatKoCount(c.followers)}`
+                      : "-"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[9px] font-semibold text-ink-3">최근 릴스 평균 조회</p>
+                  <p className="text-[9px] font-semibold text-ink-3">
+                    최근 릴스 평균 조회
+                  </p>
                   <p className="text-[12px] font-extrabold tabular-nums text-ink-1">
-                    {c.expectedViews != null ? `약 ${formatKoCount(c.expectedViews)} 회` : "확인 중"}
+                    {c.expectedViews != null
+                      ? `약 ${formatKoCount(c.expectedViews)} 회`
+                      : "확인 중"}
                   </p>
                 </div>
               </div>
             ) : null}
             {showBadges ? (
-              <div className={`${showAccountMetrics ? "mt-1.5 " : ""}flex flex-wrap gap-1`}>
+              <div
+                className={`${showAccountMetrics ? "mt-1.5 " : ""}flex flex-wrap gap-1`}
+              >
                 <span className="rounded-full border border-border bg-card px-1.5 py-0.5 text-[9px] font-semibold text-ink-2">
                   {c.tier ? TIER_LABEL[c.tier] : "지표 확인 중"}
                 </span>
@@ -330,7 +366,9 @@ export function CardSection({
           {label} ({cards.length}명)
         </span>
         {description ? (
-          <span className="text-[11px] font-medium text-ink-3">{description}</span>
+          <span className="text-[11px] font-medium text-ink-3">
+            {description}
+          </span>
         ) : null}
       </h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -358,7 +396,9 @@ export function CardSection({
             }
             className="rounded-full border border-border bg-card px-5 py-2 text-xs font-semibold text-ink-1 hover:bg-secondary"
           >
-            {remaining > 0 ? `더보기 (+${nextBatch}명 · 남은 ${remaining}명)` : "접기"}
+            {remaining > 0
+              ? `더보기 (+${nextBatch}명 · 남은 ${remaining}명)`
+              : "접기"}
           </button>
         </div>
       ) : null}

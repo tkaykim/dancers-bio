@@ -11,6 +11,7 @@ import { BoardNotesEditor } from "@/components/casting/BoardNotesEditor";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { ProposalRateTable } from "@/components/casting/ProposalRateTable";
 import { ForecastSummary } from "@/components/casting/ForecastSummary";
+import { UploadProgress } from "@/components/campaign/UploadProgress";
 import {
   TIER_DESCRIPTION,
   TIER_LABEL,
@@ -30,6 +31,7 @@ export function CastingBoardView({
   reviewToken?: string;
 }) {
   const router = useRouter();
+  const [uploadView, setUploadView] = useState(false);
   const [submitting, startSubmit] = useTransition();
   const { settings, cards, counts } = board;
   const forecast = board.forecast;
@@ -41,20 +43,24 @@ export function CastingBoardView({
   const initialChoices = useMemo(
     () =>
       Object.fromEntries(
-        cards.map((card) => [card.memberId, card.clientDecision ?? "undecided"]),
+        cards.map((card) => [
+          card.memberId,
+          card.clientDecision ?? "undecided",
+        ]),
       ) as Record<string, ClientDecision>,
     [cards],
   );
-  const [choices, setChoices] = useState<Record<string, ClientDecision>>(
-    initialChoices,
-  );
+  const [choices, setChoices] =
+    useState<Record<string, ClientDecision>>(initialChoices);
   const [savedChoices, setSavedChoices] =
     useState<Record<string, ClientDecision>>(initialChoices);
   const [reviewerName, setReviewerName] = useState("");
   const gp = settings.genderPriority;
   const males = cards.filter((c) => c.gender === "male");
   const females = cards.filter((c) => c.gender === "female");
-  const others = cards.filter((c) => c.gender !== "male" && c.gender !== "female");
+  const others = cards.filter(
+    (c) => c.gender !== "male" && c.gender !== "female",
+  );
 
   const dirtyCards = cards.filter(
     (card) => choices[card.memberId] !== savedChoices[card.memberId],
@@ -180,7 +186,11 @@ export function CastingBoardView({
           </p>
         ) : null}
         {board.title ? (
-          <h1 className={isReview ? "mt-1 text-xl font-bold" : "mt-4 text-xl font-bold"}>
+          <h1
+            className={
+              isReview ? "mt-1 text-xl font-bold" : "mt-4 text-xl font-bold"
+            }
+          >
             {board.title}
           </h1>
         ) : null}
@@ -194,7 +204,8 @@ export function CastingBoardView({
                 확정 진행 <b>{forecast.counts.confirmed}</b>
               </span>
               <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
-                {forecast.settings.candidateLabel} <b>{forecast.counts.negotiating}</b>
+                {forecast.settings.candidateLabel}{" "}
+                <b>{forecast.counts.negotiating}</b>
               </span>
               {includeProposed ? (
                 <span className="rounded-xl border border-border bg-secondary px-3 py-1.5">
@@ -217,6 +228,29 @@ export function CastingBoardView({
           )}
         </div>
       </header>
+      {board.uploads && (
+        <nav aria-label="보드 보기" className="mt-5 flex gap-2">
+          <button
+            aria-pressed={!uploadView}
+            onClick={() => setUploadView(false)}
+            className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+          >
+            라인업
+          </button>
+          <button
+            aria-pressed={uploadView}
+            onClick={() => setUploadView(true)}
+            className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
+          >
+            업로드 현황 {board.uploads.approved}/{board.uploads.total}
+          </button>
+        </nav>
+      )}
+      {board.uploads && uploadView && (
+        <div className="mt-5">
+          <UploadProgress uploads={board.uploads} />
+        </div>
+      )}
 
       {forecast && forecast.settings.showSummary ? (
         <ForecastSummary forecast={forecast} />
@@ -225,8 +259,7 @@ export function CastingBoardView({
       <ProposalRateTable table={settings.rateTable} cards={cards} />
 
       <div className="mt-4 rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-[12px] leading-relaxed text-amber-900">
-        본 명단은 <b>캐스팅 검토 전용</b>입니다.
-        무단 외부 공유를 금지합니다.
+        본 명단은 <b>캐스팅 검토 전용</b>입니다. 무단 외부 공유를 금지합니다.
       </div>
 
       {isReview ? (
@@ -248,7 +281,8 @@ export function CastingBoardView({
           </label>
           {board.review.submittedAt ? (
             <p className="mt-2 text-[11px] text-ink-3">
-              최근 저장 {new Date(board.review.submittedAt).toLocaleString("ko-KR")}
+              최근 저장{" "}
+              {new Date(board.review.submittedAt).toLocaleString("ko-KR")}
               {board.review.submittedBy ? ` · ${board.review.submittedBy}` : ""}
             </p>
           ) : null}
@@ -275,8 +309,10 @@ export function CastingBoardView({
         </div>
       ) : null}
 
-      {counts.total === 0 ? (
-        <p className="mt-10 text-center text-sm text-ink-3">표시할 인원이 없습니다.</p>
+      {uploadView && board.uploads ? null : counts.total === 0 ? (
+        <p className="mt-10 text-center text-sm text-ink-3">
+          표시할 인원이 없습니다.
+        </p>
       ) : forecastMode ? (
         <>
           {tierSections.map((section) => (
@@ -310,11 +346,21 @@ export function CastingBoardView({
       {isReview ? (
         <div className="sticky bottom-3 z-20 mt-8 rounded-2xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
           <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-2">
-            <span>선택 <b>{choiceCounts.selected}</b></span>
-            <span>보류 <b>{choiceCounts.hold}</b></span>
-            <span>제외 <b>{choiceCounts.excluded}</b></span>
-            <span>미검토 <b>{choiceCounts.undecided}</b></span>
-            <span className="ml-auto text-primary">변경 {dirtyCards.length}건</span>
+            <span>
+              선택 <b>{choiceCounts.selected}</b>
+            </span>
+            <span>
+              보류 <b>{choiceCounts.hold}</b>
+            </span>
+            <span>
+              제외 <b>{choiceCounts.excluded}</b>
+            </span>
+            <span>
+              미검토 <b>{choiceCounts.undecided}</b>
+            </span>
+            <span className="ml-auto text-primary">
+              변경 {dirtyCards.length}건
+            </span>
           </div>
           <button
             type="button"

@@ -1,3 +1,4 @@
+import { UploadProgress } from "./UploadProgress";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import type {
   PublicReport,
@@ -11,12 +12,16 @@ export const number = (v: number | null | undefined) =>
     : v.toLocaleString("ko-KR", {
         maximumFractionDigits: 1,
       });
-export const date = (v: string | null) =>
-  v
-    ? new Date(v).toLocaleString("ko-KR", {
-        timeZone: "Asia/Seoul",
-      }) + " KST"
+// Explicit KST formatting avoids Node/Chromium ICU differences (PM vs 오후) during hydration.
+export const date = (v: string | null) => {
+  const time = v ? Date.parse(v) : NaN;
+  return Number.isFinite(time)
+    ? new Date(time + 9 * 3600000)
+        .toISOString()
+        .slice(0, 19)
+        .replace("T", " ") + " KST"
     : "—";
+};
 export const shortDate = (v: string | null, time = true) => {
   if (!v) return "—";
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", ...(time ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" as const } : {}) }).formatToParts(new Date(v));
@@ -254,6 +259,7 @@ export function ResultsReport({ report }: { report: PublicReport }) {
           </p>
         )}
       </header>
+      {report.uploads && <UploadProgress uploads={report.uploads} />}
       <section className="grid grid-cols-2 gap-0 border-y border-border bg-secondary/30 text-xs text-ink-2 sm:grid-cols-4 [&>div]:border-b [&>div]:border-border [&>div]:px-4 [&>div]:py-5 [&_p]:mt-2 [&_p]:text-foreground [&_p]:tabular-nums">
         <div>
           게시물<p className="text-2xl font-bold">{s.posts}개</p>
