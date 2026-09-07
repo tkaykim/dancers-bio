@@ -3,6 +3,9 @@
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { ActionResult } from "@/lib/campaign/types";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Settings2, Plus } from "lucide-react";
 export const inputClass =
   "rounded-lg border border-border bg-card px-3 py-2 text-sm";
 export const buttonClass =
@@ -37,22 +40,33 @@ export function useAction() {
 }
 export function ErrorText({ error }: { error: string | null }) {
   return error ? (
-    <p role="alert" className="text-sm text-red-700">
-      {error}
+    <p role="alert" className="text-sm text-destructive">
+      {error.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "[내부 식별자]")}
     </p>
   ) : null;
 }
 export function Editor({
   title,
   children,
+  variant = "outline",
+  open,
+  onOpenChange,
 }: {
   title: string;
   children: ReactNode;
+  variant?: "default" | "outline" | "ghost";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   return (
-    <details className="rounded-xl border border-border bg-card p-4">
-      <summary className="cursor-pointer font-medium">{title}</summary>
-      <div className="mt-4 space-y-4">{children}</div>
-    </details>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger render={<Button variant={variant} size="lg" />}>
+        {title === "규칙" ? <Settings2 aria-hidden /> : title.includes("추가") ? <Plus aria-hidden /> : null}{title}
+      </DialogTrigger>
+      <DialogContent className="max-h-[85svh] overflow-y-auto p-6 sm:max-w-2xl">
+        <DialogTitle className="pr-6 text-lg font-semibold">{title}</DialogTitle>
+        <div className="space-y-4">{children}</div>
+      </DialogContent>
+    </Dialog>
   );
 }

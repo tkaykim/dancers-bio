@@ -11,16 +11,23 @@ import type {
   Snapshot,
 } from "@/lib/campaign/types";
 import { compliance, postFollowers } from "@/lib/campaign/metrics";
-import { number, date, tableClass } from "@/components/campaign/ResultsReport";
+import { number, tableClass } from "@/components/campaign/ResultsReport";
 import { PostSheet } from "./PostSheet";
-import { buttonClass, inputClass } from "./Controls";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Pencil, Music2, Hash, AtSign } from "lucide-react";
+import { shortDate } from "@/components/campaign/ResultsReport";
+import { inputClass } from "./Controls";
 export function PostsTable({
   posts,
   metrics,
   accounts,
   rules,
   snapshots,
+  names = {},
 }: {
+  names?: Record<string, string>;
   posts: Post[];
   metrics: Metric[];
   accounts: AccountMetric[];
@@ -43,7 +50,7 @@ export function PostsTable({
     }))
     .filter(({ p, m, f, c }) => {
       if (
-        !`${p.owner_handle ?? ""} ${p.display_name ?? ""} ${p.short_code} ${p.collab_handles.join(" ")}`
+        !`${p.owner_handle ?? ""} ${names[p.id] ?? p.display_name ?? ""} ${p.short_code} ${p.collab_handles.join(" ")}`
           .toLowerCase()
           .includes(q)
       )
@@ -90,9 +97,9 @@ export function PostsTable({
           .map(([k, v]) => (
             <input key={k} type="hidden" name={k} value={v} />
           ))}
-        <input
+        <Input
           aria-label="핸들·이름·shortcode 검색"
-          className={inputClass}
+          className="min-w-48 flex-1"
           name="q"
           defaultValue={q}
           placeholder="핸들 · 이름 · shortcode"
@@ -108,7 +115,7 @@ export function PostsTable({
           <option value="followers">팔로워순</option>
           <option value="posted_at">게시일순</option>
         </select>
-        <button className={buttonClass}>검색·정렬</button>
+        <Button type="submit" variant="outline">검색·정렬</Button><span className="self-center text-xs text-ink-3">{items.length}건</span>
       </form>
       <div className="flex flex-wrap gap-2">
         {Object.entries({
@@ -138,95 +145,31 @@ export function PostsTable({
           </Link>
         ))}
       </div>
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <div className="relative max-h-[65svh] overflow-auto rounded-2xl border border-border bg-card">
         <table className={tableClass}>
           <thead>
             <tr>
-              {[
-                "계정",
-                "참여자",
-                "게시물",
-                "게시일",
-                "팔로워",
-                "재생",
-                "좋아요",
-                "댓글",
-                "공유",
-                "준수",
-                "상태",
-                "메모",
-              ].map((h) => (
-                <th key={h}>{h}</th>
-              ))}
+              {["계정", "게시물", "팔로워", "재생", "좋아요", "댓글", "공유", "준수", "상태", ""].map((h, i) => <th scope="col" key={i} className={i >= 2 && i <= 6 ? "text-right" : ""}>{h || <span className="sr-only">편집</span>}</th>)}
             </tr>
           </thead>
           <tbody>
-            {items.slice((page - 1) * 50, page * 50).map(({ p, m, f, c }) => (
-              <tr key={p.id}>
-                <td>
-                  <button
-                    className="text-left underline"
-                    onClick={() => setSelected(p)}
-                  >
-                    @{p.owner_handle ?? "미확인"}
-                  </button>
-                  {p.collab_handles.length > 0 && (
-                    <small className="block">
-                      + {p.collab_handles.join(", ")}
-                    </small>
-                  )}
+            {items.slice((page - 1) * 50, page * 50).map(({ p, m, f, c }) => {
+              const status = p.status === "excluded" ? "제외" : p.status === "removed" ? "삭제" : m?.fetch_status === "error" ? "오류" : m?.fetch_status === "found" && p.status === "active" ? "게시 중" : "미확인";
+              const name = names[p.id] || p.display_name;
+              return <tr key={p.id} className="cursor-pointer hover:bg-secondary" onClick={() => setSelected(p)}>
+                <td className="min-w-36">
+                  <div className="flex items-center gap-1.5">{p.owner_handle ? <a href={`https://www.instagram.com/${p.owner_handle}/`} target="_blank" rel="noreferrer" className="font-medium hover:underline" onClick={e => e.stopPropagation()}>@{p.owner_handle}</a> : <span className="text-ink-3">계정 미확인</span>}
+                  {p.collab_handles.length > 0 && <Badge title={p.collab_handles.map(h => "@" + h).join(", ")}>+{p.collab_handles.length}</Badge>}</div>
+                  {name && <p className="mt-0.5 text-[11px] text-ink-3">{name}</p>}
                 </td>
-                <td>{p.display_name ?? "—"}</td>
-                <td>
-                  <a
-                    href={p.post_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline"
-                  >
-                    {p.short_code}
-                  </a>
-                </td>
-                <td>{date(p.posted_at)}</td>
-                <td>
-                  {f.confirmed ? number(f.sum) : "미측정"}
-                  <small className="block">{f.label}</small>
-                </td>
-                <td>{number(m?.plays)}</td>
-                <td>{number(m?.likes)}</td>
-                <td>{number(m?.comments)}</td>
-                <td>{number(m?.shares)}</td>
-                <td>
-                  {Object.entries(c).map(([k, v]) => (
-                    <small className="block" key={k}>
-                      {
-                        (
-                          {
-                            audio: "음원",
-                            tags: "태그",
-                            mentions: "멘션",
-                            partnership: "파트너십",
-                          } as Record<string, string>
-                        )[k]
-                      }{" "}
-                      {v === null ? "미확인" : v ? "확인" : "미충족"}
-                    </small>
-                  ))}
-                </td>
-                <td>
-                  {p.status}
-                  <small className="block">{m?.fetch_status}</small>
-                </td>
-                <td>
-                  <button
-                    className="max-w-40 truncate text-left underline"
-                    onClick={() => setSelected(p)}
-                  >
-                    {p.note ?? "편집"}
-                  </button>
-                </td>
-              </tr>
-            ))}
+                <td><a href={p.post_url} target="_blank" rel="noreferrer" className="text-xs hover:underline" onClick={e => e.stopPropagation()}>{p.short_code}</a><p className="mt-0.5 whitespace-nowrap text-[11px] text-ink-3">{shortDate(p.posted_at)}</p></td>
+                <td className="text-right tabular-nums"><span title={f.confirmed ? undefined : "미확인"}>{f.confirmed ? number(f.sum) : "—"}</span><p className="text-[11px] text-ink-3">{f.confirmed}/{f.total}계정</p></td>
+                {(["plays", "likes", "comments", "shares"] as const).map(key => <td key={key} className="text-right tabular-nums" title={m?.[key] == null ? "미확인" : undefined}>{number(m?.[key])}</td>)}
+                <td><div className="flex items-center gap-2">{([ ["audio", "음원", Music2], ["tags", "태그", Hash], ["mentions", "멘션", AtSign] ] as const).filter(([key]) => key in c).map(([key, label, Icon]) => <span key={key} title={`${label}: ${c[key] == null ? "미확인" : c[key] ? "충족" : "미충족"}`} className={`inline-flex items-center gap-0.5 text-xs ${c[key] == null ? "text-ink-3" : c[key] ? "text-ok" : "text-destructive"}`}><Icon className="size-3" aria-hidden /><span aria-hidden>{c[key] == null ? "–" : c[key] ? "✓" : "✕"}</span><span className="sr-only">{label} {c[key] == null ? "미확인" : c[key] ? "충족" : "미충족"}</span></span>)}</div></td>
+                <td><Badge tone={status === "게시 중" ? "success" : status === "오류" ? "danger" : status === "미확인" ? "warning" : "neutral"}>{status}</Badge></td>
+                <td><Button variant="ghost" size="icon" aria-label={`${p.short_code} 게시물 편집`} onClick={e => { e.stopPropagation(); setSelected(p); }}><Pencil className="size-3.5" /></Button></td>
+              </tr>;
+            })}
           </tbody>
         </table>
         {!items.length && (
@@ -235,10 +178,7 @@ export function PostsTable({
           </p>
         )}
       </div>
-      <nav aria-label="게시물 페이지" className="flex gap-4">
-        <span>
-          {items.length}개 · {page}/{pages}페이지 · 50개씩
-        </span>
+      <nav aria-label="게시물 페이지" className="flex items-center justify-center gap-4 text-sm">
         {page > 1 && (
           <Link
             href={href({
@@ -248,6 +188,8 @@ export function PostsTable({
             이전
           </Link>
         )}
+        {page === 1 && <span aria-disabled="true" className="text-ink-3">이전</span>}
+        <span className="text-ink-3">{page}/{pages}</span>
         {page < pages && (
           <Link
             href={href({
@@ -257,6 +199,7 @@ export function PostsTable({
             다음
           </Link>
         )}
+        {page === pages && <span aria-disabled="true" className="text-ink-3">다음</span>}
       </nav>
       {selected && (
         <PostSheet

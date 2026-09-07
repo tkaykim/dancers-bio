@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import type { Rules } from "@/lib/campaign/types";
 import { saveRulesAction } from "@/app/actions/campaign-results";
 import {
-  buttonClass,
   Editor,
   ErrorText,
   inputClass,
@@ -21,8 +24,9 @@ export function RulesPanel({
   }[];
 }) {
   const action = useAction();
+  const [open, setOpen] = useState(false);
   return (
-    <Editor title="프로젝트 공통 규칙">
+    <Editor title="규칙" variant="ghost" open={open} onOpenChange={setOpen}>
       <form
         className="grid gap-3 sm:grid-cols-2"
         action={(form) =>
@@ -38,33 +42,26 @@ export function RulesPanel({
               forecast_board_id: String(form.get("board") ?? "") || null,
               first_posted_at: String(form.get("first") ?? "") || null,
             }),
+            () => setOpen(false),
           )
         }
       >
         <label>
           공식 음원 ID
-          <input
+          <Input
             name="audio"
             className={`${inputClass} block w-full`}
             defaultValue={rules.audio_id ?? ""}
           />
         </label>
-        <label>
+        <div>
           필수 태그
-          <input
-            name="tags"
-            className={`${inputClass} block w-full`}
-            defaultValue={rules.required_tags.join(", ")}
-          />
-        </label>
-        <label>
+          <ChipsInput name="tags" initial={rules.required_tags} />
+        </div>
+        <div>
           필수 멘션
-          <input
-            name="mentions"
-            className={`${inputClass} block w-full`}
-            defaultValue={rules.required_mentions.join(", ")}
-          />
-        </label>
+          <ChipsInput name="mentions" initial={rules.required_mentions} />
+        </div>
         <label>
           예측 기준 보드
           <select
@@ -82,7 +79,7 @@ export function RulesPanel({
         </label>
         <label>
           T+N 기준 시각 (시간대 포함)
-          <input
+          <Input
             name="first"
             className={`${inputClass} block w-full`}
             defaultValue={rules.first_posted_at ?? ""}
@@ -90,12 +87,22 @@ export function RulesPanel({
           />
         </label>
         <div className="self-end">
-          <button className={buttonClass} disabled={action.pending}>
+          <Button type="submit" disabled={action.pending}>
             규칙 저장
-          </button>
+          </Button>
         </div>
       </form>
       <ErrorText error={action.error} />
     </Editor>
   );
+}
+
+function ChipsInput({ name, initial }: { name: string; initial: string[] }) {
+  const [values, setValues] = useState(initial), [draft, setDraft] = useState("");
+  function add() { setValues(v => [...new Set([...v, ...draft.split(/[,\s]+/).filter(Boolean)])]); setDraft(""); }
+  return <span className="mt-2 flex flex-wrap gap-2 rounded-lg border border-border p-2">
+    <input type="hidden" name={name} value={[...values, draft].filter(Boolean).join(",")} />
+    {values.map(value => <Badge key={value}>{value}<button type="button" aria-label={value + " 삭제"} onClick={() => setValues(v => v.filter(item => item !== value))}>×</button></Badge>)}
+    <Input aria-label={name === "tags" ? "태그 추가" : "멘션 추가"} className="min-w-24 flex-1 border-0" value={draft} placeholder="입력 후 Enter" onChange={e => setDraft(e.target.value)} onBlur={add} onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); } }} />
+  </span>;
 }

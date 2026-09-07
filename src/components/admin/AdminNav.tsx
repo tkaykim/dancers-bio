@@ -96,7 +96,11 @@ const GROUPS: Group[] = [
   },
 ];
 
-function visibleGroups(superAdmin: boolean): Group[] {
+function visibleGroups(superAdmin: boolean, toolsOnly = false): Group[] {
+  if (toolsOnly) return [{ title: "도구", items: [
+    { href: "/tools/campaigns", label: "캠페인 성과", Icon: BarChart3 },
+    { href: "/tools/rate-check", label: "페이 산정", Icon: Calculator },
+  ] }];
   return GROUPS.map((group) => {
     const items = group.items.filter((item) => !item.superOnly || superAdmin);
     const toolsOnly = items.length === 1 && items[0].href === "/tools/rate-check";
@@ -110,11 +114,11 @@ function isActive(item: Item, pathname: string): boolean {
 }
 
 /** Vertical grouped nav for the desktop sidebar (lg+). */
-export function AdminSidebarNav({ superAdmin }: { superAdmin: boolean }) {
+export function AdminSidebarNav({ superAdmin, toolsOnly = false }: { superAdmin: boolean; toolsOnly?: boolean }) {
   const pathname = usePathname() ?? "/admin";
   return (
     <nav aria-label="관리자" className="flex flex-col gap-5">
-      {visibleGroups(superAdmin).map((group, gi) => (
+      {visibleGroups(superAdmin, toolsOnly).map((group, gi) => (
         <div key={gi} className="flex flex-col gap-1">
           {group.title ? (
             <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-4">
@@ -147,14 +151,14 @@ export function AdminSidebarNav({ superAdmin }: { superAdmin: boolean }) {
 }
 
 /** Horizontal scrollable chips for the mobile top bar (<lg). */
-export function AdminTopNav({ superAdmin }: { superAdmin: boolean }) {
+export function AdminTopNav({ superAdmin, toolsOnly = false }: { superAdmin: boolean; toolsOnly?: boolean }) {
   const pathname = usePathname() ?? "/admin";
   return (
     <nav
       aria-label="관리자"
       className="scrollbar-none flex gap-1.5 overflow-x-auto px-4 pb-2"
     >
-      {visibleGroups(superAdmin).flatMap((group) => group.items).map((item) => {
+      {visibleGroups(superAdmin, toolsOnly).flatMap((group) => group.items).map((item) => {
         const active = isActive(item, pathname);
         return (
           <Link

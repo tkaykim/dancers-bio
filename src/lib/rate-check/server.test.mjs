@@ -205,7 +205,7 @@ test("HTTP failures, timeout and network errors become safe Korean messages", as
 
 test("actual page renders the token-disabled banner even when history DB is unavailable", async () => {
   let guarded = false;
-  const page = load("src/app/(app)/tools/rate-check/page.tsx", {
+  const page = load("src/app/(ops)/tools/rate-check/page.tsx", {
     "@/lib/auth/guard": { async requireStaff() { guarded = true; return { id: "member-id", is_admin: false }; } },
     "@/lib/rate-check/types": types,
     "@/lib/rate-check/repository": { ...repository, rateChecksTable() { assert.equal(guarded, true); throw new Error("Missing table"); } },
@@ -219,7 +219,7 @@ test("actual page renders the token-disabled banner even when history DB is unav
 });
 
 test("tools page rejects unauthenticated access before loading shared history", async () => {
-  const page = load("src/app/(app)/tools/rate-check/page.tsx", {
+  const page = load("src/app/(ops)/tools/rate-check/page.tsx", {
     "@/lib/auth/guard": { async requireStaff() { throw new Error("login redirect"); } },
     "@/lib/rate-check/types": types,
     "@/lib/rate-check/repository": { ...repository, rateChecksTable() { assert.fail("Unauthenticated history read"); } },

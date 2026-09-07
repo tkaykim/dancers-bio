@@ -466,8 +466,8 @@ test("SQL declares service-only composite keys, serialized daily reservation and
 test("detail page denies another project before service-role data queries", async () => {
   let queried = false;
   const page = loadModule<
-    typeof import("../../app/(app)/tools/campaigns/[projectId]/page")
-  >("src/app/(app)/tools/campaigns/[projectId]/page.tsx", {
+    typeof import("../../app/(ops)/tools/campaigns/[projectId]/page")
+  >("src/app/(ops)/tools/campaigns/[projectId]/page.tsx", {
     "next/link": () => null,
     "next/navigation": {
       notFound() {
@@ -497,6 +497,7 @@ test("detail page denies another project before service-role data queries", asyn
         "RulesPanel",
         "ReportsPanel",
         "TrendPanel",
+        "SnapshotBar",
       ].map((name) => [`@/components/admin/campaign/${name}`, {}]),
     ),
     "@/components/campaign/ResultsReport": {},
@@ -626,6 +627,7 @@ test("public SSR shows separate follower basis, coverage, no thumbnails or priva
   const component = loadModule<
     typeof import("../../components/campaign/ResultsReport")
   >("src/components/campaign/ResultsReport.tsx", {
+    "@/components/brand/DeetzLogo": { DeetzLogo: () => null },
     "next/image": {
       default: (props: Record<string, unknown>) =>
         React.createElement("img", props),
