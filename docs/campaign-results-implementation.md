@@ -1,7 +1,8 @@
 # Campaign results implementation handoff
 
 Implementation date: 2026-09-07.
-Design source: `docs/design-campaign-report.md` (unchanged).
+Design source: `docs/design-campaign-report.md`.
+UI rework (2026-09-07): see `docs/campaign-ui-rework.md` for the ops shell, revised screens, and validation.
 
 ## Delivered files
 
@@ -21,8 +22,8 @@ Design source: `docs/design-campaign-report.md` (unchanged).
 | `src/lib/campaign/report-builder.ts`, `report-data.ts` | Deep-copied publication DTO and published-payload-only public loading. |
 | `src/lib/campaign/backfill.ts`, `scripts/backfill-campaign-lg.mts` | Validated original-run mapping and dry-run-first LG import; the script was not executed. |
 | `src/app/actions/campaign-results.ts` | Staff/project gates, post/rule/report mutations, two-stage collection, polling, stale recovery, preview and publication. |
-| `src/app/(app)/tools/campaigns/page.tsx` | Scoped project selector and campaign table with search, filters, sorting and 50-row pages. |
-| `src/app/(app)/tools/campaigns/[projectId]/page.tsx` | Awaited URL state, project gate, snapshot selection, KPI and three tabs. |
+| `src/app/(ops)/tools/campaigns/page.tsx` | Scoped project selector and campaign table with search, filters, sorting and 50-row pages. |
+| `src/app/(ops)/tools/campaigns/[projectId]/page.tsx` | Awaited URL state, project gate, snapshot selection, KPI and three tabs. |
 | `src/components/admin/campaign/AddCampaign.tsx`, `AddPostsDialog.tsx` | Campaign selection and paste/CSV preview followed by save. |
 | `src/components/admin/campaign/PostsTable.tsx`, `PostSheet.tsx` | Searchable/filterable/sortable 50-row post table and authorized raw/history editor. |
 | `src/components/admin/campaign/SnapshotDialog.tsx` | Five-second polling, refresh recovery and stale-run closure. |

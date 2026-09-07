@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { requireStaff } from "@/lib/auth/guard";
 import {
   checked,
@@ -12,7 +14,7 @@ import {
   summarize,
 } from "@/lib/campaign/metrics";
 import { AddCampaign } from "@/components/admin/campaign/AddCampaign";
-import { date, number, tableClass } from "@/components/campaign/ResultsReport";
+import { shortDate, number, tableClass } from "@/components/campaign/ResultsReport";
 export const dynamic = "force-dynamic";
 export default async function CampaignsPage({
   searchParams,
@@ -70,7 +72,7 @@ export default async function CampaignsPage({
                 data.rules,
               )
             : null,
-          reports: data.reports.length,
+          reports: data.reports.filter(r => r.published_at).length,
           running: data.snapshots.some((s) =>
             ["reserved", "running"].includes(s.status),
           ),
@@ -107,20 +109,16 @@ export default async function CampaignsPage({
       ...patch,
     })}`;
   return (
-    <main className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8">
-      <header>
-        <p className="text-xs text-ink-3">도구</p>
-        <h1 className="text-2xl font-bold">캠페인 성과</h1>
-      </header>
-      <AddCampaign projects={projects} />
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-2xl font-bold tracking-tight">캠페인 성과</h1><p className="mt-2 text-sm text-ink-3">게시물 성과를 측정하고 클라이언트 보고서를 관리합니다.</p></div><AddCampaign projects={projects} /></header>
       <form className="flex flex-wrap gap-2">
         <input type="hidden" name="filter" value={filter} />
-        <input
+        <Input
           name="q"
           aria-label="프로젝트 제목 검색"
           defaultValue={q}
           placeholder="프로젝트 제목 검색"
-          className="rounded-lg border border-border bg-card px-3 py-2"
+          className="max-w-sm"
         />
         <select
           name="sort"
@@ -132,9 +130,7 @@ export default async function CampaignsPage({
           <option value="plays">재생순</option>
           <option value="title">제목순</option>
         </select>
-        <button className="rounded-lg border border-border px-3 py-2">
-          검색·정렬
-        </button>
+        <Button type="submit" variant="outline">검색·정렬</Button><span className="self-center text-xs text-ink-3">{filtered.length}건</span>
       </form>
       <nav className="flex gap-2">
         {Object.entries({
@@ -155,20 +151,20 @@ export default async function CampaignsPage({
           </Link>
         ))}
       </nav>
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
-        <table className={tableClass}>
+      <div className="max-h-[65svh] overflow-auto rounded-2xl border border-border bg-card">
+        <table className={tableClass + " [&_td:nth-child(2)]:text-right [&_td:nth-child(4)]:text-right [&_td:nth-child(5)]:text-right [&_td:nth-child(6)]:text-right [&_th:nth-child(2)]:text-right [&_th:nth-child(4)]:text-right [&_th:nth-child(5)]:text-right [&_th:nth-child(6)]:text-right"}>
           <thead>
             <tr>
               {[
                 "프로젝트",
                 "게시물",
                 "마지막 확정 회차",
-                "측정 시각",
                 "누적 재생",
                 "공개 확인",
-                "보고서 링크",
+                "발행 보고서",
+                "",
               ].map((h) => (
-                <th key={h}>{h}</th>
+                <th scope="col" key={h}>{h || <span className="sr-only">열기</span>}</th>
               ))}
             </tr>
           </thead>
@@ -184,24 +180,24 @@ export default async function CampaignsPage({
                   </Link>
                 </td>
                 <td>{r.posts}</td>
-                <td>{r.latest?.label ?? "미측정"}</td>
-                <td>{date(r.latest?.taken_at ?? null)}</td>
+                <td>{r.latest?.label ?? "미측정"}<p className="mt-0.5 text-[11px] text-ink-3">{shortDate(r.latest?.taken_at ?? null)}{r.latest ? " KST" : ""}</p></td>
                 <td>{r.summary ? number(r.summary.plays.sum) : "—"}</td>
                 <td>
-                  {r.summary ? `${r.summary.found}/${r.summary.posts}` : "—"}
+                  {r.summary ? `${r.summary.posts ? Math.round(r.summary.found / r.summary.posts * 100) : 0}% (${r.summary.found}/${r.summary.posts})` : "—"}
                 </td>
                 <td>
                   <Link href={`/tools/campaigns/${r.id}?tab=reports`}>
                     {r.reports}개
                   </Link>
                 </td>
+                <td><Link className="whitespace-nowrap text-xs font-medium" href={`/tools/campaigns/${r.id}`}>열기 →</Link></td>
               </tr>
             ))}
           </tbody>
         </table>
         {!filtered.length && (
           <p className="p-8 text-center text-ink-3">
-            등록된 캠페인이 없습니다.
+            {q ? "검색 조건에 맞는 캠페인이 없습니다." : "등록된 캠페인이 없습니다. 캠페인을 추가해 주세요."}
           </p>
         )}
       </div>
@@ -228,6 +224,6 @@ export default async function CampaignsPage({
           </Link>
         )}
       </nav>
-    </main>
+    </div>
   );
 }
