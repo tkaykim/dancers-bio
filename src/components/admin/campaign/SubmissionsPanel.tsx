@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   mutateSubmissionAction,
@@ -514,16 +514,18 @@ function UnlinkedPost({
   );
 }
 
-function ParticipantSheet({
+export function ParticipantSheet({
   person,
   data,
   onClose,
   onSaved,
+  extra,
 }: {
   person: Participant;
   data: SubmissionData;
   onClose: () => void;
   onSaved: () => Promise<void>;
+  extra?: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null),
     [message, setMessage] = useState(""),
@@ -585,6 +587,7 @@ function ParticipantSheet({
         </p>
       )}
       {person.manual_entry_id && <ManualParticipantEditor project={project} person={person} onSaved={onSaved}/>}
+      {extra}
       <div className="space-y-4">
         {subs.map((s) => (
           <div

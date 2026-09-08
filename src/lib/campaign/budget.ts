@@ -1,6 +1,6 @@
 import type { Participant } from "./submissions";
 export type BudgetSettings = { project_id: string; total_amount: number | null; operations_reserve: number | null; basis: string; version: number };
-export type BudgetFee = { participant_id: string; amount: number | null; status: "estimate" | "agreed"; note: string; version: number };
+export type BudgetFee = { participant_id: string; amount: number | null; status: "estimate" | "agreed"; note: string; version: number; terms?: Partial<import("./operations").FeeTerms> };
 export type BudgetSettlement = { id: string; dancer_id: string; gross_amount: number | null; vat_amount: number | null; role: string; status: string };
 export type BudgetQuote = { id: string; proposed_fee: number | null; proposed_fee_currency: string | null; proposed_fee_unit: string | null };
 export type BudgetData = { canViewFinance?: boolean; settings: BudgetSettings; participants: Participant[]; fees: BudgetFee[]; settlements: BudgetSettlement[]; quotes: BudgetQuote[]; expense: number | null };
