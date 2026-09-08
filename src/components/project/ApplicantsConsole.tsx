@@ -13,6 +13,7 @@ import {
 import { closeProjectAction } from "@/app/actions/projects";
 import {
   getPassedRound,
+  getApplicationReviewRound,
   normalizeRounds,
   roundLabel,
   roundSteps,
@@ -90,13 +91,9 @@ function toStageApp(a: ConsoleApplicant) {
 // 탭 분류·집계용 단계. 마지막 단계는 confirmed_at 을 기준으로 한다 —
 // passed_round 만 보면 "마지막 단계까지 갔지만 확정 안 된" 지원자가
 // 최종 합격 인원으로 잡혀 정원을 과대 표시한다.
-// 1단계 공고는 내려보낼 앞 단계가 없어 1에 머문다(탭에서 사라지지 않게).
+// 1단계 공고의 미확정 지원은 검토 탭(0)에 남긴다.
 function effectiveRound(a: ConsoleApplicant, totalRounds: number): number {
-  const passed = getPassedRound(toStageApp(a));
-  if (passed >= totalRounds && !a.confirmedAt) {
-    return Math.max(totalRounds - 1, 1);
-  }
-  return passed;
+  return getApplicationReviewRound(toStageApp(a), totalRounds);
 }
 type ChannelFilter = "all" | "none" | string;
 type SortMode = "newest" | "oldest" | "score" | "score_asc";
@@ -158,7 +155,7 @@ export function ApplicantsConsole({
       rejected = 0;
     const byRound = new Map<number, number>();
     for (const a of items) {
-      if (a.status === "pending") pending++;
+      if (a.status === "pending" || (a.status === "accepted" && effectiveRound(a, totalRounds) === 0)) pending++;
       else if (a.status === "accepted") {
         accepted++;
         const r = effectiveRound(a, totalRounds);
@@ -210,7 +207,7 @@ export function ApplicantsConsole({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     let list = items.filter((a) => {
-      if (tab === "pending" && a.status !== "pending") return false;
+      if (tab === "pending" && a.status !== "pending" && !(a.status === "accepted" && effectiveRound(a, totalRounds) === 0)) return false;
       if (tab.startsWith("round:")) {
         const want = Number(tab.slice("round:".length));
         if (a.status !== "accepted") return false;
