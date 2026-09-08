@@ -12,7 +12,7 @@ export async function loadBudget(project: string): Promise<BudgetData> {
   const settings: BudgetSettings = config.data ?? { project_id:project,total_amount:null,operations_reserve:null,basis:"",version:0 };
   const [submissions, fees, settlements, quotes, expense] = await Promise.all([
     loadSubmissions(project),
-    rows<BudgetFee>("campaign_budget_fees","participant_id,amount,status,note,version",project),
+    rows<BudgetFee>("campaign_budget_fees","participant_id,amount,status,note,version,terms",project),
     finance ? rows<BudgetSettlement>("settlements","id,dancer_id,gross_amount,vat_amount,role,status",project) : [],
     rows<BudgetQuote>("applications","id,proposed_fee,proposed_fee_currency,proposed_fee_unit",project),
     finance ? db().from("project_finances").select("expense_amount").eq("project_id",project).maybeSingle() : {data:null,error:null},

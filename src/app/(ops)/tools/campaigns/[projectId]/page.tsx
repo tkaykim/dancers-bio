@@ -24,8 +24,8 @@ import { ReportsPanel } from "@/components/admin/campaign/ReportsPanel";
 import { TrendPanel } from "@/components/admin/campaign/TrendPanel";
 import { SnapshotBar } from "@/components/admin/campaign/SnapshotBar";
 import { loadSubmissions } from "@/lib/campaign/submission-repository";
-import { SubmissionsPanel } from "@/components/admin/campaign/SubmissionsPanel";
-import { BudgetPanel } from "@/components/admin/campaign/BudgetPanel";
+import { OperationsPanel } from "@/components/admin/campaign/OperationsPanel";
+import { loadOperations } from "@/lib/campaign/operations-repository";
 import { CampaignShare } from "@/components/admin/campaign/CampaignShare";
 import { loadBudget } from "@/lib/campaign/budget-repository";
 import { date, number } from "@/components/campaign/ResultsReport";
@@ -66,7 +66,8 @@ export default async function CampaignPage({
   const tab = ["submissions", "budget", "posts", "trend", "reports"].includes(String(query.tab))
     ? String(query.tab)
     : submissions.settings.enabled ? "submissions" : "posts";
-  const budget = tab === "budget" ? await loadBudget(projectId) : null;
+  const budget = ["submissions","budget"].includes(tab) ? await loadBudget(projectId) : null;
+  const operations = budget ? await loadOperations(projectId) : null;
   const confirmed = data.snapshots.filter((s) => isConfirmed(s.status));
   const selected =
     typeof query.snapshot === "string"
@@ -156,11 +157,10 @@ export default async function CampaignPage({
       </section>
       {sum && sum.errors > 0 && <p role="status" className="text-xs text-warn">수집 오류 {sum.errors}개는 합계와 성과 분모에서 제외했습니다.</p>}
       </>}
-      <nav aria-label="캠페인 보기" className="flex gap-6 border-b border-border">
-        {Object.entries({ submissions: "제출 현황", budget:isSuperAdmin(profile)?"예산":"출연료 편성", posts: "게시물", trend: "추이", reports: "보고서" }).map(([key, label]) => <Link key={key} href={href(key)} aria-current={key === tab ? "page" : undefined} className={`pb-3 text-sm ${key === tab ? "border-b-2 border-primary font-semibold" : "text-ink-3 hover:text-foreground"}`}>{label}</Link>)}
+      <nav aria-label="캠페인 보기" className="flex gap-5 overflow-x-auto border-b border-border">
+        {Object.entries({ submissions: "운영 보드", budget:"금액 비교", posts: "게시물 · 성과", trend: "추이", reports: "보고서" }).map(([key, label]) => <Link key={key} href={href(key)} aria-current={key === tab ? "page" : undefined} className={`whitespace-nowrap pb-3 text-sm ${key === tab ? "border-b-2 border-primary font-semibold" : "text-ink-3 hover:text-foreground"}`}>{label}</Link>)}
       </nav>
-      {tab === "submissions" && <SubmissionsPanel initial={submissions} boards={boards} />}
-      {budget && <BudgetPanel data={budget} />}
+      {budget && operations && <OperationsPanel key={tab} data={submissions} budget={budget} operations={operations.people} policy={operations.settings} boards={boards} initialView={tab}/>}
       {tab === "posts" && <PostsTable posts={data.posts} names={names} metrics={context?.metrics ?? []} accounts={context?.accounts ?? []} rules={data.rules} snapshots={data.snapshots} />}
       {tab === "trend" && <TrendPanel projectId={projectId} data={data} snapshotId={selected?.id ?? null} {...costProps} />}
       {tab === "reports" && <ReportsPanel projectId={projectId} reports={data.reports} snapshots={data.snapshots} />}
