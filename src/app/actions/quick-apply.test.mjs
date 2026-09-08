@@ -26,7 +26,7 @@ function fixture({autoAccept=false, existing=null, duplicate=false, expired=fals
     const q={select(){return q;},eq(k,v){filters[k]=v;return q;},ilike(k,v){filters[k]=v;return q;},is(){return q;},not(){return q;},insert(v){operation='insert';payload=v;return q;},update(v){operation='update';payload=v;return q;},upsert(v){operation='upsert';payload=v;return q;},maybeSingle:async()=>result(),single:async()=>result(),then(resolve,reject){return Promise.resolve(result()).then(resolve,reject);}};
     return q;
   }};
-  const module={exports:{}};
+  const actionModule={exports:{}};
   const mocks={
     '@/lib/supabase/admin':{createAdminClient:()=>admin},
     '@/lib/alimtalk/solapi':{normalizePhone:()=>'+821012345678'},
@@ -36,10 +36,10 @@ function fixture({autoAccept=false, existing=null, duplicate=false, expired=fals
     '@/lib/i18n/messages':{t:(_locale,key)=>key,isMessageKey:()=>true},
   };
   const wrapper=vm.runInNewContext('(function(require,module,exports,process){'+compiled+'\n})',{Date,console});
-  wrapper(id=>mocks[id]??require(id),module,module.exports,{env:{NEXT_PUBLIC_SITE_URL:'https://example.test'}});
+  wrapper(id=>mocks[id]??require(id),actionModule,actionModule.exports,{env:{NEXT_PUBLIC_SITE_URL:'https://example.test'}});
   const form=new FormData();
   for(const [key,value] of Object.entries({name:'Test applicant',email:'test@example.com',phone:'01012345678',instagram:'test_handle'}))form.set(key,value);
-  return {run:()=>module.exports.quickApplyAction('party',form),writes,mails:()=>mails,users:()=>users};
+  return {run:()=>actionModule.exports.quickApplyAction('party',form),writes,mails:()=>mails,users:()=>users};
 }
 
 test('manual review creates a pending application and no campaign submission or mail',async()=>{
