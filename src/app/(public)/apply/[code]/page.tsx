@@ -24,7 +24,7 @@ async function loadProject(code: string) {
   const { data } = await admin
     .from("projects")
     .select(
-      "id, short_code, title, description, status, visibility, application_deadline, pay_amount, pay_type, region_text, recruitment_count, deleted_at, collect_casting_details, collect_applicant_fee, guide_url",
+      "id, short_code, title, description, status, visibility, application_deadline, pay_amount, pay_type, region_text, recruitment_count, deleted_at, collect_casting_details, collect_applicant_fee, guide_url, auto_accept_on_apply",
     )
     .eq("short_code", code)
     .maybeSingle();
@@ -139,6 +139,7 @@ export default async function QuickApplyPage({
             code={code}
             channel={channel}
             guideUrl={project.guide_url ?? null}
+            autoAccept={project.auto_accept_on_apply === true}
             locale={locale}
           />
         </div>

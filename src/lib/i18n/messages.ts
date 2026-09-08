@@ -93,6 +93,8 @@ const ko = {
 
   // ── 간편 접수: 완료 화면 ───────────────────────────────────
   "apply.done.new.title": "접수 완료되었습니다",
+  "apply.done.review.title": "지원서가 접수되었습니다",
+  "apply.done.review.body": "지원서 접수와 최종 선발은 별개입니다.\n선발 결과와 참석 안내는 담당자가 별도로 안내합니다.",
   "apply.done.new.body": "가이드를 확인하신 뒤 촬영해 주세요.",
   "apply.done.existing.title": "이미 접수하셨습니다",
   "apply.done.existing.body": "같은 인스타그램 아이디로 접수한 내역이 있습니다.",
@@ -257,6 +259,8 @@ const en: Record<MessageKey, string> = {
   "apply.form.terms_suffix": ".",
 
   "apply.done.new.title": "Your application is in",
+  "apply.done.review.title": "Your application has been received",
+  "apply.done.review.body": "Submitting an application does not confirm your selection.\nThe organizer will share selection results and attendance details separately.",
   "apply.done.new.body": "Read the guide before you film.",
   "apply.done.existing.title": "You have already applied",
   "apply.done.existing.body":

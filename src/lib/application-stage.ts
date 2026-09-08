@@ -95,6 +95,13 @@ export function getApplicationStage(app: ApplicationLike): ApplicationStage {
   }
 }
 
+// 마지막 선발 단계의 집계에는 최종 확정 기록이 있는 지원만 포함한다.
+export function getApplicationReviewRound(app: ApplicationLike, rounds: number): number {
+  const total = normalizeRounds(rounds);
+  const passed = getPassedRound(app);
+  return passed >= total && !app.confirmed_at ? total - 1 : passed;
+}
+
 // n차 단계의 표시 이름. round_labels 가 있으면 그걸 쓰고, 없으면 기본 이름.
 // 마지막 단계는 항상 "최종 합격" 계열로 읽히게 한다.
 //

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { quickApplyAction } from "@/app/actions/quick-apply";
+import { quickApplyAction, type QuickApplyResult } from "@/app/actions/quick-apply";
 import { EmailTypoHint } from "@/components/ui/EmailTypoHint";
 import { translator } from "@/lib/i18n/messages";
 import type { Locale } from "@/lib/i18n/locale";
@@ -17,12 +17,14 @@ export function QuickApplyForm({
   code,
   channel,
   guideUrl,
+  autoAccept = false,
   locale,
 }: {
   code: string;
   channel?: string | null;
   /** 공고에 등록된 제작 가이드. 없으면 가이드 버튼을 띄우지 않는다. */
   guideUrl?: string | null;
+  autoAccept?: boolean;
   locale: Locale;
 }) {
   const t = translator(locale);
@@ -30,11 +32,20 @@ export function QuickApplyForm({
   const [error, setError] = useState<string | null>(null);
   // 도메인 오타 감지에 쓰는 현재 입력값. 막지 않고 제안만 한다.
   const [email, setEmail] = useState("");
-  const [done, setDone] = useState<{ submitUrl: string; state: "new" | "existing" | "rejoined" } | null>(
+  const [done, setDone] = useState<Extract<QuickApplyResult, { ok: true }> | null>(
     null,
   );
 
-  if (done) {
+  if (done?.state === "review") {
+    return (
+      <div className="rounded-2xl border border-neutral-200 bg-white p-6">
+        <p className="text-lg font-bold text-neutral-900">{t("apply.done.review.title")}</p>
+        <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-neutral-600">{t("apply.done.review.body")}</p>
+      </div>
+    );
+  }
+
+  if (done?.submitUrl) {
     return (
       <div className="rounded-2xl border border-neutral-200 bg-white p-6">
         <p className="text-lg font-bold text-neutral-900">
@@ -108,7 +119,7 @@ export function QuickApplyForm({
         setError(null);
         startTransition(async () => {
           const res = await quickApplyAction(code, fd);
-          if (res.ok) setDone({ submitUrl: res.submitUrl, state: res.state });
+          if (res.ok) setDone(res);
           else setError(res.error);
         });
       }}
@@ -118,13 +129,13 @@ export function QuickApplyForm({
         같은 인스타 아이디로 다시 넣으면 기존 링크를 그대로 돌려주는데,
         그 사실을 아무도 몰라 "제출 버튼을 못 찾겠다"는 문의가 나왔다.
       */}
-      <p className="rounded-xl bg-neutral-100 px-4 py-3 text-sm leading-relaxed text-neutral-700">
+      {autoAccept ? <p className="rounded-xl bg-neutral-100 px-4 py-3 text-sm leading-relaxed text-neutral-700">
         <b className="text-neutral-900">{t("apply.form.recovery_title")}</b>
         <br />
         {t("apply.form.recovery_body")}
         <br />
         {t("apply.form.recovery_note")}
-      </p>
+      </p> : <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-700">{t("apply.done.review.body")}</p>}
 
       <Field
         name="name"

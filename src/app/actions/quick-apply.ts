@@ -45,7 +45,7 @@ const Input = z.object({
 });
 
 export type QuickApplyResult =
-  | { ok: true; submitUrl: string; state: "new" | "existing" | "rejoined" }
+  | { ok: true; submitUrl: string | null; state: "new" | "existing" | "rejoined" | "review" }
   | { ok: false; error: string };
 
 /** 입력이 URL이든 @붙은 형태든 순수 핸들만 남긴다. */
@@ -69,7 +69,7 @@ export async function quickApplyAction(
   const { data: project } = await admin
     .from("projects")
     .select(
-      "id, title, description, status, visibility, application_deadline, recruitment_count, recruitment_unlimited, deleted_at, collect_casting_details, collect_applicant_fee, guide_url",
+      "id, title, description, status, visibility, application_deadline, recruitment_count, recruitment_unlimited, deleted_at, collect_casting_details, collect_applicant_fee, guide_url, auto_accept_on_apply",
     )
     .eq("short_code", shortCode)
     .maybeSingle();
@@ -86,6 +86,7 @@ export async function quickApplyAction(
   if (!project || project.deleted_at) return fail("apply.error.not_found");
   if (project.status !== "open") return fail("apply.error.closed");
   if (project.visibility !== "public") return fail("apply.error.not_public");
+  const autoAccept = project.auto_accept_on_apply === true;
   // 상세 지원서(키·생년·장르·영상 링크…)나 희망 단가를 받는 공고는 간편 접수로 담을 수 없다.
   // 그대로 진행하면 DB 트리거 applications_casting_details_guard 가 insert 를 거부해
   // 계정·프로필·댄서만 만들어지고 "접수 처리 중 문제가 생겼습니다."로 끝난다(실제로 발생).
@@ -156,6 +157,8 @@ export async function quickApplyAction(
       .maybeSingle();
 
     if (dupApp && !dupApp.archived_at) {
+      // 일반 모집에서는 재접수로 선발 결과를 변경하거나 제출 링크를 발급하지 않는다.
+      if (!autoAccept) return { ok: true, submitUrl: null, state: "review" };
       const rejoined = dupApp.status !== "accepted";
       const patch: Record<string, unknown> = {};
       if (rejoined) {
@@ -268,8 +271,7 @@ export async function quickApplyAction(
   }
 
   // ── 지원 ─────────────────────────────────────────────────────
-  // 바로 accepted 로 둔다. 30분마다 도는 오토파일럿을 기다리게 하면
-  // 그 사이 이탈한다. 가이드라인 메일은 오토파일럿이 이어서 보낸다.
+  // 자동 수락이 설정된 캠페인만 accepted, 일반 모집은 검토 대기로 접수한다.
   let applicationId: string | null = null;
   {
     const { data: existing } = await admin
@@ -283,7 +285,7 @@ export async function quickApplyAction(
     if (existing) {
       applicationId = existing.id;
       const patch: Record<string, unknown> = {};
-      if (existing.status !== "accepted") {
+      if (autoAccept && existing.status !== "accepted") {
         patch.status = "accepted";
         patch.responded_at = new Date().toISOString();
         patch.rejection_reason = null;
@@ -303,8 +305,8 @@ export async function quickApplyAction(
           applicant_id: userId,
           dancer_id: dancerId,
           source: "apply",
-          status: "accepted",
-          responded_at: new Date().toISOString(),
+          status: autoAccept ? "accepted" : "pending",
+          responded_at: autoAccept ? new Date().toISOString() : null,
           recruitment_channel_id: recruitmentChannelId,
         })
         .select("id")
@@ -313,6 +315,9 @@ export async function quickApplyAction(
       applicationId = made.id;
     }
   }
+
+  // 검토가 필요한 공고에는 영상 제출 토큰·캠페인 확정 메일을 만들지 않는다.
+  if (!autoAccept) return { ok: true, submitUrl: null, state: "review" };
 
   // ── 제출 토큰 ────────────────────────────────────────────────
   const { data: sub } = await admin
