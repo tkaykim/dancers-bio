@@ -176,6 +176,7 @@ export async function createProjectAction(
     pay_amount: strOrNull(formData, "pay_amount"),
     pay_type: strOrNull(formData, "pay_type"),
     recruitment_count: strOrNull(formData, "recruitment_count") ?? "1",
+    recruitment_unlimited: formData.get("recruitment_unlimited") === "on",
     application_deadline: localDateTimeToIso(strOrNull(formData, "application_deadline")),
     publish_now:
       formData.get("publish_now") === "on" ||
@@ -224,6 +225,7 @@ export async function createProjectAction(
       pay_amount: parsed.data.pay_amount ?? null,
       pay_type: parsed.data.pay_type ?? null,
       recruitment_count: parsed.data.recruitment_count,
+      recruitment_unlimited: parsed.data.recruitment_unlimited,
       allow_team_apply: false,
       application_deadline: applicationDeadline,
       is_standing_pool: isStandingPool,
@@ -400,6 +402,7 @@ export async function updateProjectAction(
     pay_amount: strOrNull(formData, "pay_amount"),
     pay_type: strOrNull(formData, "pay_type"),
     recruitment_count: strOrNull(formData, "recruitment_count") ?? "1",
+    recruitment_unlimited: formData.get("recruitment_unlimited") === "on",
     application_deadline: localDateTimeToIso(
       strOrNull(formData, "application_deadline"),
     ),
@@ -491,6 +494,7 @@ export async function updateProjectAction(
     pay_amount: parsed.data.pay_amount ?? null,
     pay_type: parsed.data.pay_type ?? null,
     recruitment_count: parsed.data.recruitment_count,
+    recruitment_unlimited: parsed.data.recruitment_unlimited,
     application_deadline: parsed.data.application_deadline ?? null,
     collect_applicant_fee: parsed.data.collect_applicant_fee,
     collect_casting_details: parsed.data.collect_casting_details,

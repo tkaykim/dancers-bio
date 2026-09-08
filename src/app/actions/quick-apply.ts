@@ -69,7 +69,7 @@ export async function quickApplyAction(
   const { data: project } = await admin
     .from("projects")
     .select(
-      "id, title, description, status, visibility, application_deadline, recruitment_count, deleted_at, collect_casting_details, collect_applicant_fee, guide_url",
+      "id, title, description, status, visibility, application_deadline, recruitment_count, recruitment_unlimited, deleted_at, collect_casting_details, collect_applicant_fee, guide_url",
     )
     .eq("short_code", shortCode)
     .maybeSingle();
@@ -188,7 +188,7 @@ export async function quickApplyAction(
   // 운영자 콘솔 쪽 정원 집계(setApplicationRoundAction·decideApplicationAction)는
   // 이미 confirmed_at 기준이라, 여기만 남아 기준이 갈려 있었다.
   const cap = project.recruitment_count ?? 0;
-  if (cap > 0) {
+  if (!project.recruitment_unlimited && cap > 0) {
     const { count } = await admin
       .from("applications")
       .select("id", { count: "exact", head: true })

@@ -76,7 +76,7 @@ export default async function ChannelApplicantsPage({
   const admin = createAdminClient();
   const { data: project } = await admin
     .from("projects")
-    .select("title, short_code, recruitment_count, selection_rounds, round_labels")
+    .select("title, short_code, recruitment_count, recruitment_unlimited, selection_rounds, round_labels")
     .eq("id", channel.project_id)
     .maybeSingle();
 
@@ -215,6 +215,7 @@ export default async function ChannelApplicantsPage({
       <ApplicantsConsole
         projectId={channel.project_id}
         recruitmentCount={project?.recruitment_count ?? counts.total}
+        recruitmentUnlimited={project?.recruitment_unlimited ?? false}
         selectionRounds={project?.selection_rounds ?? 2}
         roundLabels={project?.round_labels ?? null}
         initial={consoleApplicants}

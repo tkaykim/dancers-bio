@@ -25,7 +25,7 @@ export default async function ProjectEditPage({
     .from("projects")
     .select(
       `id, short_code, owner_id, title, description, visibility, status, category, genre_id,
-       region_text, pay_amount, pay_type, recruitment_count,
+       region_text, pay_amount, pay_type, recruitment_count, recruitment_unlimited,
        application_deadline, collect_applicant_fee, collect_casting_details,
        selection_rounds, round_labels, round_messages, posted_by_label`,
     )
@@ -65,6 +65,7 @@ export default async function ProjectEditPage({
     pay_amount: (project.pay_amount as number | null) ?? null,
     pay_type: (project.pay_type as ProjectEditInitial["pay_type"]) ?? null,
     recruitment_count: project.recruitment_count as number,
+    recruitment_unlimited: Boolean(project.recruitment_unlimited),
     application_deadline:
       (project.application_deadline as string | null) ?? null,
     collect_applicant_fee: Boolean(project.collect_applicant_fee),

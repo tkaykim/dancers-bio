@@ -17,6 +17,7 @@ type ProjectRow = {
   status: keyof typeof STATUS_LABELS;
   visibility: "public" | "private";
   recruitment_count: number;
+  recruitment_unlimited: boolean;
   application_deadline: string | null;
   created_at: string;
   posted_by_label: string | null;
@@ -30,7 +31,7 @@ export default async function AdminProjectsPage() {
   const { data: projectsData } = await supabase
     .from("projects")
     .select(
-      "id, short_code, title, status, visibility, recruitment_count, application_deadline, created_at, posted_by_label",
+      "id, short_code, title, status, visibility, recruitment_count, recruitment_unlimited, application_deadline, created_at, posted_by_label",
     )
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
@@ -92,7 +93,7 @@ export default async function AdminProjectsPage() {
                         {VISIBILITY_LABELS[p.visibility]}
                       </span>
                       <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-ink-2">
-                        모집 {p.recruitment_count}명
+                        모집 {p.recruitment_unlimited ? "제한 없음" : `${p.recruitment_count}명`}
                       </span>
                       {p.application_deadline ? (
                         <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-ink-2">

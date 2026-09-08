@@ -74,6 +74,7 @@ export function isListClosed(p: ListProject): boolean {
 }
 
 function formatPayShort(p: ListProject): string {
+  if (p.pay_amount === 0 && p.pay_type === "total") return "별도 페이 없음";
   if (p.pay_type === "negotiable") return "협의";
   if (!p.pay_amount) return "협의";
   const amount = p.pay_amount;

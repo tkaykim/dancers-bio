@@ -22,6 +22,7 @@ type Project = {
 };
 
 function formatPay(p: Project): string {
+  if (p.pay_amount === 0 && p.pay_type === "total") return "별도 페이 없음";
   if (p.pay_type === "negotiable" || (!p.pay_amount && p.pay_type !== "per_session" && p.pay_type !== "total")) {
     return "협의";
   }

@@ -48,6 +48,7 @@ export function ProjectForm({
   const [collectFee, setCollectFee] = useState(false);
   const [collectCastingDetails, setCollectCastingDetails] = useState(false);
   const [attachmentsUploading, setAttachmentsUploading] = useState(false);
+  const [recruitmentUnlimited, setRecruitmentUnlimited] = useState(false);
 
   function onPayChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/[^\d]/g, "");
@@ -264,9 +265,14 @@ export function ProjectForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">
           <Label htmlFor="recruitment_count">모집 인원</Label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="recruitment_unlimited" checked={recruitmentUnlimited} onChange={(e) => setRecruitmentUnlimited(e.target.checked)} />
+            인원 제한 없음
+          </label>
           <Input
             id="recruitment_count"
             name="recruitment_count"
+            disabled={recruitmentUnlimited}
             type="number"
             min={1}
             max={999}
@@ -274,7 +280,7 @@ export function ProjectForm({
             required
           />
           <p className="text-xs text-muted-foreground">
-            인원이 모두 수락되면 마감 여부를 묻는 안내가 뜹니다.
+            인원 제한이 없으면 정원 안내 없이 지정한 지원 마감까지 접수합니다.
           </p>
         </div>
         <div className="flex flex-col gap-2">

@@ -121,6 +121,7 @@ type ProjectRow = {
   pay_type: keyof typeof PAY_TYPE_LABELS | null;
   agreed_pay: number | null;
   recruitment_count: number;
+  recruitment_unlimited: boolean;
   posted_by_label: string | null;
   application_deadline: string | null;
   is_standing_pool: boolean | null;
@@ -161,6 +162,7 @@ type RecruitmentChannelRow = {
 
 
 function fmtPay(p: { pay_amount: number | null; pay_type: string | null }): string {
+  if (p.pay_amount === 0 && p.pay_type === "total") return "별도 페이 없음";
   if (!p.pay_amount && p.pay_type !== "negotiable") return "협의";
   if (!p.pay_amount) return "협의";
   return `₩ ${p.pay_amount.toLocaleString("ko-KR")}${p.pay_type === "per_session" ? " · 회차당" : ""}`;
@@ -192,7 +194,7 @@ export default async function ProjectDetailPage({
     .from("projects")
     .select(
       `id, short_code, owner_id, title, description, visibility, status, pay_amount, pay_type,
-       agreed_pay, recruitment_count, posted_by_label,
+       agreed_pay, recruitment_count, recruitment_unlimited, posted_by_label,
        application_deadline, is_standing_pool, collect_applicant_fee, collect_casting_details, created_at, region_text,
        genre:genres ( label_ko ),
        region:regions ( label_ko )`,
@@ -504,7 +506,7 @@ export default async function ProjectDetailPage({
         <div className="flex flex-col gap-1 p-4">
           <p className="text-[10px] uppercase tracking-[0.16em] text-ink-3">모집</p>
           <p className="font-mono text-base font-semibold">
-            {p.recruitment_count}명
+            {p.recruitment_unlimited ? "제한 없음" : `${p.recruitment_count}명`}
           </p>
         </div>
         <div className="flex flex-col gap-1 p-4">
