@@ -711,7 +711,7 @@ async function readQuota(
   const [{ data: project }, { count }] = await Promise.all([
     supabase
       .from("projects")
-      .select("recruitment_count, status")
+      .select("recruitment_count, recruitment_unlimited, status")
       .eq("id", projectId)
       .maybeSingle(),
     supabase
@@ -722,7 +722,7 @@ async function readQuota(
       .not("confirmed_at", "is", null)
       .is("archived_at", null),
   ]);
-  if (!project) return null;
+  if (!project || project.recruitment_unlimited) return null;
 
   const capacity = project.recruitment_count ?? 1;
   const confirmed = count ?? 0;

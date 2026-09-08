@@ -32,6 +32,7 @@ export type ProjectEditInitial = {
   pay_amount: number | null;
   pay_type: "per_session" | "total" | "negotiable" | null;
   recruitment_count: number;
+  recruitment_unlimited: boolean;
   application_deadline: string | null;
   collect_applicant_fee: boolean;
   collect_casting_details: boolean;
@@ -71,6 +72,7 @@ export function ProjectEditForm({
     initial.collect_casting_details,
   );
   const [attachmentsUploading, setAttachmentsUploading] = useState(false);
+  const [recruitmentUnlimited, setRecruitmentUnlimited] = useState(initial.recruitment_unlimited);
 
   function onPayChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/[^\d]/g, "");
@@ -257,9 +259,14 @@ export function ProjectEditForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">
           <Label htmlFor="recruitment_count">모집 인원</Label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="recruitment_unlimited" checked={recruitmentUnlimited} onChange={(e) => setRecruitmentUnlimited(e.target.checked)} />
+            인원 제한 없음
+          </label>
           <Input
             id="recruitment_count"
             name="recruitment_count"
+            disabled={recruitmentUnlimited}
             type="number"
             min={1}
             max={999}

@@ -86,6 +86,7 @@ type Project = {
   owner_id: string;
   title: string;
   recruitment_count: number;
+  recruitment_unlimited: boolean;
   selection_rounds: number | null;
   round_labels: string[] | null;
   schedule_survey_code: string;
@@ -175,7 +176,7 @@ export default async function ApplicantsPage({
   const projectQuery = supabase
     .from("projects")
     .select(
-      "id, short_code, owner_id, title, recruitment_count, selection_rounds, round_labels, schedule_survey_code, settlement_share_code, size_share_code",
+      "id, short_code, owner_id, title, recruitment_count, recruitment_unlimited, selection_rounds, round_labels, schedule_survey_code, settlement_share_code, size_share_code",
     )
     .is("deleted_at", null);
 
@@ -815,6 +816,7 @@ export default async function ApplicantsPage({
           <ApplicantsConsole
             projectId={p.id}
             recruitmentCount={p.recruitment_count}
+            recruitmentUnlimited={p.recruitment_unlimited}
             selectionRounds={p.selection_rounds ?? 2}
             roundLabels={p.round_labels ?? null}
             initial={applicants}

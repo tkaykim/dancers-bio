@@ -111,6 +111,7 @@ const STATUS_BADGE: Record<string, string> = {
 export function ApplicantsConsole({
   projectId,
   recruitmentCount,
+  recruitmentUnlimited = false,
   initial,
   channels = [],
   canDecide = true,
@@ -119,6 +120,7 @@ export function ApplicantsConsole({
 }: {
   projectId: string;
   recruitmentCount: number;
+  recruitmentUnlimited?: boolean;
   initial: ConsoleApplicant[];
   channels?: Array<{ id: string; name: string }>;
   canDecide?: boolean;
@@ -374,7 +376,7 @@ export function ApplicantsConsole({
       // 대기·대체 인원을 일부러 더 확정하는 경우가 있어 막지는 않는다.
       const already = counts.byRound.get(totalRounds) ?? 0;
       const warning =
-        already >= recruitmentCount
+        !recruitmentUnlimited && already >= recruitmentCount
           ? `⚠ 모집 정원은 ${recruitmentCount}명인데 이미 ${already}명이 확정돼 있습니다.\n확정하면 ${already + 1}명이 됩니다.\n\n`
           : "";
       if (
@@ -606,13 +608,13 @@ export function ApplicantsConsole({
           {/* 정원을 넘긴 상태는 평문으로 흘려보내면 눈에 안 띈다. */}
           <span
             className={
-              (counts.byRound.get(totalRounds) ?? 0) > recruitmentCount
+              !recruitmentUnlimited && (counts.byRound.get(totalRounds) ?? 0) > recruitmentCount
                 ? "font-bold text-red-600"
                 : undefined
             }
           >
-            {counts.byRound.get(totalRounds) ?? 0} / {recruitmentCount}
-            {(counts.byRound.get(totalRounds) ?? 0) > recruitmentCount ? " 초과" : ""}
+            {counts.byRound.get(totalRounds) ?? 0} / {recruitmentUnlimited ? "제한 없음" : recruitmentCount}
+            {!recruitmentUnlimited && (counts.byRound.get(totalRounds) ?? 0) > recruitmentCount ? " 초과" : ""}
           </span>
         </p>
       </div>

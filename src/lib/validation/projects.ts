@@ -110,6 +110,7 @@ export const projectSchema = z.object({
     .nullable()
     .optional(),
   recruitment_count: z.coerce.number().int().min(1).max(999).default(1),
+  recruitment_unlimited: z.boolean().default(false),
   application_deadline: z.string().datetime().nullable().optional(),
   publish_now: z.boolean().default(true),
   // 상시 섭외풀: 마감 없음 · 지원자를 풀에 적재. true 면 마감일 무시.
@@ -151,6 +152,7 @@ export const projectUpdateSchema = z.object({
     .nullable()
     .optional(),
   recruitment_count: z.coerce.number().int().min(1).max(999).default(1),
+  recruitment_unlimited: z.boolean().default(false),
   application_deadline: z.string().datetime().nullable().optional(),
   collect_applicant_fee: z.boolean().default(false),
   collect_casting_details: z.boolean().default(false),
