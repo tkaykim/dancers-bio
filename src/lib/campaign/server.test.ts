@@ -635,6 +635,7 @@ test("public SSR shows separate follower basis, coverage, no thumbnails or priva
     typeof import("../../components/campaign/ResultsReport")
   >("src/components/campaign/ResultsReport.tsx", {
     "./UploadProgress": loadModule("src/components/campaign/UploadProgress.tsx"),
+    "./DeliveryReport": { DeliveryReport: () => null },
     "@/components/brand/DeetzLogo": { DeetzLogo: () => null },
     "next/image": {
       default: (props: Record<string, unknown>) =>

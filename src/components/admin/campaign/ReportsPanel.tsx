@@ -16,6 +16,23 @@ import { Editor, ErrorText, inputClass, useAction } from "./Controls";
 const flags: [keyof ReportSettings, string][] = [["showFollowers", "팔로워"], ["showDisplayNames", "검토한 표시 이름"], ["showAllPosts", "전체 게시물"], ["showDistribution", "재생 분포"], ["showFollowerTiers", "팔로워 구간표"], ["showCompliance", "준수 결과"], ["showForecast", "예측 실현율"]];
 function SettingsFields({ settings, onChange }: { settings: ReportSettings; onChange: (value: ReportSettings) => void }) {
   return <div className="space-y-4">
+    <label className="block space-y-2"><span>보고서 형식</span><select className={inputClass + " w-full"} value={settings.layout ?? "analysis"} onChange={e => onChange({ ...settings, layout: e.target.value as "analysis" | "delivery" })}><option value="analysis">성과 분석</option><option value="delivery">업로드 현황 · 광고주 보고</option></select></label>
+    {settings.layout === "delivery" && <div className="space-y-3 rounded-xl border border-border p-4">
+      <p className="text-xs text-ink-3">승인된 업로드만 집계하며, 아래에 지정한 예정자만 보고서에 표시합니다.<br/>예정자는 실적 합계에서 제외됩니다.</p>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={settings.approximateViews === true} onChange={e => onChange({ ...settings, approximateViews: e.target.checked })}/>공개 화면의 반올림 조회수 · 합계에 ‘약’ 표시</label>
+      <fieldset className="space-y-2"><legend className="mb-2 text-sm font-medium">보고서에 표시할 예정자</legend>
+      {(settings.upcoming ?? []).map((p,i) => <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_140px_auto]" key={i}>
+        <Input aria-label={`예정자 ${i+1} 이름`} placeholder="이름" value={p.name} onChange={e => onChange({ ...settings, upcoming: settings.upcoming?.map((x,j) => j === i ? { ...x, name: e.target.value } : x) })}/>
+        <Input aria-label={`예정자 ${i+1} 계정`} placeholder="계정 (선택)" value={p.handle ?? ""} onChange={e => onChange({ ...settings, upcoming: settings.upcoming?.map((x,j) => j === i ? { ...x, handle: e.target.value.replace(/^@/,"") || null } : x) })}/>
+        <Input aria-label={`예정자 ${i+1} 날짜`} type="date" value={p.date ?? ""} onChange={e => onChange({ ...settings, upcoming: settings.upcoming?.map((x,j) => j === i ? { ...x, date: e.target.value || null } : x) })}/>
+        <Button type="button" variant="ghost" onClick={() => onChange({ ...settings, upcoming: settings.upcoming?.filter((_,j) => j !== i) })}>제외</Button>
+      </div>)}
+      <Button type="button" variant="outline" onClick={() => onChange({ ...settings, upcoming: [...(settings.upcoming ?? []), { name: "", handle: null, date: null }] })}>예정자 추가</Button></fieldset>
+      <details><summary className="cursor-pointer text-sm">보고용 팔로워 확인값 ({settings.followerObservations?.length ?? 0}계정)</summary>
+        <p className="my-2 text-xs text-ink-3">공개 계정에서 확인한 수치를 입력합니다.<br/>수치를 수정하면 확인 시각도 갱신됩니다.</p>
+        {(settings.followerObservations ?? []).map((f,i) => <label key={f.handle} className="my-2 flex items-center gap-3 text-xs"><span className="min-w-0 flex-1 truncate">@{f.handle}</span><Input type="number" min={0} step={1} className="w-32" aria-label={`@${f.handle} 팔로워 수`} value={f.count} onChange={e => onChange({ ...settings, followerObservations: settings.followerObservations?.map((x,j) => j === i ? { ...x, count: Number(e.target.value), checkedAt: new Date().toISOString() } : x) })}/></label>)}
+      </details>
+    </div>}
     <fieldset className="grid grid-cols-2 gap-3"><legend className="mb-2 text-sm font-medium">보고서에 표시할 항목</legend>{flags.map(([key, label]) => <label key={key} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={settings[key] === true} onChange={e => onChange({ ...settings, [key]: e.target.checked })} />{label}</label>)}</fieldset>
     <label className="block space-y-2"><span>상위 게시물 수 (0이면 숨김)</span><Input type="number" min={0} max={300} value={settings.showTopPosts} onChange={e => onChange({ ...settings, showTopPosts: Number(e.target.value) })} /></label>
     <label className="block space-y-2"><span>헤더 표시명</span><Input value={settings.brandLabel ?? ""} onChange={e => onChange({ ...settings, brandLabel: e.target.value })} /></label>

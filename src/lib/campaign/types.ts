@@ -88,6 +88,10 @@ export type Rules = {
   first_posted_at: string | null;
 };
 export type ReportSettings = {
+  layout?: "analysis" | "delivery";
+  approximateViews?: boolean;
+  upcoming?: { name: string; handle: string | null; date: string | null }[];
+  followerObservations?: { handle: string; count: number; checkedAt: string }[];
   showFollowers: boolean;
   showDisplayNames: boolean;
   showTopPosts: number;
@@ -201,6 +205,16 @@ export type Forecast = {
   label: string;
 };
 export type PublicReport = {
+  delivery?: {
+    participants: number;
+    posts: number;
+    measured: number;
+    views: number | null;
+    approximate: boolean;
+    items: { url: string; names: string[]; handle: string | null; views: number | null; followers?: number | null }[];
+    upcoming: { name: string; handle: string | null; date: string | null; followers?: number | null }[];
+    followersCheckedAt?: string | null;
+  };
   uploads?: import("./submissions").PublicUploads;
   version: 1;
   title: string;

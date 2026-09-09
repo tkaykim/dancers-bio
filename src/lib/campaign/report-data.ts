@@ -4,6 +4,7 @@ import { buildReport, publishedPayload } from "./report-builder";
 import type { PublicReport, Report } from "./types";
 import { loadSubmissions } from "./submission-repository";
 import { approvedCampaignData, publicUploads } from "./submissions";
+import { buildDeliveryReport } from "./delivery-report";
 export async function prepareReport(
   project: string,
   reportId: string,
@@ -22,6 +23,9 @@ export async function prepareReport(
     loadCampaign(project),
     loadSubmissions(project),
   ]);
+  if (report.settings.layout === "delivery") {
+    return buildDeliveryReport(data, submissions, report, snapshotId);
+  }
   const result = buildReport(
     approvedCampaignData(data, submissions),
     report,

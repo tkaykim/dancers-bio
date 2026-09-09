@@ -1,4 +1,5 @@
 import { UploadProgress } from "./UploadProgress";
+import { DeliveryReport } from "./DeliveryReport";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import type {
   PublicReport,
@@ -238,6 +239,7 @@ function PostTable({ posts, title }: { posts: PublicPost[]; title: string }) {
   );
 }
 export function ResultsReport({ report }: { report: PublicReport }) {
+  if (report.delivery) return <DeliveryReport report={report} />;
   const s = report.summary;
   return (
     <article className="mx-auto flex w-full max-w-[900px] flex-col gap-10 bg-background px-5 py-12 text-foreground sm:px-8 [&_h2]:border-t [&_h2]:border-foreground/30 [&_h2]:pt-4 [&_h2]:text-lg [&_h2]:font-semibold [&_caption]:pb-3 [&_caption]:text-sm [&_small]:text-[11px] [&_small]:text-ink-3 [&_td:not(:first-child)]:text-right [&_th:not(:first-child)]:text-right">
