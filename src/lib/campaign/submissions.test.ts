@@ -4,6 +4,7 @@ import { loadModule } from "./test-loader";
 import { campaign, post, metric } from "./test-fixtures";
 import type { SubmissionData, Participant, Submission } from "./submissions";
 import { buildReport, publishedPayload } from "./report-builder";
+import { buildDeliveryReport } from "./delivery-report";
 import { normalizeReportSettings } from "./report-settings";
 import { snapshotId } from "./test-fixtures";
 const lib = loadModule<typeof import("./submissions")>(
@@ -165,6 +166,7 @@ test("prepared report freezes approved URLs and honors display-name opt-in", asy
         loadCampaign: async () => base,
       },
       "./report-builder": { buildReport, publishedPayload },
+      "./delivery-report": { buildDeliveryReport },
       "./submission-repository": { loadSubmissions: async () => data },
       "./submissions": lib,
     },
