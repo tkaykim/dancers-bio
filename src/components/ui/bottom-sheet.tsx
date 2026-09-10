@@ -12,6 +12,8 @@ type BottomSheetProps = {
   title?: string;
   children: React.ReactNode;
   className?: string;
+  contentClassName?: string;
+  style?: React.CSSProperties;
 };
 
 export function BottomSheet({
@@ -20,6 +22,8 @@ export function BottomSheet({
   title,
   children,
   className,
+  contentClassName,
+  style,
 }: BottomSheetProps) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -32,6 +36,7 @@ export function BottomSheet({
           )}
         />
         <DialogPrimitive.Popup
+          style={style}
           className={cn(
             "fixed inset-x-0 bottom-0 z-50 flex max-h-[90vh] w-full flex-col bg-card text-card-foreground shadow-2xl outline-none",
             "rounded-t-2xl border-t border-hairline-2",
@@ -44,7 +49,7 @@ export function BottomSheet({
         >
           <div className="flex items-center justify-between gap-3 border-b border-hairline-2 px-6 py-4">
             {title ? (
-              <DialogPrimitive.Title className="text-base font-bold text-foreground">
+              <DialogPrimitive.Title className="min-w-0 flex-1 break-keep [overflow-wrap:anywhere] text-base font-bold text-foreground">
                 {title}
               </DialogPrimitive.Title>
             ) : (
@@ -52,12 +57,12 @@ export function BottomSheet({
             )}
             <DialogPrimitive.Close
               aria-label="닫기"
-              className="-mr-2 rounded-full p-2 text-ink-3 transition-colors hover:bg-secondary hover:text-foreground"
+              className="-mr-2 shrink-0 rounded-full p-2 text-ink-3 transition-colors hover:bg-secondary hover:text-foreground"
             >
               <XIcon className="size-4" />
             </DialogPrimitive.Close>
           </div>
-          <div className="flex-1 overflow-y-auto p-6">{children}</div>
+          <div className={cn("min-h-0 min-w-0 flex-1 overflow-y-auto p-6", contentClassName)}>{children}</div>
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

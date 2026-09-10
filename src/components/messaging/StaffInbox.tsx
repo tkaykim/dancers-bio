@@ -52,7 +52,7 @@ export function StaffInbox(props: {
 }) {
   const [rooms, setRooms] = useState<StaffRoomRow[]>(props.initialRooms);
   const [tab, setTab] = useState<"threads" | "campaigns">("threads");
-  const [filter, setFilter] = useState<"awaiting" | "all">("awaiting");
+  const [filter, setFilter] = useState<"awaiting" | "all">("all");
   const [selectedId, setSelectedId] = useState<string | null>(props.initialRoomId);
   const [thread, setThread] = useState<{
     room: ThreadRoomMeta;
@@ -62,6 +62,19 @@ export function StaffInbox(props: {
   } | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [meta, setMeta] = useState<ThreadRoomMeta | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [reload, setReload] = useState(0);
+
+  const selectRoom = (id: string | null) => {
+    setSelectedId(id);
+    setNoteDraft("");
+    setLoadError(false);
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set("room", id);
+    else url.searchParams.delete("room");
+    url.searchParams.delete("dancer");
+    window.history.replaceState(null, "", url);
+  };
 
   usePolling(async () => {
     const res = await fetch(`/api/messages/staff-rooms/${props.projectId}`, {
@@ -72,27 +85,22 @@ export function StaffInbox(props: {
     if (data.rooms) setRooms(data.rooms);
   }, 30_000);
 
-  const loadThread = useCallback(async (roomId: string) => {
-    const res = await fetch(`/api/messages/rooms/${roomId}?after_seq=0`, { cache: "no-store" });
-    if (!res.ok) {
-      toast.error("대화를 불러오지 못했습니다.");
-      return;
-    }
-    const data = (await res.json()) as {
-      room: ThreadRoomMeta;
-      messages: ThreadMessage[];
-      responses: ThreadResponse[];
-      notes: Note[];
-    };
-    // 이전 방 데이터는 교체 시점까지 유지(로딩 플래시 방지) — 렌더는 room.id 일치로 가드한다.
-    setThread(data);
-    setMeta(data.room);
-  }, []);
-
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch 후 반영되는 비동기 로딩(동기 setState 아님)
-    if (selectedId) void loadThread(selectedId);
-  }, [selectedId, loadThread]);
+    if (!selectedId) return;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const res = await fetch(`/api/messages/rooms/${selectedId}?after_seq=0`, { cache: "no-store", signal: controller.signal });
+        if (!res.ok) throw new Error("load failed");
+        const data = await res.json();
+        if (!data.room) throw new Error("missing room");
+        if (!controller.signal.aborted) { setThread(data); setMeta(data.room); setLoadError(false); }
+      } catch {
+        if (!controller.signal.aborted) setLoadError(true);
+      }
+    })();
+    return () => controller.abort();
+  }, [selectedId, reload]);
 
   const selectedRow = rooms.find((r) => r.roomId === selectedId) ?? null;
 
@@ -141,7 +149,7 @@ export function StaffInbox(props: {
     const result = await addInternalNoteAction({ roomId: selectedId, body: noteDraft.trim() });
     if (!result.ok) return void toast.error(result.error);
     setThread((prev) =>
-      prev
+      prev && prev.room.id === selectedId
         ? {
             ...prev,
             notes: [
@@ -160,11 +168,11 @@ export function StaffInbox(props: {
   }, [selectedId, noteDraft]);
 
   return (
-    <div className="flex h-[calc(100svh-120px)] min-h-[480px] flex-col lg:grid lg:grid-cols-[300px_minmax(0,1fr)_280px]">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:grid lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_240px]">
       {/* 좌: 목록 */}
       <aside
         className={
-          "min-h-0 border-border lg:border-r " + (selectedId && tab === "threads" ? "hidden lg:block" : "")
+          "min-h-0 min-w-0 border-border lg:border-r " + (selectedId && tab === "threads" ? "hidden lg:block" : tab === "campaigns" ? "shrink-0" : "flex-1 lg:flex-none")
         }
       >
         <div className="flex items-center gap-1.5 border-b border-border px-3 py-2.5">
@@ -226,7 +234,7 @@ export function StaffInbox(props: {
                   <li key={r.roomId} className="border-b border-border">
                     <button
                       type="button"
-                      onClick={() => setSelectedId(r.roomId)}
+                      onClick={() => selectRoom(r.roomId)}
                       className={
                         "block w-full px-3 py-2.5 text-left hover:bg-secondary/60 " +
                         (selectedId === r.roomId ? "bg-secondary" : "")
@@ -266,14 +274,12 @@ export function StaffInbox(props: {
             </ul>
           </>
         ) : (
-          <p className="px-4 py-4 text-[12px] leading-relaxed text-ink-3 lg:hidden">
-            오른쪽 화면에서 일괄 발송을 관리합니다.
-          </p>
+          null
         )}
       </aside>
 
       {/* 중: 대화 or 캠페인 */}
-      <section className={"min-h-0 flex-1 " + (!selectedId && tab === "threads" ? "hidden lg:block" : "")}>
+      <section className={"min-h-0 min-w-0 flex-1 " + (tab === "campaigns" ? "overflow-y-auto " : "") + (!selectedId && tab === "threads" ? "hidden lg:block" : "")}>
         {tab === "campaigns" ? (
           <CampaignPanel
             projectId={props.projectId}
@@ -285,8 +291,8 @@ export function StaffInbox(props: {
             <div className="flex items-center gap-2 border-b border-border px-3 py-2">
               <button
                 type="button"
-                onClick={() => setSelectedId(null)}
-                className="text-ink-2 lg:hidden"
+                onClick={() => selectRoom(null)}
+                className="min-h-11 min-w-11 shrink-0 text-ink-2 lg:hidden"
                 aria-label="목록으로"
               >
                 ←
@@ -298,7 +304,7 @@ export function StaffInbox(props: {
                 <button
                   type="button"
                   onClick={() => void doResolve()}
-                  className="rounded-md border border-border px-2.5 py-1 text-[12px] font-semibold"
+                  className="min-h-11 shrink-0 whitespace-nowrap rounded-md border border-border px-2.5 py-1 text-[12px] font-semibold"
                 >
                   처리 완료
                 </button>
@@ -306,7 +312,7 @@ export function StaffInbox(props: {
                 <button
                   type="button"
                   onClick={() => void doMarkUnanswered()}
-                  className="rounded-md border border-border px-2.5 py-1 text-[12px] font-semibold text-ink-3"
+                  className="min-h-11 shrink-0 whitespace-nowrap rounded-md border border-border px-2.5 py-1 text-[12px] font-semibold text-ink-3"
                 >
                   미답변으로 표시
                 </button>
@@ -326,6 +332,12 @@ export function StaffInbox(props: {
               />
             </div>
           </div>
+        ) : selectedId ? (
+          <div className="p-4 text-sm">
+            <button type="button" onClick={() => selectRoom(null)} className="mb-4 min-h-11">← 목록으로</button>
+            <p role="status">{loadError ? "대화를 불러오지 못했습니다." : "대화를 불러오는 중…"}</p>
+            {loadError ? <button type="button" onClick={() => { setLoadError(false); setReload((v) => v + 1); }} className="mt-3 min-h-11 rounded-lg border px-4">다시 시도</button> : null}
+          </div>
         ) : (
           <p className="hidden px-6 py-16 text-center text-[13px] text-ink-3 lg:block">
             왼쪽에서 대화를 선택하세요.
@@ -334,7 +346,7 @@ export function StaffInbox(props: {
       </section>
 
       {/* 우: 컨텍스트 + 내부 메모 */}
-      <aside className="hidden min-h-0 overflow-y-auto border-l border-border px-4 py-4 lg:block">
+      <aside className="hidden min-h-0 overflow-y-auto border-l border-border px-4 py-4 xl:block">
         {selectedRow ? (
           <>
             <p className="text-[13px] font-bold">{selectedRow.dancerName}</p>

@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { previewText } from "./types";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // 댄서 메시지함 목록 빌더 — 페이지(SSR)와 폴링 route 가 같은 로직을 쓴다.
 // 반드시 "세션 클라이언트"로 호출한다(RLS 가 실제 방어선).
@@ -75,6 +76,15 @@ export async function listMemberInboxRooms(
     .map((s) => ({ ...s, room: Array.isArray(s.room) ? s.room[0] ?? null : s.room }))
     .filter((s) => s.room && !s.room.archived_at && Number(s.room.last_seq) > 0);
 
+  // A staff-initiated recipient may not have an application granting project SELECT.
+  // These project ids come exclusively from seats/rooms already authorized by RLS.
+  const missingProjectIds = [...new Set(rows.filter((s) => !s.room!.project).map((s) => s.room!.project_id))];
+  const context = new Map<string, { title: string | null; status: string | null }>();
+  if (missingProjectIds.length) {
+    const { data } = await createAdminClient().from("projects").select("id, title, status").in("id", missingProjectIds);
+    for (const p of data ?? []) context.set(p.id, p);
+  }
+
   const previews = await Promise.all(
     rows.map(async (s) => {
       const { data: msg } = await supabase
@@ -88,7 +98,7 @@ export async function listMemberInboxRooms(
   );
 
   const rooms: InboxRoom[] = rows.map((s, i) => {
-    const project = Array.isArray(s.room!.project) ? s.room!.project[0] ?? null : s.room!.project;
+    const project = (Array.isArray(s.room!.project) ? s.room!.project[0] ?? null : s.room!.project) ?? context.get(s.room!.project_id);
     const msg = previews[i] as { body?: string; kind?: string; deleted_at?: string | null } | null;
     const rawPreview = msg?.deleted_at
       ? "삭제된 메시지"

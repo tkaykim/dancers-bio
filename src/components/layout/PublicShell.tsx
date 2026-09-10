@@ -58,6 +58,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
   const segments = useSelectedLayoutSegments();
   const isPortfolioPage =
     segments[0] === "d" || segments[0] === "t";
+  const isMessagePage = /^\/messages\/[^/]+$/.test(pathname) || /^\/projects\/[^/]+\/messages$/.test(pathname);
 
   return (
     <div className="min-h-svh bg-background">
@@ -152,13 +153,13 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
         <main
           className={
             "min-w-0 flex-1 " +
-            (isPortfolioPage ? "pb-0 lg:pb-10" : "pb-24 lg:pb-10")
+            (isMessagePage ? "pb-0" : isPortfolioPage ? "pb-0 lg:pb-10" : "pb-24 lg:pb-10")
           }
         >
           {children}
         </main>
 
-        {!isPortfolioPage ? (
+        {!isPortfolioPage && !isMessagePage ? (
           <div className="lg:hidden">
             <BottomTabBar />
           </div>

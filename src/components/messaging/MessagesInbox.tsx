@@ -76,7 +76,7 @@ export function MessagesInbox({ initialRooms }: { initialRooms: InboxRoom[] }) {
         <div className="px-4 py-16 text-center">
           <p className="text-sm font-semibold">아직 메시지가 없어요</p>
           <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">
-            지원한 공고의 운영팀 연락이 여기에 도착해요.
+            프로젝트 운영팀에서 보낸 연락이 여기에 도착해요.
           </p>
           <Link
             href="/feed"

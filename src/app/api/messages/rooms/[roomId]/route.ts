@@ -36,7 +36,7 @@ export async function GET(
   // 초기 로드(after_seq=0)는 "최신 100개" — 오래된 100개를 주면 100개 초과 대화에서
   // 중간 이후가 영구 누락된다(커서는 최신 seq 로 시작하므로).
   const MSG_COLS =
-    "id, room_id, room_seq, sender_user_id, sender_role, kind, body, action, deleted_at, created_at";
+    "id, room_id, room_seq, client_message_id, sender_user_id, sender_role, kind, body, action, deleted_at, created_at";
   let messages: Array<Record<string, unknown>> = [];
   if (afterSeq === 0) {
     const { data } = await supabase

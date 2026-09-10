@@ -6,6 +6,8 @@ import { messagingEnabled } from "@/lib/messaging/flags";
 import { listCampaignsWithStats } from "@/lib/messaging/campaigns";
 import { openDancerThreadAction } from "@/app/actions/staff-messages";
 import { StaffInbox } from "@/components/messaging/StaffInbox";
+import { MessageViewport } from "@/components/messaging/MessageViewport";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "메시지 콘솔 | deetz" };
 export const dynamic = "force-dynamic";
@@ -47,9 +49,10 @@ export default async function ProjectMessagesPage({
   const campaigns = await listCampaignsWithStats(projectId);
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
-      <div className="border-b border-border px-4 py-4">
-        <h1 className="text-xl font-bold tracking-tight">{project.title as string}</h1>
+    <MessageViewport>
+      <div className="shrink-0 border-b border-border px-4 py-3">
+        <Link href={`/projects/${projectId}/applicants`} className="inline-block py-1 text-xs text-ink-3">← 지원자 보기</Link>
+        <h1 className="line-clamp-2 break-keep [overflow-wrap:anywhere] text-base font-bold tracking-tight">{project.title as string}</h1>
         <p className="mt-0.5 text-[12px] text-ink-3">
           메시지 콘솔 — 답장은 프로젝트 운영팀 명의로 나갑니다.
         </p>
@@ -61,6 +64,6 @@ export default async function ProjectMessagesPage({
         initialCampaigns={campaigns}
         initialRoomId={query.room ?? null}
       />
-    </div>
+    </MessageViewport>
   );
 }

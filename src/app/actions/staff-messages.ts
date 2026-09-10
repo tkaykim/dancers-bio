@@ -206,19 +206,15 @@ export async function openDancerThreadAction(input: {
   const canManage = await assertProjectManageAccess(parsed.data.projectId);
   if (!canManage) return { ok: false, error: "이 프로젝트의 운영 권한이 없습니다." };
 
-  // 이 프로젝트(모집채널 통합 범위)의 지원자인지 확인 — 무관한 댄서에게 방을 만들지 않는다.
+  // 운영자는 일반 프로필에서도 프로젝트를 지정해 대화를 시작할 수 있다.
+  // 지원서를 생성하거나 선발 상태를 변경하지 않는다.
   const admin = createAdminClient();
-  const { data: application } = await admin
-    .from("applications")
-    .select("id")
-    .eq("project_id", parsed.data.projectId)
-    .eq("dancer_id", parsed.data.dancerId)
-    .is("archived_at", null)
-    .limit(1)
-    .maybeSingle();
-  if (!application) {
-    return { ok: false, error: "이 공고의 지원자가 아닙니다." };
-  }
+  const { data: project } = await admin.from("projects").select("id")
+    .eq("id", parsed.data.projectId).is("deleted_at", null).maybeSingle();
+  if (!project) return { ok: false, error: "프로젝트를 찾을 수 없습니다." };
+  const { data: dancer } = await admin.from("dancers").select("profile_id")
+    .eq("id", parsed.data.dancerId).maybeSingle();
+  if (!dancer?.profile_id) return { ok: false, error: "아직 계정에 연결되지 않은 프로필입니다. 메시지를 받을 수 없습니다." };
 
   const room = await getOrCreateDirectRoom(parsed.data.projectId, parsed.data.dancerId);
   if (!room.ok) return { ok: false, error: room.error };
