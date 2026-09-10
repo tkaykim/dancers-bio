@@ -97,13 +97,13 @@ function SettlementField({
           onChange={(e) => setValue(formatWonInput(e.target.value))}
           placeholder="예: 400,000"
           disabled={locked || busy}
-          className="h-9 flex-1 rounded-lg border border-border bg-background px-3 text-sm placeholder:text-ink-3 disabled:opacity-60"
+          className="h-11 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-base placeholder:text-ink-3 disabled:opacity-60"
         />
         <button
           type="button"
           onClick={save}
           disabled={locked || busy || !value.trim()}
-          className="h-9 shrink-0 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+          className="h-11 shrink-0 whitespace-nowrap rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
         >
           {busy ? "저장 중…" : "저장"}
         </button>
@@ -624,7 +624,7 @@ export function ApplicantPortfolioSheet({
                     type="button"
                     disabled={deciding || confirming}
                     onClick={() => selectStatus(s.k)}
-                    className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+                    className={`min-h-11 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
                       isActive ? s.active : "text-ink-3 hover:text-foreground"
                     }`}
                   >
@@ -646,7 +646,7 @@ export function ApplicantPortfolioSheet({
                     type="button"
                     onClick={() => setConfirmed(false)}
                     disabled={confirming}
-                    className="text-[12px] text-ink-3 underline hover:text-foreground disabled:opacity-50"
+                    className="min-h-11 shrink-0 whitespace-nowrap text-[12px] text-ink-3 underline hover:text-foreground disabled:opacity-50"
                   >
                     최종 선발 해제
                   </button>

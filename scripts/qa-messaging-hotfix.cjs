@@ -50,7 +50,7 @@ const role=new URLSearchParams(location.search).get('role')||'staff';
 const projects=[{id:pid,title:'긴 프로젝트 제목과 촬영 일정을 함께 확인하는 프로젝트'},{id:'44444444-4444-4444-8444-444444444444',title:'다른 프로젝트'}];
 createRoot(document.getElementById('root')).render(
  mode==='profile' ? <div className="p-4"><MessageDancerButton dancerId={did} dancerName="활동명이 매우 긴 지원자" projects={projects}/></div> :
- mode==='applicant' ? <ApplicantPortfolioSheet open={true} onOpenChange={()=>{}} projectId={pid} applicant={{applicationId:'application',dancerId:did,name:'활동명이 매우 긴 지원자',status:'pending',castingDetails:null}} onDecide={()=>{}} deciding={false}/> :
+ (mode==='applicant'||mode==='review') ? <ApplicantPortfolioSheet open={true} onOpenChange={()=>{}} projectId={pid} applicant={{applicationId:'application',dancerId:did,name:'활동명이 매우 긴 지원자의 한국어 이름과 EnglishNameLongEnoughToWrap',status:mode==='review'?'accepted':'pending',castingDetails:null}} onDecide={()=>{}} deciding={false}/> :
  mode==='inbox' ? <MessageViewport><header className="border-b p-3">프로젝트 메시지함</header><StaffInbox projectId={pid} projectTitle="프로젝트" initialRooms={[]} initialCampaigns={[]} initialRoomId={null}/></MessageViewport> :
  <MessageViewport><header className="shrink-0 border-b p-4">아주 긴 프로젝트명과 지원자 이름 · 대화</header><div className="min-h-0 flex-1"><ChatRoomView roomId={room.id} role={role} projectTitle="프로젝트" counterpartLabel="아주 긴 활동명을 가진 지원자" initialRoom={room} initialMessages={qa.messages.slice()} initialResponses={[]}/></div></MessageViewport>
 );
@@ -85,12 +85,22 @@ async function main() {
     for(const [engine,name] of [[chromium,'chromium'],[webkit,'webkit']]) {
       const browser=await engine.launch({headless:true});
       try {
-        for(const width of [320,390,768,1440]) {
+        for(const width of (process.env.QA_LAYOUT_ONLY ? [320,360,390,430,844] : [320,390,768,1440])) {
           const context=await browser.newContext({viewport:{width,height:844},isMobile:width<640,hasTouch:width<640});
           const page=await context.newPage();
           const errors=[];page.on('pageerror',e=>errors.push(e.message));
-          for(const mode of ['chat','profile','applicant','inbox']) {
+          for(const mode of (process.env.QA_LAYOUT_ONLY ? ['review'] : ['chat','profile','applicant','inbox'])) {
             await page.goto(url+'/?mode='+mode);
+            if(mode==='review') {
+              const field=page.getByPlaceholder('예: 400,000');await field.waitFor();await page.waitForTimeout(350);await field.scrollIntoViewIfNeeded();
+              await page.screenshot({path:path.join(out,name+'-'+width+'-review.png')});
+              const geometry=await field.evaluate(el=>({font:parseFloat(getComputedStyle(el).fontSize),height:el.getBoundingClientRect().height,right:el.getBoundingClientRect().right,overflow:el.closest('[role="dialog"]').scrollWidth-el.closest('[role="dialog"]').clientWidth}));
+              assert.equal(geometry.overflow,0,name+' '+width+' review content overflow');
+              assert.ok(geometry.font>=16&&geometry.height>=44,name+' '+width+' review input readability');
+              const score=await page.getByRole('button',{name:'1점',exact:true}).boundingBox();assert.ok(score.width>=44&&score.height>=44,'score touch target');
+              checks.push(name+' '+width+' review form, long title and score buttons');
+              continue;
+            }
             if(mode==='profile') {
               await page.getByRole('button',{name:'메시지 보내기',exact:true}).click();
               await page.getByLabel('어떤 프로젝트로 연락할까요?').selectOption('11111111-1111-4111-8111-111111111111');
@@ -162,6 +172,7 @@ async function main() {
           assert.deepEqual(errors,[]);
           await context.close();
         }
+        if(process.env.QA_LAYOUT_ONLY)continue;
         // Member reply uses the same composer, with a different server action.
         const page=await browser.newPage({viewport:{width:390,height:844}});
         await page.goto(url+'/?role=member');

@@ -148,14 +148,14 @@ export function EvaluationPanel({
       </div>
 
       {/* 1~10 점수 — 탭하면 바로 저장 */}
-      <div className="flex flex-wrap gap-1.5">
+      <div className="grid grid-cols-5 gap-1.5">
         {SCORES.map((n) => (
           <button
             key={n}
             type="button"
             disabled={busy}
             onClick={() => pick(n)}
-            className={`flex h-8 min-w-8 items-center justify-center rounded-lg border px-1 text-sm transition-colors disabled:opacity-50 ${
+            className={`flex h-11 min-w-11 items-center justify-center rounded-lg border px-1 text-sm transition-colors disabled:opacity-50 ${
               myScore === n
                 ? "border-primary bg-primary font-semibold text-primary-foreground"
                 : "border-border text-ink-2 hover:bg-secondary"
@@ -166,7 +166,7 @@ export function EvaluationPanel({
           </button>
         ))}
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] text-ink-3">
           {myScore != null ? (
             <>
@@ -181,7 +181,7 @@ export function EvaluationPanel({
             type="button"
             onClick={clearMine}
             disabled={busy}
-            className="text-[11px] text-ink-3 underline hover:text-foreground disabled:opacity-50"
+            className="min-h-11 shrink-0 whitespace-nowrap text-[11px] text-ink-3 underline hover:text-foreground disabled:opacity-50"
           >
             내 점수 지우기
           </button>
@@ -197,7 +197,7 @@ export function EvaluationPanel({
         }
         disabled={busy || myScore == null}
         rows={2}
-        className="resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-ink-3 disabled:opacity-60"
+        className="min-w-0 resize-none rounded-lg border border-border bg-background px-3 py-2 text-base placeholder:text-ink-3 disabled:opacity-60"
       />
 
       {/* 다른 담당자 의견 */}

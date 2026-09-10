@@ -53,7 +53,7 @@ export function MessageDancerButton({ dancerId, dancerName, projectId, projects 
     <BottomSheet open={open} onOpenChange={(next) => { setOpen(next); if (!next) { request.current++; setSelected(projectId ?? ""); setThread(null); setBusy(false); setError(null); } }}
       title={`${dancerName} · 메시지`} className="h-[85dvh] max-h-[90dvh] sm:w-[600px]"
       style={viewport?.mobile ? { height: viewport.height * .9, maxHeight: viewport.height * .9, bottom: viewport.bottom } : undefined}
-      contentClassName="flex flex-col overflow-hidden p-0">
+      contentClassName="flex flex-col overflow-hidden p-0 sm:p-0">
       {!projectId && !thread ? <div className="shrink-0 border-b border-border p-4">
         <label htmlFor={`message-project-${dancerId}`} className="mb-2 block text-sm font-semibold">어떤 프로젝트로 연락할까요?</label>
         <select id={`message-project-${dancerId}`} value={selected} disabled={busy}
