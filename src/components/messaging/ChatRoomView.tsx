@@ -16,6 +16,7 @@ import { formatMessageTime, newClientMessageId, usePolling } from "./poll";
 
 export type ThreadMessage = {
   id: string;
+  client_message_id?: string | null;
   room_seq: number;
   sender_role: "team" | "member" | "system";
   kind: "text" | "notice" | "action_request" | "system";
@@ -73,28 +74,37 @@ export function ChatRoomView(props: {
   const [pending, setPending] = useState<PendingMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [connectionError, setConnectionError] = useState(false);
+  const sendingRef = useRef(false);
+  const nearBottomRef = useRef(true);
+  const [newMessages, setNewMessages] = useState(false);
   const [muted, setMuted] = useState(
     () => !!props.mutedUntil && new Date(props.mutedUntil).getTime() > Date.now(),
   );
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const lastSeqRef = useRef<number>(props.initialRoom.lastSeq);
+  const lastSeqRef = useRef<number>(Math.max(0, ...props.initialMessages.map((m) => m.room_seq)));
   const readSeqRef = useRef<number>(0);
 
   const scrollToBottom = useCallback(() => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
+    nearBottomRef.current = true;
+    setNewMessages(false);
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [scrollToBottom]);
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, []);
 
   const markRead = useCallback(
     async (upToSeq: number) => {
       if (upToSeq <= readSeqRef.current) return;
-      readSeqRef.current = upToSeq;
-      await markThreadReadAction({ roomId, upToSeq });
+      try {
+        const result = await markThreadReadAction({ roomId, upToSeq });
+        if (result.ok) readSeqRef.current = Math.max(readSeqRef.current, upToSeq);
+      } catch { /* Polling retries the read receipt after reconnecting. */ }
     },
     [roomId],
   );
@@ -109,7 +119,8 @@ export function ChatRoomView(props: {
       `/api/messages/rooms/${roomId}?after_seq=${lastSeqRef.current}`,
       { cache: "no-store" },
     );
-    if (!res.ok) throw new Error("poll failed");
+    if (!res.ok) { setConnectionError(true); throw new Error("poll failed"); }
+    setConnectionError(false);
     const data = (await res.json()) as {
       room?: ThreadRoomMeta;
       messages?: ThreadMessage[];
@@ -128,10 +139,11 @@ export function ChatRoomView(props: {
       });
       const maxSeq = Math.max(...data.messages.map((m) => m.room_seq));
       lastSeqRef.current = Math.max(lastSeqRef.current, maxSeq);
-      // 내가 보낸 pending 이 확정 도착하면 지운다.
-      setPending((prev) => prev.filter(() => false));
-      if (document.visibilityState === "visible") void markRead(lastSeqRef.current);
-      setTimeout(scrollToBottom, 30);
+      // Only acknowledge matching sends; an incoming reply must not erase a failed draft.
+      const confirmed = new Set(data.messages.map((m) => m.client_message_id).filter(Boolean));
+      setPending((prev) => prev.filter((p) => !confirmed.has(p.clientMessageId)));
+      if (nearBottomRef.current) setTimeout(scrollToBottom, 30);
+      else setNewMessages(true);
     }
     if (data.responses && data.responses.length > 0) {
       setResponses((prev) => {
@@ -140,37 +152,34 @@ export function ChatRoomView(props: {
         return [...map.values()];
       });
     }
+    if (document.visibilityState === "visible" && nearBottomRef.current) void markRead(lastSeqRef.current);
   }, [roomId, markRead, scrollToBottom, props]);
 
-  usePolling(fetchNew, 7_000);
+  usePolling(async () => {
+    try { await fetchNew(); } catch (error) { setConnectionError(true); throw error; }
+  }, 5_000);
 
-  const send = useCallback(async () => {
-    const body = draft.trim();
-    if (!body || sending) return;
-    const clientMessageId = newClientMessageId();
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = `${Math.min(input.scrollHeight, 128)}px`;
+  }, [draft]);
+
+  const transmit = useCallback(async (item: PendingMessage) => {
+    if (sendingRef.current) return;
+    const { body, clientMessageId } = item;
+    sendingRef.current = true;
     setSending(true);
-    setDraft("");
-    setPending((prev) => [
-      ...prev,
-      { clientMessageId, body, createdAt: new Date().toISOString() },
-    ]);
+    setPending((prev) => [...prev.filter((p) => p.clientMessageId !== clientMessageId), { ...item, failed: false }]);
     setTimeout(scrollToBottom, 30);
 
     const action = role === "staff" ? sendStaffMessageAction : sendDancerMessageAction;
+    try {
     const result = await action({ roomId, body, clientMessageId });
-    setSending(false);
-    // 전송 후에도 포커스는 입력창에 유지한다(접근성 관례).
-    inputRef.current?.focus();
-
-    if (!result.ok) {
-      setPending((prev) => prev.filter((p) => p.clientMessageId !== clientMessageId));
-      setDraft(body);
-      toast.error(result.error);
-      return;
-    }
+    if (!result.ok) throw new Error(result.error);
     const sent = result.data!;
-    lastSeqRef.current = Math.max(lastSeqRef.current, sent.roomSeq);
-    readSeqRef.current = Math.max(readSeqRef.current, sent.roomSeq);
+    // Do not advance the receive cursor here: another sender may own an unseen earlier seq.
     setPending((prev) => prev.filter((p) => p.clientMessageId !== clientMessageId));
     setMessages((prev) => {
       if (prev.some((m) => m.id === sent.id)) return prev;
@@ -178,6 +187,7 @@ export function ChatRoomView(props: {
         ...prev,
         {
           id: sent.id,
+          client_message_id: clientMessageId,
           room_seq: sent.roomSeq,
           sender_role: (role === "staff" ? "team" : "member") as ThreadMessage["sender_role"],
           kind: "text" as ThreadMessage["kind"],
@@ -190,7 +200,21 @@ export function ChatRoomView(props: {
     });
     setRoom((prev) => ({ ...prev, lastSeq: Math.max(prev.lastSeq, sent.roomSeq) }));
     setTimeout(scrollToBottom, 30);
-  }, [draft, sending, role, roomId, scrollToBottom]);
+    } catch (error) {
+      setPending((prev) => prev.map((p) => p.clientMessageId === clientMessageId ? { ...p, failed: true } : p));
+      toast.error(error instanceof Error ? error.message : "전송을 확인하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
+  }, [role, roomId, scrollToBottom]);
+
+  const send = useCallback(async () => {
+    const body = draft.trim();
+    if (!body || body.length > 4000 || sendingRef.current) return;
+    setDraft("");
+    await transmit({ clientMessageId: newClientMessageId(), body, createdAt: new Date().toISOString() });
+  }, [draft, transmit]);
 
   const toggleMute = useCallback(async () => {
     const next = !muted;
@@ -235,7 +259,8 @@ export function ChatRoomView(props: {
   const counterReadSeq = role === "member" ? room.staffLastReadSeq : (room.memberReadSeq ?? 0);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden break-keep [overflow-wrap:anywhere]">
+      {connectionError ? <p role="status" className="shrink-0 bg-amber-50 px-4 py-2 text-xs text-amber-900">연결을 다시 확인하고 있습니다. 작성한 메시지는 유지됩니다.</p> : null}
       {role === "member" ? (
         <div className="border-b border-border bg-secondary/50 px-4 py-2 text-[12px] leading-relaxed text-ink-3">
           운영팀 답변은 영업일 기준 24시간 안에 드려요. (운영시간 평일 10–19시)
@@ -255,7 +280,13 @@ export function ChatRoomView(props: {
         ref={listRef}
         role="log"
         aria-label="대화 내용"
-        className="min-h-0 flex-1 overflow-y-auto px-4 py-4"
+        onScroll={() => {
+          const el = listRef.current;
+          if (!el) return;
+          nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+          if (nearBottomRef.current) { setNewMessages(false); void markRead(lastSeqRef.current); }
+        }}
+        className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4 sm:px-4"
       >
         {messages.length === 0 && pending.length === 0 ? (
           <p className="py-10 text-center text-[13px] text-ink-3">
@@ -282,26 +313,28 @@ export function ChatRoomView(props: {
         {pending.map((p) => (
           <div key={p.clientMessageId} className="mb-2 flex justify-end">
             <div className="max-w-[82%] rounded-lg bg-foreground/70 px-3 py-2 text-[14px] leading-relaxed text-background">
-              <p className="whitespace-pre-wrap break-words">{p.body}</p>
-              <p className="mt-1 text-right text-[10px] opacity-70">전송 중…</p>
+              <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{p.body}</p>
+              {p.failed ? <button type="button" disabled={sending} onClick={() => void transmit(p)} className="mt-1 min-h-11 text-xs underline">전송 확인 실패 · 다시 보내기</button>
+                : <p className="mt-1 text-right text-[10px] opacity-70">전송 중…</p>}
             </div>
           </div>
         ))}
       </div>
+      {newMessages ? <button type="button" onClick={scrollToBottom} className="shrink-0 border-t py-2 text-sm font-semibold">새 메시지 보기 ↓</button> : null}
 
       {room.closed && role === "member" ? (
         <div className="border-t border-border px-4 py-4 text-center text-[13px] text-ink-3">
           이 대화는 종료되었습니다. 문의는 contact@deetz.kr 로 보내주세요.
         </div>
       ) : (
-        <div className="border-t border-border p-3">
+        <div className="shrink-0 border-t border-border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div className="flex items-end gap-2">
             <textarea
               ref={inputRef}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.nativeEvent.keyCode !== 229 && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
                   e.preventDefault();
                   void send();
                 }
@@ -309,17 +342,18 @@ export function ChatRoomView(props: {
               rows={1}
               placeholder="메시지 입력…"
               aria-label="메시지 입력"
-              className="max-h-32 min-h-[42px] flex-1 resize-none rounded-md border border-border bg-background px-3 py-2.5 text-[14px] leading-relaxed outline-none focus:border-foreground"
+              className="max-h-32 min-h-11 min-w-0 flex-1 resize-none rounded-md border border-border bg-background px-3 py-2.5 text-base leading-relaxed outline-none focus:border-foreground"
             />
             <button
               type="button"
               onClick={() => void send()}
-              disabled={sending || draft.trim().length === 0}
-              className="h-[42px] shrink-0 rounded-md bg-foreground px-4 text-sm font-bold text-background disabled:opacity-40"
+              disabled={sending || draft.trim().length === 0 || draft.trim().length > 4000}
+              className="h-11 shrink-0 whitespace-nowrap rounded-md bg-foreground px-4 text-sm font-bold text-background disabled:opacity-40"
             >
               보내기
             </button>
           </div>
+          {draft.length > 3500 ? <p className="mt-1 text-right text-xs text-ink-3" role="status">{draft.trim().length.toLocaleString()} / 4,000자</p> : null}
           {role === "member" ? (
             <div className="mt-1.5 flex justify-end">
               <button
@@ -378,7 +412,7 @@ function MessageRow(props: {
     // eslint-disable-next-line react-hooks/purity -- 기한 경과 표시는 현재 시각 의존(리렌더마다 갱신되는 게 의도)
     !!m.action?.deadline && new Date(m.action.deadline).getTime() < Date.now();
 
-  const bubbleBase = "max-w-[82%] rounded-lg px-3 py-2 text-[14px] leading-relaxed";
+  const bubbleBase = "min-w-0 max-w-[88%] sm:max-w-[82%] rounded-lg px-3 py-2 text-[14px] leading-relaxed";
   const bubbleTone = mine
     ? "bg-foreground text-background"
     : "border border-border bg-card text-foreground";
@@ -392,7 +426,7 @@ function MessageRow(props: {
         {m.kind === "notice" ? (
           <p className="mb-1 text-[11px] font-bold opacity-70">공지</p>
         ) : null}
-        <p className="whitespace-pre-wrap break-words">{linkify(m.body)}</p>
+        <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{linkify(m.body)}</p>
 
         {m.kind === "action_request" && m.action ? (
           <div className="mt-2.5 border-t border-current/15 pt-2.5">

@@ -21,6 +21,7 @@ export function usePolling(
     let timer: ReturnType<typeof setTimeout> | null = null;
     let stopped = false;
     let failures = 0;
+    let running = false;
 
     const schedule = (ms: number) => {
       if (stopped) return;
@@ -28,11 +29,12 @@ export function usePolling(
     };
 
     const run = async () => {
-      if (stopped) return;
+      if (stopped || running) return;
       if (typeof document !== "undefined" && document.visibilityState === "hidden") {
         // 숨김 탭 — 타이머를 걸지 않는다(visibilitychange 가 재개 신호).
         return;
       }
+      running = true;
       try {
         await fnRef.current();
         failures = 0;
@@ -41,6 +43,8 @@ export function usePolling(
         failures += 1;
         const backoff = Math.min(intervalMs * Math.pow(2, failures), 120_000);
         schedule(backoff + Math.random() * 1_000);
+      } finally {
+        running = false;
       }
     };
 

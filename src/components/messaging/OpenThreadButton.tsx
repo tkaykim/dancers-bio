@@ -30,10 +30,15 @@ export function OpenThreadButton({
       disabled={loading}
       onClick={async () => {
         setLoading(true);
+        try {
         const result = await openProjectThreadAction({ projectId });
-        setLoading(false);
         if (!result.ok) return void toast.error(result.error);
         router.push(`/messages/${result.data!.roomId}`);
+        } catch {
+          toast.error("대화를 열지 못했습니다. 연결을 확인하고 다시 시도해 주세요.");
+        } finally {
+          setLoading(false);
+        }
       }}
       className={
         className ??

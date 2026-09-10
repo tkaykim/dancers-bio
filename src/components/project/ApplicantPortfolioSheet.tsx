@@ -16,6 +16,7 @@ import { setSettlementAmountAction } from "@/app/actions/settlements";
 import { setApplicationConfirmedAction } from "@/app/actions/evaluations";
 import { calcSettlement, formatWon, formatWonInput } from "@/lib/settlement";
 import { EvaluationPanel } from "@/components/project/EvaluationPanel";
+import { MessageDancerButton } from "@/components/messaging/MessageDancerButton";
 import type { SubmittedCastingDetails } from "@/lib/casting-application-details";
 
 export type SheetApplicant = {
@@ -290,6 +291,9 @@ export function ApplicantPortfolioSheet({
       title={applicant?.name ?? "지원자"}
     >
       <div className="flex flex-col gap-5">
+        {dancerId && canDecide ? (
+          <MessageDancerButton key={dancerId} dancerId={dancerId} dancerName={applicant?.name ?? "지원자"} projectId={projectId} />
+        ) : null}
         {/* 헤더: 사진 + 이름 + 칩 */}
         <div className="flex items-start gap-3">
           {applicant && d?.profile_img ? (

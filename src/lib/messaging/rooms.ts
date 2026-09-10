@@ -66,7 +66,7 @@ export async function getOrCreateDirectRoom(
   }
 
   // 댄서 좌석 보장(upsert). user_id 는 현재 클레임 계정 — 클레임이 나중에 바뀌면 다음 보장 때 갱신된다.
-  await admin.from("chat_room_members").upsert(
+  const { error: memberError } = await admin.from("chat_room_members").upsert(
     {
       room_id: room.id,
       dancer_id: dancerId,
@@ -75,6 +75,7 @@ export async function getOrCreateDirectRoom(
     },
     { onConflict: "room_id,dancer_id" },
   );
+  if (memberError) return { ok: false, error: "대화 참여자를 연결하지 못했습니다. 다시 시도해 주세요." };
 
   return { ok: true, room, memberUserId };
 }

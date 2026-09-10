@@ -15,6 +15,9 @@ import { ProfileMediaGallery } from "@/components/profile/ProfileMediaGallery";
 import { ProfileSectionHeading } from "@/components/profile/ProfileSectionHeading";
 import { Pencil, ChevronRight } from "lucide-react";
 import { SendProposalDialog } from "@/components/project/SendProposalDialog";
+import { MessageDancerButton } from "@/components/messaging/MessageDancerButton";
+import { listMessageProjects } from "@/lib/messaging/project-options";
+import { messagingEnabled } from "@/lib/messaging/flags";
 
 type Career = {
   id: number;
@@ -162,6 +165,9 @@ export default async function PublicDancerPage({
   // claim 상태
   const isCuration = !dancer.profile_id && !dancer.is_verified;
   const isOwner = Boolean(viewer && dancer.profile_id === viewer.id);
+  const messageProjects = viewerProfile && !isOwner && messagingEnabled()
+    ? await listMessageProjects(viewerProfile)
+    : [];
 
   // 수정 권한: 에디터(/me/portfolio/[dancerId]) 가드와 동일 — owner / manager / admin.
   // 본인 공개 프로필에서 바로 수정으로 진입할 수 있게 한다.
@@ -298,6 +304,11 @@ export default async function PublicDancerPage({
         dangerouslySetInnerHTML={{ __html: personJsonLdString }}
       />
       {/* Hero */}
+      {messageProjects.length > 0 ? (
+        <div className="px-6 py-3">
+          <MessageDancerButton dancerId={dancer.id} dancerName={dancer.stage_name} projects={messageProjects} />
+        </div>
+      ) : null}
       <ArtistProfileHero
         name={dancer.stage_name}
         localName={dancer.korean_name}

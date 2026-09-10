@@ -10,6 +10,7 @@ import {
   type ThreadResponse,
 } from "@/components/messaging/ChatRoomView";
 import { PushPrompt } from "@/components/layout/PushPrompt";
+import { MessageViewport } from "@/components/messaging/MessageViewport";
 
 export const metadata: Metadata = { title: "대화 | deetz" };
 export const dynamic = "force-dynamic";
@@ -37,7 +38,14 @@ export default async function MessageRoomPage({
   if (!room) notFound();
 
   const project = Array.isArray(room.project) ? room.project[0] ?? null : room.project;
-  const projectTitle = (project?.title as string | undefined) ?? "프로젝트";
+  let projectTitle = (project?.title as string | undefined) ?? "프로젝트";
+  if (!project) {
+    // Room RLS above authorizes the recipient; disclose only the conversation's project title.
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const { data: context } = await createAdminClient().from("projects").select("title")
+      .eq("id", room.project_id).maybeSingle();
+    projectTitle = context?.title ?? "프로젝트";
+  }
 
   const { data: canManage } = await supabase.rpc("can_manage_project", {
     p_id: room.project_id,
@@ -113,12 +121,12 @@ export default async function MessageRoomPage({
   }
 
   return (
-    <div className="flex h-[calc(100svh-0px)] flex-col lg:h-[calc(100svh-40px)]">
+    <MessageViewport>
       <header className="flex items-center gap-3 border-b border-border px-4 py-3">
         <Link
           href={role === "staff" ? `/projects/${room.project_id}/messages` : "/messages"}
           aria-label="목록으로"
-          className="shrink-0 text-lg leading-none text-ink-2"
+          className="flex min-h-11 min-w-11 shrink-0 items-center justify-center text-lg leading-none text-ink-2"
         >
           ←
         </Link>
@@ -162,6 +170,6 @@ export default async function MessageRoomPage({
           mutedUntil={mutedUntil}
         />
       </div>
-    </div>
+    </MessageViewport>
   );
 }
