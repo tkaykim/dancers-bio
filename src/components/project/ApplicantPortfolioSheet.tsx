@@ -163,6 +163,9 @@ export function ApplicantPortfolioSheet({
   onConfirmChange,
   totalRounds = 2,
   passedRound = 0,
+  reviewStageLabel,
+  advanceLabel,
+  onAdvance,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -175,6 +178,9 @@ export function ApplicantPortfolioSheet({
   onConfirmChange?: (confirmedAt: string | null) => void;
   totalRounds?: number;
   passedRound?: number;
+  reviewStageLabel?: string;
+  advanceLabel?: string;
+  onAdvance?: () => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -288,12 +294,17 @@ export function ApplicantPortfolioSheet({
     <BottomSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={applicant?.name ?? "지원자"}
+      title="지원자 프로필"
+      className="h-[90dvh]"
+      footer={applicant && canDecide ? <div className="flex flex-col gap-2">
+        <p className="min-w-0 text-xs leading-snug text-ink-3">현재 상태 <span className="ml-1 font-semibold text-foreground">{reviewStageLabel ?? (applicant.confirmedAt ? "최종 선발" : statusKey === "accepted" ? "합격" : statusKey === "rejected" ? "거절" : "대기")}</span></p>
+        {!applicant.confirmedAt ? <div className="flex min-w-0 gap-2">
+          {statusKey !== "rejected" ? <button type="button" disabled={deciding || confirming} onClick={() => selectStatus("rejected")} className="min-h-11 shrink-0 rounded-lg border border-border px-4 text-sm font-medium disabled:opacity-50">거절</button> : <button type="button" disabled={deciding || confirming} onClick={() => selectStatus("pending")} className="min-h-11 shrink-0 rounded-lg border border-border px-4 text-sm font-medium disabled:opacity-50">대기로</button>}
+          {onAdvance ? <button type="button" disabled={deciding || confirming} onClick={onAdvance} className="min-h-11 min-w-0 flex-1 break-keep rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">{advanceLabel ?? "다음 단계로"}</button> : statusKey !== "accepted" ? <button type="button" disabled={deciding || confirming} onClick={() => selectStatus("accepted")} className="min-h-11 flex-1 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">합격</button> : null}
+        </div> : null}
+      </div> : undefined}
     >
       <div className="flex flex-col gap-5">
-        {dancerId && canDecide ? (
-          <MessageDancerButton key={dancerId} dancerId={dancerId} dancerName={applicant?.name ?? "지원자"} projectId={projectId} />
-        ) : null}
         {/* 헤더: 사진 + 이름 + 칩 */}
         <div className="flex items-start gap-3">
           {applicant && d?.profile_img ? (
@@ -310,7 +321,7 @@ export function ApplicantPortfolioSheet({
             </div>
           )}
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="text-base font-bold leading-tight">
+            <p className="break-keep text-base font-bold leading-snug [overflow-wrap:anywhere]">
               {applicant?.name}
               {d?.korean_name ? (
                 <span className="ml-1.5 text-sm font-normal text-ink-3">
@@ -352,22 +363,19 @@ export function ApplicantPortfolioSheet({
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={platform}
-                    className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-ink-2 transition-colors hover:bg-secondary hover:text-foreground"
+                    className="flex size-9 items-center justify-center rounded-lg border border-border text-ink-2 transition-colors hover:bg-secondary hover:text-foreground"
                   >
                     <SocialIcon platform={platform} />
                   </a>
                 ))}
               </div>
             ) : null}
-            {applicant?.publicHref ? (
-              <Link
-                href={applicant.publicHref}
-                className="mt-0.5 text-[11px] text-primary hover:underline"
-              >
-                전체 프로필 열기 →
-              </Link>
-            ) : null}
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {dancerId && canDecide ? <MessageDancerButton key={dancerId} dancerId={dancerId} dancerName={applicant?.name ?? "지원자"} projectId={projectId} /> : null}
+          {applicant?.publicHref ? <Link href={applicant.publicHref} className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-medium hover:bg-secondary">전체 프로필 →</Link> : null}
         </div>
 
         {applicant?.coverMessage ? (
@@ -504,8 +512,8 @@ export function ApplicantPortfolioSheet({
             rel="noopener noreferrer"
             className="flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 py-2 text-sm font-medium hover:bg-secondary"
           >
-            📄 포트폴리오 파일 {d.portfolio_file_name ? `· ${d.portfolio_file_name}` : ""}
-            <span className="ml-auto text-primary">열기 →</span>
+            <span className="min-w-0 flex-1 break-keep [overflow-wrap:anywhere]">📄 포트폴리오 파일 {d.portfolio_file_name ? `· ${d.portfolio_file_name}` : ""}</span>
+            <span className="shrink-0 whitespace-nowrap text-primary">열기 →</span>
           </a>
         ) : null}
 
@@ -594,7 +602,7 @@ export function ApplicantPortfolioSheet({
         ) : null}
 
         {/* 정산금액 — 수락된 지원자에게만. 사람을 보는 자리에서 바로 입력. */}
-        {applicant?.status === "accepted" && dancerId ? (
+        {canDecide && applicant?.status === "accepted" && dancerId ? (
           <SettlementField
             projectId={projectId}
             dancerId={dancerId}
@@ -605,10 +613,8 @@ export function ApplicantPortfolioSheet({
 
         {/* 상태 — 대기·수락·거절 세그먼트. 확정된 사람도 여기서 바로 되돌린다. */}
         {applicant && canDecide ? (
-          <div className="mt-1 border-t border-hairline-2 pt-4">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
-              상태
-            </p>
+          <details className="mt-1 border-t border-hairline-2 pt-2">
+            <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-ink-2">선발 상태 변경</summary>
             <div className="grid grid-cols-3 gap-1 rounded-xl bg-secondary/50 p-1">
               {(
                 [
@@ -671,11 +677,11 @@ export function ApplicantPortfolioSheet({
                 <p className="mt-2 rounded-lg bg-secondary/50 px-3 py-2 text-[11px] leading-relaxed text-ink-3">
                   아직 중간 단계입니다.
                   <br />
-                  지원자 목록의 단계 버튼으로 다음 단계부터 순서대로 올려주세요.
+                  {onAdvance ? "아래 심사 버튼으로 다음 단계부터 순서대로 올려주세요." : "지원자 목록의 단계 버튼으로 다음 단계부터 순서대로 올려주세요."}
                 </p>
               )
             ) : null}
-          </div>
+          </details>
         ) : null}
       </div>
     </BottomSheet>

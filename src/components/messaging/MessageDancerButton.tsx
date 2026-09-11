@@ -46,7 +46,7 @@ export function MessageDancerButton({ dancerId, dancerName, projectId, projects 
   }
 
   return <>
-    <button type="button" className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-foreground px-5 text-sm font-semibold text-background"
+    <button type="button" className="inline-flex min-h-11 w-fit max-w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-foreground px-4 text-sm font-semibold text-background"
       onClick={() => { setOpen(true); const id = projectId ?? (projects.length === 1 ? projects[0].id : ""); if (id) void load(id); }}>
       <MessageCircle size={16} aria-hidden />메시지 보내기
     </button>

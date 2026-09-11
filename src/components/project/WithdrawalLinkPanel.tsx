@@ -54,12 +54,12 @@ export function WithdrawalLinkPanel({
           readOnly
           value={url}
           onFocus={(e) => e.currentTarget.select()}
-          className="h-9 flex-1 rounded-lg border border-border bg-background px-3 text-sm text-ink-2"
+          className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-base text-ink-2"
         />
         <button
           type="button"
           onClick={copy}
-          className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground active:opacity-80"
+          className="flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground active:opacity-80"
         >
           {copied ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}
           {copied ? "복사됨" : "복사"}
@@ -75,12 +75,12 @@ export function WithdrawalLinkPanel({
               readOnly
               value={grigoUrl}
               onFocus={(e) => e.currentTarget.select()}
-              className="h-9 flex-1 rounded-lg border border-border bg-background px-3 text-sm text-ink-2"
+              className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-base text-ink-2"
             />
             <button
               type="button"
               onClick={copyGrigo}
-              className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold text-ink-2 active:bg-secondary"
+              className="flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border px-3 text-sm font-semibold text-ink-2 active:bg-secondary"
             >
               {copiedGrigo ? (
                 <Check size={15} aria-hidden />

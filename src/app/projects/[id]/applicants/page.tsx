@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ApplicantsPageHeader } from "@/components/project/ApplicantsPageHeader";
+import { ApplicantOperations } from "@/components/project/ApplicantOperations";
 import { notFound } from "next/navigation";
 import { canManageProject, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
@@ -782,29 +784,8 @@ export default async function ApplicantsPage({
   const announcements = (annRows ?? []) as AnnouncementRow[];
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-8 lg:max-w-6xl">
-      <Link
-        href={`/projects/${p.short_code}`}
-        className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
-      >
-        ← 프로젝트
-      </Link>
-
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold leading-tight tracking-tight">
-          {p.title}
-        </h1>
-        <Link href={`/tools/campaigns/${p.id}?tab=submissions`} className="shrink-0 rounded-md border border-border px-3 py-1.5 text-xs font-bold">업로드 관리 →</Link>
-
-        {process.env.NEXT_PUBLIC_MESSAGING_ENABLED === "true" ? (
-          <Link
-            href={`/projects/${p.id}/messages`}
-            className="shrink-0 rounded-md border border-border px-3 py-1.5 text-[12px] font-bold text-ink-2 hover:bg-secondary"
-          >
-            메시지 콘솔 →
-          </Link>
-        ) : null}
-      </div>
+    <div className="mx-auto flex min-w-0 max-w-3xl flex-col gap-5 px-4 py-5 sm:px-5 sm:py-8 lg:max-w-6xl">
+      <ApplicantsPageHeader title={p.title} projectId={p.id} projectCode={p.short_code} messagingEnabled={process.env.NEXT_PUBLIC_MESSAGING_ENABLED === "true"} />
 
       {/*
         PC(lg+) = 2컬럼 운영 대시보드: 좌 = 지원자 심사(메인) / 우 = 운영 도구 사이드바.
@@ -827,8 +808,8 @@ export default async function ApplicantsPage({
           />
         </div>
 
-        {/* 운영 도구 사이드바 (모바일에선 콘솔 아래로 자연 스택) */}
-        <div className="flex min-w-0 flex-col gap-5">
+        {/* 모바일에서는 심사에 집중하도록 운영 도구를 접고, PC에서는 사이드바로 표시한다. */}
+        <ApplicantOperations>
           <AnnouncementsPanel
             projectId={p.id}
             shortCode={p.short_code}
@@ -899,7 +880,7 @@ export default async function ApplicantsPage({
               <SearchAndPropose projectId={p.id} />
             </div>
           </details>
-        </div>
+        </ApplicantOperations>
       </div>
     </div>
   );
