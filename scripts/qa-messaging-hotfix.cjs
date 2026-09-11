@@ -16,6 +16,12 @@ import { MessageDancerButton } from '@/components/messaging/MessageDancerButton'
 import { ApplicantPortfolioSheet } from '@/components/project/ApplicantPortfolioSheet';
 import { MessageViewport } from '@/components/messaging/MessageViewport';
 import { StaffInbox } from '@/components/messaging/StaffInbox';
+import { BankPicker } from '@/components/settlement/BankPicker';
+import { ReviewProfileSheet } from '@/components/casting/ReviewProfileSheet';
+import { RateCardManager } from '@/components/portfolio/RateCardManager';
+import { CareerHistoryManager } from '@/components/portfolio/CareerHistoryManager';
+import { RejectReasonDialog } from '@/components/project/RejectReasonDialog';
+import { ProfilePreviewSheet } from '@/app/ops/ndol-20260618/[token]/OpsBoardClient';
 const qa = window.qa = { sends: [], failed: false, interleave: false, offline: false, room:'room-1', messages: [] };
 const room = { id: 'room-1', lastSeq: 1, staffLastReadSeq: 0, memberReadSeq: 0, closed: false, resolved: false, awaitingSince: null };
 const message = (seq,body,role='member') => ({ id:'m'+seq, room_seq:seq, sender_role:role, kind:'text', body, action:null, deleted_at:null, created_at:new Date().toISOString() });
@@ -28,6 +34,7 @@ window.fetch = async (url) => {
   return new Response(JSON.stringify({room:{...room,lastSeq:qa.messages.length}, messages:qa.messages.filter(m=>m.room_seq>after),responses:[],notes:[]}));
 };
 qa.action = async (name,input) => {
+  if(name==='getCastingReviewProfileAction') return {ok:true,data:{name:'한국어 이름과 LongEnglishNameForMobileLayout',koreanName:'지원자',genres:['힙합','코레오그래피'],specialties:['공연'],location:'대한민국 서울',socialLinks:{instagram:'testprofile'},careers:[],bio:'긴 한국어 문장이 좁은 화면에서도 읽기 좋게 나오는지 확인합니다.'}};
   if(name==='openDancerThreadAction') { qa.openInput=input; return {ok:true,data:{roomId:'room-1'}}; }
   if(name==='getApplicantPortfolioAction') return {ok:true,data:{dancer:{id:'22222222-2222-4222-8222-222222222222',stage_name:'지원자',genres:[],specialties:[],social_links:{}},careers:[],settlement:null}};
   if(name==='getMyEvaluationAction') return {ok:true,data:null};
@@ -49,8 +56,14 @@ const mode=new URLSearchParams(location.search).get('mode');
 const role=new URLSearchParams(location.search).get('role')||'staff';
 const projects=[{id:pid,title:'긴 프로젝트 제목과 촬영 일정을 함께 확인하는 프로젝트'},{id:'44444444-4444-4444-8444-444444444444',title:'다른 프로젝트'}];
 createRoot(document.getElementById('root')).render(
+ mode==='bank' ? <BankPicker value={null} onChange={()=>{}}/> :
+ mode==='casting' ? <ReviewProfileSheet open={true} onOpenChange={()=>{}} reviewToken="test" card={{memberId:'test',name:'한국어 이름과 LongEnglishNameForMobileLayout'}}/> :
+ mode==='rates' ? <RateCardManager dancerId={did} initialCards={[]}/> :
+ mode==='careers' ? <CareerHistoryManager dancerId={did} initialCareers={[]}/> :
+ mode==='reject' ? <RejectReasonDialog open={true} onOpenChange={()=>{}} onConfirm={()=>{}} busy={false}/> :
+ mode==='ops' ? <ProfilePreviewSheet open={true} onOpenChange={()=>{}} row={{name:'한국어 이름과 LongEnglishNameForMobileLayout',project_code:'QA',outreach_status:'pending',dancer_genres:['힙합'],dancer_specialties:['공연'],dancer_bio:'긴 한국어 문장과 https://example.com/'+ 'longpath'.repeat(25)}}/> :
  mode==='profile' ? <div className="p-4"><MessageDancerButton dancerId={did} dancerName="활동명이 매우 긴 지원자" projects={projects}/></div> :
- mode==='applicant' ? <ApplicantPortfolioSheet open={true} onOpenChange={()=>{}} projectId={pid} applicant={{applicationId:'application',dancerId:did,name:'활동명이 매우 긴 지원자',status:'pending',castingDetails:null}} onDecide={()=>{}} deciding={false}/> :
+ (mode==='applicant'||mode==='review') ? <ApplicantPortfolioSheet open={true} onOpenChange={()=>{}} projectId={pid} applicant={{applicationId:'application',dancerId:did,name:'활동명이 매우 긴 지원자의 한국어 이름과 EnglishNameLongEnoughToWrap',status:mode==='review'?'accepted':'pending',castingDetails:null}} onDecide={()=>{}} deciding={false}/> :
  mode==='inbox' ? <MessageViewport><header className="border-b p-3">프로젝트 메시지함</header><StaffInbox projectId={pid} projectTitle="프로젝트" initialRooms={[]} initialCampaigns={[]} initialRoomId={null}/></MessageViewport> :
  <MessageViewport><header className="shrink-0 border-b p-4">아주 긴 프로젝트명과 지원자 이름 · 대화</header><div className="min-h-0 flex-1"><ChatRoomView roomId={room.id} role={role} projectTitle="프로젝트" counterpartLabel="아주 긴 활동명을 가진 지원자" initialRoom={room} initialMessages={qa.messages.slice()} initialResponses={[]}/></div></MessageViewport>
 );
@@ -60,6 +73,8 @@ async function main() {
   const result = await build({ stdin: { contents: fixture, loader: 'tsx', resolveDir: root }, absWorkingDir: root,
     bundle: true, write: false, platform: 'browser', jsx: 'automatic', define: { 'process.env.NEXT_PUBLIC_MESSAGING_ENABLED':'"true"' },
     plugins: [{name:'qa-stubs',setup(b){
+      // Export the existing private sheet only in this isolated test bundle.
+      b.onLoad({filter:/OpsBoardClient\.tsx$/},args=>({contents:fs.readFileSync(args.path,'utf8')+'\nexport { ProfilePreviewSheet };',loader:'tsx',resolveDir:path.dirname(args.path)}));
       b.onResolve({filter:/^@\/app\/actions\//},args=>({path:args.path,namespace:'actions'}));
       b.onLoad({filter:/.*/,namespace:'actions'},args=>{
         const source=fs.readFileSync(path.join(root,'src',args.path.slice(2)+'.ts'),'utf8');
@@ -85,12 +100,37 @@ async function main() {
     for(const [engine,name] of [[chromium,'chromium'],[webkit,'webkit']]) {
       const browser=await engine.launch({headless:true});
       try {
-        for(const width of [320,390,768,1440]) {
-          const context=await browser.newContext({viewport:{width,height:844},isMobile:width<640,hasTouch:width<640});
+        for(const width of (process.env.QA_LAYOUT_ONLY || process.env.QA_SHEETS_ONLY ? [320,360,390,430,844] : [320,390,768,1440])) {
+          const context=await browser.newContext({viewport:{width,height:width===844?390:844},isMobile:width<640,hasTouch:width<640});
           const page=await context.newPage();
           const errors=[];page.on('pageerror',e=>errors.push(e.message));
-          for(const mode of ['chat','profile','applicant','inbox']) {
+          for(const mode of (process.env.QA_SHEETS_ONLY ? ['bank','casting','rates','careers','reject','ops'] : process.env.QA_LAYOUT_ONLY ? ['review'] : ['chat','profile','applicant','inbox'])) {
             await page.goto(url+'/?mode='+mode);
+            if(process.env.QA_SHEETS_ONLY) {
+              if(mode==='bank')await page.getByRole('button',{name:'은행 선택',exact:true}).click();
+              if(mode==='rates')await page.getByRole('button',{name:'추가',exact:true}).first().click();
+              if(mode==='careers')await page.getByRole('button',{name:'새로운 이력 추가하기',exact:true}).click();
+              const dialog=page.getByRole('dialog');await dialog.waitFor();await page.waitForTimeout(350);
+              const geometry=await dialog.evaluate(el=>({overflow:el.scrollWidth-el.clientWidth,contentOverflow:el.lastElementChild.scrollWidth-el.lastElementChild.clientWidth,top:el.getBoundingClientRect().top,bottom:el.getBoundingClientRect().bottom,height:innerHeight}));
+              assert.ok(geometry.overflow<=1&&geometry.contentOverflow<=1,name+' '+width+' '+mode+' sheet overflow: '+JSON.stringify(geometry));
+              assert.ok(geometry.top>=-1&&geometry.bottom<=geometry.height+1,'sheet stays in viewport');
+              await page.screenshot({path:path.join(out,name+'-'+width+'-'+mode+'.png')});
+              if(mode==='bank') {await page.getByPlaceholder('은행명 검색 (예: 카카오, 농협, kb)').fill('카카오');await page.getByRole('button',{name:'카카오뱅크',exact:true}).click();await dialog.waitFor({state:'hidden'});}
+              else {await page.getByRole('button',{name:'닫기',exact:true}).last().click();}
+              checks.push(name+' '+width+' '+mode+' sheet layout and close');continue;
+            }
+            if(mode==='review') {
+              const field=page.getByPlaceholder('예: 400,000');await field.waitFor();await page.waitForTimeout(350);await field.scrollIntoViewIfNeeded();
+              await page.screenshot({path:path.join(out,name+'-'+width+'-review.png')});
+              const geometry=await field.evaluate(el=>({font:parseFloat(getComputedStyle(el).fontSize),height:el.getBoundingClientRect().height,right:el.getBoundingClientRect().right,overflow:el.closest('[role="dialog"]').scrollWidth-el.closest('[role="dialog"]').clientWidth}));
+              assert.equal(geometry.overflow,0,name+' '+width+' review content overflow');
+              assert.ok(geometry.font>=16&&geometry.height>=44,name+' '+width+' review input readability');
+              const saveFits=await field.evaluate(el=>{const button=el.parentElement.querySelector('button');return button.getBoundingClientRect().right<=el.parentElement.getBoundingClientRect().right+1;});
+              assert.ok(saveFits,'settlement save button stays inside its row');
+              const score=await page.getByRole('button',{name:'1점',exact:true}).boundingBox();assert.ok(score.width>=44&&score.height>=44,'score touch target');
+              checks.push(name+' '+width+' review form, long title and score buttons');
+              continue;
+            }
             if(mode==='profile') {
               await page.getByRole('button',{name:'메시지 보내기',exact:true}).click();
               await page.getByLabel('어떤 프로젝트로 연락할까요?').selectOption('11111111-1111-4111-8111-111111111111');
@@ -162,6 +202,7 @@ async function main() {
           assert.deepEqual(errors,[]);
           await context.close();
         }
+        if(process.env.QA_LAYOUT_ONLY||process.env.QA_SHEETS_ONLY)continue;
         // Member reply uses the same composer, with a different server action.
         const page=await browser.newPage({viewport:{width:390,height:844}});
         await page.goto(url+'/?role=member');

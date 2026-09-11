@@ -38,7 +38,7 @@ export function BottomSheet({
         <DialogPrimitive.Popup
           style={style}
           className={cn(
-            "fixed inset-x-0 bottom-0 z-50 flex max-h-[90vh] w-full flex-col bg-card text-card-foreground shadow-2xl outline-none",
+            "fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] w-full flex-col bg-card text-card-foreground shadow-2xl outline-none",
             "rounded-t-2xl border-t border-hairline-2",
             "sm:inset-x-auto sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[500px] sm:max-w-[calc(100%-2rem)] sm:rounded-2xl sm:border",
             "data-open:animate-in data-open:slide-in-from-bottom-full data-closed:animate-out data-closed:slide-out-to-bottom-full",
@@ -47,7 +47,7 @@ export function BottomSheet({
             className,
           )}
         >
-          <div className="flex items-center justify-between gap-3 border-b border-hairline-2 px-6 py-4">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-hairline-2 px-4 py-3 sm:px-6 sm:py-4">
             {title ? (
               <DialogPrimitive.Title className="min-w-0 flex-1 break-keep [overflow-wrap:anywhere] text-base font-bold text-foreground">
                 {title}
@@ -57,12 +57,12 @@ export function BottomSheet({
             )}
             <DialogPrimitive.Close
               aria-label="닫기"
-              className="-mr-2 shrink-0 rounded-full p-2 text-ink-3 transition-colors hover:bg-secondary hover:text-foreground"
+              className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-secondary hover:text-foreground"
             >
               <XIcon className="size-4" />
             </DialogPrimitive.Close>
           </div>
-          <div className={cn("min-h-0 min-w-0 flex-1 overflow-y-auto p-6", contentClassName)}>{children}</div>
+          <div className={cn("min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain break-keep p-4 pb-[max(1rem,env(safe-area-inset-bottom))] [overflow-wrap:anywhere] sm:p-6", contentClassName)}>{children}</div>
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
