@@ -65,7 +65,7 @@ export function BottomSheet({
             </DialogPrimitive.Close>
           </div>
           <div data-sheet-content className={cn("min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain break-keep p-4 pb-[max(1rem,env(safe-area-inset-bottom))] [overflow-wrap:anywhere] sm:p-6", contentClassName)}>{children}</div>
-          {footer ? <div data-sheet-footer className="shrink-0 border-t border-hairline-2 bg-card px-4 pt-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:px-6">{footer}</div> : null}
+          {footer ? <div data-sheet-footer className="shrink-0 border-t border-hairline-2 bg-card px-4 pt-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:rounded-b-2xl sm:px-6">{footer}</div> : null}
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
