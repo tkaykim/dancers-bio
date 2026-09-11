@@ -505,6 +505,29 @@ Codex `gpt-6-astra`(reasoning high, 샌드박스 read-only) 교차검증. 라운
 - 잔여 3건을 즉시 반영했다. 범위 밖 수치를 107파일·2,763구간으로 정정, JP CSS를 루트에서 항상 로드(루트 레이아웃은 클라이언트 탐색에서 재사용되므로 조건부 로드가 갱신되지 않음, `layout.md:152·240`), §9 예외 문구를 두 가지로 정합.
 - 최종 판정: **합의**(잔여 쟁점 3건 반영 완료). 이후 변경은 구현 PR에서 이 문서를 갱신하며 진행한다.
 
+### 구현 기록 (2026-09-11 overnight build, 브랜치 `feat/i18n-ui`)
+
+구현은 worktree `deetz-i18n-ui`에서 S0 → S4 → S1·S2·S3(병렬 에이전트) → S5(스윕·수정) 순서로 했고, main 머지는 대표 결정으로 남긴다.
+
+- 사전: `src/lib/i18n/messages/` 19개 네임스페이스, 약 1,645키 × ko·en·ja(+ `mail-messages.ts` 68키 ja 추가). 영어·일본어는 Claude 초안이며 검수 전이다. 검수 우선 키는 PR 본문에 적었다.
+- 설계 대비 확정·변경한 것.
+  - `enabledLocales()` 기본값: `VERCEL_ENV=production && NODE_ENV=production`일 때만 `ko`. 로컬 `.env.local`이 Vercel에서 당겨온 `VERCEL_ENV=production`을 갖고 있어 `NODE_ENV` 조건을 더했다.
+  - 기존 localStorage 언어 키(`deetz_program_lang` 등)는 `LegacyLocaleMigration`이 첫 방문 한 번만 쿠키로 옮긴다(쿠키·`?lang=`이 없을 때만).
+  - `InternationalPhoneField`의 국가 `<option>`은 `suppressHydrationWarning`을 둔다. `Intl.DisplayNames` 결과가 Node ICU와 Chromium ICU에서 달라(예: "Falkland Islands (Islas Malvinas)") main에서도 hydration 경고가 났다. 라벨은 표시용이라 경고만 억제했다.
+  - 일본어는 `:lang(ja)`에서 `[word-break:keep-all]`을 `normal`로 되돌린다. 띄어쓰기가 없어 keep-all이면 문장이 한 줄로 늘어난다(320px 랜딩이 920px까지 넘쳤다). 레이어 밖 규칙이라 유틸리티보다 우선한다.
+  - 랜딩 hero 제목은 ko 외 언어만 `clamp(2.25rem,12vw,3rem)`이다("choreography"가 320px에서 넘침). ko 크기는 그대로다.
+  - `/applications` 단계 칩은 `application-stage.ts`의 `stageLabel()`을 그대로 쓰지 않고 같은 규칙의 언어별 헬퍼(`labelFor("stage")` + `stage.round`)로 만든다. `stageLabel()`은 ko 전용(메일·운영 화면)으로 남기고 eslint-disable 사유를 적었다. ko 출력은 2,976조합 대조로 동일함을 확인했다.
+  - 지원 목록 en 버튼은 "Withdraw"·"Decline"으로 줄였다(320px에서 제목 열을 너무 좁혔다).
+  - 언어 전환기 compact는 pill `whitespace-nowrap` + 그룹 `flex-wrap`, 사이드바(143px)는 아이콘 없이 쓴다. 랜딩 상단은 sm 미만에서 전환기가 둘째 줄로 내려간다.
+  - `MessagesNavItem`·`MessagesTextLink`(`components/messaging/MessagesBadge.tsx`)는 범위 밖 디렉터리지만 셸에 보이는 문구라 nav 키로 옮겼다(`NEXT_PUBLIC_MESSAGING_ENABLED`가 켜진 환경에서만 렌더).
+- 남긴 것(범위 밖 또는 후속).
+  - P2 전부(공고 등록·수정, 정산, 메일 본문, `/projects/[id]/applicants`의 `ApplicantsConsole`은 `stageLabel()` ko 그대로).
+  - `src/lib/validation/{portfolio,rate-cards}.ts`의 카테고리·역할 칩, `src/lib/data/{countries,korea-visas}.ts` 옵션 라벨, `src/lib/scoring/profile-score.ts` 항목 라벨, `src/lib/storage/*` 업로드 오류, `components/ui/searchable-select.tsx` 내부 문구는 한국어로 남아 있다(`/me/portfolio/[id]` 편집 화면에서 보임).
+  - `/workshops`의 `th`는 `Locale` 밖이라 URL로만 유지. `/me/visa` 케이스 존재 화면은 영어 고정.
+  - M4(비자 `preferred_lang` → `profiles` 백필)는 머지 후 실행.
+- 게이트 결과: `typecheck` 0, `test:i18n` 7/7, ESLint 이 브랜치 신규 오류 0(기존 49건은 main과 동일: `scripts/*.cjs` `require()`, `react-hooks/set-state-in-effect` 등), 범위 안 한글 선택자 경고 0(의도된 ko 데이터는 사유 있는 disable), `next build` 성공(전 라우트 동적), 번들: portfolio 사전은 51KB 청크 1개에만 있고 랜딩 RSC payload에 me·portfolio·applications 문구 없음.
+- 스윕(`npm run e2e:i18n`, 로컬 dev, 로그인 포함): en·ja × 15화면 + 전환 테스트 = 32건 통과, 320·390·1280 스크린샷 검수 후 넘침 0(위 수정 반영 후).
+
 ---
 
 ## 부록 A. 범위 파일 목록

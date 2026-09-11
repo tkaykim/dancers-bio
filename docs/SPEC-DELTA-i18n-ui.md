@@ -31,3 +31,9 @@
 - `ja` 금액 표기 = `1,000,000ウォン`.
 - `UI_LOCALES` 미설정 시 기본값: production = `ko`, 그 외(preview·로컬) = `ko,en,ja`(프리뷰 QA를 위해 정본 §3.1의 "기본 ko"를 환경별로 나눔).
 - 영어·일본어 번역 초안은 Claude가 작성하고 검수자 지정 전까지 초안 상태로 표기한다.
+
+## 결과 (2026-09-11 overnight build)
+- 브랜치 `feat/i18n-ui`(origin/main `1ae09a9` 기준), 커밋 9개. 상세 기록은 정본 §11 "구현 기록".
+- 완료 조건 대비: typecheck 0 · test:i18n 7/7 · lint 신규 오류 0(기존 49건은 main과 동일) · `next build` 성공 · 로컬 스윕 32/32 · 스크린샷 넘침 0.
+- 운영 DB 마이그레이션 M1~M3 적용 완료(additive), M4는 머지 후.
+- 프리뷰 스윕과 PR 링크는 PR 본문 참조. main 머지·`UI_LOCALES` 개방(R1·R2)은 대표 결정.
