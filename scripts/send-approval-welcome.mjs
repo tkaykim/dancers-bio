@@ -59,6 +59,9 @@ const DELAY_MS = Number(args.get("delay") ?? 4000); // 통당 간격 (기본 4�
 
 const LIVE = SEND && CONFIRMED;
 const RETRO = MODE === "retro";
+// --since=<ISO> : approved_at 이 이 시각 이후인 승인자만 (일괄 승인 회차만 골라 보낼 때)
+const SINCE = args.get("since") ? new Date(args.get("since")) : null;
+if (args.get("since") && Number.isNaN(SINCE.getTime())) { console.error("--since 형식 오류 (ISO)"); process.exit(1); }
 
 const SITE = "https://www.deetz.kr";
 const VANITY = "https://dancers.bio";
@@ -220,9 +223,13 @@ async function collectTargets() {
     for (const p of profs ?? []) if (p.instagram_verified_at) verified.add(p.id);
   }
 
-  const excluded = { already_sent: 0, inactive: 0, test_account: 0 };
+  const excluded = { already_sent: 0, inactive: 0, test_account: 0, before_since: 0 };
   const targets = [];
   for (const d of dancers ?? []) {
+    if (SINCE && (!d.approved_at || new Date(d.approved_at) < SINCE)) {
+      excluded.before_since += 1;
+      continue;
+    }
     if (sent.has(d.id)) {
       excluded.already_sent += 1;
       continue;
