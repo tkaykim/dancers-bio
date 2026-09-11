@@ -20,7 +20,7 @@
     "db:types": "supabase gen types typescript --project-id wvfmqiajdvbsevlhlgtl --schema public > src/lib/supabase/types.ts",
     "seo:indexnow": "node scripts/submit-indexnow.mjs",
     "test:campaigns": "tsx --test src/lib/campaign/*.test.ts scripts/campaign-submissions-db.test.mjs scripts/campaign-operations-db.test.mjs",
-    "test:i18n": "node --test src/lib/i18n/messages.test.ts",
+    "test:i18n": "node --test src/lib/i18n/locale.test.ts src/lib/i18n/messages.test.ts",
     "e2e:i18n": "playwright test e2e/i18n-sweep.spec.ts",
     "i18n:inventory": "node scripts/i18n-inventory.mjs"
   },

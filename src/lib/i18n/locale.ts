@@ -49,6 +49,8 @@ export function isLocale(value: unknown): value is Locale {
  * 플래그 `UI_LOCALES` 로 열린 언어 집합. 쉼표 구분("ko,en").
  * 미설정 시 운영(production)은 ko 만, 프리뷰·로컬은 세 언어 전부다 —
  * 프리뷰 QA 가 플래그 없이도 돌아가야 하기 때문이다(docs/SPEC-DELTA-i18n-ui.md).
+ * "운영" 판정은 Vercel production 배포의 production 빌드일 때만이다. 로컬 `.env.local` 에
+ * `VERCEL_ENV="production"` 이 pull 돼 있어도 `next dev`(NODE_ENV=development) 는 전부 연다.
  * ko 는 항상 포함한다.
  */
 export function enabledLocales(): Set<Locale> {
@@ -61,7 +63,9 @@ export function enabledLocales(): Set<Locale> {
     }
     return set;
   }
-  if (process.env.VERCEL_ENV === "production") return set;
+  const isProduction =
+    process.env.VERCEL_ENV === "production" && process.env.NODE_ENV === "production";
+  if (isProduction) return set;
   for (const l of LOCALES) set.add(l);
   return set;
 }

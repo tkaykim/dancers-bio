@@ -130,7 +130,7 @@ request.headers.set(UI_LOCALE_HEADER, ui);
 ```
 
 - **요청 언어**는 이용자가 원한 언어다. 쿠키와 프로필에는 항상 이 값을 저장한다. 운영 경로 강제나 플래그 강등이 쿠키·프로필을 `ko`로 덮어쓰지 않는다.
-- **UI 언어**는 전역 네임스페이스가 쓰는 언어다. 플래그로 열리지 않은 언어는 `ko`로 강등되고, `?lang=`도 플래그를 우회하지 않는다. 출시 전 QA는 Vercel Preview에 `UI_LOCALES=ko,en,ja`를 넣어 한다.
+- **UI 언어**는 전역 네임스페이스가 쓰는 언어다. 플래그로 열리지 않은 언어는 `ko`로 강등되고, `?lang=`도 플래그를 우회하지 않는다. `UI_LOCALES`가 없을 때의 기본값은 환경별로 다르다. 운영(`VERCEL_ENV=production`)은 `ko`만, 프리뷰·로컬은 세 언어 전부다. 그래서 프리뷰 QA는 환경변수 없이 돌아가고, 운영은 명시적으로 열어야 한다(구현 시 확정, `locale.ts` `enabledLocales()`).
 - 기능 사전(비자·워크숍·빌리지·프로그램·간편접수·영상제출·`/me/visa`)은 요청 언어를 쓴다. 그래서 플래그가 `ko`여도 `/visa/case/[token]?lang=ja` 같은 메일 CTA와 기존 다국어 화면은 그대로 동작한다. 간편접수·영상제출은 지금 ko/en뿐이므로 `ja`를 추가한 뒤 같은 규칙을 따른다. §3.2의 두 예외(공고 본문 언어, 케이스 저장 언어)는 요청 언어보다 먼저다.
 - 강제 `ko` 경로는 `/admin`·`/ops`·`/ndol`·`/channels`이며 `^/(admin|ops|ndol|channels)(/|$)`로 판정한다. `/projects/[id]/applicants`와 `/cast`·`/review`는 이 목록에 넣지 않고 P2에서 정책을 정한다. 공유 서버 액션의 오류가 한국어인 것은 이 경로에서 호출했을 때만 보장된다.
 - 조기 반환 경로 처리: rewrite 세 곳(수신거부 POST → `/api/unsubscribe` 46행, manifest 63행, 슬러그 87행) 모두 `NextResponse.rewrite(url, { request: { headers: request.headers } })`로 헤더를 넘기고, `?lang=` 쿠키가 필요하면 그 응답에도 세팅한다. 수신거부 API는 언어를 쓰지 않지만 규칙을 한 가지로 유지하기 위해 같이 처리한다. 외부 redirect 두 곳은 헤더가 필요 없다.
@@ -287,7 +287,7 @@ export default messages;
 - 플래그로 열리지 않은 언어는 메뉴에서 숨긴다(`useEnabledLocales()`).
 - 기존 기능 랜딩(`VisaLanding`·`VisaApplyWizard`·`ProgramLanding`·`VillageLanding`·`WorkshopsLanding`)은 `initialLang` prop을 유지하되 페이지가 `await getRequestedLocale()`로 넘기고, 내부의 localStorage·navigator 감지 `useEffect`와 첫 방문 추천 팝업(`ProgramLanding.tsx:502`)을 삭제한다. 중복된 로컬 언어 상태는 없애고 `useRequestedLocale()`에서 파생한다. 즉시 반응이 필요한 전환 버튼은 클릭 시 낙관적으로 표시를 바꾸고 `setLocaleAction`이 실패하면 되돌린다. effect 동기화를 즉시 반응으로 취급하지 않는다. 사전 파일과 문구는 손대지 않는다.
 - 비자 케이스 포털(`VisaCasePortal`)의 전환 버튼은 `lang` 제거 대상이 아니다. 케이스는 `?lang=`이 저장 언어보다 우선하므로, 이 화면의 전환은 선택한 언어로 `?lang=`을 갱신하는 `router.replace`다. 컴포넌트의 `useState(initialLang)`(`VisaCasePortal.tsx:492`)은 새 prop을 반영하지 못하므로 페이지가 `<VisaCasePortal key={lang} lang={lang} …/>`로 언어가 바뀔 때 다시 마운트하고 내부 상태는 prop에서 파생한다. 최상위 `<main>`과 팝업에 `lang` 속성을 둔다.
-- 옛 localStorage 키 3개(`deetz_program_lang`·`deetz_village_lang`·`deetz_ws_lang`)의 이전은 §3.4가 허용한 예외다. 조건은 쿠키가 없고 `?lang=`도 없을 때뿐이며, hydration 이후 effect에서 한 번만 실행한다. 먼저 세 키를 삭제하고 그다음 `setLocaleAction`을 호출한다. 호출이 실패하면 Accept-Language 결과를 그대로 쓴다. `?lang=`이 있는 최초 요청을 과거 저장값으로 덮어쓰지 않는다.
+- 옛 localStorage 키 3개(`deetz_program_lang`·`deetz_village_lang`·`deetz_ws_lang`)의 이전은 §3.4가 허용한 예외다. 조건은 쿠키가 없고 `?lang=`도 없을 때뿐이며, hydration 이후 effect에서 한 번만 실행한다. 먼저 세 키를 삭제하고 그다음 `setLocaleAction`을 호출한다. 호출이 실패하면 Accept-Language 결과를 그대로 쓴다. `?lang=`이 있는 최초 요청을 과거 저장값으로 덮어쓰지 않는다. 구현은 루트 레이아웃에 마운트하는 `components/layout/LegacyLocaleMigration.tsx`다.
 - `/me/visa`의 영어 고정 빈 상태와 `/program?lang=en` 링크는 `me` 네임스페이스를 쓰되 요청 언어를 따른다. 호출은 `serverT(me)`가 아니라 `translator(me, await getRequestedLocale())`로 명시한다.
 
 ### 3.9 가입·로그인과 `profiles.preferred_lang`
