@@ -1,5 +1,5 @@
-import type { Locale } from "./locale";
-import { interpolate } from "./interpolate";
+import type { Locale } from "../locale";
+import { interpolate } from "../interpolate";
 
 /**
  * 간편 접수(/apply)·영상 제출(/submit) 흐름의 문구 사전.
@@ -353,7 +353,8 @@ const en: Record<MessageKey, string> = {
   "submit.api.record_failed": "We could not record your submission.",
 };
 
-const MESSAGES: Record<Locale, Record<MessageKey, string>> = { ko, en };
+// TODO(S4): 일본어 사전 추가 전까지 ja 는 en 으로 폴백한다.
+const MESSAGES: Record<Locale, Record<MessageKey, string>> = { ko, en, ja: en };
 
 export function t(
   locale: Locale,

@@ -229,7 +229,7 @@ const en: Record<MailKey, string> = {
     "Sign in, check your account, then request the withdrawal (paid out after 3.3% withholding tax)",
 };
 
-const MAIL_MESSAGES: Record<Locale, Record<MailKey, string>> = { ko, en };
+const MAIL_MESSAGES: Record<Locale, Record<MailKey, string>> = { ko, en, ja: en }; // TODO(S4): 일본어 메일 사전
 
 export function mailT(
   locale: Locale,

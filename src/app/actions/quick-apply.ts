@@ -5,7 +5,7 @@ import { normalizePhone } from "@/lib/alimtalk/solapi";
 import { sendChallengeGuidelineMail } from "@/lib/notify/challenge-guideline-mail";
 import { resolveLocale } from "@/lib/i18n/locale";
 import { acceptLanguage } from "@/lib/i18n/server";
-import { t, isMessageKey, type MessageKey } from "@/lib/i18n/messages";
+import { t, isMessageKey, type MessageKey } from "@/lib/i18n/messages/quick";
 import { z } from "zod";
 
 /**

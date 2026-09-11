@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { localeFor } from "@/lib/i18n/server";
-import { translator } from "@/lib/i18n/messages";
+import { translator } from "@/lib/i18n/messages/quick";
 import type { Locale } from "@/lib/i18n/locale";
 import { QuickApplyForm } from "./QuickApplyForm";
 

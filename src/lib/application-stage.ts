@@ -14,7 +14,7 @@
 // 관련 마이그레이션: 20260815_004 / _005 / _006.
 
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
-import { t } from "@/lib/i18n/messages";
+import { t } from "@/lib/i18n/messages/quick";
 
 export const MAX_SELECTION_ROUNDS = 3;
 

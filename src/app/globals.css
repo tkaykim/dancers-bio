@@ -40,8 +40,10 @@
   --color-surface-3: var(--surface-3);
   --color-hairline-2: var(--hairline-2);
 
-  /* Pretendard first; Inter as latin fallback. No serif anywhere. */
-  --font-sans: "Pretendard Variable", var(--font-inter), -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  /* Pretendard first; Inter as latin fallback. No serif anywhere.
+     실제 목록은 :root / :lang(ja) 의 --app-font-sans 에 있다. @theme inline 은 값을 유틸리티에
+     인라인하므로 런타임 변수를 한 단계 거쳐야 언어별로 바꿀 수 있다 (docs/design-i18n-ui.md §3.10). */
+  --font-sans: var(--app-font-sans);
   --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
 
   --radius-sm: 8px;
@@ -102,6 +104,18 @@
   --info: #3F72B0;
 
   --radius: 16px;
+}
+
+:root {
+  --app-font-sans: "Pretendard Variable", var(--font-inter), -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* 일본어 영역(<html lang="ja"> 또는 lang="ja" 인 기능 영역). 변수만 바꾸면 부모에서 계산·상속된
+   font-family 가 재계산되지 않으므로 font-family 를 직접 선언한다. */
+:lang(ja) {
+  --app-font-sans: "Pretendard JP Variable", "Pretendard Variable", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  font-family: var(--app-font-sans);
+  line-break: strict;
 }
 
 @layer base {

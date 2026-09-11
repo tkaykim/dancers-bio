@@ -2,8 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { loginSchema, signupSchema } from "@/lib/validation/auth";
+import { LOCALE_COOKIE, isLocale } from "@/lib/i18n/locale";
+import { getRequestedLocale } from "@/lib/i18n/server";
 
 export type ActionResult<T = void> =
   | { ok: true; data?: T }
@@ -26,6 +29,9 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
   }
 
   const supabase = await createClient();
+  // 가입 시점의 요청 언어를 메타데이터로 넘기면 DB 트리거 handle_new_user() 가
+  // profiles.preferred_lang 에 저장한다 (docs/design-i18n-ui.md §3.9).
+  const preferredLang = await getRequestedLocale();
   const { error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
@@ -35,6 +41,7 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
         phone: parsed.data.phone ?? "",
         phone_unavailable: parsed.data.phone_unavailable,
         phone_country: parsed.data.phone_country,
+        preferred_lang: preferredLang,
       },
     },
   });
@@ -73,6 +80,33 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
     await supabase.rpc("auto_claim_dancers_for_email");
   } catch {
     // Non-fatal — the user still logs in; backup cron will retry.
+  }
+
+  // 계정에 저장된 언어를 쿠키로 복사해 다른 기기에서도 같은 언어가 이어지게 한다
+  // (docs/design-i18n-ui.md §3.9). 실패해도 로그인은 막지 않는다.
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("preferred_lang")
+        .eq("id", user.id)
+        .maybeSingle();
+      const saved = profile?.preferred_lang;
+      if (isLocale(saved)) {
+        (await cookies()).set(LOCALE_COOKIE, saved, {
+          path: "/",
+          maxAge: 60 * 60 * 24 * 365,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          httpOnly: false,
+        });
+      }
+    }
+  } catch {
+    // 언어 복사 실패는 치명적이지 않다.
   }
 
   revalidatePath("/", "layout");

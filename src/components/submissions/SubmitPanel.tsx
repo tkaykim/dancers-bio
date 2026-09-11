@@ -4,7 +4,7 @@ import { useState } from "react";
 import { HandleField } from "./HandleField";
 import { SubmitUploader } from "./SubmitUploader";
 import { CollaboratorField } from "./CollaboratorField";
-import { translator } from "@/lib/i18n/messages";
+import { translator } from "@/lib/i18n/messages/quick";
 import type { Locale } from "@/lib/i18n/locale";
 
 /**

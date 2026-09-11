@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
+import { useT } from "@/lib/i18n/provider";
+import nav from "@/lib/i18n/messages/nav";
 
 type NavLink = {
   href: string;
@@ -10,36 +12,36 @@ type NavLink = {
   match: (path: string) => boolean;
 };
 
-const links: NavLink[] = [
-  {
-    href: "/feed",
-    label: "캐스팅",
-    match: (p) => p === "/feed" || p.startsWith("/projects"),
-  },
-  {
-    href: "/dancers",
-    label: "댄서",
-    match: (p) => p === "/dancers" || p.startsWith("/d/"),
-  },
-  {
-    href: "/applications",
-    label: "내 지원",
-    match: (p) => p === "/applications",
-  },
-  {
-    href: "/me",
-    label: "나",
-    match: (p) =>
-      p === "/me" ||
-      p.startsWith("/me/") ||
-      p.startsWith("/admin") ||
-      p.startsWith("/verify-instagram"),
-  },
-];
-
 /** 데스크톱(lg+) 전용 상단 헤더. 모바일은 BottomTabBar 사용. */
 export function TopNav() {
   const pathname = usePathname() ?? "/";
+  const t = useT(nav);
+  const links: NavLink[] = [
+    {
+      href: "/feed",
+      label: t("tab.casting"),
+      match: (p) => p === "/feed" || p.startsWith("/projects"),
+    },
+    {
+      href: "/dancers",
+      label: t("tab.dancers"),
+      match: (p) => p === "/dancers" || p.startsWith("/d/"),
+    },
+    {
+      href: "/applications",
+      label: t("tab.applications"),
+      match: (p) => p === "/applications",
+    },
+    {
+      href: "/me",
+      label: t("tab.me"),
+      match: (p) =>
+        p === "/me" ||
+        p.startsWith("/me/") ||
+        p.startsWith("/admin") ||
+        p.startsWith("/verify-instagram"),
+    },
+  ];
 
   return (
     <header className="sticky top-0 z-30 hidden border-b border-hairline-2 bg-background/90 backdrop-blur-xl lg:block">
