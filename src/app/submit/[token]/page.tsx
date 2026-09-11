@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadSubmissionByToken } from "@/lib/submissions/lookup";
 import { localeFor } from "@/lib/i18n/server";
-import { translator } from "@/lib/i18n/messages";
+import { translator } from "@/lib/i18n/messages/quick";
 import { SubmitPanel } from "@/components/submissions/SubmitPanel";
 
 export const dynamic = "force-dynamic";

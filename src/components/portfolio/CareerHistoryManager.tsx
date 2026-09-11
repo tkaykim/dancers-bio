@@ -31,6 +31,9 @@ import {
   type CareerCategory,
 } from "@/lib/validation/portfolio";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import type { Translator } from "@/lib/i18n/t";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 type CareerDetails = {
   link?: string;
@@ -126,6 +129,7 @@ export function CareerHistoryManager({
   initialCareers: CareerRow[];
   dancerId: string;
 }) {
+  const t = useT(portfolio);
   const router = useRouter();
   const [openCategory, setOpenCategory] = useState<CareerCategory | "">(
     "choreo",
@@ -156,7 +160,7 @@ export function CareerHistoryManager({
 
   const handleSave = (closeAfter: boolean) => {
     if (!form.title.trim()) {
-      setError("제목을 입력해 주세요.");
+      setError(t("careers.error_title_required"));
       return;
     }
     setError(null);
@@ -184,7 +188,7 @@ export function CareerHistoryManager({
   };
 
   const handleDelete = (id: number) => {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
+    if (!confirm(t("careers.confirm_delete"))) return;
     const fd = new FormData();
     fd.set("id", String(id));
     fd.set("dancer_id", dancerId);
@@ -205,7 +209,7 @@ export function CareerHistoryManager({
       setConfirmPublicId(id);
       return;
     }
-    if (!confirm("이 경력을 비공개로 전환하시겠습니까? 프로필에 더 이상 표시되지 않습니다.")) {
+    if (!confirm(t("careers.confirm_unpublish"))) {
       return;
     }
     runSetVisibility(id, false);
@@ -282,12 +286,13 @@ export function CareerHistoryManager({
                       className="mx-2 flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-hairline-2 py-6 text-ink-3 transition-colors hover:border-primary/40 hover:text-primary"
                     >
                       <Plus className="size-5 opacity-70" />
-                      <span className="text-xs">이력 추가하기</span>
+                      <span className="text-xs">{t("careers.empty_add")}</span>
                     </button>
                   ) : (
                     cat.items.map((item) => (
                       <CareerCard
                         key={item.id}
+                        t={t}
                         item={item}
                         toggling={togglingId === item.id}
                         onToggleVisibility={() =>
@@ -310,7 +315,7 @@ export function CareerHistoryManager({
         className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-hairline-2 bg-card py-4 text-sm font-bold text-foreground shadow-sm transition-colors hover:bg-secondary"
       >
         <Plus className="size-5" />
-        새로운 이력 추가하기
+        {t("careers.add_new")}
       </button>
 
       <BottomSheet
@@ -322,10 +327,14 @@ export function CareerHistoryManager({
             setError(null);
           }
         }}
-        title={editingId != null ? "이력 수정" : "새 이력 추가"}
+        title={
+          editingId != null
+            ? t("careers.sheet_title_edit")
+            : t("careers.sheet_title_new")
+        }
       >
         <form className="flex flex-col gap-5 pb-2">
-          <Field label="카테고리">
+          <Field label={t("careers.field_category")}>
             <div className="relative">
               <select
                 value={form.type}
@@ -348,19 +357,19 @@ export function CareerHistoryManager({
             </div>
           </Field>
 
-          <Field label="제목" required>
+          <Field label={t("careers.field_title")} required>
             <input
               type="text"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="활동 제목 입력"
+              placeholder={t("careers.placeholder_title")}
               className={inputClass}
               autoFocus
             />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="연도">
+            <Field label={t("careers.field_year")}>
               <input
                 type="number"
                 value={form.year}
@@ -369,7 +378,7 @@ export function CareerHistoryManager({
                 className={inputClass}
               />
             </Field>
-            <Field label="월">
+            <Field label={t("careers.field_month")}>
               <input
                 type="number"
                 min="1"
@@ -382,7 +391,7 @@ export function CareerHistoryManager({
             </Field>
           </div>
 
-          <Field label="역할">
+          <Field label={t("careers.field_role")}>
             {formCategoryRoles.length > 0 ? (
               <div className="mb-2 flex flex-wrap gap-2">
                 {formCategoryRoles.map((role) => (
@@ -406,31 +415,31 @@ export function CareerHistoryManager({
               type="text"
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
-              placeholder="역할 직접 입력"
+              placeholder={t("careers.placeholder_role")}
               className={inputClass}
             />
           </Field>
 
           <Field
-            label="관련 영상 링크 (권장)"
-            hint="비어두면 경력이 해당 카테고리 맨 뒤로 밀립니다."
+            label={t("careers.field_link")}
+            hint={t("careers.hint_link")}
           >
             <input
               type="url"
               value={form.link}
               onChange={(e) => setForm({ ...form, link: e.target.value })}
-              placeholder="우선순위: 안무 시안 → 퍼포먼스 → 연습실 → 뮤직비디오"
+              placeholder={t("careers.placeholder_link")}
               className={inputClass}
             />
           </Field>
 
-          <Field label="상세 설명">
+          <Field label={t("careers.field_description")}>
             <textarea
               value={form.description}
               onChange={(e) =>
                 setForm({ ...form, description: e.target.value })
               }
-              placeholder="추가 설명..."
+              placeholder={t("careers.placeholder_description")}
               rows={3}
               className={cn(inputClass, "h-24 resize-none")}
             />
@@ -457,17 +466,17 @@ export function CareerHistoryManager({
             </button>
             <div className="flex flex-1 flex-col">
               <p className="text-sm font-medium text-foreground">
-                대표 경력으로 설정
+                {t("careers.representative_title")}
               </p>
               <p className="text-xs text-ink-3">
-                체크 시 프로필 상단 Highlights 섹션에 노출됩니다.
+                {t("careers.representative_desc")}
               </p>
             </div>
           </div>
 
           <Field
-            label="정렬 우선순위"
-            hint="숫자가 높을수록 카테고리 내에서 먼저 노출됩니다. (기본값: 0)"
+            label={t("careers.field_sort")}
+            hint={t("careers.hint_sort")}
           >
             <input
               type="number"
@@ -496,7 +505,7 @@ export function CareerHistoryManager({
                 onClick={() => handleDelete(editingId)}
                 disabled={pending}
                 className="rounded-xl bg-destructive/10 px-4 py-3 text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
-                aria-label="삭제"
+                aria-label={t("careers.aria_delete")}
               >
                 <Trash2 className="size-5" />
               </button>
@@ -511,7 +520,7 @@ export function CareerHistoryManager({
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary py-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-3 disabled:opacity-50"
                 >
                   <ChevronsRight className="size-4" />
-                  저장 후 계속
+                  {t("careers.save_continue")}
                 </button>
               ) : null}
               <button
@@ -525,7 +534,9 @@ export function CareerHistoryManager({
                 ) : (
                   <Save className="size-5" />
                 )}
-                {editingId != null ? "수정 완료" : "저장 완료"}
+                {editingId != null
+                  ? t("careers.save_edit")
+                  : t("careers.save_new")}
               </button>
             </div>
           </div>
@@ -539,23 +550,20 @@ export function CareerHistoryManager({
         <DialogContent showCloseButton={false} className="max-w-md sm:max-w-md">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-foreground">
-              경력을 공개할까요?
+              {t("careers.publish_dialog_title")}
             </h3>
             <button
               type="button"
               onClick={() => setConfirmPublicId(null)}
               className="rounded-full p-1.5 text-ink-3 transition-colors hover:bg-secondary hover:text-foreground"
-              aria-label="닫기"
+              aria-label={t("careers.aria_close")}
             >
               <X className="size-4" />
             </button>
           </div>
-          <p className="text-sm text-ink-2">
-            공개 처리 시 프로필에 이 경력이 노출됩니다.
-          </p>
+          <p className="text-sm text-ink-2">{t("careers.publish_dialog_body")}</p>
           <p className="rounded-lg border border-warn/20 bg-warn/10 px-3 py-2.5 text-xs text-warn">
-            엠바고, 출시일, 발매일 등을 고려하여{" "}
-            <strong>공개해도 되는지 꼭 확인</strong>한 뒤 진행해 주세요.
+            <PublishWarning t={t} />
           </p>
           <div className="flex gap-2">
             <button
@@ -563,7 +571,7 @@ export function CareerHistoryManager({
               onClick={() => setConfirmPublicId(null)}
               className="flex-1 rounded-xl bg-secondary py-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-3"
             >
-              취소
+              {t("careers.cancel")}
             </button>
             <button
               type="button"
@@ -574,7 +582,7 @@ export function CareerHistoryManager({
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {pending ? <Loader2 className="size-5 animate-spin" /> : null}
-              공개로 전환
+              {t("careers.publish_confirm")}
             </button>
           </div>
         </DialogContent>
@@ -583,12 +591,32 @@ export function CareerHistoryManager({
   );
 }
 
+/**
+ * 한 문장 안에 <strong> 강조가 들어가는 경우 — 문장을 조각내지 않고 통 문장 키 하나를
+ * 유지한 뒤, 번역된 문장에서 강조 구절만 찾아 감싼다.
+ */
+function PublishWarning({ t }: { t: Translator<typeof portfolio> }) {
+  const full = t("careers.publish_warning");
+  const emphasis = t("careers.publish_warning_emphasis");
+  const at = full.indexOf(emphasis);
+  if (at < 0) return <>{full}</>;
+  return (
+    <>
+      {full.slice(0, at)}
+      <strong>{emphasis}</strong>
+      {full.slice(at + emphasis.length)}
+    </>
+  );
+}
+
 function CareerCard({
+  t,
   item,
   toggling,
   onToggleVisibility,
   onEdit,
 }: {
+  t: Translator<typeof portfolio>;
   item: CareerRow;
   toggling: boolean;
   onToggleVisibility: () => void;
@@ -607,7 +635,10 @@ function CareerCard({
             </span>
           ) : null}
           {item.details?.role ? (
-            <span className="shrink-0 rounded border border-hairline-2 bg-surface-3 px-1.5 py-0.5 text-[10px] text-ink-2">
+            <span
+              className="shrink-0 rounded border border-hairline-2 bg-surface-3 px-1.5 py-0.5 text-[10px] text-ink-2"
+              data-ugc
+            >
               {item.details.role}
             </span>
           ) : null}
@@ -619,24 +650,26 @@ function CareerCard({
                 : "border-hairline-2 bg-surface-3 text-ink-3",
             )}
           >
-            {item.is_public ? "공개" : "비공개"}
+            {item.is_public
+              ? t("careers.badge_public")
+              : t("careers.badge_private")}
           </span>
           {item.sort_order > 0 ? (
             <span className="shrink-0 rounded border border-warn/20 bg-warn/10 px-1.5 py-0.5 text-[10px] font-medium text-warn">
-              우선 {item.sort_order}
+              {t("careers.badge_priority", { n: item.sort_order })}
             </span>
           ) : null}
           {item.is_representative ? (
             <span className="shrink-0 rounded border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-              ★ 대표
+              {t("careers.badge_representative")}
             </span>
           ) : null}
         </div>
-        <h3 className="truncate pr-2 text-sm font-medium text-foreground">
+        <h3 className="truncate pr-2 text-sm font-medium text-foreground" data-ugc>
           {item.title}
         </h3>
         {item.details?.description ? (
-          <p className="line-clamp-1 text-xs text-ink-3">
+          <p className="line-clamp-1 text-xs text-ink-3" data-ugc>
             {item.details.description}
           </p>
         ) : null}
@@ -646,7 +679,11 @@ function CareerCard({
           type="button"
           onClick={onToggleVisibility}
           disabled={toggling}
-          aria-label={item.is_public ? "비공개로 전환" : "공개로 전환"}
+          aria-label={
+            item.is_public
+              ? t("careers.aria_make_private")
+              : t("careers.aria_make_public")
+          }
           className={cn(
             "rounded-md p-1.5 transition-colors disabled:opacity-50",
             item.is_public
@@ -665,7 +702,7 @@ function CareerCard({
         <button
           type="button"
           onClick={onEdit}
-          aria-label="수정"
+          aria-label={t("careers.aria_edit")}
           className="rounded-md p-1.5 text-ink-3 transition-colors hover:bg-secondary hover:text-foreground"
         >
           <Edit2 className="size-3.5" />

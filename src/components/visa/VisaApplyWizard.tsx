@@ -8,6 +8,7 @@ import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { SearchableSelect, type SearchableOption } from "@/components/ui/searchable-select";
 import { COUNTRIES } from "@/lib/data/countries";
 import { KOREA_VISAS } from "@/lib/data/korea-visas";
+import { setLocaleAction } from "@/app/actions/locale";
 import { submitVisaApplicationAction } from "@/app/actions/visa";
 import { cn } from "@/lib/utils";
 
@@ -353,24 +354,26 @@ export function VisaApplyWizard({
   initialLang?: Lang;
   source?: "visa" | "program";
 }) {
+  // 초기 언어는 서버가 정한 요청 언어(prop)뿐이다(docs/design-i18n-ui.md §3.4·§3.8).
   const [lang, setLang] = useState<Lang>(initialLang);
-  // 언어 전환 시 URL(?lang=)도 갱신 → 그 상태로 복붙하면 언어가 유지된다.
-  const pickLang = (l: Lang) => {
-    setLang(l);
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set("lang", l);
-      window.history.replaceState(null, "", url.toString());
-    } catch {
-      /* URL 조작 불가 환경 무시 */
-    }
-  };
   const [idx, setIdx] = useState(0);
   const [a, setA] = useState<Answers>(initialAnswers);
   const [error, setError] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
   const [done, setDone] = useState<{ profileUrl: string | null; caseUrl: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  // 즉시 반응을 위해 낙관적으로 표시를 바꾸고, 서버 액션이 쿠키·프로필을 저장한 뒤 redirect 한다.
+  // 성공한 redirect 는 rejection 으로 오므로 실패는 반환값 { ok: false } 로만 판단한다.
+  const pickLang = (l: Lang) => {
+    if (l === lang) return;
+    const prevLang = lang;
+    setLang(l);
+    startTransition(async () => {
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      const result = await setLocaleAction(l, currentUrl);
+      if (result && result.ok === false) setLang(prevLang);
+    });
+  };
   // 입국 가능일은 과거 선택 불가 (오늘 이후만).
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 

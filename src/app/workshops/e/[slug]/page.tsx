@@ -6,6 +6,7 @@ import { ArrowLeft, CalendarDays, MapPin } from "lucide-react";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { EventRegisterClient } from "@/components/workshops/EventRegisterClient";
 import { getProfile, getUser } from "@/lib/auth/guard";
+import { getRequestedLocale } from "@/lib/i18n/server";
 import { ET, type EventLang } from "@/lib/workshops/event-shared";
 import { getPublicEventBySlug } from "@/lib/workshops/event-queries";
 
@@ -54,12 +55,16 @@ export default async function WorkshopEventPage({
   if (!found) notFound();
   const { event, sessions } = found;
 
+  // 언어 우선순위: 화면 전환 링크의 `?lang=` → 행사에 저장된 기본 언어 → 요청 언어.
+  // (이 화면은 ko·en 두 언어뿐이라 ja 요청은 en 으로 떨어진다.)
   const lang: EventLang =
     sp.lang === "ko" || sp.lang === "en"
       ? (sp.lang as EventLang)
-      : event.default_lang === "ko"
-        ? "ko"
-        : "en";
+      : event.default_lang === "ko" || event.default_lang === "en"
+        ? (event.default_lang as EventLang)
+        : (await getRequestedLocale()) === "ko"
+          ? "ko"
+          : "en";
   const t = ET[lang];
 
   const user = await getUser();

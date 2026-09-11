@@ -8,6 +8,7 @@ import {
 
 export type PhoneParseResult =
   | { ok: true; e164: string; country: CountryCode }
+  /** error 는 validation 사전 키(v.phone_*)다. 소비처가 serverT/useT(validation) 로 번역한다. */
   | { ok: false; error: string };
 
 export type PhoneCountryOption = {
@@ -33,6 +34,7 @@ const PRIORITY_COUNTRIES: CountryCode[] = [
 ];
 
 const PRIORITY_COUNTRY_LABELS: Partial<Record<CountryCode, string>> = {
+  // eslint-disable-next-line no-restricted-syntax -- 한·영 병기, ko 외 언어에서는 InternationalPhoneField 가 한글 접두를 뗀다
   KR: "대한민국 / South Korea",
   US: "United States",
   JP: "Japan",
@@ -77,14 +79,14 @@ export function parseInternationalPhone(
   if (!value) {
     return {
       ok: false,
-      error: "휴대폰 번호를 입력해 주세요. / Enter your mobile number.",
+      error: "v.phone_required",
     };
   }
 
   if (value.length > 40 || !isSupportedCountry(country)) {
     return {
       ok: false,
-      error: "국가와 전화번호를 다시 확인해 주세요. / Check the country and phone number.",
+      error: "v.phone_country",
     };
   }
 
@@ -93,7 +95,7 @@ export function parseInternationalPhone(
     if (!phone?.isValid()) {
       return {
         ok: false,
-        error: "올바른 휴대폰 번호를 입력해 주세요. / Enter a valid mobile number.",
+        error: "v.phone_invalid",
       };
     }
 
@@ -105,7 +107,7 @@ export function parseInternationalPhone(
   } catch {
     return {
       ok: false,
-      error: "올바른 휴대폰 번호를 입력해 주세요. / Enter a valid mobile number.",
+      error: "v.phone_invalid",
     };
   }
 }

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Check, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n/provider";
+import profile from "@/lib/i18n/messages/profile";
 
 /**
  * 프로필·팀 공유 버튼 (재사용).
@@ -14,7 +16,7 @@ export function ShareLinkButton({
   url,
   title,
   text,
-  label = "공유",
+  label,
   variant = "pill",
   className = "",
 }: {
@@ -25,6 +27,8 @@ export function ShareLinkButton({
   variant?: "pill" | "icon" | "block";
   className?: string;
 }) {
+  const t = useT(profile);
+  const shareLabel = label ?? t("share.label");
   const [copied, setCopied] = useState(false);
 
   async function handleShare() {
@@ -42,10 +46,10 @@ export function ShareLinkButton({
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      toast.success("링크를 복사했어요. 카카오·인스타에 붙여넣어 공유해보세요.");
+      toast.success(t("share.copied_toast"));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("복사하지 못했습니다");
+      toast.error(t("share.copy_failed"));
     }
   }
 
@@ -56,7 +60,7 @@ export function ShareLinkButton({
       <button
         type="button"
         onClick={handleShare}
-        aria-label={`${label} 공유`}
+        aria-label={t("share.aria", { label: shareLabel })}
         className={
           "flex h-10 w-10 items-center justify-center rounded-full bg-background/70 text-foreground backdrop-blur transition-colors hover:bg-background/90 " +
           className
@@ -78,7 +82,7 @@ export function ShareLinkButton({
         }
       >
         <Icon className="size-4" aria-hidden />
-        {copied ? "복사됨" : label}
+        {copied ? t("share.copied") : shareLabel}
       </button>
     );
   }
@@ -88,14 +92,14 @@ export function ShareLinkButton({
     <button
       type="button"
       onClick={handleShare}
-      aria-label={`${label} 공유`}
+      aria-label={t("share.aria", { label: shareLabel })}
       className={
         "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-ink-2 transition-colors hover:bg-secondary hover:text-foreground " +
         className
       }
     >
       <Icon className="size-3.5" aria-hidden />
-      {label}
+      {shareLabel}
     </button>
   );
 }

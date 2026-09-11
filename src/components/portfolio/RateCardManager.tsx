@@ -21,6 +21,9 @@ import {
   type RateServiceType,
 } from "@/lib/validation/rate-cards";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import type { Translator } from "@/lib/i18n/t";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 export type RateCardRow = {
   id: string;
@@ -86,6 +89,7 @@ export function RateCardManager({
   initialCards: RateCardRow[];
   dancerId: string;
 }) {
+  const t = useT(portfolio);
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -136,7 +140,7 @@ export function RateCardManager({
   };
 
   const handleDelete = (row: RateCardRow) => {
-    if (!confirm("이 단가를 삭제하시겠습니까?")) return;
+    if (!confirm(t("rates.confirm_delete"))) return;
     const fd = new FormData();
     fd.set("dancer_id", dancerId);
     fd.set("id", row.id);
@@ -187,7 +191,7 @@ export function RateCardManager({
                 className="flex shrink-0 items-center gap-1 rounded-full border border-hairline-2 px-2.5 py-1 text-xs font-medium text-ink-2 transition-colors hover:bg-secondary hover:text-foreground"
               >
                 <Plus className="size-3" />
-                추가
+                {t("rates.add")}
               </button>
             </div>
 
@@ -196,6 +200,7 @@ export function RateCardManager({
                 {group.items.map((row) => (
                   <li key={row.id}>
                     <RateRow
+                      t={t}
                       row={row}
                       showCountry={isCountryService(group.service)}
                       onEdit={() => openEdit(row)}
@@ -211,7 +216,7 @@ export function RateCardManager({
                 style={{ width: "calc(100% - 1rem)" }}
               >
                 <Plus className="size-4 opacity-70" />
-                단가 입력하기
+                {t("rates.empty_cta")}
               </button>
             )}
           </div>
@@ -227,10 +232,14 @@ export function RateCardManager({
             setError(null);
           }
         }}
-        title={editingId != null ? "단가 수정" : "단가 추가"}
+        title={
+          editingId != null
+            ? t("rates.sheet_title_edit")
+            : t("rates.sheet_title_new")
+        }
       >
         <form className="flex flex-col gap-5 pb-2">
-          <Field label="서비스 종류">
+          <Field label={t("rates.field_service")}>
             <select
               value={form.service_type}
               disabled={editingId != null}
@@ -253,8 +262,8 @@ export function RateCardManager({
 
           {isCountryService(form.service_type) ? (
             <Field
-              label="국가"
-              hint="비워두면 '기본 해외 단가'(미지정국 폴백)로 저장됩니다. 나라별로 다르면 따로 추가하세요."
+              label={t("rates.field_country")}
+              hint={t("rates.hint_country")}
             >
               <select
                 value={form.country}
@@ -262,7 +271,7 @@ export function RateCardManager({
                 onChange={(e) => setForm({ ...form, country: e.target.value })}
                 className={cn(selectClass, editingCountryLocked && "opacity-60")}
               >
-                <option value="">기본 해외 (미지정국)</option>
+                <option value="">{t("rates.country_default")}</option>
                 {COMMON_COUNTRIES.map((c) => (
                   <option key={c.code} value={c.code}>
                     {c.label} ({c.code})
@@ -273,18 +282,18 @@ export function RateCardManager({
           ) : null}
 
           <div className="grid grid-cols-[1fr_5.5rem] gap-3">
-            <Field label="대표 단가">
+            <Field label={t("rates.field_price")}>
               <input
                 type="number"
                 inputMode="numeric"
                 min="0"
                 value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value })}
-                placeholder="예: 800000"
+                placeholder={t("rates.placeholder_price")}
                 className={inputClass}
               />
             </Field>
-            <Field label="통화">
+            <Field label={t("rates.field_currency")}>
               <select
                 value={form.currency}
                 onChange={(e) => setForm({ ...form, currency: e.target.value })}
@@ -300,45 +309,45 @@ export function RateCardManager({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="범위 하한 (선택)">
+            <Field label={t("rates.field_price_min")}>
               <input
                 type="number"
                 inputMode="numeric"
                 min="0"
                 value={form.price_min}
                 onChange={(e) => setForm({ ...form, price_min: e.target.value })}
-                placeholder="최소"
+                placeholder={t("rates.placeholder_min")}
                 className={inputClass}
               />
             </Field>
-            <Field label="범위 상한 (선택)">
+            <Field label={t("rates.field_price_max")}>
               <input
                 type="number"
                 inputMode="numeric"
                 min="0"
                 value={form.price_max}
                 onChange={(e) => setForm({ ...form, price_max: e.target.value })}
-                placeholder="최대"
+                placeholder={t("rates.placeholder_max")}
                 className={inputClass}
               />
             </Field>
           </div>
 
-          <Field label="단가 기준 (선택)" hint="예: 1편, 1곡, 1일, 2시간">
+          <Field label={t("rates.field_unit")} hint={t("rates.hint_unit")}>
             <input
               type="text"
               value={form.unit}
               onChange={(e) => setForm({ ...form, unit: e.target.value })}
-              placeholder="1편"
+              placeholder={t("rates.placeholder_unit")}
               className={inputClass}
             />
           </Field>
 
-          <Field label="비고 (선택)">
+          <Field label={t("rates.field_note")}>
             <textarea
               value={form.note}
               onChange={(e) => setForm({ ...form, note: e.target.value })}
-              placeholder="조건·포함범위 등"
+              placeholder={t("rates.placeholder_note")}
               rows={2}
               className={cn(inputClass, "h-20 resize-none")}
             />
@@ -346,16 +355,16 @@ export function RateCardManager({
 
           <div className="flex flex-col gap-2">
             <ToggleRow
-              label="협의 가능"
-              desc="제시 단가에서 협의 여지가 있어요"
+              label={t("rates.toggle_negotiable")}
+              desc={t("rates.toggle_negotiable_desc")}
               checked={form.is_negotiable}
               onToggle={() =>
                 setForm({ ...form, is_negotiable: !form.is_negotiable })
               }
             />
             <ToggleRow
-              label="공개"
-              desc="끄면 비공개(나·관리자만)로 저장됩니다"
+              label={t("rates.toggle_public")}
+              desc={t("rates.toggle_public_desc")}
               checked={form.is_public}
               onToggle={() => setForm({ ...form, is_public: !form.is_public })}
             />
@@ -377,7 +386,7 @@ export function RateCardManager({
                 }}
                 disabled={pending}
                 className="rounded-xl bg-destructive/10 px-4 py-3 text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
-                aria-label="삭제"
+                aria-label={t("rates.aria_delete")}
               >
                 <Trash2 className="size-5" />
               </button>
@@ -393,7 +402,7 @@ export function RateCardManager({
               ) : (
                 <Save className="size-5" />
               )}
-              {editingId != null ? "수정 완료" : "저장"}
+              {editingId != null ? t("rates.save_edit") : t("rates.save_new")}
             </button>
           </div>
         </form>
@@ -403,10 +412,12 @@ export function RateCardManager({
 }
 
 function RateRow({
+  t,
   row,
   showCountry,
   onEdit,
 }: {
+  t: Translator<typeof portfolio>;
   row: RateCardRow;
   showCountry: boolean;
   onEdit: () => void;
@@ -422,12 +433,12 @@ function RateRow({
           ) : null}
           {row.is_negotiable ? (
             <span className="shrink-0 rounded border border-hairline-2 bg-surface-3 px-1.5 py-0.5 text-[10px] text-ink-2">
-              협의가능
+              {t("rates.badge_negotiable")}
             </span>
           ) : null}
           {!row.is_public ? (
             <span className="shrink-0 rounded border border-hairline-2 bg-surface-3 px-1.5 py-0.5 text-[10px] text-ink-3">
-              비공개
+              {t("rates.badge_private")}
             </span>
           ) : null}
         </div>
@@ -436,17 +447,21 @@ function RateRow({
             {formatRate(row)}
           </span>
           {row.unit ? (
-            <span className="text-xs text-ink-3">/ {row.unit}</span>
+            <span className="text-xs text-ink-3" data-ugc>
+              / {row.unit}
+            </span>
           ) : null}
         </div>
         {row.note ? (
-          <p className="line-clamp-1 text-xs text-ink-3">{row.note}</p>
+          <p className="line-clamp-1 text-xs text-ink-3" data-ugc>
+            {row.note}
+          </p>
         ) : null}
       </div>
       <button
         type="button"
         onClick={onEdit}
-        aria-label="수정"
+        aria-label={t("rates.aria_edit")}
         className="shrink-0 rounded-md p-1.5 text-ink-3 transition-colors hover:bg-secondary hover:text-foreground"
       >
         <Edit2 className="size-3.5" />

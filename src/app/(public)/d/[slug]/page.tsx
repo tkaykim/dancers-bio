@@ -3,10 +3,10 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile, getUser } from "@/lib/auth/guard";
-import {
-  CAREER_CATEGORY_LABELS,
-  CAREER_CATEGORY_ORDER,
-} from "@/lib/validation/portfolio";
+import { CAREER_CATEGORY_ORDER } from "@/lib/validation/portfolio";
+import { getLocale, serverT } from "@/lib/i18n/server";
+import { translator, tCount, type Translator } from "@/lib/i18n/t";
+import profileMessages from "@/lib/i18n/messages/profile";
 import { CareerGroup } from "@/components/portfolio/CareerGroup";
 import { ProfileFooterCTA } from "@/components/portfolio/ProfileFooterCTA";
 import { ProfileShareCard } from "@/components/share/ProfileShareCard";
@@ -60,6 +60,8 @@ type DancerRow = {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DANCERS_BIO_ORIGIN = "https://dancers.bio";
 
+type ProfileT = Translator<typeof profileMessages>;
+
 function dancerDisplayName(dancer: DancerRow): string {
   return dancer.korean_name
     ? `${dancer.stage_name} (${dancer.korean_name})`
@@ -72,15 +74,20 @@ function dancerCanonicalUrl(dancer: DancerRow): string {
     : `${DANCERS_BIO_ORIGIN}/d/${dancer.id}`;
 }
 
-function dancerDescription(dancer: DancerRow, careerCount?: number): string {
+function dancerDescription(
+  dancer: DancerRow,
+  t: ProfileT,
+  careerCount?: number,
+): string {
   const tags = [...(dancer.genres ?? []), ...(dancer.specialties ?? [])]
     .filter(Boolean)
     .slice(0, 4)
     .join(", ");
+  const name = dancerDisplayName(dancer);
   const base = tags
-    ? `${dancerDisplayName(dancer)} 댄서 프로필. ${tags} 경력과 영상 포트폴리오를 확인하세요.`
-    : `${dancerDisplayName(dancer)} 댄서 프로필과 영상 포트폴리오를 확인하세요.`;
-  return careerCount ? `${base} 공개 경력 ${careerCount}건.` : base;
+    ? t("meta.dancer_description_tags", { name, tags })
+    : t("meta.dancer_description", { name });
+  return careerCount ? t("meta.dancer_career_count", { base, count: careerCount }) : base;
 }
 
 async function loadDancer(slugOrId: string) {
@@ -106,17 +113,20 @@ export async function generateMetadata({
   const { slug } = await params;
   const dancer = await loadDancer(slug);
   if (!dancer) return { title: { absolute: "deetz" } };
+  const t = translator(profileMessages, await getLocale());
   const canonical = dancerCanonicalUrl(dancer);
-  const description = dancer.bio ?? dancerDescription(dancer);
+  const description = dancer.bio ?? dancerDescription(dancer, t);
   const names = [dancer.stage_name, dancer.korean_name].filter(Boolean) as string[];
   return {
-    title: { absolute: `${dancerDisplayName(dancer)} | 댄서 포트폴리오 · dancers.bio` },
+    title: {
+      absolute: t("meta.dancer_title", { name: dancerDisplayName(dancer) }),
+    },
     description,
     keywords: [
       ...names,
-      ...names.map((name) => `${name} 댄서`),
-      ...names.map((name) => `${name} 포트폴리오`),
-      ...names.map((name) => `${name} 안무가`),
+      ...names.map((name) => t("meta.kw_dancer", { name })),
+      ...names.map((name) => t("meta.kw_portfolio", { name })),
+      ...names.map((name) => t("meta.kw_choreographer", { name })),
       ...(dancer.genres ?? []),
       ...(dancer.specialties ?? []),
     ],
@@ -128,7 +138,7 @@ export async function generateMetadata({
         ? undefined
         : { index: false, follow: false },
     openGraph: {
-      title: `${dancerDisplayName(dancer)} | 댄서 포트폴리오`,
+      title: t("meta.dancer_og_title", { name: dancerDisplayName(dancer) }),
       description,
       url: canonical,
       siteName: "dancers.bio",
@@ -147,6 +157,8 @@ export default async function PublicDancerPage({
   const dancer = await loadDancer(slug);
   if (!dancer) notFound();
 
+  const locale = await getLocale();
+  const t = await serverT(profileMessages);
   const supabase = await createClient();
   const [{ data: careers }, viewer, viewerProfile, { data: dancerCount }] =
     await Promise.all([
@@ -246,7 +258,7 @@ export default async function PublicDancerPage({
     url: canonicalUrl,
     image: dancer.profile_img ?? undefined,
     jobTitle: "Dancer",
-    description: dancer.bio ?? dancerDescription(dancer, list.length),
+    description: dancer.bio ?? dancerDescription(dancer, t, list.length),
     knowsAbout,
     sameAs,
     subjectOf: list.slice(0, 12).map((career) => ({
@@ -319,7 +331,7 @@ export default async function PublicDancerPage({
         imageMode="portrait"
         social={social}
         canonicalUrl={canonicalUrl}
-        shareTitle={`${dancerDisplayName(dancer)} | 댄서 프로필`}
+        shareTitle={t("hero.share_dancer", { name: dancerDisplayName(dancer) })}
         backHref="/dancers"
         verified={Boolean(dancer.is_verified)}
         location={dancer.location}
@@ -334,12 +346,15 @@ export default async function PublicDancerPage({
               Profile
             </p>
             {dancer.bio ? (
-              <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-ink-2 sm:text-lg">
+              <p
+                className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-ink-2 sm:text-lg"
+                data-ugc
+              >
                 {dancer.bio}
               </p>
             ) : null}
             {genres.length > 0 || extraSpecialties.length > 0 ? (
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 flex flex-wrap gap-2" data-ugc>
                 {genres.map((genre) => (
                   <span
                     key={`g-${genre}`}
@@ -367,12 +382,12 @@ export default async function PublicDancerPage({
         <section className="px-5 pt-12 sm:px-8 lg:px-10 lg:pt-16">
           <ProfileSectionHeading
             eyebrow="Selected work"
-            title="대표 작업"
-            description="이 아티스트를 가장 빠르게 이해할 수 있는 주요 크레딧입니다."
+            title={t("section.selected_work")}
+            description={t("section.selected_work_desc_dancer")}
           />
           <div className="mt-6 max-w-4xl">
             <CareerGroup
-              label="대표 경력"
+              label={t("section.representative_careers")}
               items={highlights}
               variant="carousel"
               showCount={false}
@@ -396,7 +411,7 @@ export default async function PublicDancerPage({
             </span>
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="truncate text-sm font-semibold">
-                {dancer.portfolio_file_name ?? "포트폴리오 파일"}
+                {dancer.portfolio_file_name ?? t("file.fallback_name")}
               </span>
               <span className="text-[11px] text-ink-2">
                 {dancer.portfolio_file_size_bytes
@@ -417,8 +432,8 @@ export default async function PublicDancerPage({
         <section className="px-5 pt-12 sm:px-8 lg:px-10 lg:pt-16">
           <ProfileSectionHeading
             eyebrow="Visual portfolio"
-            title="갤러리"
-            description="무대와 작업의 분위기를 보여주는 대표 이미지입니다."
+            title={t("section.gallery")}
+            description={t("section.gallery_desc_dancer")}
           />
           <div className="mt-6">
             <ProfileMediaGallery
@@ -434,7 +449,7 @@ export default async function PublicDancerPage({
         <section className="px-5 pt-12 sm:px-8 lg:px-10 lg:pt-16">
           <ProfileSectionHeading
             eyebrow="Showreel"
-            title="영상"
+            title={t("section.videos")}
           />
           <div className="mt-6">
             <ProfileMediaGallery
@@ -450,25 +465,21 @@ export default async function PublicDancerPage({
       <section className="px-5 pb-16 pt-12 sm:px-8 lg:px-10 lg:pt-16">
         <ProfileSectionHeading
           eyebrow="Full credits"
-          title="전체 크레딧"
-          description="분야별 경력을 연도순으로 정리했습니다."
+          title={t("section.credits")}
+          description={t("section.credits_desc_dancer")}
         />
         {orderedTypes.length === 0 ? (
           <p className="mt-6 rounded-xl border border-dashed border-hairline-2 p-6 text-center text-sm text-ink-2">
             {highlights.length > 0
-              ? "대표 경력 외 추가된 경력이 없습니다."
-              : "아직 공개된 경력이 없습니다."}
+              ? t("credits.empty_with_highlights")
+              : t("credits.empty")}
           </p>
         ) : (
           <div className="mt-8 grid gap-x-10 gap-y-10 md:grid-cols-2">
             {orderedTypes.map((type) => (
               <CareerGroup
                 key={type}
-                label={
-                  CAREER_CATEGORY_LABELS[
-                    type as keyof typeof CAREER_CATEGORY_LABELS
-                  ] ?? type
-                }
+                label={t(`career_category.${type}`)}
                 items={grouped.get(type) ?? []}
                 variant="row"
                 showCount={false}
@@ -483,11 +494,9 @@ export default async function PublicDancerPage({
         {isCuration && pendingProposalCount > 0 ? (
           <section className="mx-6 mt-6 rounded-2xl border border-primary/40 bg-primary/10 px-5 py-4">
             <p className="text-sm font-semibold text-foreground">
-              이 프로필로 캐스팅 제안 {pendingProposalCount}건이 도착했어요
+              {tCount(t, "claim.proposal_count", locale, pendingProposalCount)}
             </p>
-            <p className="mt-1 text-xs text-ink-2">
-              본인 또는 매니저라면 권한을 신청하고 제안에 응답할 수 있어요. 아래에서 신청하세요.
-            </p>
+            <p className="mt-1 text-xs text-ink-2">{t("claim.proposal_body")}</p>
           </section>
         ) : null}
 
@@ -500,9 +509,11 @@ export default async function PublicDancerPage({
           >
             <Pencil className="size-5 shrink-0" aria-hidden />
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold">내 프로필 수정하기</span>
+              <span className="block text-sm font-semibold">
+                {t("owner.edit_title")}
+              </span>
               <span className="mt-0.5 block text-xs text-primary-foreground/70">
-                사진·소개·경력·영상을 수정하면 이 페이지에 바로 반영돼요
+                {t("owner.edit_desc")}
               </span>
             </span>
             <ChevronRight className="size-5 shrink-0 text-primary-foreground/60" aria-hidden />
@@ -515,7 +526,7 @@ export default async function PublicDancerPage({
           <section className="mx-6 mt-6">
           <ProfileShareCard
             url={canonicalUrl}
-            title={`${dancerDisplayName(dancer)} | 댄서 프로필`}
+            title={t("hero.share_dancer", { name: dancerDisplayName(dancer) })}
           />
           </section>
         ) : null}

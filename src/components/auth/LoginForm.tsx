@@ -8,6 +8,8 @@ import { loginAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/lib/i18n/provider";
+import auth from "@/lib/i18n/messages/auth";
 
 // Open-redirect 방지: 내부 경로(/...)만 허용. //protocol-relative 차단.
 function safeRedirect(raw: string | null): string | null {
@@ -28,6 +30,7 @@ export function LoginForm({ nextPath }: { nextPath?: string } = {}) {
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [pending, startTransition] = useTransition();
+  const t = useT(auth);
 
   return (
     <form
@@ -46,7 +49,7 @@ export function LoginForm({ nextPath }: { nextPath?: string } = {}) {
       className="flex flex-col gap-4"
     >
       <div className="flex flex-col gap-2">
-        <Label htmlFor="email">이메일</Label>
+        <Label htmlFor="email">{t("login.email")}</Label>
         <Input
           id="email"
           name="email"
@@ -61,7 +64,7 @@ export function LoginForm({ nextPath }: { nextPath?: string } = {}) {
         <EmailTypoHint email={email} onFix={setEmail} />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">비밀번호</Label>
+        <Label htmlFor="password">{t("login.password")}</Label>
         <Input
           id="password"
           name="password"
@@ -76,23 +79,23 @@ export function LoginForm({ nextPath }: { nextPath?: string } = {}) {
         </p>
       ) : null}
       <Button type="submit" disabled={pending} className="w-full">
-        {pending ? "로그인 중..." : "로그인"}
+        {pending ? t("login.submitting") : t("login.submit")}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
         <Link
           href="/forgot-password"
           className="font-medium text-foreground underline-offset-4 hover:underline"
         >
-          비밀번호를 잊으셨나요?
+          {t("login.forgot")}
         </Link>
       </p>
       <p className="text-center text-sm text-muted-foreground">
-        아직 계정이 없으신가요?{" "}
+        {t("login.no_account")}{" "}
         <Link
           href={dest !== "/me" ? `/signup?next=${encodeURIComponent(dest)}` : "/signup"}
           className="font-medium text-foreground underline"
         >
-          회원가입
+          {t("login.signup_link")}
         </Link>
       </p>
     </form>

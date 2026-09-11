@@ -9,7 +9,12 @@ import {
   isCountryService,
   type RateServiceType,
 } from "@/lib/validation/rate-cards";
+import { serverT } from "@/lib/i18n/server";
+import type { Translator } from "@/lib/i18n/t";
+import i18nActions from "@/lib/i18n/messages/actions";
 import type { ActionResult } from "./auth";
+
+type ActionT = Translator<typeof i18nActions>;
 
 /**
  * 단가 작업 대상 댄서 결정 (careers.ts와 동일 패턴).
@@ -19,6 +24,7 @@ async function resolveTargetDancer(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
   formData: FormData,
+  t: ActionT,
 ): Promise<
   | { ok: true; dancer: { id: string; profile_id: string | null } }
   | { ok: false; error: string }
@@ -31,7 +37,7 @@ async function resolveTargetDancer(
       .select("id, profile_id")
       .eq("id", explicit)
       .maybeSingle();
-    if (!dancer) return { ok: false, error: "댄서 프로필을 찾을 수 없습니다." };
+    if (!dancer) return { ok: false, error: t("dancer.not_found") };
 
     let allowed = dancer.profile_id === userId;
     if (!allowed) {
@@ -54,7 +60,7 @@ async function resolveTargetDancer(
       );
     }
     if (!allowed)
-      return { ok: false, error: "이 댄서의 단가를 수정할 권한이 없습니다." };
+      return { ok: false, error: t("rate_card.forbidden") };
     return { ok: true, dancer };
   }
 
@@ -65,7 +71,7 @@ async function resolveTargetDancer(
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
-  if (!dancer) return { ok: false, error: "먼저 댄서 프로필을 만들어 주세요." };
+  if (!dancer) return { ok: false, error: t("dancer.create_first") };
   return { ok: true, dancer };
 }
 
@@ -97,10 +103,10 @@ type ParsedRate = {
   is_public: boolean;
 };
 
-function parseRateForm(formData: FormData): ParsedRate | { error: string } {
+function parseRateForm(formData: FormData, t: ActionT): ParsedRate | { error: string } {
   const service_type = (formData.get("service_type") ?? "").toString() as RateServiceType;
   if (!RATE_SERVICE_TYPES.includes(service_type))
-    return { error: "서비스 종류를 선택해 주세요." };
+    return { error: t("rate_card.service_required") };
 
   // 국가: 해외워크샵만 사용. 그 외는 강제 null. 빈 값 = 기본(폴백) 단가.
   let country: string | null = null;
@@ -108,7 +114,7 @@ function parseRateForm(formData: FormData): ParsedRate | { error: string } {
     const raw = (formData.get("country") ?? "").toString().trim().toUpperCase();
     if (raw) {
       if (!/^[A-Z]{2}$/.test(raw))
-        return { error: "국가코드는 2자리 영문입니다. (예: JP, US)" };
+        return { error: t("rate_card.country_code_invalid") };
       country = raw;
     }
   }
@@ -122,9 +128,9 @@ function parseRateForm(formData: FormData): ParsedRate | { error: string } {
   const price_min = intOrNull(formData, "price_min");
   const price_max = intOrNull(formData, "price_max");
   if (price == null && price_min == null && price_max == null)
-    return { error: "단가 또는 단가 범위를 하나 이상 입력해 주세요." };
+    return { error: t("rate_card.price_required") };
   if (price_min != null && price_max != null && price_min > price_max)
-    return { error: "단가 범위 하한이 상한보다 큽니다." };
+    return { error: t("rate_card.price_range_invalid") };
 
   const unit = (formData.get("unit") ?? "").toString().trim().slice(0, 40) || null;
   const note = (formData.get("note") ?? "").toString().trim().slice(0, 500) || null;
@@ -153,11 +159,12 @@ export async function upsertRateCardAction(
 ): Promise<ActionResult> {
   const user = await requireUser();
   const supabase = await createClient();
+  const t = await serverT(i18nActions);
 
-  const target = await resolveTargetDancer(supabase, user.id, formData);
+  const target = await resolveTargetDancer(supabase, user.id, formData, t);
   if (!target.ok) return target;
 
-  const parsed = parseRateForm(formData);
+  const parsed = parseRateForm(formData, t);
   if ("error" in parsed) return { ok: false, error: parsed.error };
 
   const { error } = await supabase.from("dancer_rate_cards").upsert(
@@ -188,12 +195,13 @@ export async function deleteRateCardAction(
 ): Promise<ActionResult> {
   const user = await requireUser();
   const supabase = await createClient();
+  const t = await serverT(i18nActions);
 
-  const target = await resolveTargetDancer(supabase, user.id, formData);
+  const target = await resolveTargetDancer(supabase, user.id, formData, t);
   if (!target.ok) return target;
 
   const id = (formData.get("id") ?? "").toString().trim();
-  if (!id) return { ok: false, error: "잘못된 요청입니다." };
+  if (!id) return { ok: false, error: t("common.invalid_request") };
 
   const { error } = await supabase
     .from("dancer_rate_cards")

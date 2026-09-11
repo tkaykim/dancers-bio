@@ -1,5 +1,7 @@
 import Image from "next/image";
 import { isProjectImage } from "@/lib/storage/project-file";
+import { serverT } from "@/lib/i18n/server";
+import project from "@/lib/i18n/messages/project";
 
 export type ProjectMediaAttachment = {
   id: string;
@@ -8,16 +10,17 @@ export type ProjectMediaAttachment = {
   url: string;
 };
 
-export function ProjectMediaGallery({
+export async function ProjectMediaGallery({
   attachments,
 }: {
   attachments: ProjectMediaAttachment[];
 }) {
   if (attachments.length === 0) return null;
+  const t = await serverT(project);
 
   return (
     <section
-      aria-label="공고 사진과 영상"
+      aria-label={t("media.section")}
       data-testid="project-media-gallery"
     >
       <ul className="flex flex-col gap-4">
@@ -28,7 +31,7 @@ export function ProjectMediaGallery({
                 href={attachment.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={`${attachment.file_name} 원본 이미지 열기`}
+                aria-label={t("media.open_original", { name: attachment.file_name })}
                 className="block bg-secondary/30"
               >
                 <Image
@@ -53,7 +56,7 @@ export function ProjectMediaGallery({
                   src={attachment.url}
                   type={attachment.mime_type ?? undefined}
                 />
-                이 브라우저에서는 영상을 재생할 수 없습니다.
+                {t("media.video_unsupported")}
               </video>
             )}
           </li>

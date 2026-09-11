@@ -3,6 +3,7 @@ import Link from "next/link";
 import { XCircle } from "lucide-react";
 
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
+import { getRequestedLocale } from "@/lib/i18n/server";
 import { ET, type EventLang } from "@/lib/workshops/event-shared";
 
 export const dynamic = "force-dynamic";
@@ -15,10 +16,12 @@ export const metadata: Metadata = {
 export default async function EventPayFailPage({
   searchParams,
 }: {
+  // `lang` 은 미들웨어가 요청 언어로 바꿔 주므로 여기서 직접 읽지 않는다.
   searchParams: Promise<{ message?: string; code?: string; slug?: string; lang?: string }>;
 }) {
-  const sp = await searchParams;
-  const lang: EventLang = sp.lang === "ko" ? "ko" : "en";
+  const [sp, requested] = await Promise.all([searchParams, getRequestedLocale()]);
+  // 이 화면은 ko·en 두 언어뿐이라 ja 요청은 en 으로 떨어진다.
+  const lang: EventLang = requested === "ko" ? "ko" : "en";
   const t = ET[lang];
   const backHref = sp.slug?.trim() ? `/workshops/e/${sp.slug.trim()}?lang=${lang}` : "/workshops";
 

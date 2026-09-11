@@ -5,31 +5,32 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ProjectListView } from "@/components/project/ProjectListView";
 import { isExpired } from "@/lib/utils/deadline";
+import { getLocale, serverT } from "@/lib/i18n/server";
+import { translator, tCount } from "@/lib/i18n/t";
+import { taxonomyLabel, type TaxonomyRow } from "@/lib/i18n/labels";
+import meta from "@/lib/i18n/messages/meta";
+import feed from "@/lib/i18n/messages/feed";
 
-export const metadata: Metadata = {
-  title: { absolute: "댄서 섭외 공고·캐스팅 콜 | deetz(디츠)" },
-  description:
-    "디츠(deetz)에 등록된 댄서 섭외·캐스팅 공고를 한 곳에서. MV, 광고, 무대, 방송, 행사 백댄서 섭외와 안무 제작, 안무가 섭외, 댄스팀 섭외 공고를 확인하고 포트폴리오로 지원하세요.",
-  keywords: [
-    "댄서 섭외 공고",
-    "댄서 캐스팅 공고",
-    "백댄서 섭외",
-    "안무가 섭외",
-    "댄스팀 섭외",
-    "댄서 구인",
-    "디츠",
-    "deetz",
-  ],
-  alternates: { canonical: "https://deetz.kr/feed" },
-  openGraph: {
-    title: "댄서 섭외 공고·캐스팅 콜 | deetz(디츠)",
-    description:
-      "MV, 광고, 무대, 방송, 행사 댄서 섭외·캐스팅 공고를 확인하고 포트폴리오로 지원하세요.",
-    url: "https://deetz.kr/feed",
-    siteName: "deetz",
-    type: "website",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const m = translator(meta, locale);
+  const f = translator(feed, locale);
+  const title = m("feed.title");
+  const description = m("feed.description");
+  return {
+    title: { absolute: title },
+    description,
+    keywords: f("meta.keywords").split(","),
+    alternates: { canonical: "https://deetz.kr/feed" },
+    openGraph: {
+      title,
+      description,
+      url: "https://deetz.kr/feed",
+      siteName: "deetz",
+      type: "website",
+    },
+  };
+}
 
 type Row = {
   id: string;
@@ -55,22 +56,24 @@ type Row = {
   created_at: string;
   owner_id: string;
   region_text: string | null;
-  genre: { label_ko: string } | null;
-  region: { label_ko: string } | null;
+  genre: TaxonomyRow | null;
+  region: TaxonomyRow | null;
 };
 
 export default async function FeedPage() {
   // 비로그인도 피드 열람 가능. 로그인 유도는 공고 상세에서.
   const profile = await getProfile();
   const supabase = await createClient();
+  const locale = await getLocale();
+  const t = await serverT(feed);
 
   const { data: rawProjects } = await supabase
     .from("projects")
     .select(
       `id, short_code, title, description, visibility, status, category, pay_amount, pay_type,
        application_deadline, is_standing_pool, created_at, owner_id, region_text,
-       genre:genres ( label_ko ),
-       region:regions ( label_ko )`,
+       genre:genres ( label_ko, label_en, label_ja ),
+       region:regions ( label_ko, label_en, label_ja )`,
     )
     // open 만 가져오면 '마감된 공고 포함' 토글을 켜도 닫힌 공고가 안 나온다.
     // deetz 에서 "마감"은 두 가지다 — ① 마감일 경과 ② 운영자가 공고를 닫음(status=closed).
@@ -121,7 +124,7 @@ export default async function FeedPage() {
       short_code: revealDetails ? p.short_code : null,
       visibility: p.visibility,
       status: p.status,
-      title: revealDetails ? p.title : "비공개 공고",
+      title: revealDetails ? p.title : t("row.private_title"),
       category: revealDetails ? p.category : null,
       pay_amount: revealDetails ? p.pay_amount : null,
       pay_type: revealDetails ? p.pay_type : null,
@@ -129,9 +132,9 @@ export default async function FeedPage() {
       is_standing_pool: !!p.is_standing_pool,
       created_at: p.created_at,
       owner_name: revealDetails ? (ownerMap.get(p.owner_id) ?? null) : null,
-      genre_label: revealDetails ? (p.genre?.label_ko ?? null) : null,
+      genre_label: revealDetails ? (taxonomyLabel(p.genre, locale) || null) : null,
       region_label: revealDetails
-        ? (p.region_text ?? p.region?.label_ko ?? null)
+        ? (p.region_text ?? (taxonomyLabel(p.region, locale) || null))
         : null,
       session_count: sessionMap.get(p.id) ?? 0,
     };
@@ -153,25 +156,25 @@ export default async function FeedPage() {
             Casting
           </h1>
           <p className="mt-2 text-xs uppercase tracking-[0.18em] text-ink-3">
-            {activeCount} 모집 중
+            {tCount(t, "header.count", locale, activeCount)}
           </p>
         </div>
         {canCreate ? (
           <Link href="/projects/new">
             <Button size="sm" className="rounded-full">
-              + 개설
+              {t("header.create")}
             </Button>
           </Link>
         ) : !profile ? (
           <div className="flex gap-1.5">
             <Link href="/login?next=/feed">
               <Button size="sm" variant="outline" className="rounded-full">
-                로그인
+                {t("header.login")}
               </Button>
             </Link>
             <Link href="/signup?next=/feed">
               <Button size="sm" className="rounded-full">
-                가입
+                {t("header.signup")}
               </Button>
             </Link>
           </div>
@@ -180,9 +183,7 @@ export default async function FeedPage() {
 
       {enriched.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-hairline-2 p-8 text-center">
-          <p className="text-sm text-ink-3">
-            아직 공개된 프로젝트가 없습니다.
-          </p>
+          <p className="text-sm text-ink-3">{t("header.empty")}</p>
         </div>
       ) : (
         <ProjectListView projects={enriched} isAdmin={isAdmin} />

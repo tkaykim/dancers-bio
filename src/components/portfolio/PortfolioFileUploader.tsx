@@ -14,6 +14,8 @@ import {
 } from "@/lib/storage/dancer-portfolio-file";
 import { uploadDancerPortfolioFileFromBrowser } from "@/lib/storage/upload-dancer-portfolio-file";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 type CurrentFile = {
   url: string;
@@ -37,6 +39,7 @@ export function PortfolioFileUploader({
   dancerId: string;
   initialFile: CurrentFile;
 }) {
+  const t = useT(portfolio);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [current, setCurrent] = useState<CurrentFile>(initialFile);
@@ -89,7 +92,7 @@ export function PortfolioFileUploader({
 
   function onRemove() {
     if (!current) return;
-    if (!confirm("첨부된 포트폴리오 파일을 삭제하시겠습니까?")) return;
+    if (!confirm(t("portfolio_file.confirm_delete"))) return;
     setError(null);
     startRemove(async () => {
       const fd = new FormData();
@@ -111,16 +114,21 @@ export function PortfolioFileUploader({
     <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <p className="text-sm font-semibold leading-snug">포트폴리오 파일</p>
+          <p className="text-sm font-semibold leading-snug">
+            {t("portfolio_file.title")}
+          </p>
           <p className="text-xs text-ink-3">
-            PDF · JPG · PNG · MP4 · 최대 {formatBytes(MAX_PORTFOLIO_FILE_BYTES)}.
-            공개 프로필에서 누구나 다운받을 수 있어요. 업로드하면 즉시 저장됩니다.
+            {t("portfolio_file.hint", {
+              max: formatBytes(MAX_PORTFOLIO_FILE_BYTES),
+            })}
           </p>
         </div>
         {justSaved ? (
           <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-ok/10 px-2.5 py-1 text-[11px] font-medium text-ok">
             <CheckCircle2 size={11} aria-hidden />
-            {justSaved === "uploaded" ? "저장됨" : "삭제됨"}
+            {justSaved === "uploaded"
+              ? t("portfolio_file.badge_saved")
+              : t("portfolio_file.badge_removed")}
           </span>
         ) : null}
       </div>
@@ -137,7 +145,7 @@ export function PortfolioFileUploader({
               rel="noopener noreferrer"
               className="truncate text-sm font-medium text-foreground underline-offset-4 hover:underline"
             >
-              {current.name ?? "포트폴리오 파일"}
+              <span data-ugc>{current.name ?? t("portfolio_file.title")}</span>
             </a>
             <p className="text-[11px] text-ink-3">
               {current.sizeBytes ? formatBytes(current.sizeBytes) : ""}
@@ -150,7 +158,7 @@ export function PortfolioFileUploader({
             onClick={onRemove}
             disabled={removing || uploading}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-            aria-label="삭제"
+            aria-label={t("portfolio_file.aria_delete")}
           >
             <Trash2 size={16} />
           </button>
@@ -174,10 +182,10 @@ export function PortfolioFileUploader({
       >
         <Upload size={16} aria-hidden />
         {uploading
-          ? "업로드 중..."
+          ? t("portfolio_file.uploading")
           : current
-            ? "다른 파일로 교체"
-            : "파일 선택해서 업로드"}
+            ? t("portfolio_file.replace")
+            : t("portfolio_file.pick")}
       </Button>
 
       {error ? (

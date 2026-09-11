@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateNotificationPrefsAction } from "@/app/actions/notification-prefs";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/provider";
+import me from "@/lib/i18n/messages/me";
 
 export interface NotificationPrefsInitial {
   email_project_match: boolean;
@@ -48,6 +50,7 @@ function ToggleRow({ label, description, checked, disabled, onChange }: ToggleRo
 
 export function NotificationSettingsForm({ initial }: { initial: NotificationPrefsInitial }) {
   const router = useRouter();
+  const t = useT(me);
   const [state, setState] = useState(initial);
   const [ok, setOk] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,18 +81,18 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationPre
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-3">
-          이메일 알림
+          {t("notifications.group_email")}
         </p>
         <ToggleRow
-          label="핏 맞는 새 공고 추천 메일"
-          description="내 장르·조건에 맞는 새 공고가 올라오면 이메일로 알려드립니다."
+          label={t("notifications.email_project_match_label")}
+          description={t("notifications.email_project_match_desc")}
           checked={state.email_project_match && !emailBlocked}
           disabled={emailBlocked}
           onChange={(v) => setState((s) => ({ ...s, email_project_match: v }))}
         />
         <ToggleRow
-          label="deetz 소식·이벤트 메일"
-          description="서비스 소식, 워크샵, 이벤트 안내를 이메일로 받습니다."
+          label={t("notifications.email_marketing_label")}
+          description={t("notifications.email_marketing_desc")}
           checked={state.email_marketing && !emailBlocked}
           disabled={emailBlocked}
           onChange={(v) => setState((s) => ({ ...s, email_marketing: v }))}
@@ -98,11 +101,11 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationPre
 
       <div className="flex flex-col gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-3">
-          푸시 알림
+          {t("notifications.group_push")}
         </p>
         <ToggleRow
-          label="새 공고 웹푸시 알림"
-          description="핏 맞는 공고가 올라오면 브라우저·앱 푸시로 즉시 알려드립니다."
+          label={t("notifications.push_project_match_label")}
+          description={t("notifications.push_project_match_desc")}
           checked={state.push_project_match}
           onChange={(v) => setState((s) => ({ ...s, push_project_match: v }))}
         />
@@ -110,21 +113,21 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationPre
 
       <div className="flex flex-col gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-3">
-          수신거부
+          {t("notifications.group_unsubscribe")}
         </p>
         <ToggleRow
-          label="모든 마케팅·추천 이메일 수신거부"
-          description="켜면 위 이메일 항목과 무관하게 deetz의 모든 추천·소식 메일이 발송되지 않습니다. (지원 결과 등 필수 안내는 계속 발송됩니다.)"
+          label={t("notifications.unsubscribe_all_label")}
+          description={t("notifications.unsubscribe_all_desc")}
           checked={state.email_unsubscribed_all}
           onChange={(v) => setState((s) => ({ ...s, email_unsubscribed_all: v }))}
         />
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
-      {ok && <p className="text-sm text-emerald-600">저장되었습니다.</p>}
+      {ok && <p className="text-sm text-emerald-600">{t("notifications.saved")}</p>}
 
       <Button onClick={submit} disabled={pending} className="w-full">
-        {pending ? "저장 중…" : "저장"}
+        {pending ? t("notifications.saving") : t("notifications.save")}
       </Button>
     </div>
   );

@@ -16,6 +16,9 @@ import {
   normalizeNationalityOptions,
   type NationalityOption,
 } from "@/lib/nationality";
+import { getLocale, serverT } from "@/lib/i18n/server";
+import { localizeZodError } from "@/lib/i18n/zod";
+import i18nActions from "@/lib/i18n/messages/actions";
 import type { ActionResult } from "./auth";
 import { resolveAvailabilitySelection } from "@/lib/application-availability";
 import {
@@ -34,9 +37,10 @@ export async function applyToProjectAction(
   formData: FormData,
 ): Promise<ActionResult<ApplyOutcome>> {
   const user = await requireUser();
+  const t = await serverT(i18nActions);
   const project_id = formData.get("project_id");
   if (typeof project_id !== "string") {
-    return { ok: false, error: "잘못된 요청입니다." };
+    return { ok: false, error: t("common.invalid_request") };
   }
   const cover_message = (formData.get("cover_message") ?? "").toString().trim();
   const requestedChannelId = (formData.get("recruitment_channel_id") ?? "")
@@ -51,18 +55,18 @@ export async function applyToProjectAction(
     .single();
 
   if (!project || project.deleted_at) {
-    return { ok: false, error: "프로젝트를 찾을 수 없습니다." };
+    return { ok: false, error: t("project.not_found") };
   }
   if (project.owner_id === user.id) {
-    return { ok: false, error: "본인이 개설한 프로젝트에는 지원할 수 없습니다." };
+    return { ok: false, error: t("apply.own_project") };
   }
   if (project.status !== "open") {
-    return { ok: false, error: "현재 모집이 닫혀 있습니다." };
+    return { ok: false, error: t("apply.closed") };
   }
   // 마감일이 지난 공고는 status가 아직 open이어도 지원 불가 (방어적 — UI에서도 막지만 서버에서 재확인)
   // 상시 섭외풀은 마감이 없어 만료되지 않음.
   if (isExpired(project.application_deadline, project.is_standing_pool)) {
-    return { ok: false, error: "지원 마감일이 지났습니다." };
+    return { ok: false, error: t("apply.deadline_passed") };
   }
 
   const attributionCookieStore = await cookies();
@@ -88,15 +92,16 @@ export async function applyToProjectAction(
     const { data: channel, error: channelError } =
       await channelQuery.maybeSingle();
     if (channelError) {
+      // eslint-disable-next-line no-restricted-syntax -- i18n: log. 서버 로그 문구(화면에 나가지 않음).
       console.error("[apply] 저장된 모집채널 확인 실패", {
         projectId: project_id,
         code: channelError.code,
       });
-      return { ok: false, error: "모집채널 확인에 실패했습니다." };
+      return { ok: false, error: t("apply.channel_check_failed") };
     }
     const matchesProject = recruitmentChannelMatchesProject(channel, project_id);
     if (attributionSource.kind === "id" && !matchesProject) {
-      return { ok: false, error: "유효하지 않은 모집채널입니다." };
+      return { ok: false, error: t("apply.channel_invalid") };
     }
     if (matchesProject) recruitment_channel_id = channel?.id as string;
   }
@@ -129,7 +134,7 @@ export async function applyToProjectAction(
   if (availabilityScheduleError) {
     return {
       ok: false,
-      error: "일정 정보를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      error: t("apply.schedule_load_failed"),
     };
   }
   const availabilitySelection = resolveAvailabilitySelection(
@@ -139,7 +144,7 @@ export async function applyToProjectAction(
       .map((value) => value.toString()),
   );
   if (!availabilitySelection.ok) {
-    return availabilitySelection;
+    return { ok: false, error: t(availabilitySelection.error) };
   }
 
   // 공개 동의는 지원서 단위로만 기록한다. 국적 목록은 클라이언트 값을 믿지 않고
@@ -156,7 +161,7 @@ export async function applyToProjectAction(
       .eq("dancer_id", dancerId)
       .maybeSingle();
     if (privateInfoError) {
-      return { ok: false, error: "국적 정보를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요." };
+      return { ok: false, error: t("apply.nationality_load_failed") };
     }
     const stored = normalizeNationalityOptions(privateInfo?.nationalities);
     const fallbackCode = String(privateInfo?.nationality_code ?? "")
@@ -168,7 +173,7 @@ export async function applyToProjectAction(
         ? stored
         : [{ code: fallbackCode, label: fallbackLabel }];
     if (nationalities.length === 0) {
-      return { ok: false, error: "프로필에 국적을 먼저 등록해 주세요." };
+      return { ok: false, error: t("apply.nationality_required") };
     }
     nationality_disclosure_consent = true;
     disclosed_nationalities = nationalities;
@@ -189,10 +194,7 @@ export async function applyToProjectAction(
     proposed_fee_currency = FEE_CURRENCIES.includes(currencyRaw) ? currencyRaw : "KRW";
     const unitRaw = (formData.get("fee_unit") ?? "").toString().trim();
     if (amount === null || amount <= 0) {
-      return {
-        ok: false,
-        error: "러프한 금액이라도 제안 단가를 입력해 주세요.",
-      };
+      return { ok: false, error: t("apply.fee_required") };
     }
     proposed_fee = amount;
     proposed_fee_unit = unitRaw ? unitRaw.slice(0, 10) : null;
@@ -217,12 +219,7 @@ export async function applyToProjectAction(
       personal_profile_url: formData.get("personal_profile_url"),
     });
     if (!parsed.success) {
-      return {
-        ok: false,
-        error:
-          parsed.error.issues[0]?.message ??
-          "상세 지원 정보를 모두 입력해 주세요.",
-      };
+      return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
     }
     applicant_name = parsed.data.applicant_name;
     birth_year = parsed.data.birth_year;
@@ -264,12 +261,12 @@ export async function applyToProjectAction(
 
   if (error) {
     if (error.code === "23505") {
-      return { ok: false, error: "이미 지원하셨습니다." };
+      return { ok: false, error: t("apply.duplicate") };
     }
     if (error.code === "42501") {
-      return { ok: false, error: "지원 권한이 없습니다." };
+      return { ok: false, error: t("apply.forbidden") };
     }
-    return { ok: false, error: humanizeDbError(error.message) };
+    return { ok: false, error: humanizeDbError(error.message, await getLocale()) };
   }
 
   // 프로젝트별 귀속 쿠키는 지원이 실제 저장된 뒤에만 소비한다.
@@ -290,16 +287,13 @@ export async function applyToProjectAction(
         { onConflict: "schedule_id,dancer_id" },
       );
     if (scheduleResponseError) {
+      // eslint-disable-next-line no-restricted-syntax -- i18n: log. 서버 로그 문구(화면에 나가지 않음).
       console.error("[apply] 일정 가능여부 저장 실패", {
         projectId: project_id,
         dancerId,
         code: scheduleResponseError.code,
       });
-      return {
-        ok: false,
-        error:
-          "지원서는 접수됐지만 일정 응답 저장에 실패했습니다. 운영팀에 문의해 주세요.",
-      };
+      return { ok: false, error: t("apply.schedule_save_failed") };
     }
   }
 
@@ -313,9 +307,10 @@ export async function withdrawApplicationAction(
   formData: FormData,
 ): Promise<ActionResult> {
   const user = await requireUser();
+  const t = await serverT(i18nActions);
   const application_id = formData.get("application_id");
   if (typeof application_id !== "string") {
-    return { ok: false, error: "잘못된 요청입니다." };
+    return { ok: false, error: t("common.invalid_request") };
   }
 
   const supabase = await createClient();
@@ -324,12 +319,12 @@ export async function withdrawApplicationAction(
     .select("id, applicant_id, status")
     .eq("id", application_id)
     .maybeSingle();
-  if (!app) return { ok: false, error: "지원 정보를 찾을 수 없습니다." };
+  if (!app) return { ok: false, error: t("application.not_found") };
   if (app.status !== "pending") {
-    return { ok: false, error: "이미 처리된 지원은 취소할 수 없습니다." };
+    return { ok: false, error: t("application.withdraw_already_handled") };
   }
   if (app.applicant_id !== user.id) {
-    return { ok: false, error: "본인 지원만 취소할 수 있습니다." };
+    return { ok: false, error: t("application.withdraw_not_owner") };
   }
 
   const { error } = await supabase
@@ -343,6 +338,9 @@ export async function withdrawApplicationAction(
   return { ok: true };
 }
 
+/* eslint-disable no-restricted-syntax -- i18n: admin-only. 아래 두 액션(선발 단계 이동·미발송 안내 일괄 발송)은
+   캐스팅 운영 콘솔(components/project/ApplicantsConsole)에서만 호출한다. 운영 화면은 P1 범위 밖이라 문구를 ko 로 둔다.
+   스레드에 저장되는 타임라인 문구와 SMTP 로그도 같은 이유로 그대로 둔다. */
 // 선발 단계 이동 — 운영자 전용. 단계 관련 상태 변경은 전부 이 액션 하나로 모은다.
 //
 //   round = 0            → 대기로 되돌림
@@ -416,7 +414,7 @@ export async function setApplicationRoundAction(
     .from("applications")
     .update(update)
     .eq("id", application_id);
-  if (error) return { ok: false, error: humanizeDbError(error.message) };
+  if (error) return { ok: false, error: humanizeDbError(error.message, await getLocale()) };
 
   // 메시지 스레드가 이미 있으면 운영 타임라인으로 남긴다(방 신규 생성은 안 함). 비치명적.
   try {
@@ -603,6 +601,8 @@ export async function sendPendingNoticesAction(
   };
 }
 
+/* eslint-enable no-restricted-syntax */
+
 // 중간 단계 합격(최종 확정 전) 상태에서 본인이 참여를 포기한다.
 // 최종 선발(confirmed_at 있음) 이후에는 불가 — 서버·DB 트리거 양쪽에서 막는다.
 // 상태는 'declined'(본인 거절)로 두어 운영자 거절('rejected')과 구분한다.
@@ -610,9 +610,10 @@ export async function declineAcceptedApplicationAction(
   formData: FormData,
 ): Promise<ActionResult> {
   const user = await requireUser();
+  const t = await serverT(i18nActions);
   const application_id = formData.get("application_id");
   if (typeof application_id !== "string") {
-    return { ok: false, error: "잘못된 요청입니다." };
+    return { ok: false, error: t("common.invalid_request") };
   }
   const reason = (formData.get("reason") ?? "").toString().trim().slice(0, 500);
 
@@ -622,26 +623,19 @@ export async function declineAcceptedApplicationAction(
     .select("id, applicant_id, status, confirmed_at, project_id, dancer_id, passed_round")
     .eq("id", application_id)
     .maybeSingle();
-  if (!app) return { ok: false, error: "지원 정보를 찾을 수 없습니다." };
+  if (!app) return { ok: false, error: t("application.not_found") };
   if (app.applicant_id !== user.id) {
-    return { ok: false, error: "본인 지원만 포기할 수 있습니다." };
+    return { ok: false, error: t("application.decline_not_owner") };
   }
   if (app.status !== "accepted") {
-    return { ok: false, error: "1차 합격 상태에서만 포기할 수 있습니다." };
+    return { ok: false, error: t("application.decline_state_invalid") };
   }
   if (app.confirmed_at) {
-    return {
-      ok: false,
-      error:
-        "최종 합격한 지원은 직접 포기할 수 없습니다. contact@deetz.kr 로 연락해 주세요.",
-    };
+    return { ok: false, error: t("application.decline_final_blocked") };
   }
   // 2차 이상까지 올라온 뒤의 이탈은 후속 충원 판단이 필요하므로 사유를 받는다.
   if (Number(app.passed_round ?? 0) >= 2 && !reason) {
-    return {
-      ok: false,
-      error: "이 단계에서는 포기 사유를 남겨주셔야 합니다.",
-    };
+    return { ok: false, error: t("application.decline_reason_required") };
   }
 
   const { error } = await supabase
@@ -650,7 +644,7 @@ export async function declineAcceptedApplicationAction(
     .eq("id", application_id)
     .eq("status", "accepted")
     .is("confirmed_at", null);
-  if (error) return { ok: false, error: humanizeDbError(error.message) };
+  if (error) return { ok: false, error: humanizeDbError(error.message, await getLocale()) };
 
   // 메시지 스레드가 이미 있으면 운영 타임라인으로 남긴다. 비치명적.
   try {
@@ -658,9 +652,11 @@ export async function declineAcceptedApplicationAction(
     await appendStageSystemMessage({
       projectId: (app.project_id as string | null) ?? "",
       dancerId: (app.dancer_id as string | null) ?? null,
+      // eslint-disable-next-line no-restricted-syntax -- i18n: mail. 스레드에 저장되는 운영 타임라인 문구(작성 시점 언어로 보존).
       body: "지원자가 참여를 포기했습니다.",
     });
   } catch (e) {
+    // eslint-disable-next-line no-restricted-syntax -- i18n: log. 서버 로그 문구(화면에 나가지 않음).
     console.error("[messaging] decline log 실패:", e);
   }
 
@@ -674,6 +670,7 @@ export async function declineAcceptedApplicationAction(
       reason: reason || null,
     });
   } catch (e) {
+    // eslint-disable-next-line no-restricted-syntax -- i18n: log. 서버 로그 문구(화면에 나가지 않음).
     console.error("[decline-notice] 발송 실패:", e);
   }
 
@@ -739,6 +736,9 @@ async function readQuota(
 // Lite: 최종 확정 인원이 recruitment_count에 도달하면 quota 신호를 반환해
 // 클라이언트가 "마감할까요?" 확인 후 closeProjectAction을 직접 호출.
 // 자동 마감 트리거는 마이그레이션 20260516_004에서 제거됨.
+/* eslint-disable no-restricted-syntax -- i18n: admin-only. 아래 두 액션(단건 합격·거절 처리, 일괄 처리)은
+   캐스팅 운영 콘솔(ApplicantsConsole·DecideButtons)에서만 호출한다. 운영 화면은 P1 범위 밖이라 문구를 ko 로 둔다.
+   스레드에 저장되는 타임라인 문구와 메일 로그도 같은 이유로 그대로 둔다. */
 export async function decideApplicationAction(
   formData: FormData,
 ): Promise<ActionResult<{ projectId?: string; quota?: QuotaSignal }>> {
@@ -815,7 +815,7 @@ export async function decideApplicationAction(
     .from("applications")
     .update(update)
     .eq("id", application_id);
-  if (error) return { ok: false, error: humanizeDbError(error.message) };
+  if (error) return { ok: false, error: humanizeDbError(error.message, await getLocale()) };
 
   // 메시지 스레드가 이미 있으면 운영 타임라인으로 남긴다(방 신규 생성은 안 함). 비치명적.
   if (decision !== "pending") {
@@ -944,7 +944,7 @@ export async function bulkDecideApplicationsAction(
     // 취소·만료된 지원은 건드리지 않는다.
     .in("status", ["pending", "accepted", "rejected", "declined"])
     .select("id, project_id, recruitment_channel_id");
-  if (error) return { ok: false, error: humanizeDbError(error.message) };
+  if (error) return { ok: false, error: humanizeDbError(error.message, await getLocale()) };
 
   const rows = (data ?? []) as {
     id: string;
@@ -973,3 +973,4 @@ export async function bulkDecideApplicationsAction(
   }
   return { ok: true, data: { updated: rows.length } };
 }
+/* eslint-enable no-restricted-syntax */

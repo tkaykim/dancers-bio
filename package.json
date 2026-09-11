@@ -19,7 +19,10 @@
     "test:visa-documents": "node --test src/lib/visa/document-intake-schema.test.ts src/lib/visa/document-intake-copy.test.ts src/lib/visa/document-products.test.ts src/lib/visa/document-attachments.test.ts",
     "db:types": "supabase gen types typescript --project-id wvfmqiajdvbsevlhlgtl --schema public > src/lib/supabase/types.ts",
     "seo:indexnow": "node scripts/submit-indexnow.mjs",
-    "test:campaigns": "tsx --test src/lib/campaign/*.test.ts scripts/campaign-submissions-db.test.mjs scripts/campaign-operations-db.test.mjs"
+    "test:campaigns": "tsx --test src/lib/campaign/*.test.ts scripts/campaign-submissions-db.test.mjs scripts/campaign-operations-db.test.mjs",
+    "test:i18n": "node --test src/lib/i18n/locale.test.ts src/lib/i18n/messages.test.ts",
+    "e2e:i18n": "playwright test e2e/i18n-sweep.spec.ts",
+    "i18n:inventory": "node scripts/i18n-inventory.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
@@ -59,6 +62,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",

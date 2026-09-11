@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { translator } from "@/lib/i18n/messages";
+import { translator } from "@/lib/i18n/messages/quick";
 import type { Locale } from "@/lib/i18n/locale";
 
 /**

@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 /**
  * 지원 마감일 D-day 계산 유틸 (Asia/Seoul 달력일 기준).
  *
@@ -71,17 +72,29 @@ export type DeadlineLabels = {
   future?: (days: number) => string;
 };
 
+/** 언어별 기본 라벨. 호출처의 labels override 가 이보다 우선한다. */
+const DEFAULT_DEADLINE_LABELS: Record<Locale, Required<Pick<DeadlineLabels, "none" | "past" | "today">>> = {
+  // eslint-disable-next-line no-restricted-syntax -- 언어별 기본 라벨(ko 분기)
+  ko: { none: "—", past: "마감", today: "오늘" },
+  en: { none: "—", past: "Closed", today: "Today" },
+  ja: { none: "—", past: "締切", today: "今日" },
+};
+
 /**
  * D-day 배지 라벨 문자열.
  * 화면별로 표기가 조금씩 달라서(예: "오늘"/"오늘 마감"/"TODAY") 라벨을 주입받는다.
+ * locale 은 마지막 선택 인자(기본 ko — 기존 호출처 무변경). override 가 번역보다 우선하므로
+ * 다국어 화면의 호출처는 override 도 사전 키로 넘겨야 한다(docs/design-i18n-ui.md §3.7).
  */
 export function deadlineLabel(
   iso: string | null | undefined,
   labels: DeadlineLabels = {},
+  locale: Locale = DEFAULT_LOCALE,
 ): string {
+  const base = DEFAULT_DEADLINE_LABELS[locale];
   const d = daysUntilDeadline(iso);
-  if (d === null) return labels.none ?? "—";
-  if (d < 0) return labels.past ?? "마감";
-  if (d === 0) return labels.today ?? "오늘";
+  if (d === null) return labels.none ?? base.none;
+  if (d < 0) return labels.past ?? base.past;
+  if (d === 0) return labels.today ?? base.today;
   return (labels.future ?? ((n) => `D-${n}`))(d);
 }

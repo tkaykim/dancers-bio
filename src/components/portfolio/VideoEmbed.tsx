@@ -1,4 +1,8 @@
+"use client";
+
 import { parseVideoUrl } from "@/lib/utils/video";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 type Props = {
   url: string | null | undefined;
@@ -30,11 +34,12 @@ type ThumbProps = {
 };
 
 export function VideoThumbnail({ url, alt, className }: ThumbProps) {
+  const t = useT(portfolio);
   const video = parseVideoUrl(url ?? null);
   if (!video?.thumbnail_url) {
     return (
       <div className={"flex aspect-video w-full items-center justify-center rounded-md bg-muted text-xs text-muted-foreground " + (className ?? "")}>
-        {video?.provider === "vimeo" ? "Vimeo" : "영상"}
+        {video?.provider === "vimeo" ? "Vimeo" : t("video.fallback_label")}
       </div>
     );
   }

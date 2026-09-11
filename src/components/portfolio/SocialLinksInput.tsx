@@ -1,6 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 export type SocialHandles = {
   instagram?: string;
@@ -75,6 +77,7 @@ const FIELDS: Array<{
 const DISALLOWED_HANDLE_CHARS = /[^A-Za-z0-9._-]/;
 
 export function SocialLinksInput({ value, onChange }: Props) {
+  const t = useT(portfolio);
   return (
     <div className="flex flex-col gap-4">
       {FIELDS.map(({ key, label, Icon, iconClass, focusClass, hint }) => {
@@ -114,7 +117,7 @@ export function SocialLinksInput({ value, onChange }: Props) {
             </div>
             {invalid ? (
               <p className="text-xs text-destructive">
-                한글·공백·특수문자는 넣을 수 없어요. 영문 아이디만 입력해 주세요. (예: dancer_kim)
+                {t("social.invalid_handle")}
               </p>
             ) : (
               <p className="text-xs text-ink-3">{hint}</p>

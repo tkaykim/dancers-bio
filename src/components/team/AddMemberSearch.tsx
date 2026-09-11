@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/browser";
 import { addTeamMemberAction } from "@/app/actions/teams";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 type Hit = {
   id: string;
@@ -21,6 +23,7 @@ type Props = {
 };
 
 export function AddMemberSearch({ teamId }: Props) {
+  const t = useT(portfolio);
   const router = useRouter();
   const [term, setTerm] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
@@ -30,8 +33,8 @@ export function AddMemberSearch({ teamId }: Props) {
   const [addingId, setAddingId] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = term.trim();
-    if (t.length < 1) {
+    const term_ = term.trim();
+    if (term_.length < 1) {
       setHits([]);
       setLoading(false);
       return;
@@ -41,7 +44,7 @@ export function AddMemberSearch({ teamId }: Props) {
       const supabase = createClient();
       const { data, error } = await supabase.rpc(
         "search_dancers_for_team_member",
-        { p_team_id: teamId, p_term: t, p_limit: 10 },
+        { p_team_id: teamId, p_term: term_, p_limit: 10 },
       );
       if (!error) setHits((data ?? []) as Hit[]);
       setLoading(false);
@@ -51,18 +54,18 @@ export function AddMemberSearch({ teamId }: Props) {
 
   return (
     <section className="flex flex-col gap-3 rounded-md border border-border bg-card p-4">
-      <h2 className="text-sm font-semibold">멤버 추가 — 댄서 검색</h2>
+      <h2 className="text-sm font-semibold">{t("add_member.title")}</h2>
       <Input
         value={term}
         onChange={(e) => setTerm(e.target.value)}
-        placeholder="활동명 또는 한글 이름으로 검색"
-        aria-label="댄서 검색"
+        placeholder={t("add_member.placeholder")}
+        aria-label={t("add_member.aria_search")}
       />
       {loading ? (
-        <p className="text-xs text-muted-foreground">검색 중...</p>
+        <p className="text-xs text-muted-foreground">{t("add_member.searching")}</p>
       ) : null}
       {!loading && term.trim().length > 0 && hits.length === 0 ? (
-        <p className="text-xs text-muted-foreground">검색 결과가 없습니다.</p>
+        <p className="text-xs text-muted-foreground">{t("add_member.no_results")}</p>
       ) : null}
       <ul className="flex flex-col gap-2">
         {hits.map((h) => {
@@ -84,9 +87,11 @@ export function AddMemberSearch({ teamId }: Props) {
                 <div className="h-9 w-9 rounded-full bg-secondary" aria-hidden />
               )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{h.stage_name}</p>
+                <p className="truncate text-sm font-medium" data-ugc>
+                  {h.stage_name}
+                </p>
                 {h.korean_name ? (
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="truncate text-xs text-muted-foreground" data-ugc>
                     {h.korean_name}
                   </p>
                 ) : null}
@@ -110,14 +115,17 @@ export function AddMemberSearch({ teamId }: Props) {
                       setMessage({ kind: "error", text: r.error });
                       return;
                     }
-                    setMessage({ kind: "ok", text: `${h.stage_name} 추가됨` });
+                    setMessage({
+                      kind: "ok",
+                      text: t("add_member.added", { name: h.stage_name }),
+                    });
                     setTerm("");
                     setHits([]);
                     router.refresh();
                   });
                 }}
               >
-                {isAdding ? "추가 중..." : "추가"}
+                {isAdding ? t("add_member.adding") : t("add_member.add")}
               </Button>
             </li>
           );

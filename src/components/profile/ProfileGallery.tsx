@@ -9,6 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useT } from "@/lib/i18n/provider";
+import profile from "@/lib/i18n/messages/profile";
 
 type GalleryItem = { url: string; type?: string; thumbnail?: string };
 
@@ -26,6 +28,7 @@ export function ProfileGallery({
   altBase: string;
   variant?: "reel" | "photo";
 }) {
+  const t = useT(profile);
   const [active, setActive] = useState<
     | { kind: "video"; url: string }
     | { kind: "image"; url: string }
@@ -73,7 +76,7 @@ export function ProfileGallery({
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-xs text-ink-3">
-                  영상
+                  {t("gallery.video")}
                 </div>
               )}
               <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent" />

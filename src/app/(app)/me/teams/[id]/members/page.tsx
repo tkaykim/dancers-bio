@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { TeamMembersManager, type TeamMemberRow } from "@/components/team/TeamMembersManager";
+import { serverT } from "@/lib/i18n/server";
+import me from "@/lib/i18n/messages/me";
 
 export default async function TeamMembersPage({
   params,
@@ -11,6 +13,7 @@ export default async function TeamMembersPage({
 }) {
   const { id } = await params;
   const user = await requireUser();
+  const t = await serverT(me);
   const supabase = await createClient();
 
   const { data: team } = await supabase
@@ -59,17 +62,19 @@ export default async function TeamMembersPage({
   return (
     <div className="mx-auto flex max-w-md flex-col lg:max-w-2xl gap-6 px-6 py-8">
       <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 멤버 관리</p>
-        <h1 className="text-2xl font-bold tracking-tight">{team.team_name}</h1>
+        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
+          ↳ {t("team_members.eyebrow")}
+        </p>
+        <h1 data-ugc className="text-2xl font-bold tracking-tight">{team.team_name}</h1>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <Link href={`/me/teams/${team.id}`} className="text-xs text-ink-3 hover:text-foreground">
-            ← 팀 편집으로
+            ← {t("team_members.back_edit")}
           </Link>
           <Link
             href={`/t/${team.slug ?? team.id}`}
             className="text-xs font-medium text-ink-2 hover:text-foreground"
           >
-            공개 페이지 보기 ↗
+            {t("team_members.view_public")} ↗
           </Link>
         </div>
       </header>

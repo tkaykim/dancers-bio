@@ -3,9 +3,14 @@ export type ApplicationScheduleResponse = {
   status: "available" | "unavailable";
 };
 
+/** 오류는 `actions` 사전 키다. 호출한 서버 액션이 요청 언어로 번역해 반환한다. */
+export type AvailabilitySelectionErrorKey =
+  | "apply.availability_required"
+  | "apply.availability_invalid";
+
 export type AvailabilitySelectionResult =
   | { ok: true; responses: ApplicationScheduleResponse[] }
-  | { ok: false; error: string };
+  | { ok: false; error: AvailabilitySelectionErrorKey };
 
 /**
  * 지원서에서 받은 일정 선택을 이 프로젝트의 전체 가능여부 응답으로 정규화한다.
@@ -25,17 +30,11 @@ export function resolveAvailabilitySelection(
   );
 
   if (selected.size === 0) {
-    return {
-      ok: false,
-      error: "참석 가능한 일정을 하나 이상 선택해 주세요.",
-    };
+    return { ok: false, error: "apply.availability_required" };
   }
 
   if ([...selected].some((id) => !allowed.has(id))) {
-    return {
-      ok: false,
-      error: "선택한 일정 정보를 다시 확인해 주세요.",
-    };
+    return { ok: false, error: "apply.availability_invalid" };
   }
 
   return {

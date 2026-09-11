@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { quickApplyAction, type QuickApplyResult } from "@/app/actions/quick-apply";
 import { EmailTypoHint } from "@/components/ui/EmailTypoHint";
-import { translator } from "@/lib/i18n/messages";
+import { translator } from "@/lib/i18n/messages/quick";
 import type { Locale } from "@/lib/i18n/locale";
 
 /**

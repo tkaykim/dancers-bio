@@ -8,6 +8,9 @@ import { getBrowserClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/lib/i18n/provider";
+import type { KeyOf } from "@/lib/i18n/t";
+import auth from "@/lib/i18n/messages/auth";
 
 interface ClaimFormProps {
   initialEmail: string;
@@ -20,16 +23,18 @@ interface ClaimFormProps {
 // 네이버/회사메일 링크 프리페치 문제 때문에 "링크 클릭" 대신 "메일 속 숫자 코드 입력".
 type Step = "email" | "code";
 
-function toKoreanErr(msg: string): string {
+/** GoTrue 영어 오류를 사전 키로 옮긴다. 화면 문구는 호출처가 t() 로 만든다. */
+function errorKey(msg: string): KeyOf<typeof auth> {
   const m = (msg || "").toLowerCase();
-  if (m.includes("expired") || m.includes("invalid"))
-    return "코드가 만료됐거나 올바르지 않습니다. 코드를 다시 확인하거나 재발송해 주세요.";
-  if (m.includes("rate") && m.includes("limit"))
-    return "요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.";
+  if (m.includes("expired") || m.includes("invalid")) return "error.code_invalid";
+  if (m.includes("rate") && m.includes("limit")) return "error.rate_limit";
   if (m.includes("at least") || m.includes("weak") || m.includes("short"))
-    return "비밀번호가 너무 짧거나 약합니다. 8자 이상으로 설정해 주세요.";
-  return "처리에 실패했습니다. 다시 시도해 주세요.";
+    return "error.password_weak";
+  return "error.generic";
 }
+
+/** 강조(<b>)를 끼울 자리. 언어마다 위치가 달라 문장을 이어 붙이지 않는다. */
+const EM_SLOT = "\u0000";
 
 export function ClaimForm({
   initialEmail,
@@ -46,11 +51,13 @@ export function ClaimForm({
   const [info, setInfo] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [pending, startTransition] = useTransition();
+  const t = useT(auth);
+  const [step2Before, step2After = ""] = t("claim.step2", { em: EM_SLOT }).split(EM_SLOT);
 
   function sendCode(resend = false) {
     const e = email.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) {
-      setError("올바른 이메일 주소를 입력해 주세요.");
+      setError(t("error.email_invalid"));
       return;
     }
     setError(null);
@@ -60,26 +67,22 @@ export function ClaimForm({
       await supabase.auth.resetPasswordForEmail(e);
       setEmail(e);
       setStep("code");
-      setInfo(
-        resend
-          ? "인증코드를 다시 보냈어요. 메일을 확인해 주세요."
-          : "메일로 숫자 인증코드를 보냈어요. (스팸함도 확인해 주세요)",
-      );
+      setInfo(resend ? t("claim.code_resent") : t("claim.code_sent"));
     });
   }
 
   function verifyAndSet() {
     const token = code.replace(/\s/g, "");
     if (!/^\d{6,8}$/.test(token)) {
-      setError("메일로 받은 숫자 인증코드를 입력해 주세요.");
+      setError(t("error.code_required"));
       return;
     }
     if (pw.length < 8) {
-      setError("비밀번호는 8자 이상이어야 합니다.");
+      setError(t("error.password_short"));
       return;
     }
     if (pw !== pw2) {
-      setError("두 비밀번호가 일치하지 않습니다.");
+      setError(t("error.password_mismatch"));
       return;
     }
     setError(null);
@@ -91,12 +94,12 @@ export function ClaimForm({
         type: "recovery",
       });
       if (vErr) {
-        setError(toKoreanErr(vErr.message));
+        setError(t(errorKey(vErr.message)));
         return;
       }
       const { error: pwErr } = await supabase.auth.updateUser({ password: pw });
       if (pwErr) {
-        setError(toKoreanErr(pwErr.message));
+        setError(t(errorKey(pwErr.message)));
         return;
       }
       await autoClaimDancersAction();
@@ -109,13 +112,13 @@ export function ClaimForm({
     return (
       <div className="flex flex-col gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5">
         <p className="text-sm font-semibold text-foreground">
-          비밀번호가 설정됐어요. 본인 프로필이 연결되었습니다.
+          {t("claim.done")}
         </p>
         <Link
           href="/me/portfolio"
           className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground"
         >
-          내 프로필로 이동 →
+          {t("claim.go_profile")}
         </Link>
       </div>
     );
@@ -127,7 +130,7 @@ export function ClaimForm({
         <>
           <div className="flex flex-col gap-2">
             <Label htmlFor="email" className="text-xs font-medium text-ink-2">
-              지원 시 사용한 이메일
+              {t("claim.email")}
             </Label>
             <Input
               id="email"
@@ -141,7 +144,7 @@ export function ClaimForm({
             />
             {dancerSlug ? (
               <p className="text-[11px] text-ink-3">
-                ※ 다른 이메일을 사용하시면 본인 프로필이 자동 연결되지 않을 수 있습니다.
+                {t("claim.email_warning")}
               </p>
             ) : null}
           </div>
@@ -157,14 +160,14 @@ export function ClaimForm({
             size="lg"
             className="w-full text-base font-semibold"
           >
-            {pending ? "보내는 중..." : "인증코드 받기"}
+            {pending ? t("claim.sending") : t("claim.send_code")}
           </Button>
           <button
             type="button"
             onClick={() => {
               const e = email.trim().toLowerCase();
               if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) {
-                setError("먼저 이메일을 입력해 주세요.");
+                setError(t("error.email_first"));
                 return;
               }
               setError(null);
@@ -173,14 +176,14 @@ export function ClaimForm({
             }}
             className="text-[11px] text-ink-3 underline underline-offset-2 hover:text-foreground"
           >
-            이미 인증코드를 받았어요 — 코드 입력하기
+            {t("claim.have_code")}
           </button>
           <div className="mt-1 border-t border-border pt-3 text-center">
             <Link
               href="/login"
               className="text-xs text-ink-3 underline-offset-2 hover:underline"
             >
-              이미 비밀번호를 설정하셨나요? 로그인
+              {t("claim.already_set_login")}
             </Link>
           </div>
         </>
@@ -192,15 +195,17 @@ export function ClaimForm({
             </p>
           ) : null}
           <div className="rounded-xl bg-background p-3.5 text-xs leading-relaxed text-ink-2">
-            <p className="mb-1.5 font-semibold text-foreground">다음 단계</p>
-            {`1. 받은편지함(또는 스팸함)에서 ${brandName} 메일 열기`}
+            <p className="mb-1.5 font-semibold text-foreground">{t("claim.steps_title")}</p>
+            {t("claim.step1", { brand: brandName })}
             <br />
-            2. 메일 속 <b>숫자 인증코드</b>를 아래에 입력
+            {step2Before}
+            <b>{t("claim.step2_em")}</b>
+            {step2After}
             <br />
-            3. 새 비밀번호 설정 → 자동으로 본인 프로필 연결
+            {t("claim.step3")}
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="code">인증코드</Label>
+            <Label htmlFor="code">{t("claim.code")}</Label>
             <Input
               id="code"
               inputMode="numeric"
@@ -208,11 +213,11 @@ export function ClaimForm({
               maxLength={8}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ""))}
-              placeholder="메일로 받은 숫자 코드"
+              placeholder={t("claim.code_placeholder")}
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="pw">새 비밀번호</Label>
+            <Label htmlFor="pw">{t("claim.new_password")}</Label>
             <Input
               id="pw"
               type="password"
@@ -223,7 +228,7 @@ export function ClaimForm({
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="pw2">새 비밀번호 확인</Label>
+            <Label htmlFor="pw2">{t("claim.new_password_confirm")}</Label>
             <Input
               id="pw2"
               type="password"
@@ -245,7 +250,7 @@ export function ClaimForm({
             size="lg"
             className="w-full text-base font-semibold"
           >
-            {pending ? "설정 중..." : "비밀번호 설정"}
+            {pending ? t("claim.submitting") : t("claim.submit")}
           </Button>
           <button
             type="button"
@@ -253,7 +258,7 @@ export function ClaimForm({
             onClick={() => sendCode(true)}
             className="text-[11px] text-ink-3 underline underline-offset-2 hover:text-foreground disabled:opacity-50"
           >
-            코드 재발송
+            {t("claim.resend")}
           </button>
         </>
       )}

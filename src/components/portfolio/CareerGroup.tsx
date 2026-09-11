@@ -10,6 +10,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 type Career = {
   id: string | number;
@@ -44,6 +46,7 @@ export function CareerGroup({
   variant?: "card" | "row" | "carousel";
   showCount?: boolean;
 }) {
+  const t = useT(portfolio);
   const [expanded, setExpanded] = useState(false);
   const [selected, setSelected] = useState<Career | null>(null);
 
@@ -88,11 +91,11 @@ export function CareerGroup({
                     )}
                   </span>
                   <span className="min-w-0">
-                    <span className="line-clamp-2 block text-sm font-semibold leading-snug sm:text-[15px]">
+                    <span className="line-clamp-2 block text-sm font-semibold leading-snug sm:text-[15px]" data-ugc>
                       {c.title}
                     </span>
-                    <span className="mt-1 block truncate text-xs text-ink-2">
-                      {c.details?.role || "대표 경력"}
+                    <span className="mt-1 block truncate text-xs text-ink-2" data-ugc>
+                      {c.details?.role || t("career_group.default_role")}
                     </span>
                   </span>
                   <span className="flex items-center gap-3 pl-2">
@@ -156,11 +159,11 @@ export function CareerGroup({
                     {year}
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="line-clamp-2 text-sm font-semibold leading-snug">
+                    <span className="line-clamp-2 text-sm font-semibold leading-snug" data-ugc>
                       {c.title}
                     </span>
                     {c.details?.role ? (
-                      <span className="truncate text-xs text-ink-2">
+                      <span className="truncate text-xs text-ink-2" data-ugc>
                         {c.details.role}
                       </span>
                     ) : null}
@@ -202,14 +205,18 @@ export function CareerGroup({
                   <div className="flex items-center gap-2 font-mono text-[11px] text-ink-2">
                     <span>{c.date}</span>
                     {c.is_representative ? (
-                      <span className="text-primary">★ 대표</span>
+                      <span className="text-primary">
+                        {t("career_group.badge_representative")}
+                      </span>
                     ) : null}
                   </div>
-                  <div className="text-sm font-medium leading-snug">
+                  <div className="text-sm font-medium leading-snug" data-ugc>
                     {c.title}
                   </div>
                   {c.details?.role ? (
-                    <div className="text-xs text-ink-2">{c.details.role}</div>
+                    <div className="text-xs text-ink-2" data-ugc>
+                      {c.details.role}
+                    </div>
                   ) : null}
                 </button>
               </li>
@@ -224,7 +231,9 @@ export function CareerGroup({
           onClick={() => setExpanded((v) => !v)}
           className="mt-3 inline-flex min-h-11 items-center gap-1 rounded-full border border-hairline-2 bg-card px-4 py-2 text-xs font-medium text-ink-2 transition-colors hover:bg-secondary"
         >
-          {expanded ? "접기" : `+${items.length - threshold}개 더 보기`}
+          {expanded
+            ? t("career_group.collapse")
+            : t("career_group.expand_more", { count: items.length - threshold })}
         </button>
       ) : null}
 
@@ -243,6 +252,7 @@ function CareerDetailDialog({
   career: Career | null;
   onClose: () => void;
 }) {
+  const t = useT(portfolio);
   const open = Boolean(career);
   const video = parseVideoUrl(career?.details?.link);
   const externalUrl = safeExternalUrl(career?.details?.link);
@@ -255,13 +265,15 @@ function CareerDetailDialog({
         {career ? (
           <>
             <DialogHeader>
-              <DialogTitle className="text-base font-semibold leading-snug">
+              <DialogTitle className="text-base font-semibold leading-snug" data-ugc>
                 {career.title}
               </DialogTitle>
               <DialogDescription className="flex items-center gap-2 font-mono text-[11px] text-ink-2">
                 <span>{career.date}</span>
                 {career.is_representative ? (
-                  <span className="text-primary">★ 대표</span>
+                  <span className="text-primary">
+                    {t("career_group.badge_representative")}
+                  </span>
                 ) : null}
               </DialogDescription>
             </DialogHeader>
@@ -275,7 +287,7 @@ function CareerDetailDialog({
             {relatedVideos.length > 0 ? (
               <div className="mt-3">
                 <p className="text-xs uppercase tracking-[0.14em] text-ink-2">
-                  관련 영상
+                  {t("career_group.related_videos")}
                 </p>
                 <div className="mt-2 flex flex-col gap-1.5">
                   {relatedVideos.map((item, index) => (
@@ -286,7 +298,10 @@ function CareerDetailDialog({
                       rel="noopener noreferrer"
                       className="inline-flex items-center justify-between rounded-md border border-hairline-2 bg-card px-3 py-2 text-xs font-medium text-ink-2 transition-colors hover:bg-secondary"
                     >
-                      <span>{item.title || `관련 영상 ${index + 1}`}</span>
+                      <span data-ugc>
+                        {item.title ||
+                          t("career_group.related_video_n", { n: index + 1 })}
+                      </span>
                       <span aria-hidden="true">↗</span>
                     </a>
                   ))}
@@ -298,17 +313,19 @@ function CareerDetailDialog({
               {career.details?.role ? (
                 <div>
                   <p className="text-xs uppercase tracking-[0.14em] text-ink-2">
-                    역할
+                    {t("career_group.role")}
                   </p>
-                  <p className="mt-1 text-ink-2">{career.details.role}</p>
+                  <p className="mt-1 text-ink-2" data-ugc>
+                    {career.details.role}
+                  </p>
                 </div>
               ) : null}
               {career.details?.description ? (
                 <div>
                   <p className="text-xs uppercase tracking-[0.14em] text-ink-2">
-                    설명
+                    {t("career_group.description")}
                   </p>
-                  <p className="mt-1 whitespace-pre-wrap text-ink-2">
+                  <p className="mt-1 whitespace-pre-wrap text-ink-2" data-ugc>
                     {career.details.description}
                   </p>
                 </div>
@@ -320,7 +337,7 @@ function CareerDetailDialog({
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 self-start rounded-full border border-hairline-2 bg-card px-3 py-1.5 text-xs font-medium text-ink-2 transition-colors hover:bg-secondary"
                 >
-                  원본 링크 열기 ↗
+                  {t("career_group.open_source")}
                 </a>
               ) : null}
             </div>

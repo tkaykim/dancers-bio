@@ -12,48 +12,51 @@ import {
 } from "lucide-react";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { BottomTabBar } from "@/components/layout/BottomTabBar";
+import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { MessagesNavItem } from "@/components/messaging/MessagesBadge";
-
-const navItems = [
-  {
-    href: "/feed",
-    label: "Casting",
-    sub: "모집 공고",
-    Icon: Briefcase,
-    match: (path: string) => path === "/feed" || path.startsWith("/projects"),
-  },
-  {
-    href: "/dancers",
-    label: "Dancers",
-    sub: "댄서 / 팀",
-    Icon: Users,
-    match: (path: string) => path === "/dancers" || path.startsWith("/d/") || path.startsWith("/t/"),
-  },
-  {
-    href: "https://www.youtube.com/@deetzmagazine",
-    label: "Magazine",
-    sub: "Deetz TV",
-    Icon: PlayCircle,
-    external: true,
-    match: () => false,
-  },
-  {
-    href: "/applications",
-    label: "Applications",
-    sub: "내 지원",
-    Icon: ClipboardList,
-    match: (path: string) => path === "/applications",
-  },
-  {
-    href: "/me",
-    label: "My",
-    sub: "프로필",
-    Icon: House,
-    match: (path: string) => path === "/me" || path.startsWith("/me/"),
-  },
-];
+import { useT } from "@/lib/i18n/provider";
+import nav from "@/lib/i18n/messages/nav";
 
 export function PublicShell({ children }: { children: React.ReactNode }) {
+  const t = useT(nav);
+  const navItems = [
+    {
+      href: "/feed",
+      label: t("side.casting"),
+      sub: t("side.casting.sub"),
+      Icon: Briefcase,
+      match: (path: string) => path === "/feed" || path.startsWith("/projects"),
+    },
+    {
+      href: "/dancers",
+      label: t("side.dancers"),
+      sub: t("side.dancers.sub"),
+      Icon: Users,
+      match: (path: string) => path === "/dancers" || path.startsWith("/d/") || path.startsWith("/t/"),
+    },
+    {
+      href: "https://www.youtube.com/@deetzmagazine",
+      label: t("side.magazine"),
+      sub: t("side.magazine.sub"),
+      Icon: PlayCircle,
+      external: true,
+      match: () => false,
+    },
+    {
+      href: "/applications",
+      label: t("side.applications"),
+      sub: t("side.applications.sub"),
+      Icon: ClipboardList,
+      match: (path: string) => path === "/applications",
+    },
+    {
+      href: "/me",
+      label: t("side.me"),
+      sub: t("side.me.sub"),
+      Icon: House,
+      match: (path: string) => path === "/me" || path.startsWith("/me/"),
+    },
+  ];
   const pathname = usePathname() ?? "/";
   const segments = useSelectedLayoutSegments();
   const isPortfolioPage =
@@ -137,14 +140,18 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="mt-auto border-t border-border pt-5">
+            {/* 언어 전환기 — 데스크톱 사이드바 하단 (docs/design-i18n-ui.md §3.8) */}
+            <div className="mb-5">
+              <LanguageSwitcher icon={false} />
+            </div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-3">
-              Client
+              {t("side.client")}
             </p>
             <Link
               href="/projects/new"
               className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold"
             >
-              공고 개설
+              {t("side.new_project")}
               <ArrowUpRight size={14} aria-hidden />
             </Link>
           </div>

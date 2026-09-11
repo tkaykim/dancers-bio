@@ -8,6 +8,8 @@ import {
   DANCER_PAGE_SIZE,
   type DancerListItem,
 } from "@/lib/data/dancers";
+import { useT } from "@/lib/i18n/provider";
+import directory from "@/lib/i18n/messages/directory";
 
 type Props = {
   q: string;
@@ -27,6 +29,7 @@ export function DancerInfiniteGrid({
   initialDancers,
   initialHasMore,
 }: Props) {
+  const t = useT(directory);
   const [dancers, setDancers] = useState<DancerListItem[]>(initialDancers);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loading, setLoading] = useState(false);
@@ -101,7 +104,7 @@ export function DancerInfiniteGrid({
   if (dancers.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-hairline-2 p-8 text-center text-sm text-ink-3">
-        {q ? "검색 결과가 없습니다." : "아직 등록된 댄서가 없습니다."}
+        {q ? t("empty.search") : t("empty.dancers")}
       </p>
     );
   }
@@ -119,6 +122,7 @@ export function DancerInfiniteGrid({
                 <Image
                   src={d.profile_img}
                   alt={d.stage_name}
+                  data-ugc
                   fill
                   sizes="(max-width: 448px) 50vw, 220px"
                   priority={i < PRIORITY_COUNT}
@@ -142,11 +146,16 @@ export function DancerInfiniteGrid({
                 }}
               />
               <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-0.5 p-3">
-                <p className="text-sm font-semibold leading-tight text-white">
+                <p
+                  className="text-sm font-semibold leading-tight text-white"
+                  data-ugc
+                >
                   {d.stage_name}
                 </p>
                 {d.korean_name ? (
-                  <p className="text-[11px] text-white/65">{d.korean_name}</p>
+                  <p className="text-[11px] text-white/65" data-ugc>
+                    {d.korean_name}
+                  </p>
                 ) : null}
                 {(d.genres ?? []).length > 0 ? (
                   <p className="text-[10px] text-white/55">
@@ -156,7 +165,7 @@ export function DancerInfiniteGrid({
               </div>
               {!d.profile_id && !d.is_verified ? (
                 <span className="absolute right-2 top-2 rounded-full bg-card/80 px-2 py-0.5 text-[10px] text-ink-3 backdrop-blur">
-                  큐레이션
+                  {t("badge.curation")}
                 </span>
               ) : null}
             </Link>
@@ -172,7 +181,7 @@ export function DancerInfiniteGrid({
             onClick={loadMore}
             className="rounded-full border border-hairline-2 px-4 py-1.5 text-xs text-ink-2 hover:bg-secondary"
           >
-            다시 시도
+            {t("grid.retry")}
           </button>
         </div>
       ) : null}
@@ -181,26 +190,24 @@ export function DancerInfiniteGrid({
         <>
           <div ref={sentinelRef} aria-hidden className="h-px" />
           <div className="flex justify-center pb-4">
-            <SkeletonRow visible={loading} />
+            <SkeletonRow visible={loading} label={t("grid.loading_more")} />
           </div>
         </>
       ) : dancers.length >= DANCER_PAGE_SIZE ? (
-        <p className="pb-4 text-center text-xs text-ink-3">
-          마지막입니다.
-        </p>
+        <p className="pb-4 text-center text-xs text-ink-3">{t("grid.end")}</p>
       ) : null}
     </div>
   );
 }
 
-function SkeletonRow({ visible }: { visible: boolean }) {
+function SkeletonRow({ visible, label }: { visible: boolean; label: string }) {
   return (
     <div
       className={
         "h-5 w-24 animate-pulse rounded-full bg-secondary " +
         (visible ? "opacity-100" : "opacity-0")
       }
-      aria-label={visible ? "더 불러오는 중" : undefined}
+      aria-label={visible ? label : undefined}
     />
   );
 }

@@ -1,5 +1,8 @@
 // 댄서 단가 카드 — 서비스 종류·국가·통화 상수 + 검증 헬퍼.
 // DB: public.dancer_rate_cards (service_type enum = dancer_service_type)
+/* eslint-disable no-restricted-syntax -- i18n: admin-only. 이 파일에는 zod 메시지가 없고 서비스·국가 라벨 상수만 있다.
+   관리자 화면(/admin/rate-cards)이 그대로 쓰는 ko 값이라 여기서는 바꾸지 않는다. 사용자 화면용 번역은
+   단가 UI(components/portfolio/RateCardManager)에서 사전 키로 읽는다 (docs/design-i18n-ui.md §3.6). */
 
 export const RATE_SERVICE_TYPES = [
   "choreography_production",

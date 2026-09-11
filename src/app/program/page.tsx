@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ProgramLanding } from "@/components/program/ProgramLanding";
+import { getRequestedLocale } from "@/lib/i18n/server";
 
 export const metadata: Metadata = {
   title: "K-DEBUT — dance, visa & your debut in Korea | deetz × GRIGO",
@@ -8,15 +9,12 @@ export const metadata: Metadata = {
   alternates: { canonical: "/program" },
 };
 
-type Lang = "en" | "ja" | "ko";
-
 export default async function ProgramPage({
   searchParams,
 }: {
+  // `lang` 은 미들웨어가 요청 언어로 바꿔 주므로 여기서 직접 읽지 않는다.
   searchParams: Promise<{ lang?: string; embed?: string }>;
 }) {
-  const { lang, embed } = await searchParams;
-  const explicit = lang === "ja" || lang === "ko" || lang === "en";
-  const initialLang: Lang = lang === "ja" || lang === "ko" ? lang : "en";
-  return <ProgramLanding initialLang={initialLang} lockLang={explicit} embed={embed === "1"} />;
+  const [{ embed }, initialLang] = await Promise.all([searchParams, getRequestedLocale()]);
+  return <ProgramLanding initialLang={initialLang} embed={embed === "1"} />;
 }

@@ -8,6 +8,8 @@ import {
   ClipboardList,
   Users,
 } from "lucide-react";
+import { useT } from "@/lib/i18n/provider";
+import nav from "@/lib/i18n/messages/nav";
 
 type Tab = {
   href: string;
@@ -23,29 +25,31 @@ export function BottomTabBar({
   proposalCount?: number;
 }) {
   const pathname = usePathname() ?? "/";
+  const t = useT(nav);
 
   const tabs: Tab[] = [
     {
       href: "/feed",
-      label: "캐스팅",
+      label: t("tab.casting"),
       Icon: Briefcase,
       match: (p) => p === "/feed" || p.startsWith("/projects"),
     },
     {
       href: "/dancers",
-      label: "댄서",
+      label: t("tab.dancers"),
       Icon: Users,
       match: (p) => p === "/dancers" || p.startsWith("/d/"),
     },
     {
       href: "/applications",
-      label: "내 지원",
+      label: t("tab.applications"),
       Icon: ClipboardList,
       match: (p) => p === "/applications",
+      badge: proposalCount,
     },
     {
       href: "/me",
-      label: "나",
+      label: t("tab.me"),
       Icon: House,
       match: (p) =>
         p === "/me" ||
@@ -84,7 +88,8 @@ export function BottomTabBar({
                     </span>
                   ) : null}
                 </span>
-                <span className="text-[10px] font-medium tracking-tight">
+                {/* 영어 라벨이 길어도 4열 안에서 잘리지 않게 한 줄·말줄임 */}
+                <span className="max-w-full truncate px-1 text-[10px] font-medium tracking-tight">
                   {t.label}
                 </span>
               </Link>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -16,12 +16,12 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 
+import { setLocaleAction } from "@/app/actions/locale";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { cn } from "@/lib/utils";
 import { VillagePhotoViewer, type ViewerPhoto } from "./VillagePhotoViewer";
 import { VillageWaitlistForm } from "./VillageWaitlistForm";
 import {
-  LANG_STORAGE_KEY,
   LANGS,
   MARKET,
   PLANS,
@@ -56,50 +56,29 @@ function wonRange(min: number, max: number, lang: Lang): string {
 
 export function VillageLanding({
   initialLang = "en",
-  lockLang = false,
   photos = [],
 }: {
   initialLang?: Lang;
-  lockLang?: boolean;
   photos?: VillagePhoto[];
 }) {
+  // 초기 언어는 서버가 정한 요청 언어(prop)뿐이다. 마운트 후 localStorage·navigator 로 다시
+  // 정하지 않는다 — 첫 렌더가 달라지면 hydration 이 깨진다(docs/design-i18n-ui.md §3.4·§3.8).
   const [lang, setLang] = useState<Lang>(initialLang);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [, startTransition] = useTransition();
 
+  // 즉시 반응을 위해 낙관적으로 표시를 바꾸고, 서버 액션이 쿠키·프로필을 저장한 뒤 redirect 한다.
+  // 성공한 redirect 는 rejection 으로 오므로 실패는 반환값 { ok: false } 로만 판단한다.
   const selectLang = (l: Lang) => {
+    if (l === lang) return;
+    const prev = lang;
     setLang(l);
-    try {
-      localStorage.setItem(LANG_STORAGE_KEY, l);
-    } catch {
-      /* localStorage 불가 환경 무시 */
-    }
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set("lang", l);
-      window.history.replaceState(null, "", url.toString());
-    } catch {
-      /* URL 조작 불가 환경 무시 */
-    }
+    startTransition(async () => {
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      const result = await setLocaleAction(l, currentUrl);
+      if (result && result.ok === false) setLang(prev);
+    });
   };
-
-  // ?lang= 로 명시하고 들어왔으면 그대로 두고, 아니면 저장값 → 브라우저 언어 순으로 정한다.
-  useEffect(() => {
-    if (lockLang) return;
-    let saved: string | null = null;
-    try {
-      saved = localStorage.getItem(LANG_STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
-    const nav = navigator.language?.toLowerCase() ?? "";
-    const detected: Lang = nav.startsWith("ja") ? "ja" : nav.startsWith("ko") ? "ko" : "en";
-    const next: Lang = saved === "en" || saved === "ja" || saved === "ko" ? saved : detected;
-    if (next !== "en") {
-      // 클라이언트 전용 신호(localStorage·navigator)라 SSR에서 알 수 없어 마운트 후 동기화가 불가피.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLang(next);
-    }
-  }, [lockLang]);
 
   const c = T[lang];
 

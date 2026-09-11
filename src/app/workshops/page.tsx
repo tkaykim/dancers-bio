@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { WorkshopsLanding } from "@/components/workshops/WorkshopsLanding";
 import type { Lang } from "@/components/workshops/copy";
 import { getUser } from "@/lib/auth/guard";
+import { getRequestedLocale } from "@/lib/i18n/server";
 import { listPublicWorkshopArtists, listRequestedArtists } from "@/lib/workshops/queries";
 import { listOpenEvents } from "@/lib/workshops/event-queries";
 
@@ -23,9 +24,10 @@ export default async function WorkshopsPage({
 }: {
   searchParams: Promise<{ lang?: string }>;
 }) {
-  const { lang } = await searchParams;
-  const explicit = lang === "ko" || lang === "en" || lang === "ja" || lang === "th";
-  const initialLang: Lang = explicit ? (lang as Lang) : "ko";
+  // ko·en·ja 는 미들웨어가 `?lang=` 을 요청 언어로 바꿔 준다.
+  // 태국어(th)는 전역 Locale 모델 밖이라 이 화면에서만 `?lang=th` 로 직접 받는다(방콕 캠페인).
+  const [{ lang }, requestedLocale] = await Promise.all([searchParams, getRequestedLocale()]);
+  const initialLang: Lang = lang === "th" ? "th" : requestedLocale;
 
   const [artists, requested, openEvents, user] = await Promise.all([
     listPublicWorkshopArtists(),
@@ -42,7 +44,6 @@ export default async function WorkshopsPage({
       openEvents={openEvents}
       isLoggedIn={!!user}
       initialLang={initialLang}
-      lockLang={explicit}
     />
   );
 }

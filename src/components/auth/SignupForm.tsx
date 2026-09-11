@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InternationalPhoneField } from "@/components/auth/InternationalPhoneField";
+import { useT } from "@/lib/i18n/provider";
+import auth from "@/lib/i18n/messages/auth";
 
 export function SignupForm() {
   const router = useRouter();
@@ -21,6 +23,7 @@ export function SignupForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [email, setEmail] = useState("");
+  const t = useT(auth);
 
   return (
     <form
@@ -45,23 +48,19 @@ export function SignupForm() {
       className="flex flex-col gap-4"
     >
       <div className="flex flex-col gap-2">
-        <Label htmlFor="display_name">
-          이름 <span className="font-normal text-ink-3">/ Name</span>
-        </Label>
+        <Label htmlFor="display_name">{t("signup.name")}</Label>
         <Input
           id="display_name"
           name="display_name"
           required
           maxLength={50}
-          placeholder="활동명 또는 본명 / Stage or legal name"
+          placeholder={t("signup.name_placeholder")}
           autoComplete="name"
         />
       </div>
       <InternationalPhoneField idPrefix="signup" />
       <div className="flex flex-col gap-2">
-        <Label htmlFor="email">
-          이메일 <span className="font-normal text-ink-3">/ Email</span>
-        </Label>
+        <Label htmlFor="email">{t("signup.email")}</Label>
         <Input
           id="email"
           name="email"
@@ -75,9 +74,7 @@ export function SignupForm() {
         <EmailTypoHint email={email} onFix={setEmail} />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">
-          비밀번호 <span className="font-normal text-ink-3">/ Password</span>
-        </Label>
+        <Label htmlFor="password">{t("signup.password")}</Label>
         <Input
           id="password"
           name="password"
@@ -86,7 +83,7 @@ export function SignupForm() {
           minLength={8}
           autoComplete="new-password"
         />
-        <p className="text-xs text-muted-foreground">8자 이상 / At least 8 characters</p>
+        <p className="text-xs text-muted-foreground">{t("signup.password_hint")}</p>
       </div>
       {error ? (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -94,11 +91,10 @@ export function SignupForm() {
         </p>
       ) : null}
       <Button type="submit" disabled={pending} className="w-full">
-        {pending ? "가입하는 중... / Signing up..." : "가입하기 / Sign up"}
+        {pending ? t("signup.submitting") : t("signup.submit")}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
-        <span className="block">이미 계정이 있으신가요?</span>
-        <span className="block text-xs">Already have an account?</span>
+        <span className="block">{t("signup.have_account")}</span>
         <Link
           href={
             redirectParam
@@ -107,7 +103,7 @@ export function SignupForm() {
           }
           className="mt-1 inline-block font-medium text-foreground underline"
         >
-          로그인 / Log in
+          {t("signup.login_link")}
         </Link>
       </p>
     </form>

@@ -11,7 +11,7 @@ export const sendProposalSchema = z
     cover_message: z.string().trim().max(500).optional().nullable(),
   })
   .refine((v) => Boolean(v.dancer_id) !== Boolean(v.team_id), {
-    message: "dancer_id 또는 team_id 중 하나만 지정해야 합니다.",
+    message: "v.proposal_target_xor",
   });
 
 export type SendProposalInput = z.infer<typeof sendProposalSchema>;

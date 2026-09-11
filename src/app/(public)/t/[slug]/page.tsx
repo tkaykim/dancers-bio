@@ -3,10 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import {
-  CAREER_CATEGORY_LABELS,
-  CAREER_CATEGORY_ORDER,
-} from "@/lib/validation/portfolio";
+import { CAREER_CATEGORY_ORDER } from "@/lib/validation/portfolio";
+import { getLocale, serverT } from "@/lib/i18n/server";
+import { translator, type Translator } from "@/lib/i18n/t";
+import profileMessages from "@/lib/i18n/messages/profile";
 import { CareerGroup } from "@/components/portfolio/CareerGroup";
 import { ArtistProfileHero } from "@/components/profile/ArtistProfileHero";
 import { ProfileMediaGallery } from "@/components/profile/ProfileMediaGallery";
@@ -45,6 +45,8 @@ type TeamRow = {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DEETZ_ORIGIN = "https://deetz.kr";
 
+type ProfileT = Translator<typeof profileMessages>;
+
 function teamDisplayName(team: TeamRow): string {
   return team.korean_name ? `${team.team_name} (${team.korean_name})` : team.team_name;
 }
@@ -53,14 +55,15 @@ function teamCanonicalUrl(team: TeamRow): string {
   return `${DEETZ_ORIGIN}/t/${team.slug ?? team.id}`;
 }
 
-function teamDescription(team: TeamRow): string {
+function teamDescription(team: TeamRow, t: ProfileT): string {
   const tags = [...(team.genres ?? []), ...(team.specialties ?? [])]
     .filter(Boolean)
     .slice(0, 4)
     .join(", ");
+  const name = teamDisplayName(team);
   return tags
-    ? `${teamDisplayName(team)} 댄스팀 프로필. ${tags} 기반의 댄스팀 섭외와 공연 포트폴리오를 확인하세요.`
-    : `${teamDisplayName(team)} 댄스팀 프로필과 공연 포트폴리오를 확인하세요.`;
+    ? t("meta.team_description_tags", { name, tags })
+    : t("meta.team_description", { name });
 }
 
 async function loadTeam(slugOrId: string) {
@@ -80,19 +83,19 @@ export async function generateMetadata({
   const { slug } = await params;
   const team = await loadTeam(slug);
   if (!team) return { title: { absolute: "deetz" } };
+  const t = translator(profileMessages, await getLocale());
   const canonical = teamCanonicalUrl(team);
-  const description = team.bio ?? teamDescription(team);
+  const description = team.bio ?? teamDescription(team, t);
   const names = [team.team_name, team.korean_name].filter(Boolean) as string[];
   return {
-    title: { absolute: `${teamDisplayName(team)} | 댄스팀 섭외 · deetz` },
+    title: { absolute: t("meta.team_title", { name: teamDisplayName(team) }) },
     description,
     keywords: [
       ...names,
-      ...names.map((name) => `${name} 댄스팀`),
-      ...names.map((name) => `${name} 댄스팀 섭외`),
-      ...names.map((name) => `${name} 공연 섭외`),
-      "댄스팀 섭외",
-      "댄스 공연 섭외",
+      ...names.map((name) => t("meta.kw_team", { name })),
+      ...names.map((name) => t("meta.kw_team_booking", { name })),
+      ...names.map((name) => t("meta.kw_team_show", { name })),
+      ...t("meta.team_keywords").split(","),
       ...(team.genres ?? []),
       ...(team.specialties ?? []),
     ],
@@ -104,7 +107,7 @@ export async function generateMetadata({
         ? undefined
         : { index: false, follow: false },
     openGraph: {
-      title: `${teamDisplayName(team)} | 댄스팀 섭외`,
+      title: t("meta.team_og_title", { name: teamDisplayName(team) }),
       description,
       url: canonical,
       siteName: "deetz",
@@ -124,6 +127,7 @@ export default async function PublicTeamPage({
   if (!team) notFound();
   if (!team.is_active) notFound();
 
+  const t = await serverT(profileMessages);
   const supabase = await createClient();
   const [{ data: careers }, { data: memberRows }] = await Promise.all([
     supabase
@@ -160,7 +164,7 @@ export default async function PublicTeamPage({
     alternateName: [team.team_name, team.korean_name].filter(Boolean),
     url: canonicalUrl,
     image: team.profile_img ?? undefined,
-    description: team.bio ?? teamDescription(team),
+    description: team.bio ?? teamDescription(team, t),
     knowsAbout,
     sameAs,
     subjectOf: list.slice(0, 12).map((career) => ({
@@ -203,7 +207,7 @@ export default async function PublicTeamPage({
         d?.profiles?.display_name ??
         d?.stage_name ??
         r.display_name ??
-        "(이름 없음)",
+        t("member.unnamed"),
       avatar_url: d?.profiles?.avatar_url ?? d?.profile_img ?? null,
     };
   });
@@ -254,15 +258,15 @@ export default async function PublicTeamPage({
         imageMode="cover"
         social={social}
         canonicalUrl={canonicalUrl}
-        shareTitle={`${teamDisplayName(team)} | 댄스팀`}
+        shareTitle={t("hero.share_team", { name: teamDisplayName(team) })}
         backHref="/dancers?tab=teams"
         verified={team.approval_status === "approved"}
-        verifiedLabel="승인된 팀"
+        verifiedLabel={t("hero.verified_team")}
         location={team.location}
         stats={[
-          { value: members.length, label: "멤버" },
-          { value: list.length, label: "크레딧" },
-          { value: yearsActive || "—", label: "활동 연차" },
+          { value: members.length, label: t("hero.stat_members") },
+          { value: list.length, label: t("hero.stat_credits") },
+          { value: yearsActive || "—", label: t("hero.stat_years") },
         ]}
       />
 
@@ -273,12 +277,15 @@ export default async function PublicTeamPage({
               Profile
             </p>
             {team.bio ? (
-              <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-ink-2 sm:text-lg">
+              <p
+                className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-ink-2 sm:text-lg"
+                data-ugc
+              >
                 {team.bio}
               </p>
             ) : null}
             {genres.length > 0 || extraSpecialties.length > 0 ? (
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 flex flex-wrap gap-2" data-ugc>
                 {genres.map((genre) => (
                   <span
                     key={`g-${genre}`}
@@ -305,13 +312,13 @@ export default async function PublicTeamPage({
         <section className="px-5 pt-12 sm:px-8 lg:px-10 lg:pt-16">
           <ProfileSectionHeading
             eyebrow="Selected work"
-            title="대표 작업"
-            description="이 팀을 가장 빠르게 이해할 수 있는 주요 크레딧입니다."
+            title={t("section.selected_work")}
+            description={t("section.selected_work_desc_team")}
             count={highlights.length}
           />
           <div className="mt-6 max-w-4xl">
             <CareerGroup
-              label="대표 경력"
+              label={t("section.representative_careers")}
               items={highlights}
               variant="carousel"
             />
@@ -324,7 +331,7 @@ export default async function PublicTeamPage({
         <section className="px-5 pt-12 sm:px-8 lg:px-10 lg:pt-16">
           <ProfileSectionHeading
             eyebrow="Crew"
-            title="멤버"
+            title={t("section.members")}
             count={members.length}
           />
           <div className="scrollbar-none -mx-5 mt-6 flex gap-5 overflow-x-auto px-5 pb-2 sm:-mx-0 sm:flex-wrap sm:px-0">
@@ -339,7 +346,7 @@ export default async function PublicTeamPage({
                 />
               ) : (
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-lg font-semibold ring-1 ring-hairline-2">
-                  {m.label === "(이름 없음)" ? "?" : m.label.charAt(0) || "?"}
+                  {m.label === t("member.unnamed") ? "?" : m.label.charAt(0) || "?"}
                 </div>
               );
               return (
@@ -350,7 +357,7 @@ export default async function PublicTeamPage({
                   {m.slug ? (
                     <Link
                       href={`/d/${m.slug}`}
-                      aria-label={`${m.label} 프로필`}
+                      aria-label={t("member.profile_link", { name: m.label })}
                       className="block transition-opacity hover:opacity-80"
                     >
                       {avatar}
@@ -358,7 +365,10 @@ export default async function PublicTeamPage({
                   ) : (
                     avatar
                   )}
-                  <span className="w-full truncate text-center text-sm font-medium text-ink-2">
+                  <span
+                    className="w-full truncate text-center text-sm font-medium text-ink-2"
+                    data-ugc
+                  >
                     {m.label}
                   </span>
                 </div>
@@ -372,8 +382,8 @@ export default async function PublicTeamPage({
         <section className="px-5 pt-12 sm:px-8 lg:px-10 lg:pt-16">
           <ProfileSectionHeading
             eyebrow="Visual portfolio"
-            title="갤러리"
-            description="팀의 무대와 작업 분위기를 보여주는 대표 이미지입니다."
+            title={t("section.gallery")}
+            description={t("section.gallery_desc_team")}
             count={photos.length}
           />
           <div className="mt-6">
@@ -390,7 +400,7 @@ export default async function PublicTeamPage({
         <section className="px-5 pt-12 sm:px-8 lg:px-10 lg:pt-16">
           <ProfileSectionHeading
             eyebrow="Showreel"
-            title="영상"
+            title={t("section.videos")}
             count={videos.length}
           />
           <div className="mt-6">
@@ -406,13 +416,13 @@ export default async function PublicTeamPage({
       <section className="px-5 pb-16 pt-12 sm:px-8 lg:px-10 lg:pt-16">
         <ProfileSectionHeading
           eyebrow="Full credits"
-          title="전체 크레딧"
-          description="분야별 참여 이력을 한눈에 확인할 수 있습니다."
+          title={t("section.credits")}
+          description={t("section.credits_desc_team")}
           count={list.length}
         />
         {orderedTypes.length === 0 ? (
           <p className="mt-8 border-y border-dashed border-hairline-2 py-10 text-center text-sm text-ink-2">
-            아직 공개된 경력이 없습니다.
+            {t("credits.empty")}
           </p>
         ) : (
           <div className="mt-8 grid gap-x-10 gap-y-10 md:grid-cols-2">
@@ -421,11 +431,7 @@ export default async function PublicTeamPage({
               return (
                 <CareerGroup
                   key={type}
-                  label={
-                    CAREER_CATEGORY_LABELS[
-                      type as keyof typeof CAREER_CATEGORY_LABELS
-                    ] ?? type
-                  }
+                  label={t(`career_category.${type}`)}
                   items={items}
                   variant="row"
                 />

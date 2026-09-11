@@ -14,6 +14,7 @@ export function AdminVerificationActions({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
 
   function approve() {
+    // eslint-disable-next-line no-restricted-syntax -- i18n: admin-only
     if (!confirm("이 인증을 승인합니다. (인스타 DM에서 코드 매칭 확인하셨나요?)"))
       return;
     setError(null);
@@ -27,6 +28,7 @@ export function AdminVerificationActions({ id }: { id: string }) {
   }
 
   function reject() {
+    // eslint-disable-next-line no-restricted-syntax -- i18n: admin-only
     const reason = prompt("반려 사유 (사용자에게 표시됨, 선택)") ?? "";
     setError(null);
     const fd = new FormData();
@@ -42,9 +44,11 @@ export function AdminVerificationActions({ id }: { id: string }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2">
+        {/* eslint-disable-next-line no-restricted-syntax -- i18n: admin-only */}
         <Button size="sm" disabled={pending} onClick={approve}>
           승인
         </Button>
+        {/* eslint-disable-next-line no-restricted-syntax -- i18n: admin-only */}
         <Button size="sm" variant="outline" disabled={pending} onClick={reject}>
           반려
         </Button>

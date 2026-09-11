@@ -13,12 +13,16 @@ import { ProjectMediaGallery } from "@/components/project/ProjectMediaGallery";
 import { classifyProjectIdentifier } from "@/lib/projectId";
 import { deadlineLabel, isExpired } from "@/lib/utils/deadline";
 import { formatBytes } from "@/lib/storage/dancer-portfolio-file";
-import {
+import type {
   PAY_TYPE_LABELS,
   STATUS_LABELS,
-  VISIBILITY_LABELS,
 } from "@/lib/validation/projects";
 import { formatWhen } from "@/lib/format-when";
+import { getLocale, serverT } from "@/lib/i18n/server";
+import { localeTag, translator, tCount, type Translator } from "@/lib/i18n/t";
+import type { Locale } from "@/lib/i18n/locale";
+import { labelFor, taxonomyLabel, type TaxonomyRow } from "@/lib/i18n/labels";
+import projectMessages from "@/lib/i18n/messages/project";
 import {
   EMPTY_CASTING_APPLICATION_DEFAULTS,
   type CastingApplicationDefaults,
@@ -30,6 +34,8 @@ const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://deetz.kr").replac
   /\/$/,
   "",
 );
+
+type ProjectT = Translator<typeof projectMessages>;
 
 // 설명글 안의 http(s) URL을 클릭 가능한 링크로 변환.
 // 텍스트 조각은 React가 자동 이스케이프하므로 XSS 안전 (dangerouslySetInnerHTML 미사용).
@@ -62,8 +68,9 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id: idParam } = await params;
+  const t = translator(projectMessages, await getLocale());
   const identifier = classifyProjectIdentifier(idParam);
-  if (!identifier) return { title: "프로젝트를 찾을 수 없습니다" };
+  if (!identifier) return { title: t("meta.not_found") };
   const supabase = await createClient();
   const baseQ = supabase
     .from("projects")
@@ -74,15 +81,15 @@ export async function generateMetadata({
       ? baseQ.eq("id", identifier.value)
       : baseQ.eq("short_code", identifier.value)
   ).maybeSingle();
-  if (!p) return { title: "프로젝트를 찾을 수 없습니다" };
+  if (!p) return { title: t("meta.not_found") };
   if (p.visibility === "private") {
     return {
-      title: "비공개 프로젝트 · deetz",
-      description: "초대 링크로만 확인할 수 있는 deetz 비공개 프로젝트입니다.",
+      title: t("meta.private_title"),
+      description: t("meta.private_description"),
       robots: { index: false, follow: false },
       openGraph: {
-        title: "비공개 프로젝트 · deetz",
-        description: "초대 링크로만 확인할 수 있는 deetz 비공개 프로젝트입니다.",
+        title: t("meta.private_title"),
+        description: t("meta.private_description"),
         siteName: "deetz",
         type: "website",
       },
@@ -92,7 +99,8 @@ export async function generateMetadata({
     ((p.description as string | null) ?? "")
       .split("\n")
       .find((l: string) => l.trim()) ?? "";
-  const desc = firstLine.length > 0 ? firstLine.slice(0, 140) : "댄서 캐스팅 공고";
+  const desc =
+    firstLine.length > 0 ? firstLine.slice(0, 140) : t("meta.fallback_description");
   return {
     title: p.title as string,
     description: desc,
@@ -100,7 +108,7 @@ export async function generateMetadata({
       canonical: `/projects/${p.short_code}`,
     },
     openGraph: {
-      title: `${p.title} · deetz`,
+      title: t("meta.og_title", { title: p.title as string }),
       description: desc,
       siteName: "deetz",
       type: "article",
@@ -129,8 +137,8 @@ type ProjectRow = {
   collect_casting_details: boolean | null;
   created_at: string;
   region_text: string | null;
-  genre: { label_ko: string } | null;
-  region: { label_ko: string } | null;
+  genre: TaxonomyRow | null;
+  region: TaxonomyRow | null;
 };
 
 type SessionRow = {
@@ -161,11 +169,18 @@ type RecruitmentChannelRow = {
 };
 
 
-function fmtPay(p: { pay_amount: number | null; pay_type: string | null }): string {
-  if (p.pay_amount === 0 && p.pay_type === "total") return "별도 페이 없음";
-  if (!p.pay_amount && p.pay_type !== "negotiable") return "협의";
-  if (!p.pay_amount) return "협의";
-  return `₩ ${p.pay_amount.toLocaleString("ko-KR")}${p.pay_type === "per_session" ? " · 회차당" : ""}`;
+function fmtPay(
+  p: { pay_amount: number | null; pay_type: string | null },
+  t: ProjectT,
+  locale: Locale,
+): string {
+  if (p.pay_amount === 0 && p.pay_type === "total") return t("pay.none");
+  if (!p.pay_amount && p.pay_type !== "negotiable") return t("pay.negotiable");
+  if (!p.pay_amount) return t("pay.negotiable");
+  const amount = p.pay_amount.toLocaleString(localeTag(locale));
+  return p.pay_type === "per_session"
+    ? t("pay.amount_per_session", { amount })
+    : t("pay.amount", { amount });
 }
 
 export default async function ProjectDetailPage({
@@ -188,6 +203,8 @@ export default async function ProjectDetailPage({
 
   // 익명도 비공개 프로젝트 상세를 열람할 수 있도록 getUser. 지원 시점에만 로그인 유도.
   const user = await getUser();
+  const locale = await getLocale();
+  const t = await serverT(projectMessages);
   const supabase = await createClient();
 
   const baseQuery = supabase
@@ -196,8 +213,8 @@ export default async function ProjectDetailPage({
       `id, short_code, owner_id, title, description, visibility, status, pay_amount, pay_type,
        agreed_pay, recruitment_count, recruitment_unlimited, posted_by_label,
        application_deadline, is_standing_pool, collect_applicant_fee, collect_casting_details, created_at, region_text,
-       genre:genres ( label_ko ),
-       region:regions ( label_ko )`,
+       genre:genres ( label_ko, label_en, label_ja ),
+       region:regions ( label_ko, label_en, label_ja )`,
     )
     .is("deleted_at", null);
 
@@ -443,9 +460,9 @@ export default async function ProjectDetailPage({
   const standingPool = !!p.is_standing_pool;
   const expired = isExpired(p.application_deadline, standingPool);
   const applyOpen = p.status === "open" && !expired;
-  const closedMsg = expired
-    ? "지원 마감일이 지났습니다."
-    : "현재 모집이 닫혀 있습니다.";
+  const closedMsg = expired ? t("closed.expired") : t("closed.closed");
+  const genreLabel = taxonomyLabel(p.genre, locale);
+  const regionLabel = p.region_text ?? (taxonomyLabel(p.region, locale) || null);
   const applyParams = new URLSearchParams({ apply: "1" });
   if (activeRecruitmentChannel) {
     applyParams.set("channel", activeRecruitmentChannel.share_code);
@@ -459,7 +476,7 @@ export default async function ProjectDetailPage({
           href={user ? "/feed" : "/"}
           className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
         >
-          ← {user ? "캐스팅 피드" : "deetz"}
+          ← {user ? t("nav.back_feed") : "deetz"}
         </Link>
         <ShareButton shortCode={p.short_code} title={p.title} />
       </div>
@@ -467,32 +484,37 @@ export default async function ProjectDetailPage({
       <header className="flex flex-col gap-3">
         <div className="flex flex-wrap gap-1.5">
           <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
-            {VISIBILITY_LABELS[p.visibility]}
+            {labelFor("visibility", p.visibility, locale)}
           </span>
           <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-ink-2">
-            {STATUS_LABELS[p.status]}
+            {labelFor("status", p.status, locale)}
           </span>
           {standingPool ? (
             <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
-              상시 모집
+              {t("badge.standing")}
             </span>
           ) : null}
-          {p.genre?.label_ko ? (
+          {genreLabel ? (
             <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-ink-2">
-              {p.genre.label_ko}
+              {genreLabel}
             </span>
           ) : null}
-          {p.region_text || p.region?.label_ko ? (
-            <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-ink-2">
-              {p.region_text ?? p.region?.label_ko}
+          {regionLabel ? (
+            <span
+              className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-ink-2"
+              data-ugc={p.region_text ? true : undefined}
+            >
+              {regionLabel}
             </span>
           ) : null}
         </div>
-        <h1 className="text-2xl font-bold tracking-tight leading-tight">
+        <h1 className="text-2xl font-bold tracking-tight leading-tight" data-ugc>
           {p.title}
         </h1>
         {postedBy ? (
-          <p className="text-sm text-ink-2">{postedBy}</p>
+          <p className="text-sm text-ink-2" data-ugc>
+            {postedBy}
+          </p>
         ) : null}
       </header>
 
@@ -500,19 +522,29 @@ export default async function ProjectDetailPage({
 
       <section className="grid grid-cols-3 rounded-xl border border-border bg-card divide-x divide-border">
         <div className="flex flex-col gap-1 p-4">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-ink-3">페이</p>
-          <p className="font-mono text-base font-semibold">{fmtPay(p)}</p>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-ink-3">
+            {t("stat.pay")}
+          </p>
+          <p className="font-mono text-base font-semibold">{fmtPay(p, t, locale)}</p>
         </div>
         <div className="flex flex-col gap-1 p-4">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-ink-3">모집</p>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-ink-3">
+            {t("stat.recruit")}
+          </p>
           <p className="font-mono text-base font-semibold">
-            {p.recruitment_unlimited ? "제한 없음" : `${p.recruitment_count}명`}
+            {p.recruitment_unlimited
+              ? t("stat.recruit_unlimited")
+              : tCount(t, "stat.recruit_count", locale, p.recruitment_count)}
           </p>
         </div>
         <div className="flex flex-col gap-1 p-4">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-ink-3">마감</p>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-ink-3">
+            {t("stat.deadline")}
+          </p>
           <p className="font-mono text-base font-semibold">
-            {standingPool ? "상시" : deadlineLabel(p.application_deadline)}
+            {standingPool
+              ? t("stat.deadline_standing")
+              : deadlineLabel(p.application_deadline, {}, locale)}
           </p>
         </div>
       </section>
@@ -520,8 +552,10 @@ export default async function ProjectDetailPage({
       {/* 협의 확정 비용 — 의미 없어 일단 숨김 (추후 복구 가능) */}
 
       <section className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 상세 설명</p>
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2">
+        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
+          {t("section.description")}
+        </p>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2" data-ugc>
           <Linkify text={p.description} />
         </p>
       </section>
@@ -529,7 +563,7 @@ export default async function ProjectDetailPage({
       {documentAttachments.length > 0 ? (
         <section className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-            ↳ 참고자료 ({documentAttachments.length})
+            {t("section.attachments", { count: documentAttachments.length })}
           </p>
           <ul className="flex flex-col gap-2">
             {documentAttachments.map((a) => (
@@ -542,15 +576,22 @@ export default async function ProjectDetailPage({
                 >
                   <span className="text-lg leading-none">📄</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-foreground">
+                    <span
+                      className="block truncate text-sm font-medium text-foreground"
+                      data-ugc
+                    >
                       {a.file_name}
                     </span>
                     <span className="block text-[11px] text-ink-3">
-                      {a.mime_type?.includes("pdf") ? "PDF" : a.mime_type ?? "파일"}
+                      {a.mime_type?.includes("pdf")
+                        ? "PDF"
+                        : a.mime_type ?? t("attachment.file")}
                       {a.size_bytes ? ` · ${formatBytes(a.size_bytes)}` : ""}
                     </span>
                   </span>
-                  <span className="shrink-0 text-xs font-medium text-ink-3">열기 →</span>
+                  <span className="shrink-0 text-xs font-medium text-ink-3">
+                    {t("attachment.open")}
+                  </span>
                 </a>
               </li>
             ))}
@@ -561,7 +602,7 @@ export default async function ProjectDetailPage({
       {announcements.length > 0 ? (
         <section className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-            ↳ 공지 ({announcements.length})
+            {t("section.announcements", { count: announcements.length })}
           </p>
           <ul className="flex flex-col gap-2">
             {announcements.map((a) => (
@@ -572,14 +613,16 @@ export default async function ProjectDetailPage({
                 <div className="flex flex-wrap items-center gap-1.5">
                   {a.pinned ? (
                     <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                      고정
+                      {t("announcement.pinned")}
                     </span>
                   ) : null}
                   {a.title ? (
-                    <p className="text-sm font-semibold">{a.title}</p>
+                    <p className="text-sm font-semibold" data-ugc>
+                      {a.title}
+                    </p>
                   ) : null}
                   <span className="text-[11px] text-ink-3">
-                    {new Intl.DateTimeFormat("ko-KR", {
+                    {new Intl.DateTimeFormat(localeTag(locale), {
                       month: "numeric",
                       day: "numeric",
                       hour: "2-digit",
@@ -589,7 +632,9 @@ export default async function ProjectDetailPage({
                     }).format(new Date(a.created_at))}
                   </span>
                 </div>
-                <p className="whitespace-pre-wrap text-sm text-ink-2">{a.body}</p>
+                <p className="whitespace-pre-wrap text-sm text-ink-2" data-ugc>
+                  {a.body}
+                </p>
               </li>
             ))}
           </ul>
@@ -599,7 +644,7 @@ export default async function ProjectDetailPage({
       {sessions.length > 0 ? (
         <section className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-            ↳ 일정 ({sessions.length})
+            {t("section.sessions", { count: sessions.length })}
           </p>
           <ul className="flex flex-col gap-2">
             {sessions.map((s) => (
@@ -616,25 +661,26 @@ export default async function ProjectDetailPage({
                     className={`truncate text-sm font-medium ${
                       s.status === "cancelled" ? "text-ink-3 line-through" : ""
                     }`}
+                    data-ugc
                   >
                     {s.label}
                   </span>
                   {s.status === "confirmed" ? (
                     <span className="shrink-0 rounded-full bg-ok/15 px-2 py-0.5 text-[10px] font-medium text-ok">
-                      확정
+                      {t("session.confirmed")}
                     </span>
                   ) : s.status === "cancelled" ? (
                     <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
-                      취소됨
+                      {t("session.cancelled")}
                     </span>
                   ) : s.status === "undecided" ? (
                     <span className="shrink-0 rounded-full bg-warn/15 px-2 py-0.5 text-[10px] font-medium text-warn">
-                      미정
+                      {t("session.undecided")}
                     </span>
                   ) : null}
                 </span>
                 <span className="shrink-0 text-xs text-ink-2">
-                  {formatWhen(s.starts_at, s.ends_at, s.time_tbd)}
+                  {formatWhen(s.starts_at, s.ends_at, s.time_tbd, locale)}
                 </span>
               </li>
             ))}
@@ -645,15 +691,17 @@ export default async function ProjectDetailPage({
       {/* Action area */}
       {canManage ? (
         <section className="flex flex-col gap-3">
-          <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 운영</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
+            {t("section.manage")}
+          </p>
           <Link href={`/projects/${p.short_code}/applicants`}>
             <Button className="w-full" size="lg">
-              지원자 보기 →
+              {t("manage.applicants")}
             </Button>
           </Link>
           <Link href={`/projects/${p.short_code}/edit`}>
             <Button variant="outline" className="w-full" size="lg">
-              공고 수정
+              {t("manage.edit")}
             </Button>
           </Link>
           {isOwner || isAdmin ? (
@@ -673,9 +721,7 @@ export default async function ProjectDetailPage({
             !p.collect_casting_details &&
             !p.collect_applicant_fee ? (
               <>
-                <p className="text-sm text-ink-2">
-                  회원가입 없이 이름과 연락처만으로 바로 접수할 수 있어요.
-                </p>
+                <p className="text-sm text-ink-2">{t("guest.quick_hint")}</p>
                 {/*
                   모집채널을 타고 들어왔으면 간편 접수에도 그대로 넘긴다.
                   안 넘기면 채널 유입이 집계에서 통째로 빠져 담당자 화면이 0명으로 보인다.
@@ -688,33 +734,31 @@ export default async function ProjectDetailPage({
                   }
                 >
                   <Button className="w-full" size="lg">
-                    회원가입 없이 접수하기 →
+                    {t("guest.quick_cta")}
                   </Button>
                 </Link>
                 <Link
                   href={`/login?redirect=${encodeURIComponent(applyReturnPath)}`}
                   className="text-center text-sm text-ink-3 underline"
                 >
-                  이미 deetz 계정이 있어요
+                  {t("guest.have_account")}
                 </Link>
               </>
             ) : (
               <>
-                <p className="text-sm text-ink-2">
-                  지원하려면 로그인 또는 회원가입이 필요해요.
-                </p>
+                <p className="text-sm text-ink-2">{t("guest.login_hint")}</p>
                 <Link
                   href={`/login?redirect=${encodeURIComponent(applyReturnPath)}`}
                 >
                   <Button className="w-full" size="lg">
-                    로그인하고 지원하기 →
+                    {t("guest.login_cta")}
                   </Button>
                 </Link>
                 <Link
                   href={`/signup?redirect=${encodeURIComponent(applyReturnPath)}`}
                 >
                   <Button variant="outline" className="w-full" size="lg">
-                    회원가입
+                    {t("guest.signup_cta")}
                   </Button>
                 </Link>
               </>
@@ -729,11 +773,15 @@ export default async function ProjectDetailPage({
         <>
           {mineMostRecent ? (
             <section className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 내 지원 상태</p>
-              <p className="font-mono text-sm">{labelStatus(mineMostRecent.status)}</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
+                {t("section.my_application")}
+              </p>
+              <p className="font-mono text-sm">
+                {labelFor("application_status", mineMostRecent.status, locale)}
+              </p>
               <div className="flex items-center gap-3">
                 <Link href="/applications" className="text-xs text-ink-3 underline-offset-4 hover:underline">
-                  지원 목록에서 보기 →
+                  {t("mine.link")}
                 </Link>
                 <OpenThreadButton projectId={p.id} />
               </div>
@@ -763,6 +811,7 @@ export default async function ProjectDetailPage({
                     session.starts_at,
                     session.ends_at,
                     session.time_tbd,
+                    locale,
                   ),
                 }))}
             />
@@ -777,12 +826,3 @@ export default async function ProjectDetailPage({
   );
 }
 
-function labelStatus(s: string): string {
-  switch (s) {
-    case "pending": return "대기 중";
-    case "accepted": return "수락됨";
-    case "rejected": return "거절됨";
-    case "withdrawn": return "취소됨";
-    default: return s;
-  }
-}

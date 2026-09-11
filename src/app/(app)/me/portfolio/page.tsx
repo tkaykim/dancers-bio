@@ -5,6 +5,9 @@ import Image from "next/image";
 import { ChevronRight, Crown, Plus } from "lucide-react";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { serverT } from "@/lib/i18n/server";
+import type { Translator } from "@/lib/i18n/t";
+import me from "@/lib/i18n/messages/me";
 
 type DancerRow = {
   id: string;
@@ -19,11 +22,13 @@ type DancerRow = {
 // (사용자가 정리할 수 있도록), manager 섹션은 제거.
 // GRIGO 화이트라벨 호스트에서만 탭 제목을 덮어 deetz 표기가 새지 않게 한다.
 export async function generateMetadata(): Promise<Metadata> {
-  return brandMetadata("GRIGO ENT 정산 · 내 프로필");
+  const t = await serverT(me);
+  return brandMetadata(t("portfolio.meta_title_grigo"));
 }
 
 export default async function MyPortfolioListPage() {
   const user = await requireUser();
+  const t = await serverT(me);
   const supabase = await createClient();
 
   const { data: ownedRows } = await supabase
@@ -39,14 +44,12 @@ export default async function MyPortfolioListPage() {
       <header className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-            ↳ 댄서 포트폴리오
+            ↳ {t("portfolio.eyebrow")}
           </p>
           <h1 className="text-2xl font-bold tracking-tight leading-tight">
-            내 댄서 프로필
+            {t("portfolio.title")}
           </h1>
-          <p className="text-sm text-ink-2">
-            본인 댄서 프로필을 관리합니다.
-          </p>
+          <p className="text-sm text-ink-2">{t("portfolio.desc")}</p>
         </div>
         {owned.length === 0 ? (
           <Link
@@ -54,7 +57,7 @@ export default async function MyPortfolioListPage() {
             className="shrink-0 flex items-center gap-1.5 rounded-full border border-hairline-2 px-3 py-1.5 text-xs font-medium text-ink-2 transition-colors hover:text-foreground hover:bg-secondary"
           >
             <Plus size={12} />
-            만들기
+            {t("portfolio.create_cta")}
           </Link>
         ) : null}
       </header>
@@ -68,17 +71,15 @@ export default async function MyPortfolioListPage() {
             <Plus size={20} />
           </span>
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-semibold">댄서 프로필 만들기</p>
-            <p className="text-xs text-ink-3">
-              30초만에 포트폴리오를 시작할 수 있어요
-            </p>
+            <p className="text-sm font-semibold">{t("portfolio.empty_title")}</p>
+            <p className="text-xs text-ink-3">{t("portfolio.empty_desc")}</p>
           </div>
         </Link>
       ) : (
         <ul className="flex flex-col gap-3">
           {owned.map((d) => (
             <li key={d.id}>
-              <DancerCard dancer={d} />
+              <DancerCard dancer={d} t={t} />
             </li>
           ))}
         </ul>
@@ -87,13 +88,19 @@ export default async function MyPortfolioListPage() {
   );
 }
 
-function DancerCard({ dancer }: { dancer: DancerRow }) {
+function DancerCard({
+  dancer,
+  t,
+}: {
+  dancer: DancerRow;
+  t: Translator<typeof me>;
+}) {
   const approvalLabel =
     dancer.approval_status === "approved"
       ? null
       : dancer.approval_status === "rejected"
-        ? "거절됨"
-        : "승인 대기";
+        ? t("portfolio.approval_rejected")
+        : t("portfolio.approval_pending");
 
   return (
     <Link
@@ -114,22 +121,22 @@ function DancerCard({ dancer }: { dancer: DancerRow }) {
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Crown size={12} className="text-primary" aria-hidden />
           <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-ink-3">
-            내 프로필
+            {t("portfolio.own_badge")}
           </span>
           {approvalLabel ? (
-            <span className="rounded-full bg-warn/10 px-1.5 py-0.5 text-[10px] font-medium text-warn">
+            <span className="whitespace-nowrap rounded-full bg-warn/10 px-1.5 py-0.5 text-[10px] font-medium text-warn">
               {approvalLabel}
             </span>
           ) : null}
         </div>
-        <p className="truncate text-sm font-semibold leading-snug">
+        <p data-ugc className="truncate text-sm font-semibold leading-snug">
           {dancer.stage_name}
         </p>
         {dancer.korean_name ? (
-          <p className="truncate text-[11px] text-ink-3">
+          <p data-ugc className="truncate text-[11px] text-ink-3">
             {dancer.korean_name}
           </p>
         ) : null}

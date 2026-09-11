@@ -27,9 +27,10 @@ export function formatWon(n: number): string {
  */
 export function formatMoney(n: number, locale: Locale): string {
   const amount = Math.round(n || 0);
-  return locale === "en"
-    ? `KRW ${amount.toLocaleString("en-US")}`
-    : `${amount.toLocaleString("ko-KR")}원`;
+  if (locale === "en") return `KRW ${amount.toLocaleString("en-US")}`;
+  // 일본어 표기는 결정 전 기본값(docs/design-i18n-ui.md §3.7·§10). 통화는 항상 원화다.
+  if (locale === "ja") return `${amount.toLocaleString("ja-JP")}ウォン`;
+  return `${amount.toLocaleString("ko-KR")}원`;
 }
 
 // 금액 입력용 천단위 콤마 포맷. 숫자만 남기고 콤마 삽입(예: "1000000" → "1,000,000").

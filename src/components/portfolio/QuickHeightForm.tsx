@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { submitQuickHeightAction } from "@/app/actions/quick-height";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 export function QuickHeightForm({
   token,
@@ -14,6 +16,7 @@ export function QuickHeightForm({
   height: number | null;
   shoe: number | null;
 }) {
+  const t = useT(portfolio);
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,10 +24,8 @@ export function QuickHeightForm({
   if (done) {
     return (
       <div className="rounded-2xl border border-ok/30 bg-ok/10 p-6 text-center">
-        <p className="text-base font-bold text-foreground">저장됐어요! 🙆</p>
-        <p className="mt-1 text-sm text-ink-2">
-          입력해 주셔서 감사합니다. 이 창은 닫으셔도 됩니다.
-        </p>
+        <p className="text-base font-bold text-foreground">{t("height.done_title")}</p>
+        <p className="mt-1 text-sm text-ink-2">{t("height.done_desc")}</p>
       </div>
     );
   }
@@ -47,7 +48,7 @@ export function QuickHeightForm({
       <input type="hidden" name="token" value={token} />
       <div className="flex flex-col gap-1.5">
         <label htmlFor="height_cm" className="text-sm font-medium">
-          키 (cm)
+          {t("height.label_height")}
         </label>
         <input
           id="height_cm"
@@ -58,13 +59,14 @@ export function QuickHeightForm({
           max={250}
           autoFocus
           defaultValue={height ?? ""}
-          placeholder="예: 178"
+          placeholder={t("height.placeholder_height")}
           className="h-12 rounded-xl border border-border bg-background px-4 text-base placeholder:text-ink-3"
         />
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="shoe_size_mm" className="text-sm font-medium">
-          신발 사이즈 (mm) <span className="text-ink-3">· 선택</span>
+          {t("height.label_shoe")}{" "}
+          <span className="text-ink-3">{t("height.label_optional")}</span>
         </label>
         <input
           id="shoe_size_mm"
@@ -74,7 +76,7 @@ export function QuickHeightForm({
           min={180}
           max={330}
           defaultValue={shoe ?? ""}
-          placeholder="예: 270"
+          placeholder={t("height.placeholder_shoe")}
           className="h-12 rounded-xl border border-border bg-background px-4 text-base placeholder:text-ink-3"
         />
       </div>
@@ -88,10 +90,10 @@ export function QuickHeightForm({
         disabled={pending}
         className="h-12 rounded-xl bg-primary text-base font-semibold text-primary-foreground disabled:opacity-50"
       >
-        {pending ? "저장 중…" : "제출하기"}
+        {pending ? t("height.saving") : t("height.submit")}
       </button>
       <p className="text-center text-[11px] text-ink-3">
-        {name}님의 정보로 저장됩니다. 키·신발 정보는 본인과 캐스팅 관리자에게만 보입니다.
+        {t("height.footer", { name })}
       </p>
     </form>
   );

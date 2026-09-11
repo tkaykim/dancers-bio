@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth/guard";
 import { ownParticipants } from "@/lib/campaign/submission-repository";
@@ -10,11 +11,18 @@ import { MessagesTextLink } from "@/components/messaging/MessagesBadge";
 import { OpenThreadButton } from "@/components/messaging/OpenThreadButton";
 import {
   getApplicationStage,
+  getPassedRound,
   needsNotFinalCaveat,
-  notFinalCaveat,
-  stageLabel,
+  normalizeRounds,
   type ApplicationStage,
+  type ProjectRoundConfig,
 } from "@/lib/application-stage";
+import { getLocale, serverT } from "@/lib/i18n/server";
+import { labelFor } from "@/lib/i18n/labels";
+import { tCount, translator, type KeyOf, type Translator } from "@/lib/i18n/t";
+import type { Locale } from "@/lib/i18n/locale";
+import applications from "@/lib/i18n/messages/applications";
+import labels from "@/lib/i18n/messages/labels";
 
 type Row = {
   id: string;
@@ -37,6 +45,11 @@ type Row = {
     round_labels: string[] | null;
   } | null;
 };
+
+type T = Translator<typeof applications>;
+type TLabels = Translator<typeof labels>;
+
+const CONTACT_EMAIL = "contact@deetz.kr";
 
 const STAGE_STYLES: Record<ApplicationStage, { card: string; chip: string }> = {
   pending: { card: "border-border bg-card", chip: "bg-secondary text-ink-2" },
@@ -63,19 +76,113 @@ const GROUP_ORDER: ApplicationStage[] = [
   "withdrawn",
 ];
 
-const GROUP_LABELS: Record<ApplicationStage, string> = {
-  final: "최종 합격",
-  in_progress: "선발 진행 중",
-  pending: "검토 중",
-  rejected: "불합격",
-  declined: "포기함",
-  withdrawn: "취소·만료",
+const GROUP_LABEL_KEYS: Record<ApplicationStage, KeyOf<typeof applications>> = {
+  final: "group.final",
+  in_progress: "group.in_progress",
+  pending: "group.pending",
+  rejected: "group.rejected",
+  declined: "group.declined",
+  withdrawn: "group.withdrawn",
 };
+
+/** 이름표 하나. `ugc` 면 운영자가 직접 쓴 값이라 언어 스윕에서 빼야 한다. */
+type StageText = { text: string; ugc: boolean };
+
+/**
+ * 문장 안의 한 조각만 감싼다(링크·강조·이용자 글).
+ * 문장을 조각 키로 쪼개면 어순이 다른 언어에서 깨지므로, 번역된 문장을 그리며 나눈다.
+ */
+function wrapPart(
+  text: string,
+  part: string,
+  wrap: (s: string) => ReactNode,
+): ReactNode {
+  const at = part ? text.indexOf(part) : -1;
+  if (at < 0) return text;
+  return (
+    <>
+      {text.slice(0, at)}
+      {wrap(part)}
+      {text.slice(at + part.length)}
+    </>
+  );
+}
+
+function ugcSpan(s: string) {
+  return <span data-ugc="">{s}</span>;
+}
+
+/**
+ * n차 단계의 표시 이름 — application-stage.ts 의 roundLabel() 과 같은 규칙을 언어별로 옮긴 것.
+ * round_labels 는 운영자가 직접 쓴 값이라 언어와 무관하게 항상 우선한다.
+ */
+function roundLabelOf(
+  round: number,
+  project: ProjectRoundConfig | null | undefined,
+  locale: Locale,
+  tLabels: TLabels,
+): StageText {
+  const total = normalizeRounds(project?.selection_rounds);
+  const custom = project?.round_labels?.[round - 1]?.trim();
+  if (custom) return { text: custom, ugc: true };
+  if (round >= total) return { text: labelFor("stage", "final", locale), ugc: false };
+  return { text: tLabels("stage.round", { round }), ugc: false };
+}
+
+/** 카드 칩에 그대로 쓰는 단계 이름 — application-stage.ts 의 stageLabel() 의 언어별 판. */
+function stageLabelOf(
+  app: Row,
+  project: ProjectRoundConfig | null | undefined,
+  locale: Locale,
+  t: T,
+  tLabels: TLabels,
+): StageText {
+  const stage = getApplicationStage(app);
+  const total = normalizeRounds(project?.selection_rounds);
+  const passed = getPassedRound(app);
+
+  switch (stage) {
+    case "pending":
+      return { text: labelFor("stage", "pending", locale), ugc: false };
+    case "final":
+      return roundLabelOf(total, project, locale, tLabels);
+    case "in_progress":
+      // 마지막 단계까지 올라왔는데 확정 도장이 안 찍힌 경우(레거시 데이터 포함).
+      if (passed >= total) {
+        return { text: t("stage.accepted_pending_confirm"), ugc: false };
+      }
+      return roundLabelOf(passed, project, locale, tLabels);
+    case "rejected":
+      return { text: labelFor("stage", "rejected", locale), ugc: false };
+    case "declined":
+      return { text: labelFor("stage", "declined", locale), ugc: false };
+    case "withdrawn":
+      return { text: labelFor("stage", "withdrawn", locale), ugc: false };
+  }
+}
+
+/** "아직 최종 합격이 아니다" 문장 — application-stage.ts 의 notFinalCaveat() 의 언어별 판. */
+function notFinalCaveatOf(
+  app: Row,
+  project: ProjectRoundConfig | null | undefined,
+  locale: Locale,
+  t: T,
+  tLabels: TLabels,
+): ReactNode {
+  const total = normalizeRounds(project?.selection_rounds);
+  const passed = getPassedRound(app);
+  const next = roundLabelOf(Math.min(passed + 1, total), project, locale, tLabels);
+  const sentence = t("stage.not_final_caveat", { stage: next.text });
+  return next.ugc ? wrapPart(sentence, next.text, ugcSpan) : sentence;
+}
 
 export default async function ApplicationsPage() {
   const user = await requireUser();
   const campaignParticipants = await ownParticipants(user.id);
   const supabase = await createClient();
+  const locale = await getLocale();
+  const t = await serverT(applications);
+  const tLabels = translator(labels, locale);
 
   const { data: rows } = await supabase
     .from("applications")
@@ -127,44 +234,51 @@ export default async function ApplicationsPage() {
     <div className="mx-auto flex max-w-md flex-col lg:max-w-2xl gap-6 px-6 py-8">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-          ↳ 지원 / 제안
+          {t("list.eyebrow")}
         </p>
         <h1 className="text-2xl font-bold tracking-tight leading-tight">
-          내 지원
+          {t("list.title")}
         </h1>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-ink-2">총 {list.length}건</p>
+          <p className="text-sm text-ink-2">
+            {tCount(t, "list.total", locale, list.length)}
+          </p>
           <MessagesTextLink className="text-sm font-semibold text-ink-2" />
         </div>
       </header>
 
       {campaignParticipants.length > 0 && (
         <section className="rounded-2xl border border-border bg-card p-4">
-          <h2 className="font-bold">참여 중인 챌린지 · 게시물 제출</h2>
+          <h2 className="font-bold">{t("list.campaign.title")}</h2>
           <ul className="mt-3 space-y-2">
-            {campaignParticipants.map((p) => (
-              <li key={p.id}>
-                <Link
-                  className="block rounded-lg bg-secondary px-4 py-3 text-sm font-semibold"
-                  href={`/campaigns/${p.project_id}/submit`}
-                >
-                  {list.find((r) => r.project?.id === p.project_id)?.project
-                    ?.title ?? "확정 참여 챌린지"}{" "}
-                  · 링크 제출·확인 →
-                </Link>
-              </li>
-            ))}
+            {campaignParticipants.map((p) => {
+              const title =
+                list.find((r) => r.project?.id === p.project_id)?.project?.title ?? null;
+              const line = t("list.campaign.item", {
+                title: title ?? t("list.campaign.untitled"),
+              });
+              return (
+                <li key={p.id}>
+                  <Link
+                    className="block rounded-lg bg-secondary px-4 py-3 text-sm font-semibold"
+                    href={`/campaigns/${p.project_id}/submit`}
+                  >
+                    {title ? wrapPart(line, title, ugcSpan) : line}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
       {list.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-hairline-2 p-8 text-center">
-          <p className="text-sm text-ink-3">아직 지원한 프로젝트가 없습니다.</p>
+          <p className="text-sm text-ink-3">{t("list.empty")}</p>
           <Link
             href="/feed"
             className="mt-3 inline-block text-xs uppercase tracking-[0.14em] text-primary"
           >
-            ↳ 피드 보기
+            {t("list.browse_feed")}
           </Link>
         </div>
       ) : (
@@ -175,11 +289,15 @@ export default async function ApplicationsPage() {
             return (
               <section key={stage} className="flex flex-col gap-2">
                 <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-                  {GROUP_LABELS[stage]} ({items.length})
+                  {t("group.heading", {
+                    label: t(GROUP_LABEL_KEYS[stage]),
+                    count: items.length,
+                  })}
                 </p>
                 <ul className="flex flex-col gap-2">
                   {items.map((r) => {
                     const style = STAGE_STYLES[stage];
+                    const chip = stageLabelOf(r, r.project, locale, t, tLabels);
                     return (
                       <li
                         key={r.id}
@@ -194,26 +312,17 @@ export default async function ApplicationsPage() {
                             }
                             className="flex-1"
                           >
-                            <p className="font-medium leading-snug text-foreground">
-                              {r.project?.title ?? "(삭제된 프로젝트)"}
-                            </p>
-                            <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-ink-3">
-                              <span
-                                className={`rounded-full px-2 py-0.5 font-semibold ${style.chip}`}
-                              >
-                                {stageLabel(r, r.project)}
-                              </span>
-                              <span>
-                                {r.source === "direct_proposal"
-                                  ? "받은 제안"
-                                  : "지원"}
-                              </span>
+                            <p
+                              className="font-medium leading-snug text-foreground"
+                              data-ugc={r.project?.title ? "" : undefined}
+                            >
+                              {r.project?.title ?? t("list.project_deleted")}
                             </p>
                           </Link>
                           {r.project ? (
                             <OpenThreadButton
                               projectId={r.project.id}
-                              label="메시지"
+                              label={t("list.message")}
                             />
                           ) : null}
                           {stage === "pending" ? (
@@ -226,29 +335,48 @@ export default async function ApplicationsPage() {
                             />
                           ) : null}
                         </div>
+                        {/* 단계 칩은 버튼 옆 좁은 열이 아니라 카드 전체 폭에 둔다(긴 영어 라벨이 320px 에서 3줄로 꺾이던 문제). */}
+                        <p className="-mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-ink-3">
+                          <span
+                            className={`whitespace-nowrap rounded-full px-2 py-0.5 font-semibold ${style.chip}`}
+                            data-ugc={chip.ugc ? "" : undefined}
+                          >
+                            {chip.text}
+                          </span>
+                          <span>
+                            {r.source === "direct_proposal"
+                              ? t("list.source.direct_proposal")
+                              : t("list.source.apply")}
+                          </span>
+                        </p>
 
                         {/* 중간 단계 합격을 최종 합격으로 오해하지 않도록 카드 안에서 한 번 더 못박는다. */}
                         {needsNotFinalCaveat(r, r.project) ? (
                           <p className="rounded-md bg-amber-500/10 px-2 py-1.5 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
-                            {notFinalCaveat(r, r.project)}
+                            {notFinalCaveatOf(r, r.project, locale, t, tLabels)}
                             <br />
-                            일정에 변동이 있으시다면 <b>참여 포기</b>로 미리
-                            반영 부탁드립니다.
+                            {wrapPart(
+                              t("stage.decline_hint"),
+                              t("stage.decline_hint_emphasis"),
+                              (s) => (
+                                <b>{s}</b>
+                              ),
+                            )}
                           </p>
                         ) : null}
 
                         {stage === "final" ? (
                           <p className="rounded-md bg-ok/10 px-2 py-1.5 text-xs leading-relaxed text-ok">
-                            최종 합격이 확정되었습니다.
-                            <br />이 단계부터는 직접 포기가 불가능합니다.
-                            부득이한 사정은{" "}
-                            <a
-                              href="mailto:contact@deetz.kr"
-                              className="underline underline-offset-2"
-                            >
-                              contact@deetz.kr
-                            </a>
-                            로 연락해 주세요.
+                            {t("stage.final.confirmed")}
+                            <br />
+                            {wrapPart(t("stage.final.locked"), CONTACT_EMAIL, (s) => (
+                              <a
+                                href={`mailto:${CONTACT_EMAIL}`}
+                                className="underline underline-offset-2"
+                              >
+                                {s}
+                              </a>
+                            ))}
                           </p>
                         ) : null}
 
@@ -266,14 +394,17 @@ export default async function ApplicationsPage() {
                               }
                             >
                               {sub.uploaded
-                                ? "제출한 영상 확인 · 다시 올리기"
-                                : "영상 제출하기 →"}
+                                ? t("list.submit.done")
+                                : t("list.submit.open")}
                             </a>
                           );
                         })()}
 
                         {r.cover_message ? (
-                          <p className="rounded-md bg-secondary/40 px-2 py-1.5 text-xs text-ink-2">
+                          <p
+                            className="rounded-md bg-secondary/40 px-2 py-1.5 text-xs text-ink-2"
+                            data-ugc=""
+                          >
                             {r.cover_message}
                           </p>
                         ) : null}

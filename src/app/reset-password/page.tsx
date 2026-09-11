@@ -4,13 +4,16 @@ import { BrandLogo } from "@/components/brand/BrandLogo";
 import { brandMetadata, getBrand } from "@/lib/brand-server";
 import { createClient } from "@/lib/supabase/server";
 import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
+import { serverT } from "@/lib/i18n/server";
+import auth from "@/lib/i18n/messages/auth";
 
 // Supabase는 비밀번호 재설정 이메일에 ?code=... 를 포함(PKCE). 이 페이지에서
 // exchangeCodeForSession 으로 임시 session을 만든 뒤에 폼을 노출.
 // 코드가 없거나 교환 실패 시 안내 화면.
 // GRIGO 화이트라벨 호스트에서만 탭 제목을 덮어 deetz 표기가 새지 않게 한다.
 export async function generateMetadata(): Promise<Metadata> {
-  return brandMetadata("GRIGO ENT 정산 · 비밀번호 재설정");
+  const t = await serverT(auth);
+  return brandMetadata(t("meta.reset_grigo"));
 }
 
 export default async function ResetPasswordPage({
@@ -35,6 +38,7 @@ export default async function ResetPasswordPage({
   // 해시는 서버에서 못 읽으므로 폼을 렌더하고 클라이언트가 세션을 감지하게 둔다.
 
   const brand = await getBrand();
+  const t = await serverT(auth);
 
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col lg:justify-center gap-8 px-6 pb-10 pt-12">
@@ -48,12 +52,12 @@ export default async function ResetPasswordPage({
       )}
 
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-extrabold tracking-tight leading-tight">
-          새 비밀번호<br />설정
+        <h1 className="whitespace-pre-line text-3xl font-extrabold tracking-tight leading-tight">
+          {t("reset.title")}
         </h1>
         {!exchangeError ? (
           <p className="text-sm text-ink-2">
-            새로 사용할 비밀번호를 입력해 주세요. (8자 이상)
+            {t("reset.lede")}
           </p>
         ) : null}
       </div>
@@ -61,14 +65,14 @@ export default async function ResetPasswordPage({
       {exchangeError ? (
         <div className="flex flex-col gap-4 rounded-2xl border border-destructive/30 bg-destructive/5 p-5">
           <p className="text-sm text-foreground">
-            재설정 링크가 만료됐거나 이미 사용됐어요. 새 링크를 발급받아 주세요.
+            {t("reset.expired")}
           </p>
-          <p className="text-[11px] text-ink-3">사유: {exchangeError}</p>
+          <p className="text-[11px] text-ink-3">{t("reset.reason", { reason: exchangeError })}</p>
           <Link
             href="/forgot-password"
             className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground"
           >
-            재설정 링크 다시 받기 →
+            {t("reset.get_new_link")}
           </Link>
         </div>
       ) : (

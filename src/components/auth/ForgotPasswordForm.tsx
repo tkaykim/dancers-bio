@@ -9,22 +9,24 @@ import { getBrowserClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/lib/i18n/provider";
+import type { KeyOf } from "@/lib/i18n/t";
+import auth from "@/lib/i18n/messages/auth";
 
 // 네이버·회사메일의 링크 자동스캔(프리페치)이 일회용 재설정 링크를 소진하는 문제 때문에
 // "클릭 링크" 대신 "6자리 인증코드(이메일 OTP)" 방식으로 재설정한다. (코드는 스캔당해도 안 쓰임)
 type Step = "email" | "code";
 
-function toKoreanErr(msg: string): string {
+/** GoTrue 영어 오류를 사전 키로 옮긴다. 화면 문구는 호출처가 t() 로 만든다. */
+function errorKey(msg: string): KeyOf<typeof auth> {
   const m = (msg || "").toLowerCase();
-  if (m.includes("expired") || m.includes("invalid"))
-    return "코드가 만료됐거나 올바르지 않습니다. 코드를 다시 확인하거나 재발송해 주세요.";
-  if (m.includes("rate") && m.includes("limit"))
-    return "요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.";
+  if (m.includes("expired") || m.includes("invalid")) return "error.code_invalid";
+  if (m.includes("rate") && m.includes("limit")) return "error.rate_limit";
   if (m.includes("at least") || m.includes("weak") || m.includes("short"))
-    return "비밀번호가 너무 짧거나 약합니다. 8자 이상으로 설정해 주세요.";
+    return "error.password_weak";
   if (m.includes("same as") || m.includes("different from the old"))
-    return "새 비밀번호는 기존 비밀번호와 달라야 합니다.";
-  return "처리에 실패했습니다. 다시 시도해 주세요.";
+    return "error.password_same";
+  return "error.generic";
 }
 
 export function ForgotPasswordForm() {
@@ -38,11 +40,12 @@ export function ForgotPasswordForm() {
   const [info, setInfo] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [pending, startTransition] = useTransition();
+  const t = useT(auth);
 
   function sendCode(resend = false) {
     const e = email.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) {
-      setError("올바른 이메일 주소를 입력해 주세요.");
+      setError(t("error.email_invalid"));
       return;
     }
     setError(null);
@@ -53,26 +56,22 @@ export function ForgotPasswordForm() {
       await supabase.auth.resetPasswordForEmail(e);
       setEmail(e);
       setStep("code");
-      setInfo(
-        resend
-          ? "인증코드를 다시 보냈어요. 메일을 확인해 주세요."
-          : "메일로 6자리 인증코드를 보냈어요. (스팸함도 확인해 주세요)",
-      );
+      setInfo(resend ? t("forgot.code_resent") : t("forgot.code_sent"));
     });
   }
 
   function verifyAndSet() {
     const token = code.replace(/\s/g, "");
     if (!/^\d{6,8}$/.test(token)) {
-      setError("메일로 받은 숫자 인증코드를 입력해 주세요.");
+      setError(t("error.code_required"));
       return;
     }
     if (pw.length < 8) {
-      setError("비밀번호는 8자 이상이어야 합니다.");
+      setError(t("error.password_short"));
       return;
     }
     if (pw !== pw2) {
-      setError("두 비밀번호가 일치하지 않습니다.");
+      setError(t("error.password_mismatch"));
       return;
     }
     setError(null);
@@ -84,12 +83,12 @@ export function ForgotPasswordForm() {
         type: "recovery",
       });
       if (vErr) {
-        setError(toKoreanErr(vErr.message));
+        setError(t(errorKey(vErr.message)));
         return;
       }
       const { error: pwErr } = await supabase.auth.updateUser({ password: pw });
       if (pwErr) {
-        setError(toKoreanErr(pwErr.message));
+        setError(t(errorKey(pwErr.message)));
         return;
       }
       await autoClaimDancersAction();
@@ -102,13 +101,13 @@ export function ForgotPasswordForm() {
     return (
       <div className="flex flex-col gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5">
         <p className="text-sm text-foreground">
-          비밀번호가 설정됐습니다. 본인 프로필도 연결되었어요.
+          {t("forgot.done")}
         </p>
         <Link
           href="/me/portfolio"
           className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground"
         >
-          내 프로필로 이동 →
+          {t("forgot.go_profile")}
         </Link>
       </div>
     );
@@ -119,7 +118,7 @@ export function ForgotPasswordForm() {
       {step === "email" ? (
         <>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="email">이메일</Label>
+            <Label htmlFor="email">{t("forgot.email")}</Label>
             <Input
               id="email"
               type="email"
@@ -127,7 +126,7 @@ export function ForgotPasswordForm() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="가입할 때 사용한 이메일"
+              placeholder={t("forgot.email_placeholder")}
             />
             {/* 주소를 잘못 적으면 인증 메일이 반송되는데 본인은 알 방법이 없다. */}
             <EmailTypoHint email={email} onFix={setEmail} />
@@ -143,14 +142,14 @@ export function ForgotPasswordForm() {
             onClick={() => sendCode(false)}
             className="w-full"
           >
-            {pending ? "보내는 중..." : "인증코드 받기"}
+            {pending ? t("forgot.sending") : t("forgot.send_code")}
           </Button>
           <button
             type="button"
             onClick={() => {
               const e = email.trim().toLowerCase();
               if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) {
-                setError("먼저 이메일을 입력해 주세요.");
+                setError(t("error.email_first"));
                 return;
               }
               setError(null);
@@ -159,11 +158,11 @@ export function ForgotPasswordForm() {
             }}
             className="text-xs text-ink-3 underline underline-offset-2 hover:text-foreground"
           >
-            이미 인증코드를 받았어요 — 코드 입력하기
+            {t("forgot.have_code")}
           </button>
           <p className="text-center text-sm text-muted-foreground">
             <Link href="/login" className="font-medium text-foreground underline">
-              ← 로그인으로
+              {t("forgot.back_to_login")}
             </Link>
           </p>
         </>
@@ -175,7 +174,7 @@ export function ForgotPasswordForm() {
             </p>
           ) : null}
           <div className="flex flex-col gap-2">
-            <Label htmlFor="code">인증코드</Label>
+            <Label htmlFor="code">{t("forgot.code")}</Label>
             <Input
               id="code"
               inputMode="numeric"
@@ -183,11 +182,11 @@ export function ForgotPasswordForm() {
               maxLength={8}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ""))}
-              placeholder="메일로 받은 숫자 코드"
+              placeholder={t("forgot.code_placeholder")}
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="pw">새 비밀번호</Label>
+            <Label htmlFor="pw">{t("forgot.new_password")}</Label>
             <Input
               id="pw"
               type="password"
@@ -198,7 +197,7 @@ export function ForgotPasswordForm() {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="pw2">새 비밀번호 확인</Label>
+            <Label htmlFor="pw2">{t("forgot.new_password_confirm")}</Label>
             <Input
               id="pw2"
               type="password"
@@ -219,7 +218,7 @@ export function ForgotPasswordForm() {
             onClick={verifyAndSet}
             className="w-full"
           >
-            {pending ? "변경 중..." : "비밀번호 변경"}
+            {pending ? t("forgot.submitting") : t("forgot.submit")}
           </Button>
           <button
             type="button"
@@ -227,7 +226,7 @@ export function ForgotPasswordForm() {
             onClick={() => sendCode(true)}
             className="text-xs text-ink-3 underline underline-offset-2 hover:text-foreground disabled:opacity-50"
           >
-            코드 재발송
+            {t("forgot.resend")}
           </button>
         </>
       )}

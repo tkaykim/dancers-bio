@@ -7,6 +7,8 @@ import {
   CareerHistoryManager,
   type CareerRow,
 } from "@/components/portfolio/CareerHistoryManager";
+import { serverT } from "@/lib/i18n/server";
+import me from "@/lib/i18n/messages/me";
 
 export default async function CareersPage({
   params,
@@ -15,6 +17,7 @@ export default async function CareersPage({
 }) {
   const { dancerId } = await params;
   const user = await requireUser();
+  const t = await serverT(me);
   const supabase = await createClient();
 
   const { data: dancer } = await supabase
@@ -66,20 +69,18 @@ export default async function CareersPage({
       <header className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-            ↳ 경력 관리
+            ↳ {t("careers.eyebrow")}
           </p>
-          <h1 className="text-2xl font-bold leading-tight tracking-tight">
+          <h1 data-ugc className="text-2xl font-bold leading-tight tracking-tight">
             {dancer.stage_name}
           </h1>
-          <p className="text-sm text-ink-2">
-            카테고리별로 경력을 추가하고 영상 링크를 첨부합니다.
-          </p>
+          <p className="text-sm text-ink-2">{t("careers.desc")}</p>
         </div>
         <Link
           href={`/me/portfolio/${dancer.id}`}
           className="shrink-0 rounded-full border border-hairline-2 px-3 py-1.5 text-xs uppercase tracking-[0.14em] text-ink-2 hover:text-foreground"
         >
-          ← 프로필
+          ← {t("careers.back_profile")}
         </Link>
       </header>
 

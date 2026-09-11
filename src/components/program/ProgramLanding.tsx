@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -20,6 +20,7 @@ import {
   Video,
   X,
 } from "lucide-react";
+import { setLocaleAction } from "@/app/actions/locale";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { splitSentences } from "@/components/village/copy";
 import { cn } from "@/lib/utils";
@@ -31,16 +32,6 @@ const LANGS: { code: Lang; label: string }[] = [
   { code: "ja", label: "日本語" },
   { code: "ko", label: "한국어" },
 ];
-
-// 최초 진입 언어 선택 팝업용 (모국어 표기 + 영어 병기)
-const LANG_CHOICES: { code: Lang; native: string; en: string }[] = [
-  { code: "en", native: "English", en: "English" },
-  { code: "ja", native: "日本語", en: "Japanese" },
-  { code: "ko", native: "한국어", en: "Korean" },
-];
-
-// 사용자가 고른 언어를 기억해 다음 방문에 다시 묻지 않는다.
-const LANG_STORAGE_KEY = "deetz_program_lang";
 
 type QA = { q: string; a: string };
 type Step = { title: string; body: string };
@@ -442,79 +433,30 @@ const PAIN_ICONS = [HelpCircle, AlertTriangle, Home, Users];
 
 export function ProgramLanding({
   initialLang = "en",
-  lockLang = false,
   embed = false,
 }: {
   initialLang?: Lang;
-  lockLang?: boolean;
   embed?: boolean;
 }) {
+  // 초기 언어는 서버가 정한 요청 언어(prop)뿐이다. 마운트 후 localStorage·navigator 로 다시
+  // 정하지 않는다 — 첫 렌더가 달라지면 hydration 이 깨진다(docs/design-i18n-ui.md §3.4·§3.8).
   const [lang, setLang] = useState<Lang>(initialLang);
   const [selected, setSelected] = useState<RosterItem | null>(null);
-  const [askLang, setAskLang] = useState(false);
-  const [suggested, setSuggested] = useState<Lang>(initialLang);
+  const [, startTransition] = useTransition();
 
-  // 선택한 언어를 URL(?lang=)에 반영 → 그 상태로 복붙하면 언어가 유지된 채 공유된다.
-  const syncUrlLang = (l: Lang) => {
-    if (embed) return; // iframe 내부에서는 URL 조작하지 않음
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set("lang", l);
-      window.history.replaceState(null, "", url.toString());
-    } catch {
-      /* URL 조작 불가 환경 무시 */
-    }
-  };
-
+  // 전환 버튼은 즉시 반응해야 하므로 낙관적으로 표시를 바꾸고, 서버 액션이 쿠키·프로필을 저장한 뒤
+  // redirect 로 같은 화면을 새 언어로 다시 그린다. 성공한 redirect 는 rejection 으로 오므로
+  // 실패는 반환값 { ok: false } 로만 판단한다.
   const selectLang = (l: Lang) => {
+    if (l === lang) return;
+    const prev = lang;
     setLang(l);
-    try {
-      localStorage.setItem(LANG_STORAGE_KEY, l);
-    } catch {
-      /* localStorage 불가 환경 무시 */
-    }
-    syncUrlLang(l);
+    startTransition(async () => {
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      const result = await setLocaleAction(l, currentUrl);
+      if (result && result.ok === false) setLang(prev);
+    });
   };
-
-  useEffect(() => {
-    // URL에 ?lang= 로 명시했거나(embed/iframe) 진입한 경우 → 팝업 없이 그 언어 그대로.
-    if (lockLang || embed) return;
-    // 이전에 고른 언어가 있으면 그대로 적용 + URL에도 반영(복붙 시 언어 유지), 다시 묻지 않는다.
-    let saved: string | null = null;
-    try {
-      saved = localStorage.getItem(LANG_STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
-    if (saved === "en" || saved === "ja" || saved === "ko") {
-      // 클라이언트 전용(localStorage) 값이라 SSR에서 알 수 없어 마운트 후 동기화가 불가피.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLang(saved);
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.set("lang", saved);
-        window.history.replaceState(null, "", url.toString());
-      } catch {
-        /* ignore */
-      }
-      return;
-    }
-    // 최초 진입(깨끗한 URL) → 브라우저 언어로 추천만 하고, 자동 전환 대신 선택 팝업.
-    const nav = navigator.language?.toLowerCase() ?? "";
-    const detected: Lang = nav.startsWith("ja") ? "ja" : nav.startsWith("ko") ? "ko" : "en";
-    setSuggested(detected);
-    setAskLang(true);
-  }, [lockLang, embed]);
-
-  // 언어 선택 팝업 열림 중 배경 스크롤 잠금
-  useEffect(() => {
-    if (!askLang) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [askLang]);
 
   // 시트 열림 중 배경 스크롤 잠금 + ESC 닫기
   useEffect(() => {
@@ -560,47 +502,6 @@ export function ProgramLanding({
           ))}
         </div>
       </div>
-
-      {/* 최초 진입 언어 선택 팝업 (깨끗한 URL 진입 시 1회) */}
-      {askLang ? (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Select your language"
-        >
-          <div className="w-full max-w-xs rounded-2xl bg-background p-6 shadow-2xl">
-            <div className="mb-4 flex flex-col items-center text-center">
-              <div className="mb-3 flex size-11 items-center justify-center rounded-full bg-secondary">
-                <Languages className="size-5 text-foreground" />
-              </div>
-              <p className="text-base font-bold text-foreground">Select your language</p>
-              <p className="mt-1 text-xs text-ink-3">言語を選択 · 언어 선택</p>
-            </div>
-            <div className="flex flex-col gap-2">
-              {LANG_CHOICES.map((l) => (
-                <button
-                  key={l.code}
-                  type="button"
-                  onClick={() => {
-                    selectLang(l.code);
-                    setAskLang(false);
-                  }}
-                  className={cn(
-                    "flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors",
-                    suggested === l.code
-                      ? "border-foreground bg-secondary/50"
-                      : "border-hairline-2 hover:border-foreground/40",
-                  )}
-                >
-                  <span className="text-sm font-semibold text-foreground">{l.native}</span>
-                  <span className="text-xs text-ink-3">{l.en}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {/* Hero */}
       <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-3">{c.eyebrow}</p>

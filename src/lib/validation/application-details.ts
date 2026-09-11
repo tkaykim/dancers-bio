@@ -12,37 +12,37 @@ function isHttpUrl(value: string): boolean {
 const httpUrl = z
   .string()
   .trim()
-  .min(1, "링크를 입력해 주세요.")
-  .max(2000, "링크가 너무 깁니다.")
-  .refine(isHttpUrl, "http 또는 https 링크를 입력해 주세요.");
+  .min(1, "v.link_required")
+  .max(2000, "v.link_too_long")
+  .refine(isHttpUrl, "v.link_http_only");
 
 export const castingApplicationDetailsSchema = z.object({
   applicant_name: z
     .string()
     .trim()
-    .min(1, "이름을 입력해 주세요.")
-    .max(100, "이름은 100자 이하로 입력해 주세요."),
+    .min(1, "v.name_required")
+    .max(100, "v.name_max_100"),
   birth_year: z.coerce
     .number()
-    .int("출생연도를 숫자로 입력해 주세요.")
-    .min(1900, "출생연도를 확인해 주세요.")
-    .max(new Date().getFullYear(), "출생연도를 확인해 주세요."),
+    .int("v.birth_year_integer")
+    .min(1900, "v.birth_year_range")
+    .max(new Date().getFullYear(), "v.birth_year_range"),
   height_cm: z.coerce
     .number()
-    .int("키는 cm 단위의 정수로 입력해 주세요.")
-    .min(50, "키를 확인해 주세요.")
-    .max(250, "키를 확인해 주세요."),
+    .int("v.height_integer")
+    .min(50, "v.height_range")
+    .max(250, "v.height_range"),
   primary_genre: z
     .string()
     .trim()
-    .min(1, "주 장르를 입력해 주세요.")
-    .max(100, "주 장르는 100자 이하로 입력해 주세요."),
+    .min(1, "v.primary_genre_required")
+    .max(100, "v.primary_genre_max_100"),
   dance_video_url: httpUrl,
   backup_dancer_history: z
     .string()
     .trim()
-    .min(1, "백업댄서 이력을 입력해 주세요. 경력이 없으면 '없음'이라고 적어 주세요.")
-    .max(2000, "백업댄서 이력은 2,000자 이하로 입력해 주세요."),
+    .min(1, "v.backup_history_required")
+    .max(2000, "v.backup_history_max_2000"),
   personal_profile_url: z.preprocess(
     (value) =>
       typeof value === "string" && value.trim() === "" ? null : value,

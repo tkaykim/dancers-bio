@@ -1,6 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getBrandFromHost } from "@/lib/brand";
+import {
+  LOCALE_COOKIE,
+  REQUESTED_LOCALE_HEADER,
+  UI_LOCALE_HEADER,
+  isLocale,
+  resolveRequestedLocale,
+  resolveUiLocale,
+} from "@/lib/i18n/locale";
 
 // dancers.bio is the clean "link-in-bio" domain dancers paste into their IG
 // profile. It is served by THIS same deployment (alongside deetz.kr), so we do
@@ -32,8 +40,44 @@ const RESERVED_FIRST_SEGMENTS = new Set([
 // 그래서 POST 일 때만 API 라우트로 rewrite 한다. GET 은 그대로 페이지로 간다.
 const UNSUBSCRIBE_PATH = /^\/unsubscribe\/([^/]+)\/?$/;
 
+const LOCALE_COOKIE_OPTIONS = {
+  path: "/",
+  maxAge: 60 * 60 * 24 * 365,
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+  // 비밀이 아니고 클라이언트 진단에서 읽을 수 있어야 하므로 httpOnly 를 켜지 않는다.
+  httpOnly: false,
+};
+
 export async function middleware(request: NextRequest) {
   const host = (request.headers.get("host") ?? "").toLowerCase();
+
+  // ── 언어 결정 (docs/design-i18n-ui.md §3.1) ─────────────────────────────
+  // 반드시 아래 조기 반환(redirect·rewrite)보다 앞에서 결정하고 요청 헤더에 싣는다.
+  //   요청 언어: ?lang= → 쿠키 → Accept-Language → ko  (기능 사전용, 쿠키·프로필 저장값)
+  //   UI 언어:  요청 언어에 운영 경로 강제 ko 와 플래그 UI_LOCALES 를 적용 (전역 문구용)
+  const queryLang = request.nextUrl.searchParams.get("lang");
+  const cookieLang = request.cookies.get(LOCALE_COOKIE)?.value ?? null;
+  const requestedLocale = resolveRequestedLocale({
+    queryLang,
+    cookieLang,
+    acceptLanguage: request.headers.get("accept-language"),
+  });
+  const uiLocale = resolveUiLocale(requestedLocale, request.nextUrl.pathname);
+  request.headers.set(REQUESTED_LOCALE_HEADER, requestedLocale);
+  request.headers.set(UI_LOCALE_HEADER, uiLocale);
+  // ?lang= 으로 들어온 명시적 선택만 쿠키에 남긴다(쿠키 값과 다를 때만).
+  const persistLang = isLocale(queryLang) && queryLang !== cookieLang ? queryLang : null;
+  const withLocaleCookie = (res: NextResponse) => {
+    if (persistLang) res.cookies.set(LOCALE_COOKIE, persistLang, LOCALE_COOKIE_OPTIONS);
+    return res;
+  };
+  // rewrite 는 request.headers 를 넘겨야 대상 서버 컴포넌트의 headers() 에 언어가 도달한다.
+  const rewriteTo = (pathname: string) => {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname;
+    return withLocaleCookie(NextResponse.rewrite(url, { request: { headers: request.headers } }));
+  };
 
   // ⚠ 확인 페이지의 "수신거부 확인" / "다시 메일 받기" 버튼도 서버 액션이라
   //    같은 URL 로 POST 한다. 그건 next-action 헤더로 구분해 그대로 통과시킨다.
@@ -41,9 +85,7 @@ export async function middleware(request: NextRequest) {
   if (request.method === "POST" && !request.headers.get("next-action")) {
     const m = UNSUBSCRIBE_PATH.exec(request.nextUrl.pathname);
     if (m) {
-      const url = request.nextUrl.clone();
-      url.pathname = `/api/unsubscribe/${m[1]}`;
-      return NextResponse.rewrite(url);
+      return rewriteTo(`/api/unsubscribe/${m[1]}`);
     }
   }
 
@@ -58,9 +100,7 @@ export async function middleware(request: NextRequest) {
     }
     // PWA manifest는 GRIGO 명의로 교체(설치명·시작 URL이 deetz로 노출되는 것 방지).
     if (pathname === "/manifest.json") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/manifest-grigo.json";
-      return NextResponse.rewrite(url);
+      return rewriteTo("/manifest-grigo.json");
     }
   }
 
@@ -82,9 +122,7 @@ export async function middleware(request: NextRequest) {
       !first.startsWith("_") &&
       !RESERVED_FIRST_SEGMENTS.has(first)
     ) {
-      const url = request.nextUrl.clone();
-      url.pathname = `/d/${first}`;
-      return NextResponse.rewrite(url);
+      return rewriteTo(`/d/${first}`);
     }
     // Fall through: serve the requested route from this same deployment.
   }
@@ -153,8 +191,9 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Supabase setAll 콜백이 response 객체를 갈아끼우므로, noindex 헤더는
+  // Supabase setAll 콜백이 response 객체를 갈아끼우므로, 쿠키·noindex 헤더는
   // 반드시 최종 response에 마지막으로 붙인다 (검색 중복 노출 방지).
+  withLocaleCookie(response);
   if (isGrigoHost) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
   }

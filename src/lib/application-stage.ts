@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- stageLabel/notFinalCaveat 는 ko 전용(메일·운영 화면). 이용자 화면은 labelFor("stage") 를 쓴다(docs/design-i18n-ui.md §3.5) */
 // 지원 선발 단계 모델 (서버/클라이언트 공용 순수 함수).
 //
 // 공고가 자기 단계 수를 정하고(projects.selection_rounds, 1~3), 지원은 어디까지
@@ -14,7 +15,7 @@
 // 관련 마이그레이션: 20260815_004 / _005 / _006.
 
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
-import { t } from "@/lib/i18n/messages";
+import { t } from "@/lib/i18n/messages/quick";
 
 export const MAX_SELECTION_ROUNDS = 3;
 

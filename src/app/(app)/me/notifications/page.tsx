@@ -2,11 +2,14 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth/guard";
 import { getOrCreatePrefs } from "@/lib/notify/notification-preferences";
 import { NotificationSettingsForm } from "@/components/me/NotificationSettingsForm";
+import { serverT } from "@/lib/i18n/server";
+import me from "@/lib/i18n/messages/me";
 
 export const dynamic = "force-dynamic";
 
 export default async function NotificationSettingsPage() {
   const user = await requireUser();
+  const t = await serverT(me);
   const prefs = await getOrCreatePrefs(user.id);
 
   return (
@@ -15,14 +18,16 @@ export default async function NotificationSettingsPage() {
         href="/me"
         className="text-xs uppercase tracking-[0.14em] text-ink-3 hover:text-foreground"
       >
-        ← 내 계정
+        ← {t("notifications.back")}
       </Link>
       <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 계정 설정</p>
-        <h1 className="text-2xl font-bold tracking-tight leading-tight">알림 설정</h1>
-        <p className="text-sm text-ink-2">
-          받고 싶은 알림을 직접 선택하세요. 언제든 다시 바꿀 수 있습니다.
+        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
+          ↳ {t("notifications.eyebrow")}
         </p>
+        <h1 className="text-2xl font-bold tracking-tight leading-tight">
+          {t("notifications.title")}
+        </h1>
+        <p className="text-sm text-ink-2">{t("notifications.desc")}</p>
       </header>
       <NotificationSettingsForm
         initial={{

@@ -11,16 +11,25 @@ import {
   teamProfileSchema,
   transferLeadSchema,
 } from "@/lib/validation/teams";
+import { getLocale, serverT } from "@/lib/i18n/server";
+import { localizeZodError } from "@/lib/i18n/zod";
+import type { Translator } from "@/lib/i18n/t";
+import i18nActions from "@/lib/i18n/messages/actions";
 import type { ActionResult } from "./auth";
+
+type ActionT = Translator<typeof i18nActions>;
 
 /**
  * 브라우저에서 Supabase Storage 로 직접 업로드된 URL 만 받습니다.
  * Server Action body 한계(Vercel 4.5MB) 우회 + storage RLS 가 path[0] 으로 권한 검증.
  */
-function validateProfileImgUrl(url: string | null): { ok: true; url: string | null } | { ok: false; error: string } {
+function validateProfileImgUrl(
+  url: string | null,
+  t: ActionT,
+): { ok: true; url: string | null } | { ok: false; error: string } {
   if (!url) return { ok: true, url: null };
   if (!isValidProfilePhotoUrl(url)) {
-    return { ok: false, error: "팀 로고 URL 검증에 실패했습니다. 다시 시도해 주세요." };
+    return { ok: false, error: t("team.logo_url_invalid") };
   }
   return { ok: true, url };
 }
@@ -70,15 +79,15 @@ function buildSocialLinks(parsed: {
   return Object.keys(links).length > 0 ? links : null;
 }
 
-function humanizeTeamError(message: string): string {
+function humanizeTeamError(message: string, t: ActionT): string {
   if (message.includes("teams_slug_key") || (message.toLowerCase().includes("duplicate") && message.includes("slug"))) {
-    return "이미 사용 중인 slug입니다. 다른 값을 입력해 주세요.";
+    return t("team.slug_taken");
   }
   if (message.includes("team_members_team_dancer_unique")) {
-    return "이미 등록된 멤버입니다.";
+    return t("team.member_duplicate");
   }
   if (message.includes("Cannot remove team lead")) {
-    return "리더는 멤버에서 직접 제외할 수 없습니다. 리더를 위임하거나 팀을 해체하세요.";
+    return t("team.lead_remove_blocked");
   }
   return message;
 }
@@ -88,6 +97,7 @@ export async function createTeamAction(
 ): Promise<ActionResult<{ id: string }>> {
   const user = await requireUser();
   const supabase = await createClient();
+  const t = await serverT(i18nActions);
 
   // multi-dancer 안전(R3): 한 profile이 여러 dancer를 가질 수 있으므로
   // maybeSingle() 단독은 다중 행에서 에러. limit(1)로 첫 행만.
@@ -98,7 +108,7 @@ export async function createTeamAction(
     .limit(1)
     .maybeSingle();
   if (!dancer) {
-    return { ok: false, error: "팀을 만들려면 먼저 댄서 프로필이 필요합니다." };
+    return { ok: false, error: t("team.dancer_required") };
   }
 
   const parsed = teamProfileSchema.safeParse({
@@ -114,10 +124,7 @@ export async function createTeamAction(
     social_tiktok: strOrNull(formData, "social_tiktok"),
   });
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
-    };
+    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
   }
 
   const social_links = buildSocialLinks(parsed.data);
@@ -131,7 +138,7 @@ export async function createTeamAction(
   );
 
   // 로고는 브라우저에서 Storage 로 직접 업로드 후 URL 만 들어옴.
-  const profileImgCheck = validateProfileImgUrl(strOrNull(formData, "profile_img_url"));
+  const profileImgCheck = validateProfileImgUrl(strOrNull(formData, "profile_img_url"), t);
   if (!profileImgCheck.ok) return profileImgCheck;
 
   const insertValues = {
@@ -152,7 +159,7 @@ export async function createTeamAction(
     .insert(insertValues)
     .select("id")
     .single();
-  if (error) return { ok: false, error: humanizeTeamError(error.message) };
+  if (error) return { ok: false, error: humanizeTeamError(error.message, t) };
   const teamId = created.id as string;
 
   revalidatePath("/me/teams");
@@ -165,9 +172,10 @@ export async function updateTeamAction(
 ): Promise<ActionResult<{ id: string }>> {
   await requireUser();
   const supabase = await createClient();
+  const t = await serverT(i18nActions);
 
   const teamId = (formData.get("team_id") ?? "").toString();
-  if (!teamId) return { ok: false, error: "잘못된 요청입니다." };
+  if (!teamId) return { ok: false, error: t("common.invalid_request") };
 
   const parsed = teamProfileSchema.safeParse({
     team_name: formData.get("team_name"),
@@ -182,10 +190,7 @@ export async function updateTeamAction(
     social_tiktok: strOrNull(formData, "social_tiktok"),
   });
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
-    };
+    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
   }
 
   const social_links = buildSocialLinks(parsed.data);
@@ -199,7 +204,7 @@ export async function updateTeamAction(
   );
 
   // 로고는 브라우저에서 Storage 로 직접 업로드 후 URL 만 들어옴.
-  const profileImgCheck = validateProfileImgUrl(strOrNull(formData, "profile_img_url"));
+  const profileImgCheck = validateProfileImgUrl(strOrNull(formData, "profile_img_url"), t);
   if (!profileImgCheck.ok) return profileImgCheck;
 
   const baseValues = {
@@ -218,7 +223,7 @@ export async function updateTeamAction(
     .from("teams")
     .update(baseValues)
     .eq("id", teamId);
-  if (error) return { ok: false, error: humanizeTeamError(error.message) };
+  if (error) return { ok: false, error: humanizeTeamError(error.message, t) };
 
   revalidatePath(`/me/teams/${teamId}`);
   revalidatePath("/me/teams");
@@ -232,6 +237,7 @@ export async function addTeamMemberAction(
 ): Promise<ActionResult<{ id: string }>> {
   await requireUser();
   const supabase = await createClient();
+  const t = await serverT(i18nActions);
 
   // 폼 필드 이름은 호환을 위해 그대로 'profile_id' 를 사용. 의미는
   // "댄서 프로필 소유자의 platform profile UUID 또는 dancer.id UUID".
@@ -243,10 +249,7 @@ export async function addTeamMemberAction(
     display_name: strOrNull(formData, "display_name"),
   });
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
-    };
+    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
   }
 
   let dancerId: string | null = null;
@@ -270,16 +273,12 @@ export async function addTeamMemberAction(
       if (byId) dancerId = byId.id as string;
     }
     if (!dancerId) {
-      return {
-        ok: false,
-        error:
-          "해당 UUID에 연결된 댄서 프로필을 찾지 못했습니다. UUID 없이 이름만 등록하려면 ID 칸을 비워두세요.",
-      };
+      return { ok: false, error: t("team.member_uuid_not_found") };
     }
   }
 
   if (!dancerId && !parsed.data.display_name) {
-    return { ok: false, error: "플랫폼 계정 또는 이름 중 하나는 필수입니다." };
+    return { ok: false, error: t("team.member_identity_required") };
   }
 
   const { data, error } = await supabase
@@ -291,7 +290,7 @@ export async function addTeamMemberAction(
     })
     .select("id")
     .single();
-  if (error) return { ok: false, error: humanizeTeamError(error.message) };
+  if (error) return { ok: false, error: humanizeTeamError(error.message, t) };
 
   revalidatePath(`/me/teams/${parsed.data.team_id}/members`);
   revalidatePath(`/me/teams/${parsed.data.team_id}`);
@@ -303,11 +302,12 @@ export async function removeTeamMemberAction(
 ): Promise<ActionResult> {
   await requireUser();
   const supabase = await createClient();
+  const t = await serverT(i18nActions);
 
   const memberId = (formData.get("member_id") ?? "").toString();
   const teamId = (formData.get("team_id") ?? "").toString();
   if (!memberId || !teamId) {
-    return { ok: false, error: "잘못된 요청입니다." };
+    return { ok: false, error: t("common.invalid_request") };
   }
 
   const { error } = await supabase
@@ -315,7 +315,7 @@ export async function removeTeamMemberAction(
     .delete()
     .eq("id", memberId)
     .eq("team_id", teamId);
-  if (error) return { ok: false, error: humanizeTeamError(error.message) };
+  if (error) return { ok: false, error: humanizeTeamError(error.message, t) };
 
   revalidatePath(`/me/teams/${teamId}/members`);
   revalidatePath(`/me/teams/${teamId}`);
@@ -327,16 +327,14 @@ export async function transferTeamLeadAction(
 ): Promise<ActionResult> {
   await requireUser();
   const supabase = await createClient();
+  const t = await serverT(i18nActions);
 
   const parsed = transferLeadSchema.safeParse({
     team_id: formData.get("team_id"),
     new_lead_profile_id: formData.get("new_lead_profile_id"),
   });
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "잘못된 요청입니다.",
-    };
+    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
   }
 
   // Ensure the new lead is already a member of this team.
@@ -348,10 +346,7 @@ export async function transferTeamLeadAction(
     .eq("profile_id", parsed.data.new_lead_profile_id);
   const newLeadDancerIds = (newLeadDancers ?? []).map((d) => d.id as string);
   if (newLeadDancerIds.length === 0) {
-    return {
-      ok: false,
-      error: "후임은 댄서 프로필이 필요합니다.",
-    };
+    return { ok: false, error: t("team.new_lead_needs_dancer") };
   }
   const { data: member } = await supabase
     .from("team_members")
@@ -361,17 +356,14 @@ export async function transferTeamLeadAction(
     .limit(1)
     .maybeSingle();
   if (!member) {
-    return {
-      ok: false,
-      error: "후임은 팀의 기존 멤버여야 합니다 (댄서 프로필 연결 필요).",
-    };
+    return { ok: false, error: t("team.new_lead_must_be_member") };
   }
 
   const { error } = await supabase
     .from("teams")
     .update({ lead_profile_id: parsed.data.new_lead_profile_id })
     .eq("id", parsed.data.team_id);
-  if (error) return { ok: false, error: humanizeTeamError(error.message) };
+  if (error) return { ok: false, error: humanizeTeamError(error.message, t) };
 
   revalidatePath(`/me/teams/${parsed.data.team_id}`);
   revalidatePath("/me/teams");
@@ -383,16 +375,17 @@ export async function disbandTeamAction(
 ): Promise<ActionResult> {
   await requireUser();
   const supabase = await createClient();
+  const t = await serverT(i18nActions);
 
   const teamId = (formData.get("team_id") ?? "").toString();
-  if (!teamId) return { ok: false, error: "잘못된 요청입니다." };
+  if (!teamId) return { ok: false, error: t("common.invalid_request") };
 
   // Soft delete: mark inactive + archive open applications under this team
   const { error: teamError } = await supabase
     .from("teams")
     .update({ is_active: false, archived_at: new Date().toISOString() })
     .eq("id", teamId);
-  if (teamError) return { ok: false, error: humanizeTeamError(teamError.message) };
+  if (teamError) return { ok: false, error: humanizeTeamError(teamError.message, t) };
 
   await supabase
     .from("applications")

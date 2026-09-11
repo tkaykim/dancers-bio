@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Download, Share, Plus, X } from "lucide-react";
 import { getBrandFromHost } from "@/lib/brand";
+import { useT } from "@/lib/i18n/provider";
+import nav from "@/lib/i18n/messages/nav";
 
 // 설치 유도 배너 — 전역 마운트(루트 레이아웃).
 // - Android/데스크톱 Chrome·Edge: beforeinstallprompt 포착 → "앱 설치" 버튼 → prompt()
@@ -64,8 +66,12 @@ function dismissedRecently(): boolean {
 
 type Mode = "native" | "ios" | "ios-other";
 
+/** 아이콘·강조(<b>)를 끼울 자리. 언어마다 위치가 달라 문장을 이어 붙이지 않는다. */
+const SLOT = "\u0000";
+
 export function InstallPrompt() {
   const pathname = usePathname();
+  const t = useT(nav);
   const [mode, setMode] = useState<Mode | null>(null);
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [showGuide, setShowGuide] = useState(false);
@@ -132,11 +138,16 @@ export function InstallPrompt() {
     return null;
   if (!mode) return null;
 
+  const [iosOtherBefore, iosOtherAfter = ""] = t("install.ios_other", { safari: SLOT }).split(SLOT);
+  const [step1Before, step1After = ""] = t("install.step1", { share: SLOT }).split(SLOT);
+  const [step2Before, step2After = ""] = t("install.step2", { add: SLOT }).split(SLOT);
+  const [step3Before, step3After = ""] = t("install.step3", { app: SLOT }).split(SLOT);
+
   return (
     <>
       <div
         role="dialog"
-        aria-label="앱 설치 안내"
+        aria-label={t("install.aria")}
         className="fixed inset-x-0 z-40 mx-auto max-w-md px-3"
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 4.75rem)" }}
       >
@@ -145,9 +156,9 @@ export function InstallPrompt() {
             <Download size={18} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold leading-tight">앱으로 설치하기</p>
+            <p className="text-sm font-semibold leading-tight">{t("install.title")}</p>
             <p className="text-xs text-ink-3">
-              설치하면 핏 맞는 새 공고를 알림으로 받아요.
+              {t("install.body")}
             </p>
           </div>
 
@@ -157,7 +168,7 @@ export function InstallPrompt() {
               onClick={installNative}
               className="shrink-0 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90"
             >
-              설치
+              {t("install.cta")}
             </button>
           ) : mode === "ios" ? (
             <button
@@ -165,7 +176,7 @@ export function InstallPrompt() {
               onClick={() => setShowGuide(true)}
               className="shrink-0 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90"
             >
-              설치 방법
+              {t("install.how")}
             </button>
           ) : (
             <button
@@ -173,14 +184,14 @@ export function InstallPrompt() {
               onClick={() => setShowGuide(true)}
               className="shrink-0 rounded-lg border border-border px-3 py-2 text-xs font-medium text-ink-2 hover:bg-secondary"
             >
-              안내
+              {t("install.guide")}
             </button>
           )}
 
           <button
             type="button"
             onClick={dismiss}
-            aria-label="닫기"
+            aria-label={t("install.close")}
             className="shrink-0 rounded-lg p-1.5 text-ink-3 hover:bg-secondary hover:text-foreground"
           >
             <X size={16} />
@@ -198,11 +209,11 @@ export function InstallPrompt() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <p className="text-base font-bold">홈 화면에 추가</p>
+              <p className="text-base font-bold">{t("install.add_to_home")}</p>
               <button
                 type="button"
                 onClick={() => setShowGuide(false)}
-                aria-label="닫기"
+                aria-label={t("install.close")}
                 className="rounded-lg p-1.5 text-ink-3 hover:bg-secondary"
               >
                 <X size={18} />
@@ -211,8 +222,9 @@ export function InstallPrompt() {
 
             {mode === "ios-other" ? (
               <p className="text-sm leading-relaxed text-ink-2">
-                iPhone/iPad에서는 <b>Safari</b>에서만 홈 화면에 추가할 수 있어요.
-                이 페이지를 Safari로 열어주세요.
+                {iosOtherBefore}
+                <b>{t("install.safari")}</b>
+                {iosOtherAfter}
               </p>
             ) : (
               <ol className="flex flex-col gap-3">
@@ -221,7 +233,10 @@ export function InstallPrompt() {
                     1
                   </span>
                   <span className="flex items-center gap-1.5">
-                    하단의 <Share size={16} className="inline" aria-label="공유" /> <b>공유</b> 버튼을 누르세요.
+                    {step1Before}
+                    <Share size={16} className="inline" aria-label={t("install.share")} />{" "}
+                    <b>{t("install.share")}</b>
+                    {step1After}
                   </span>
                 </li>
                 <li className="flex items-center gap-3 text-sm text-ink-2">
@@ -229,7 +244,10 @@ export function InstallPrompt() {
                     2
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Plus size={16} className="inline" /> <b>홈 화면에 추가</b>를 선택하세요.
+                    {step2Before}
+                    <Plus size={16} className="inline" />{" "}
+                    <b>{t("install.add_to_home")}</b>
+                    {step2After}
                   </span>
                 </li>
                 <li className="flex items-center gap-3 text-sm text-ink-2">
@@ -237,7 +255,9 @@ export function InstallPrompt() {
                     3
                   </span>
                   <span>
-                    추가된 <b>deetz</b> 앱을 열고 알림을 켜면 새 공고 알림을 받아요.
+                    {step3Before}
+                    <b>deetz</b>
+                    {step3After}
                   </span>
                 </li>
               </ol>
@@ -248,7 +268,7 @@ export function InstallPrompt() {
               onClick={dismiss}
               className="mt-5 w-full rounded-lg border border-border py-2.5 text-sm font-medium text-ink-2 hover:bg-secondary"
             >
-              나중에 하기
+              {t("install.later")}
             </button>
           </div>
         </div>

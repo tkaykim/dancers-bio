@@ -1,13 +1,29 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { InstagramVerifyForm } from "@/components/verification/InstagramVerifyForm";
+import { serverT } from "@/lib/i18n/server";
+import applications from "@/lib/i18n/messages/applications";
 
 function pickActive<T extends { status: string; expires_at: string }>(rows: T[]): T | undefined {
   const now = Date.now();
   return rows.find((v) => v.status === "pending" && new Date(v.expires_at).getTime() > now);
+}
+
+/** 문장 안의 이용자 작성 조각만 감싼다(언어마다 어순이 달라 문장을 쪼개지 않는다). */
+function withUgc(text: string, part: string): ReactNode {
+  const at = part ? text.indexOf(part) : -1;
+  if (at < 0) return text;
+  return (
+    <>
+      {text.slice(0, at)}
+      <span data-ugc="">{part}</span>
+      {text.slice(at + part.length)}
+    </>
+  );
 }
 
 export default async function VerifyInstagramPage({
@@ -25,6 +41,7 @@ export default async function VerifyInstagramPage({
   }
 
   const supabase = await createClient();
+  const t = await serverT(applications);
 
   // claim 모드일 때 대상 dancer 정보 + claim 소유 검증.
   let claimContext: { dancer: { id: string; stage_name: string; slug: string | null; profile_img: string | null } } | null = null;
@@ -69,10 +86,10 @@ export default async function VerifyInstagramPage({
     <div className="mx-auto flex max-w-md flex-col lg:max-w-2xl gap-6 px-6 py-8">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-          ↳ 본인인증
+          {t("verify.eyebrow")}
         </p>
         <h1 className="text-2xl font-bold tracking-tight leading-tight">
-          {claimMode ? "프로필 본인 확인" : (<>인스타그램으로<br />본인 확인</>)}
+          {claimMode ? t("verify.title.claim") : t("verify.title")}
         </h1>
         {claimMode && claimContext ? (
           <div className="mt-2 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
@@ -90,24 +107,25 @@ export default async function VerifyInstagramPage({
             )}
             <div className="flex flex-col gap-0.5">
               <p className="text-sm font-semibold">
-                {claimContext.dancer.stage_name} 프로필 본인 인증
+                {withUgc(
+                  t("verify.claim.heading", { name: claimContext.dancer.stage_name }),
+                  claimContext.dancer.stage_name,
+                )}
               </p>
-              <p className="text-[11px] text-ink-3">
-                인스타그램 DM 1회로 신원을 확인하면 즉시 본인 프로필로 연결됩니다.
-              </p>
+              <p className="text-[11px] text-ink-3">{t("verify.claim.desc")}</p>
             </div>
           </div>
         ) : (
-          <p className="text-sm text-ink-2 leading-relaxed">
-            프로젝트를 개설하고 다이렉트 제안을 보내려면 본인 인증이 필요합니다. 인스타그램 DM 1회로 끝납니다.
-          </p>
+          <p className="text-sm text-ink-2 leading-relaxed">{t("verify.intro")}</p>
         )}
       </header>
 
       {recentReject?.reject_reason ? (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-          <p className="font-semibold text-destructive">이전 요청 반려</p>
-          <p className="mt-1 text-ink-2">{recentReject.reject_reason}</p>
+          <p className="font-semibold text-destructive">{t("verify.reject.title")}</p>
+          <p className="mt-1 text-ink-2" data-ugc="">
+            {recentReject.reject_reason}
+          </p>
         </div>
       ) : null}
 
@@ -128,7 +146,7 @@ export default async function VerifyInstagramPage({
         href={claimMode ? "/me/portfolio" : "/me"}
         className="text-xs uppercase tracking-[0.14em] text-ink-3 underline-offset-4 hover:underline"
       >
-        ← {claimMode ? "내 포트폴리오로" : "내 프로필로"}
+        {claimMode ? t("verify.back.portfolio") : t("verify.back.profile")}
       </Link>
     </div>
   );

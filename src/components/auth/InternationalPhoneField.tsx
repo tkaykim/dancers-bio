@@ -9,6 +9,10 @@ import {
 } from "@/lib/phone";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT, useLocale } from "@/lib/i18n/provider";
+import type { KeyOf } from "@/lib/i18n/t";
+import auth from "@/lib/i18n/messages/auth";
+import validation from "@/lib/i18n/messages/validation";
 
 type Props = {
   idPrefix: string;
@@ -16,6 +20,12 @@ type Props = {
   defaultUnavailable?: boolean;
   privacyHint?: boolean;
 };
+
+/** "대한민국 / South Korea" 처럼 한·영 병기된 국가 라벨은 ko 외 언어에서 한국어 접두를 뗀다. */
+function countryLabel(label: string, locale: string): string {
+  if (locale === "ko") return label;
+  return label.replace(/^[^/]*[가-힣][^/]*\/\s*/, "");
+}
 
 export function InternationalPhoneField({
   idPrefix,
@@ -27,6 +37,10 @@ export function InternationalPhoneField({
   const [phone, setPhone] = useState(defaultValue ?? "");
   const [unavailable, setUnavailable] = useState(defaultUnavailable);
   const [touched, setTouched] = useState(false);
+  const t = useT(auth);
+  const locale = useLocale();
+  // parseInternationalPhone 의 error 는 validation 사전 키(v.phone_*)다 (docs/design-i18n-ui.md §3.5).
+  const tv = useT(validation);
 
   const parsed = useMemo(
     () => (phone.trim() ? parseInternationalPhone(phone, country) : null),
@@ -39,7 +53,7 @@ export function InternationalPhoneField({
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="text-sm font-medium text-foreground">
-        휴대폰 번호 <span className="font-normal text-ink-3">/ Mobile number</span>
+        {t("phone.legend")}
       </legend>
 
       <div
@@ -50,7 +64,7 @@ export function InternationalPhoneField({
       >
         <div className="min-w-0">
           <Label htmlFor={`${idPrefix}-phone-country`} className="sr-only">
-            국가 및 국가번호 / Country and calling code
+            {t("phone.country_label")}
           </Label>
           <select
             id={`${idPrefix}-phone-country`}
@@ -65,8 +79,10 @@ export function InternationalPhoneField({
             className="h-8 w-full min-w-0 rounded-lg border border-input bg-background px-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
           >
             {PHONE_COUNTRY_OPTIONS.map((option) => (
-              <option key={option.code} value={option.code}>
-                +{option.callingCode} {option.code} · {option.label}
+              // Intl.DisplayNames 결과가 Node ICU 와 브라우저 ICU 에서 다를 수 있어(예: "Falkland Islands (Islas Malvinas)")
+              // 서버 HTML 과 클라이언트 텍스트가 어긋난다. 라벨은 표시용이라 이 요소만 경고를 억제한다.
+              <option key={option.code} value={option.code} suppressHydrationWarning>
+                +{option.callingCode} {option.code} · {countryLabel(option.label, locale)}
               </option>
             ))}
           </select>
@@ -74,7 +90,7 @@ export function InternationalPhoneField({
 
         <div className="min-w-0">
           <Label htmlFor={`${idPrefix}-phone`} className="sr-only">
-            휴대폰 번호 / Mobile number
+            {t("phone.number_label")}
           </Label>
           <Input
             id={`${idPrefix}-phone`}
@@ -88,7 +104,7 @@ export function InternationalPhoneField({
             value={phone}
             onChange={(event) => setPhone(event.target.value)}
             onBlur={() => setTouched(true)}
-            placeholder={country === "KR" ? "010-1234-5678" : "Phone number"}
+            placeholder={country === "KR" ? "010-1234-5678" : t("phone.placeholder")}
             aria-invalid={!unavailable && touched && parsed?.ok === false}
             aria-describedby={`${helpId} ${feedbackId}`}
           />
@@ -115,27 +131,24 @@ export function InternationalPhoneField({
           className="mt-0.5 size-4 shrink-0 accent-foreground"
         />
         <span className="leading-snug">
-          <span className="block font-medium">사용할 수 있는 휴대폰 번호가 없어요</span>
-          <span className="block text-xs text-ink-3">I don&apos;t have a mobile number I can use.</span>
+          <span className="block font-medium">{t("phone.unavailable")}</span>
         </span>
       </label>
 
       <p id={helpId} className="text-xs leading-relaxed text-muted-foreground">
-        {privacyHint
-          ? "섭외·정산 연락용이며 매니저에게만 보입니다. / Only managers can see it for casting and payment contact."
-          : "캐스팅 연락에 사용하며, 국가번호를 포함해 안전하게 저장합니다. / Used for casting contact and stored with its country code."}
+        {privacyHint ? t("phone.help_privacy") : t("phone.help_default")}
       </p>
 
       <p id={feedbackId} aria-live="polite" className="min-h-4 text-xs">
         {!unavailable && touched && parsed?.ok === false ? (
-          <span className="text-destructive">{parsed.error}</span>
+          <span className="text-destructive">{tv(parsed.error as KeyOf<typeof validation>)}</span>
         ) : !unavailable && parsed?.ok ? (
           <span className="text-emerald-700 dark:text-emerald-400">
-            사용할 수 있는 번호 형식입니다. / Valid phone number.
+            {t("phone.valid")}
           </span>
         ) : unavailable ? (
           <span className="text-ink-3">
-            이메일로 주요 안내를 보내드립니다. / We&apos;ll contact you by email.
+            {t("phone.email_only")}
           </span>
         ) : null}
       </p>

@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, Flame, Megaphone } from "lucide-react";
 
+import { setLocaleAction } from "@/app/actions/locale";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
+import { isLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import { won, type WorkshopArtistPublic } from "@/lib/workshops/shared";
 import type { RequestedArtist } from "@/lib/workshops/queries";
 import { ArtistProfileModal, type ProfileTarget } from "./ArtistProfileModal";
 import { ArtistSearch } from "./ArtistSearch";
-import { LANG_STORAGE_KEY, LANGS, T, WORKSHOP_FULL_NAME, splitSentences, type Lang } from "./copy";
+import { LANGS, T, WORKSHOP_FULL_NAME, splitSentences, type Lang } from "./copy";
 import { NominateForm } from "./NominateForm";
 import { VoteBox } from "./VoteBox";
 
@@ -56,15 +58,15 @@ export function WorkshopsLanding({
   openEvents,
   isLoggedIn,
   initialLang = "ko",
-  lockLang = false,
 }: {
   recruiting: WorkshopArtistPublic[];
   requested: RequestedArtist[];
   openEvents: OpenEvent[];
   isLoggedIn: boolean;
   initialLang?: Lang;
-  lockLang?: boolean;
 }) {
+  // 초기 언어는 서버가 정한 값(prop)뿐이다. 마운트 후 localStorage·navigator 로 다시 정하지
+  // 않는다 — 첫 렌더가 달라지면 hydration 이 깨진다(docs/design-i18n-ui.md §3.4·§3.8).
   const [lang, setLang] = useState<Lang>(initialLang);
   // 검색 우선 플로우 — 직접 입력 폼은 검색으로 못 찾았을 때만 연다(검색어를 이름으로 이어받음).
   const [manualForm, setManualForm] = useState<{ open: boolean; initialName: string }>({
@@ -73,48 +75,31 @@ export function WorkshopsLanding({
   });
   // 안무가 클릭 = 사이트 안 프로필 모달 (인스타 이탈 아님 — 대표 지시).
   const [profileTarget, setProfileTarget] = useState<ProfileTarget | null>(null);
+  const [, startTransition] = useTransition();
 
+  // 즉시 반응을 위해 낙관적으로 표시를 바꾸고, 서버 액션이 쿠키·프로필을 저장한 뒤 redirect 한다.
+  // 성공한 redirect 는 rejection 으로 오므로 실패는 반환값 { ok: false } 로만 판단한다.
+  // 태국어(th)는 전역 Locale 모델에 없어 서버에 저장할 수 없다 — 화면 상태와 `?lang=th` 로만 유지한다.
   const selectLang = (l: Lang) => {
+    if (l === lang) return;
+    const prev = lang;
     setLang(l);
-    try {
-      localStorage.setItem(LANG_STORAGE_KEY, l);
-    } catch {
-      /* localStorage 불가 환경 무시 */
+    if (!isLocale(l)) {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("lang", l);
+        window.history.replaceState(null, "", url.toString());
+      } catch {
+        /* URL 조작 불가 환경 무시 */
+      }
+      return;
     }
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set("lang", l);
-      window.history.replaceState(null, "", url.toString());
-    } catch {
-      /* URL 조작 불가 환경 무시 */
-    }
+    startTransition(async () => {
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      const result = await setLocaleAction(l, currentUrl);
+      if (result && result.ok === false) setLang(prev);
+    });
   };
-
-  // ?lang= 명시가 최우선, 아니면 저장값 → 브라우저 언어. 기본은 ko (국내 댄서가 1차 대상).
-  useEffect(() => {
-    if (lockLang) return;
-    let saved: string | null = null;
-    try {
-      saved = localStorage.getItem(LANG_STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
-    const nav = navigator.language?.toLowerCase() ?? "";
-    const detected: Lang = nav.startsWith("ja")
-      ? "ja"
-      : nav.startsWith("th")
-        ? "th"
-        : nav.startsWith("ko")
-          ? "ko"
-          : "en";
-    const next: Lang =
-      saved === "ko" || saved === "en" || saved === "ja" || saved === "th" ? (saved as Lang) : detected;
-    if (next !== "ko") {
-      // 클라이언트 전용 신호(localStorage·navigator)라 SSR에서 알 수 없어 마운트 후 동기화가 불가피.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLang(next);
-    }
-  }, [lockLang]);
 
   const c = T[lang];
 

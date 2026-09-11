@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronsUpDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import ui from "@/lib/i18n/messages/ui";
 
 export type SearchableOption = {
   value: string;
@@ -18,6 +20,7 @@ type Props = {
   options: SearchableOption[];
   value: string | null;
   onChange: (value: string) => void;
+  /** 안 넘기면 사전의 기본 문구를 쓴다(기본값 자리에서는 훅을 부를 수 없다). */
   placeholder?: string;
   searchPlaceholder?: string;
   /** 선택 해제 허용 */
@@ -38,13 +41,16 @@ export function SearchableSelect({
   options,
   value,
   onChange,
-  placeholder = "선택",
-  searchPlaceholder = "검색...",
+  placeholder,
+  searchPlaceholder,
   clearable = false,
   disabled = false,
   ariaLabel,
   className,
 }: Props) {
+  const t = useT(ui);
+  const placeholderText = placeholder ?? t("select.placeholder");
+  const searchPlaceholderText = searchPlaceholder ?? t("select.search_placeholder");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -132,13 +138,13 @@ export function SearchableSelect({
           selected ? "text-foreground" : "text-ink-4",
         )}
       >
-        <span className="truncate">{selected ? selected.label : placeholder}</span>
+        <span className="truncate">{selected ? selected.label : placeholderText}</span>
         <span className="flex shrink-0 items-center gap-1">
           {clearable && selected ? (
             <span
               role="button"
               tabIndex={-1}
-              aria-label="선택 해제"
+              aria-label={t("select.clear")}
               onClick={(e) => {
                 e.stopPropagation();
                 onChange("");
@@ -165,13 +171,13 @@ export function SearchableSelect({
                 setActiveIndex(0);
               }}
               onKeyDown={onKeyDown}
-              placeholder={searchPlaceholder}
+              placeholder={searchPlaceholderText}
               className="h-10 w-full bg-transparent text-sm text-foreground placeholder:text-ink-4 focus:outline-none"
             />
           </div>
           <ul role="listbox" className="max-h-64 overflow-y-auto py-1">
             {filtered.length === 0 ? (
-              <li className="px-4 py-3 text-sm text-ink-3">검색 결과가 없습니다.</li>
+              <li className="px-4 py-3 text-sm text-ink-3">{t("select.no_results")}</li>
             ) : (
               filtered.map((opt, idx) => {
                 const isSelected = opt.value === value;

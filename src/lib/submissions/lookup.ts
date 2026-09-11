@@ -1,8 +1,8 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { resolveLocale, type Locale } from "@/lib/i18n/locale";
-import { acceptLanguage } from "@/lib/i18n/server";
-import { t } from "@/lib/i18n/messages";
+import type { Locale } from "@/lib/i18n/locale";
+import { localeFor } from "@/lib/i18n/server";
+import { t } from "@/lib/i18n/messages/quick";
 
 /** 제네릭 없는 service-role 클라이언트 (생성 Database 타입에 새 테이블이 없어도 동작) */
 export function submissionAdminClient(): SupabaseClient {
@@ -83,10 +83,11 @@ export async function loadSubmissionByToken(
       .maybeSingle(),
   ]);
 
-  const locale = resolveLocale({
-    text: [project?.title as string | null, project?.description as string | null],
-    acceptLanguage: await acceptLanguage(),
-  });
+  // 공고 본문의 언어가 1순위, 판단이 안 서면 요청 언어(쿼리·쿠키·Accept-Language).
+  const locale = await localeFor(
+    project?.title as string | null,
+    project?.description as string | null,
+  );
 
   const base: SubmissionContext = {
     id: sub.id as string,

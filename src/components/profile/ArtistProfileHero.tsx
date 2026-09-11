@@ -5,13 +5,15 @@ import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { ShareLinkButton } from "@/components/share/ShareLinkButton";
 import { SocialIconRow } from "@/components/share/SocialIconRow";
 import { BackButton } from "@/components/ui/back-button";
+import { serverT } from "@/lib/i18n/server";
+import profile from "@/lib/i18n/messages/profile";
 
 type HeroStat = {
   label: string;
   value: string | number;
 };
 
-export function ArtistProfileHero({
+export async function ArtistProfileHero({
   name,
   localName,
   eyebrow,
@@ -24,7 +26,7 @@ export function ArtistProfileHero({
   shareTitle,
   backHref,
   verified = false,
-  verifiedLabel = "인증 프로필",
+  verifiedLabel,
   location,
   editHref,
   stats,
@@ -48,6 +50,7 @@ export function ArtistProfileHero({
   stats?: HeroStat[];
   action?: ReactNode;
 }) {
+  const t = await serverT(profile);
   const foregroundClass =
     imageMode === "portrait"
       ? "object-cover object-[center_18%] lg:object-contain lg:object-right"
@@ -105,7 +108,7 @@ export function ArtistProfileHero({
       <div className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-4 pt-4 sm:px-6 sm:pt-6">
         <BackButton
           fallback={backHref}
-          ariaLabel="뒤로"
+          ariaLabel={t("hero.back")}
           className="flex size-11 items-center justify-center rounded-full bg-black/35 text-white ring-1 ring-white/15 backdrop-blur-md transition-colors hover:bg-black/55 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         >
           <svg
@@ -126,7 +129,7 @@ export function ArtistProfileHero({
 
         <Link
           href="/feed"
-          aria-label="deetz 홈"
+          aria-label={t("hero.home")}
           className="absolute left-1/2 top-5 inline-flex -translate-x-1/2 sm:top-7 lg:hidden"
         >
           <DeetzLogo tone="white" className="h-6 w-auto" priority />
@@ -144,7 +147,7 @@ export function ArtistProfileHero({
               href={editHref}
               className="inline-flex h-11 items-center rounded-full bg-white px-4 text-sm font-semibold text-[#14120c] transition-colors hover:bg-white/88 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              프로필 수정
+              {t("hero.edit")}
             </Link>
           ) : null}
         </div>
@@ -171,26 +174,32 @@ export function ArtistProfileHero({
               >
                 <path d="m5 12 4 4L19 6" />
               </svg>
-              {verifiedLabel}
+              {verifiedLabel ?? t("hero.verified")}
             </span>
           ) : null}
           {location ? (
-            <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/78 ring-1 ring-white/15 backdrop-blur">
+            <span
+              className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/78 ring-1 ring-white/15 backdrop-blur"
+              data-ugc
+            >
               {location}
             </span>
           ) : null}
         </div>
 
-        <h1 className="mt-4 max-w-full text-[clamp(3rem,13vw,4.4rem)] font-extrabold leading-[0.88] tracking-[-0.06em] text-white [overflow-wrap:anywhere] lg:text-[clamp(4.6rem,7vw,6.4rem)]">
+        <h1
+          className="mt-4 max-w-full text-[clamp(3rem,13vw,4.4rem)] font-extrabold leading-[0.88] tracking-[-0.06em] text-white [overflow-wrap:anywhere] lg:text-[clamp(4.6rem,7vw,6.4rem)]"
+          data-ugc
+        >
           {name}
         </h1>
 
         <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-white/72">
-          {localName ? <span>{localName}</span> : null}
+          {localName ? <span data-ugc>{localName}</span> : null}
           {localName && descriptor ? (
             <span className="size-1 rounded-full bg-white/35" aria-hidden />
           ) : null}
-          {descriptor ? <span>{descriptor}</span> : null}
+          {descriptor ? <span data-ugc>{descriptor}</span> : null}
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-3">

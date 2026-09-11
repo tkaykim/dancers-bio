@@ -1,5 +1,7 @@
 import { CheckCircle2, Circle } from "lucide-react";
 import type { ProfileScoreResult } from "@/lib/scoring/profile-score";
+import { serverT } from "@/lib/i18n/server";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 /**
  * 프로필 완성도 카드 — 댄서 본인에게 보이는 유일한 점수.
@@ -8,18 +10,19 @@ import type { ProfileScoreResult } from "@/lib/scoring/profile-score";
  * 내부 평가(경력점수·현장 신뢰도·종합 DQS·등급)는 이 화면에 절대 넣지 않는다.
  * 정책: docs/QUALITY_PLAN.md §4
  */
-export function ProfileCompletenessCard({
+export async function ProfileCompletenessCard({
   result,
 }: {
   result: ProfileScoreResult;
 }) {
+  const t = await serverT(portfolio);
   const done = result.items.filter((it) => it.earned >= it.max);
   const todo = result.missing;
 
   return (
     <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-semibold">프로필 완성도</h2>
+        <h2 className="text-sm font-semibold">{t("completeness.title")}</h2>
         <span className="text-2xl font-bold tabular-nums">{result.percent}%</span>
       </div>
 
@@ -29,7 +32,7 @@ export function ProfileCompletenessCard({
         aria-valuenow={result.percent}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label="프로필 완성도"
+        aria-label={t("completeness.aria_progress")}
       >
         <div
           className="h-full rounded-full bg-primary transition-[width]"
@@ -39,7 +42,7 @@ export function ProfileCompletenessCard({
 
       {todo.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-medium text-ink-2">아직 비어 있는 항목</p>
+          <p className="text-xs font-medium text-ink-2">{t("completeness.todo_title")}</p>
           <ul className="flex flex-col gap-2">
             {todo.map((it) => (
               <li key={it.key} className="flex items-start gap-2">
@@ -53,7 +56,7 @@ export function ProfileCompletenessCard({
           </ul>
         </div>
       ) : (
-        <p className="text-xs text-ok">프로필을 빠짐없이 채우셨습니다.</p>
+        <p className="text-xs text-ok">{t("completeness.all_done")}</p>
       )}
 
       {done.length > 0 ? (
@@ -71,9 +74,9 @@ export function ProfileCompletenessCard({
       ) : null}
 
       <p className="text-[11px] leading-snug text-ink-3">
-        완성도는 본인에게만 보입니다.
+        {t("completeness.note_visibility")}
         <br />
-        비어 있는 항목을 채우면 캐스팅 담당자가 판단할 수 있는 정보가 늘어납니다.
+        {t("completeness.note_more")}
       </p>
     </section>
   );

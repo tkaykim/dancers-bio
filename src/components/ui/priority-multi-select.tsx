@@ -3,6 +3,8 @@
 import { ArrowDown, ArrowUp, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import ui from "@/lib/i18n/messages/ui";
 
 type PriorityOption = {
   value: string;
@@ -22,6 +24,8 @@ export function PriorityMultiSelect({
   onChange,
   variant = "list",
 }: PriorityMultiSelectProps) {
+  const t = useT(ui);
+
   const toggle = (value: string) => {
     if (selected.includes(value)) {
       onChange(selected.filter((s) => s !== value));
@@ -119,7 +123,7 @@ export function PriorityMultiSelect({
       {selected.length > 0 ? (
         <div className="rounded-xl border border-hairline-2 bg-surface-2 p-4">
           <p className="mb-3 text-xs uppercase tracking-[0.14em] text-ink-3">
-            선택 순서 (위일수록 높은 우선순위)
+            {t("priority.order_title")}
           </p>
           <div className="flex flex-col gap-2">
             {selected.map((value, index) => (
@@ -141,7 +145,7 @@ export function PriorityMultiSelect({
                       moveUp(index);
                     }}
                     disabled={index === 0}
-                    aria-label="위로"
+                    aria-label={t("priority.move_up")}
                     className="rounded p-1 transition-colors hover:bg-secondary disabled:opacity-30"
                   >
                     <ArrowUp className="size-4 text-ink-2" />
@@ -153,7 +157,7 @@ export function PriorityMultiSelect({
                       moveDown(index);
                     }}
                     disabled={index === selected.length - 1}
-                    aria-label="아래로"
+                    aria-label={t("priority.move_down")}
                     className="rounded p-1 transition-colors hover:bg-secondary disabled:opacity-30"
                   >
                     <ArrowDown className="size-4 text-ink-2" />
@@ -164,7 +168,7 @@ export function PriorityMultiSelect({
                       e.stopPropagation();
                       remove(value);
                     }}
-                    aria-label="제거"
+                    aria-label={t("priority.remove")}
                     className="ml-1 rounded p-1 transition-colors hover:bg-destructive/15"
                   >
                     <X className="size-4 text-destructive" />

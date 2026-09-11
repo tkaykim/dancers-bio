@@ -11,6 +11,8 @@ import { slugify } from "@/lib/utils/slug";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 type Props = {
   isCreate: boolean;
@@ -39,6 +41,7 @@ export function TeamProfileForm({
   currentProfileImg = null,
   defaultValues,
 }: Props) {
+  const t = useT(portfolio);
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -65,20 +68,20 @@ export function TeamProfileForm({
   useEffect(() => {
     const s = slug.trim();
     if (!s) { setSlugStatus({ kind: "idle" }); return; }
-    if (s.length < 2) { setSlugStatus({ kind: "error", text: "2자 이상이어야 합니다." }); return; }
+    if (s.length < 2) { setSlugStatus({ kind: "error", text: t("team_form.slug_too_short") }); return; }
     if (!/^[a-z0-9-]+$/.test(s)) {
-      setSlugStatus({ kind: "error", text: "영문 소문자/숫자/하이픈만." });
+      setSlugStatus({ kind: "error", text: t("team_form.slug_invalid") });
       return;
     }
     setSlugStatus({ kind: "checking" });
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       const r = await checkSlugAvailability(s, "teams", teamId ?? null);
       if (!r.ok) { setSlugStatus({ kind: "error", text: r.error }); return; }
-      if (r.available) setSlugStatus({ kind: "ok", text: "사용 가능" });
-      else setSlugStatus({ kind: "warn", text: "이미 사용 중", suggestion: r.suggestion });
+      if (r.available) setSlugStatus({ kind: "ok", text: t("team_form.slug_available") });
+      else setSlugStatus({ kind: "warn", text: t("team_form.slug_taken"), suggestion: r.suggestion });
     }, 400);
-    return () => clearTimeout(t);
-  }, [slug, teamId]);
+    return () => clearTimeout(timer);
+  }, [slug, teamId, t]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -121,7 +124,7 @@ export function TeamProfileForm({
           setDirty(false);
           setMessage({
             kind: "ok",
-            text: isCreate ? "팀이 생성됐습니다 (관리자 승인 대기)." : "저장됐습니다.",
+            text: isCreate ? t("team_form.created") : t("team_form.saved"),
           });
           if (isCreate && result.data) {
             router.push(`/me/teams/${result.data.id}`);
@@ -141,14 +144,14 @@ export function TeamProfileForm({
         currentUrl={currentProfileImg}
         name="profile_img"
         shape="rounded"
-        alt={defaultValues.team_name || "팀 로고"}
+        alt={defaultValues.team_name || t("team_form.logo_alt")}
         size={120}
         onChange={(file) => {
           if (file) setDirty(true);
         }}
       />
 
-      <Field label="팀명" htmlFor="team_name">
+      <Field label={t("team_form.field_team_name")} htmlFor="team_name">
         <Input
           id="team_name"
           name="team_name"
@@ -156,22 +159,22 @@ export function TeamProfileForm({
           maxLength={80}
           value={teamName}
           onChange={(e) => setTeamName(e.target.value)}
-          placeholder="예: KASPER"
+          placeholder={t("team_form.placeholder_team_name")}
         />
       </Field>
-      <Field label="한글 팀명 (선택)" htmlFor="korean_name">
+      <Field label={t("team_form.field_korean_name")} htmlFor="korean_name">
         <Input
           id="korean_name"
           name="korean_name"
           maxLength={40}
           defaultValue={defaultValues.korean_name}
-          placeholder="예: 캐스퍼"
+          placeholder={t("team_form.placeholder_korean_name")}
         />
       </Field>
       <Field
-        label="공개 URL slug (선택)"
+        label={t("team_form.field_slug")}
         htmlFor="slug"
-        hint="팀명 기반으로 자동 채워집니다 · 영문 소문자/숫자/하이픈만"
+        hint={t("team_form.hint_slug")}
       >
         <Input
           id="slug"
@@ -180,10 +183,10 @@ export function TeamProfileForm({
           pattern="[a-z0-9-]+"
           value={slug}
           onChange={(e) => { setSlug(e.target.value); setSlugTouched(true); }}
-          placeholder="자동 생성됨"
+          placeholder={t("team_form.placeholder_slug")}
         />
         {slugStatus.kind === "checking" ? (
-          <p className="text-xs text-ink-3">확인 중...</p>
+          <p className="text-xs text-ink-3">{t("team_form.slug_checking")}</p>
         ) : slugStatus.kind === "ok" ? (
           <p className="text-xs text-ok">✓ {slugStatus.text}</p>
         ) : slugStatus.kind === "warn" ? (
@@ -194,34 +197,34 @@ export function TeamProfileForm({
               onClick={() => { setSlug(slugStatus.suggestion); setSlugTouched(true); }}
               className="underline"
             >
-              대안: {slugStatus.suggestion} 사용
+              {t("team_form.slug_suggestion", { slug: slugStatus.suggestion })}
             </button>
           </p>
         ) : slugStatus.kind === "error" ? (
           <p className="text-xs text-destructive">{slugStatus.text}</p>
         ) : null}
       </Field>
-      <Field label="팀 소개" htmlFor="bio">
+      <Field label={t("team_form.field_bio")} htmlFor="bio">
         <textarea
           id="bio"
           name="bio"
           rows={4}
           maxLength={1000}
           defaultValue={defaultValues.bio}
-          placeholder="팀 소개와 활동 방향을 적어주세요"
+          placeholder={t("team_form.placeholder_bio")}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
         />
       </Field>
-      <Field label="활동 지역" htmlFor="location">
+      <Field label={t("team_form.field_location")} htmlFor="location">
         <Input
           id="location"
           name="location"
           maxLength={80}
           defaultValue={defaultValues.location}
-          placeholder="예: 서울"
+          placeholder={t("team_form.placeholder_location")}
         />
       </Field>
-      <Field label="특기 (쉼표로 구분)" htmlFor="specialties">
+      <Field label={t("team_form.field_specialties")} htmlFor="specialties">
         <Input
           id="specialties"
           name="specialties"
@@ -229,7 +232,7 @@ export function TeamProfileForm({
           placeholder="choreo, performance"
         />
       </Field>
-      <Field label="장르 (쉼표로 구분)" htmlFor="genres">
+      <Field label={t("team_form.field_genres")} htmlFor="genres">
         <Input
           id="genres"
           name="genres"
@@ -239,10 +242,10 @@ export function TeamProfileForm({
       </Field>
 
       <fieldset className="flex flex-col gap-3 rounded-md border border-input p-4">
-        <legend className="px-1 text-sm font-medium">SNS 핸들</legend>
-        <p className="text-xs text-ink-3">
-          @ 뒤의 사용자명만 입력하세요. URL을 붙여넣어도 자동 정리됩니다.
-        </p>
+        <legend className="px-1 text-sm font-medium">
+          {t("team_form.social_legend")}
+        </legend>
+        <p className="text-xs text-ink-3">{t("team_form.social_hint")}</p>
         <Field label="Instagram" htmlFor="social_instagram">
           <Input
             id="social_instagram"
@@ -303,12 +306,12 @@ export function TeamProfileForm({
           {dirty ? (
             <span className="flex items-center gap-1.5 rounded-full bg-warn/10 px-2.5 py-1 text-[11px] font-medium text-warn">
               <span className="size-1.5 rounded-full bg-warn" />
-              변경사항 있음
+              {t("team_form.dirty")}
             </span>
           ) : message?.kind === "ok" ? (
             <span className="flex items-center gap-1.5 rounded-full bg-ok/10 px-2.5 py-1 text-[11px] font-medium text-ok">
               <CheckCircle2 size={11} />
-              저장됨
+              {t("team_form.saved_badge")}
             </span>
           ) : null}
           <Button
@@ -317,7 +320,13 @@ export function TeamProfileForm({
             className="ml-auto flex items-center gap-1.5"
           >
             {pending || uploading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            {uploading ? "업로드 중..." : pending ? "저장 중..." : isCreate ? "팀 만들기" : "저장하기"}
+            {uploading
+              ? t("team_form.uploading")
+              : pending
+                ? t("team_form.saving")
+                : isCreate
+                  ? t("team_form.create")
+                  : t("team_form.save")}
           </Button>
         </div>
       </div>

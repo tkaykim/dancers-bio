@@ -2,7 +2,7 @@ import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { loadSubmissionByToken } from "@/lib/submissions/lookup";
 import { localeFor } from "@/lib/i18n/server";
-import { t } from "@/lib/i18n/messages";
+import { t } from "@/lib/i18n/messages/quick";
 import { createResumableSession } from "@/lib/drive/resumable";
 
 export const runtime = "nodejs";
