@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { loginSchema, signupSchema } from "@/lib/validation/auth";
-import { LOCALE_COOKIE, isLocale } from "@/lib/i18n/locale";
+import { LOCALE_COOKIE, enabledLocales, isLocale } from "@/lib/i18n/locale";
 import { getLocale, getRequestedLocale, serverT } from "@/lib/i18n/server";
 import { localizeZodError } from "@/lib/i18n/zod";
 import actions from "@/lib/i18n/messages/actions";
@@ -28,9 +28,13 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
   }
 
   const supabase = await createClient();
-  // 가입 시점의 요청 언어를 메타데이터로 넘기면 DB 트리거 handle_new_user() 가
+  // 가입 폼에서 고른 언어(없으면 요청 언어)를 메타데이터로 넘기면 DB 트리거 handle_new_user() 가
   // profiles.preferred_lang 에 저장한다 (docs/design-i18n-ui.md §3.9).
-  const preferredLang = await getRequestedLocale();
+  const langRaw = formData.get("preferred_lang");
+  const preferredLang =
+    typeof langRaw === "string" && isLocale(langRaw) && enabledLocales().has(langRaw)
+      ? langRaw
+      : await getRequestedLocale();
   const { error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
@@ -51,6 +55,15 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
     }
     return { ok: false, error: error.message };
   }
+
+  // 가입 직후 화면(온보딩)부터 고른 언어로 보이도록 쿠키에도 저장한다.
+  (await cookies()).set(LOCALE_COOKIE, preferredLang, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: false,
+  });
 
   revalidatePath("/", "layout");
   return { ok: true };
