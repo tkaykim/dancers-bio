@@ -6,12 +6,15 @@ import { changePasswordAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/lib/i18n/provider";
+import auth from "@/lib/i18n/messages/auth";
 
 export function ChangePasswordForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
   const [pending, startTransition] = useTransition();
+  const t = useT(auth);
 
   return (
     <form
@@ -21,7 +24,7 @@ export function ChangePasswordForm() {
         const pw = (formData.get("password") ?? "").toString();
         const pw2 = (formData.get("password2") ?? "").toString();
         if (pw !== pw2) {
-          setError("두 비밀번호가 일치하지 않습니다.");
+          setError(t("error.password_mismatch"));
           return;
         }
         startTransition(async () => {
@@ -37,7 +40,7 @@ export function ChangePasswordForm() {
       className="flex flex-col gap-4"
     >
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">새 비밀번호</Label>
+        <Label htmlFor="password">{t("password.new")}</Label>
         <Input
           id="password"
           name="password"
@@ -48,7 +51,7 @@ export function ChangePasswordForm() {
         />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password2">새 비밀번호 확인</Label>
+        <Label htmlFor="password2">{t("password.confirm")}</Label>
         <Input
           id="password2"
           name="password2"
@@ -65,11 +68,11 @@ export function ChangePasswordForm() {
       ) : null}
       {ok ? (
         <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
-          비밀번호가 변경되었습니다.
+          {t("password.changed")}
         </p>
       ) : null}
       <Button type="submit" disabled={pending} className="w-full">
-        {pending ? "변경 중..." : "변경하기"}
+        {pending ? t("password.submitting") : t("password.submit")}
       </Button>
     </form>
   );

@@ -8,29 +8,35 @@ import { getBrowserClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/lib/i18n/provider";
+import type { KeyOf } from "@/lib/i18n/t";
+import auth from "@/lib/i18n/messages/auth";
 
 type Phase = "checking" | "ready" | "no_session";
 
-/** Supabase(GoTrue) 영어 에러 메시지를 한글 안내로 변환. */
-function toKoreanAuthError(msg: string): string {
+/** Supabase(GoTrue) 영어 에러 메시지를 사전 키로 옮긴다. 화면 문구는 호출처가 t() 로 만든다. */
+function errorKey(msg: string): KeyOf<typeof auth> {
   const m = (msg || "").toLowerCase();
   if (m.includes("different from the old") || m.includes("same as the existing")) {
-    return "새 비밀번호는 기존 비밀번호와 달라야 합니다.";
+    return "error.password_same";
   }
   if (m.includes("at least") || m.includes("too short") || m.includes("weak") || m.includes("characters")) {
-    return "비밀번호가 너무 짧거나 약합니다. 8자 이상으로 설정해 주세요.";
+    return "error.password_weak";
   }
   if (m.includes("session") && (m.includes("missing") || m.includes("expired"))) {
-    return "로그인 세션이 만료됐어요. 메일의 링크를 다시 열어 주세요.";
+    return "error.session_expired";
   }
   if (m.includes("expired") || m.includes("invalid")) {
-    return "링크가 만료됐거나 유효하지 않습니다. 새 링크를 받아 주세요.";
+    return "error.link_invalid";
   }
   if (m.includes("rate") && m.includes("limit")) {
-    return "요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.";
+    return "error.rate_limit";
   }
-  return "비밀번호 변경에 실패했습니다. 다시 시도해 주세요.";
+  return "error.reset_failed";
 }
+
+/** 마스킹한 이메일을 끼울 자리. 언어마다 위치가 달라 문장을 이어 붙이지 않는다. */
+const EMAIL_SLOT = "\u0000";
 
 export function ResetPasswordForm() {
   const router = useRouter();
@@ -41,6 +47,10 @@ export function ResetPasswordForm() {
   const [phase, setPhase] = useState<Phase>("checking");
   // 어느 계정의 비밀번호를 설정 중인지 — 마스킹해서 표시 (예: to***@gmail.com).
   const [maskedEmail, setMaskedEmail] = useState<string | null>(null);
+  const t = useT(auth);
+  const [noticeBefore, noticeAfter = ""] = t("reset.account_notice", {
+    email: EMAIL_SLOT,
+  }).split(EMAIL_SLOT);
 
   const maskEmail = (e?: string | null): string | null => {
     if (!e || !e.includes("@")) return null;
@@ -108,7 +118,7 @@ export function ResetPasswordForm() {
   if (phase === "checking") {
     return (
       <p className="rounded-2xl border border-border bg-card p-5 text-sm text-ink-2">
-        링크 확인 중...
+        {t("reset.checking")}
       </p>
     );
   }
@@ -117,13 +127,13 @@ export function ResetPasswordForm() {
     return (
       <div className="flex flex-col gap-4 rounded-2xl border border-destructive/30 bg-destructive/5 p-5">
         <p className="text-sm text-foreground">
-          재설정 링크가 만료됐거나 이미 사용됐어요. 새 링크를 발급받아 주세요.
+          {t("reset.expired")}
         </p>
         <Link
           href="/forgot-password"
           className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground"
         >
-          재설정 링크 다시 받기 →
+          {t("reset.get_new_link")}
         </Link>
       </div>
     );
@@ -133,13 +143,13 @@ export function ResetPasswordForm() {
     return (
       <div className="flex flex-col gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5">
         <p className="text-sm text-foreground">
-          비밀번호가 설정됐습니다. 본인 프로필이 연결되었어요.
+          {t("reset.done")}
         </p>
         <Link
           href="/me/portfolio"
           className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground"
         >
-          내 프로필로 이동 →
+          {t("reset.go_profile")}
         </Link>
       </div>
     );
@@ -152,7 +162,7 @@ export function ResetPasswordForm() {
         const pw = (formData.get("password") ?? "").toString();
         const pw2 = (formData.get("password2") ?? "").toString();
         if (pw !== pw2) {
-          setError("두 비밀번호가 일치하지 않습니다.");
+          setError(t("error.password_mismatch"));
           return;
         }
         startTransition(async () => {
@@ -162,7 +172,7 @@ export function ResetPasswordForm() {
             password: pw,
           });
           if (pwErr) {
-            setError(toKoreanAuthError(pwErr.message));
+            setError(t(errorKey(pwErr.message)));
             return;
           }
           // 프로필 자동 연결(auto_claim)만 서버에서 실행 — 비번 재설정은 하지 않음.
@@ -174,13 +184,14 @@ export function ResetPasswordForm() {
       className="flex flex-col gap-4"
     >
       {maskedEmail ? (
-        <p className="rounded-lg bg-secondary/40 px-3 py-2 text-xs text-ink-2">
-          <span className="font-medium text-foreground">{maskedEmail}</span> 계정의
-          비밀번호를 설정합니다.
+        <p className="rounded-lg bg-secondary/40 px-3 py-2 text-xs text-ink-2" data-ugc>
+          {noticeBefore}
+          <span className="font-medium text-foreground">{maskedEmail}</span>
+          {noticeAfter}
         </p>
       ) : null}
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">새 비밀번호</Label>
+        <Label htmlFor="password">{t("reset.new_password")}</Label>
         <Input
           id="password"
           name="password"
@@ -191,7 +202,7 @@ export function ResetPasswordForm() {
         />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password2">새 비밀번호 확인</Label>
+        <Label htmlFor="password2">{t("reset.new_password_confirm")}</Label>
         <Input
           id="password2"
           name="password2"
@@ -207,7 +218,7 @@ export function ResetPasswordForm() {
         </p>
       ) : null}
       <Button type="submit" disabled={pending} className="w-full">
-        {pending ? "변경 중..." : "비밀번호 변경"}
+        {pending ? t("reset.submitting") : t("reset.submit")}
       </Button>
     </form>
   );

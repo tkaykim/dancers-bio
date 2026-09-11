@@ -6,16 +6,22 @@ import { getBrowserClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/lib/i18n/provider";
+import type { KeyOf } from "@/lib/i18n/t";
+import auth from "@/lib/i18n/messages/auth";
 
-function toKoreanLoginError(msg: string): string {
+/** GoTrue 영어 오류를 사전 키로 옮긴다. 화면 문구는 호출처가 t() 로 만든다. */
+function errorKey(msg: string): KeyOf<typeof auth> {
   const m = (msg || "").toLowerCase();
   if (m.includes("invalid login") || m.includes("invalid credentials"))
-    return "이메일 또는 비밀번호가 올바르지 않습니다. 메일의 임시 비밀번호(숫자 6자리)를 확인해 주세요.";
-  if (m.includes("email not confirmed"))
-    return "이메일 인증이 필요합니다. 관리자에게 문의해 주세요.";
-  if (m.includes("rate") && m.includes("limit")) return "잠시 후 다시 시도해 주세요.";
-  return "로그인에 실패했습니다. 다시 시도해 주세요.";
+    return "error.invalid_login";
+  if (m.includes("email not confirmed")) return "error.email_unconfirmed";
+  if (m.includes("rate") && m.includes("limit")) return "error.rate_limit_short";
+  return "error.login_failed";
 }
+
+/** 강조(<b>)를 끼울 자리. 언어마다 위치가 달라 문장을 이어 붙이지 않는다. */
+const EM_SLOT = "\u0000";
 
 export function OnboardingLoginModal({
   email,
@@ -31,6 +37,11 @@ export function OnboardingLoginModal({
   const [loading, setLoading] = useState(false);
   // 키보드(가상 뷰포트) 높이만큼 시트를 올려 버튼이 가려지지 않게 함.
   const [kbInset, setKbInset] = useState(0);
+  const t = useT(auth);
+  const [ledeBefore, ledeAfter = ""] = t("welcome.modal_lede", { em: EM_SLOT }).split(EM_SLOT);
+  const [hintBefore, hintAfter = ""] = t("welcome.change_password_hint", {
+    em: EM_SLOT,
+  }).split(EM_SLOT);
 
   // 살짝 스크롤하면 로그인 팝업 등장 (최초 1회 자동).
   useEffect(() => {
@@ -71,7 +82,7 @@ export function OnboardingLoginModal({
     setError(null);
     const pw = password.trim();
     if (!pw) {
-      setError("임시 비밀번호를 입력해 주세요.");
+      setError(t("error.temp_password_required"));
       return;
     }
     setLoading(true);
@@ -82,7 +93,7 @@ export function OnboardingLoginModal({
         password: pw,
       });
       if (signErr) {
-        setError(toKoreanLoginError(signErr.message));
+        setError(t(errorKey(signErr.message)));
         setLoading(false);
         return;
       }
@@ -95,7 +106,7 @@ export function OnboardingLoginModal({
       // 하드 네비게이션 — 세션 쿠키가 확실히 반영된 채로 보호 페이지 진입.
       window.location.assign(redirectTo);
     } catch {
-      setError("로그인에 실패했습니다. 다시 시도해 주세요.");
+      setError(t("error.login_failed"));
       setLoading(false);
     }
   };
@@ -109,7 +120,7 @@ export function OnboardingLoginModal({
             size="lg"
             className="w-full text-base font-semibold"
           >
-            로그인하고 내 프로필 관리하기
+            {t("welcome.login_cta")}
           </Button>
         </div>
       </div>
@@ -118,7 +129,7 @@ export function OnboardingLoginModal({
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <button
             type="button"
-            aria-label="닫기"
+            aria-label={t("welcome.close")}
             onClick={() => setOpen(false)}
             className="absolute inset-0 bg-black/40"
           />
@@ -127,14 +138,16 @@ export function OnboardingLoginModal({
             style={{ transform: kbInset ? `translateY(-${kbInset}px)` : undefined }}
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-hairline-2" />
-            <h2 className="text-lg font-bold tracking-tight">로그인하고 시작하기</h2>
+            <h2 className="text-lg font-bold tracking-tight">{t("welcome.modal_title")}</h2>
             <p className="mt-1 text-sm text-ink-2">
-              메일로 받은 <b>임시 비밀번호(숫자 6자리)</b>를 입력해 주세요.
+              {ledeBefore}
+              <b>{t("welcome.modal_lede_em")}</b>
+              {ledeAfter}
             </p>
 
             <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="ob-email">이메일</Label>
+                <Label htmlFor="ob-email">{t("welcome.email")}</Label>
                 <Input
                   id="ob-email"
                   type="email"
@@ -144,7 +157,7 @@ export function OnboardingLoginModal({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="ob-pw">임시 비밀번호 (숫자 6자리)</Label>
+                <Label htmlFor="ob-pw">{t("welcome.temp_password")}</Label>
                 <Input
                   id="ob-pw"
                   type="password"
@@ -154,7 +167,7 @@ export function OnboardingLoginModal({
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="메일에 적힌 숫자 6자리"
+                  placeholder={t("welcome.temp_password_placeholder")}
                 />
               </div>
               {error ? (
@@ -168,10 +181,12 @@ export function OnboardingLoginModal({
                 disabled={loading}
                 className="w-full text-base font-semibold"
               >
-                {loading ? "로그인 중..." : "로그인"}
+                {loading ? t("welcome.logging_in") : t("welcome.login")}
               </Button>
               <p className="text-center text-[11px] text-ink-3">
-                로그인 후 <b>[내 정보 → 비밀번호 변경]</b>에서 비밀번호를 꼭 바꿔 주세요.
+                {hintBefore}
+                <b>{t("welcome.change_password_hint_em")}</b>
+                {hintAfter}
               </p>
             </form>
           </div>

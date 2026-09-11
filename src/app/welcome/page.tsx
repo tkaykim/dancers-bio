@@ -6,6 +6,9 @@ import { BRAND_META } from "@/lib/brand";
 import { brandMetadata, getBrand } from "@/lib/brand-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OnboardingLoginModal } from "@/components/auth/OnboardingLoginModal";
+import { getLocale, serverT } from "@/lib/i18n/server";
+import { tCount } from "@/lib/i18n/t";
+import auth from "@/lib/i18n/messages/auth";
 
 type DancerRow = {
   id: string;
@@ -20,7 +23,8 @@ type DancerRow = {
 
 // GRIGO 화이트라벨 호스트에서만 탭 제목을 덮어 deetz 표기가 새지 않게 한다.
 export async function generateMetadata(): Promise<Metadata> {
-  return brandMetadata("GRIGO ENT 정산");
+  const t = await serverT(auth);
+  return brandMetadata(t("meta.welcome_grigo"));
 }
 
 export default async function WelcomePage({
@@ -38,6 +42,8 @@ export default async function WelcomePage({
   // GRIGO 호스트에서는 co-branding(× deetz) 없이 GRIGO 단독 안내로 보인다.
   const isGrigo = brand === "grigo";
   const brandName = BRAND_META[brand].name;
+  const t = await serverT(auth);
+  const locale = await getLocale();
 
   let dancer: DancerRow | null = null;
   let careerCount = 0;
@@ -84,21 +90,17 @@ export default async function WelcomePage({
       )}
 
       <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-        {isGrigo ? BRAND_META.grigo.orgName : "그리고엔터테인먼트 × deetz"}
+        {isGrigo ? BRAND_META.grigo.orgName : t("welcome.eyebrow")}
       </p>
-      <h1 className="mt-2 text-[28px] font-extrabold leading-[1.2] tracking-tight">
-        {dancer ? (
-          <>
-            {dancer.stage_name}님,
-            <br />
-            프로필이 준비됐어요
-          </>
-        ) : (
-          <>프로필이 준비됐어요</>
-        )}
+      {/* 활동명이 들어가는 문장이라 언어 스윕에서 제외한다. */}
+      <h1
+        className="mt-2 whitespace-pre-line text-[28px] font-extrabold leading-[1.2] tracking-tight"
+        data-ugc={dancer ? "" : undefined}
+      >
+        {dancer ? t("welcome.title_named", { name: dancer.stage_name }) : t("welcome.title")}
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-ink-2">
-        {`에이전시 풀에 제출해주신 정보로 ${brandName} 프로필을 미리 만들어 두었습니다. 아래 프로필이 회원님 본인이 맞다면, 로그인하고 직접 관리해 보세요.`}
+        {t("welcome.lede", { brand: brandName })}
       </p>
 
       {/* 프로필 미리보기 */}
@@ -120,9 +122,12 @@ export default async function WelcomePage({
               {dancer.korean_name ? (
                 <p className="text-sm text-white/80">{dancer.korean_name}</p>
               ) : null}
-              <p className="mt-1 text-xs text-white/70">
-                경력 {careerCount}건
-                {dancer.location ? ` · ${dancer.location}` : ""}
+              <p className="mt-1 text-xs text-white/70" data-ugc>
+                {dancer.location
+                  ? tCount(t, "welcome.career_count_location", locale, careerCount, {
+                      location: dancer.location,
+                    })
+                  : tCount(t, "welcome.career_count", locale, careerCount)}
               </p>
             </div>
           </div>
@@ -163,20 +168,19 @@ export default async function WelcomePage({
                 rel="noopener"
                 className="text-xs font-medium text-primary underline-offset-2 hover:underline"
               >
-                공개 프로필 전체 보기 ↗
+                {t("welcome.view_public_profile")}
               </Link>
             </div>
           ) : null}
         </div>
       ) : (
         <div className="mt-6 rounded-2xl border border-dashed border-hairline-2 p-6 text-center text-sm text-ink-3">
-          프로필 미리보기를 불러오지 못했어요. 메일의 로그인 정보로 로그인하면
-          본인 프로필을 확인할 수 있습니다.
+          {t("welcome.preview_failed")}
         </div>
       )}
 
       <p className="mt-6 text-center text-xs text-ink-3">
-        아래로 스크롤하거나 버튼을 누르면 로그인 창이 열립니다.
+        {t("welcome.scroll_hint")}
       </p>
 
       <OnboardingLoginModal email={email} redirectTo={redirectTo} />

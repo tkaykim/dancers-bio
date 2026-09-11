@@ -5,10 +5,13 @@ import { brandMetadata } from "@/lib/brand-server";
 import { requireUser } from "@/lib/auth/guard";
 import { safeReturnTo } from "@/lib/safeRedirect";
 import { CreateProfileWizard } from "@/components/portfolio/onboarding/CreateProfileWizard";
+import { serverT } from "@/lib/i18n/server";
+import onboarding from "@/lib/i18n/messages/onboarding";
 
 // GRIGO 화이트라벨 호스트에서만 탭 제목을 덮어 deetz 표기가 새지 않게 한다.
 export async function generateMetadata(): Promise<Metadata> {
-  return brandMetadata("GRIGO ENT 정산 · 프로필 만들기");
+  const t = await serverT(onboarding);
+  return brandMetadata(t("meta.create_grigo"));
 }
 
 export default async function OnboardingCreatePage({

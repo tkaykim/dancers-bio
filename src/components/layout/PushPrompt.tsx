@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import { Bell, BellOff, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/provider";
+import nav from "@/lib/i18n/messages/nav";
+
+/** 강조(<b>)를 끼울 자리. 언어마다 위치가 달라 문장을 이어 붙이지 않는다. */
+const SLOT = "\u0000";
 
 type State =
   | "loading"
@@ -38,6 +43,8 @@ export function PushPrompt() {
   const [state, setState] = useState<State>("loading");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const t = useT(nav);
+  const [iosBefore, iosAfter = ""] = t("push.ios_not_installed", { add: SLOT }).split(SLOT);
 
   useEffect(() => {
     void check();
@@ -128,7 +135,7 @@ export function PushPrompt() {
     try {
       const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
       if (!publicKey) {
-        setMsg({ kind: "error", text: "VAPID 키가 설정되지 않았습니다." });
+        setMsg({ kind: "error", text: t("push.error_no_vapid") });
         return;
       }
       const perm = await Notification.requestPermission();
@@ -153,15 +160,15 @@ export function PushPrompt() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setMsg({ kind: "error", text: err.error ?? "구독 등록 실패" });
+        setMsg({ kind: "error", text: err.error ?? t("push.error_subscribe") });
         await sub.unsubscribe().catch(() => null);
         return;
       }
-      setMsg({ kind: "ok", text: "알림 받기를 시작했어요." });
+      setMsg({ kind: "ok", text: t("push.enabled_ok") });
       setState("subscribed");
     } catch (err) {
       console.error(err);
-      setMsg({ kind: "error", text: "알림 등록 중 오류가 발생했어요." });
+      setMsg({ kind: "error", text: t("push.error_enable") });
     } finally {
       setBusy(false);
     }
@@ -184,11 +191,11 @@ export function PushPrompt() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endpoint }),
       });
-      setMsg({ kind: "ok", text: "알림을 껐어요." });
+      setMsg({ kind: "ok", text: t("push.disabled_ok") });
       setState("default");
     } catch (err) {
       console.error(err);
-      setMsg({ kind: "error", text: "해제 중 오류가 발생했어요." });
+      setMsg({ kind: "error", text: t("push.error_disable") });
     } finally {
       setBusy(false);
     }
@@ -201,16 +208,19 @@ export function PushPrompt() {
       const res = await fetch("/api/push/send-test", { method: "POST" });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setMsg({ kind: "error", text: json.error ?? "발송 실패" });
+        setMsg({ kind: "error", text: json.error ?? t("push.error_send") });
         return;
       }
       setMsg({
         kind: "ok",
-        text: `테스트 알림 발송: ${json.data?.sent ?? 0}/${json.data?.total ?? 0} 성공.`,
+        text: t("push.test_sent", {
+          sent: json.data?.sent ?? 0,
+          total: json.data?.total ?? 0,
+        }),
       });
     } catch (err) {
       console.error(err);
-      setMsg({ kind: "error", text: "발송 중 오류가 발생했어요." });
+      setMsg({ kind: "error", text: t("push.error_send_generic") });
     } finally {
       setBusy(false);
     }
@@ -220,43 +230,44 @@ export function PushPrompt() {
     <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center gap-2">
         <Bell size={16} aria-hidden />
-        <p className="text-sm font-semibold">푸시 알림</p>
+        <p className="text-sm font-semibold">{t("push.title")}</p>
       </div>
 
       {state === "loading" ? (
-        <p className="text-xs text-ink-3">상태 확인 중...</p>
+        <p className="text-xs text-ink-3">{t("push.checking")}</p>
       ) : null}
 
       {state === "unsupported" ? (
-        <p className="text-xs text-ink-3">이 브라우저에서는 푸시 알림을 지원하지 않아요.</p>
+        <p className="text-xs text-ink-3">{t("push.unsupported")}</p>
       ) : null}
 
       {state === "ios-not-installed" ? (
         <p className="text-xs text-ink-3">
-          iPhone/iPad에서는 먼저 <b>홈 화면에 추가</b>한 뒤 설치된 앱에서 알림을 켤 수 있어요.
-          (Safari 공유 → 홈 화면에 추가)
+          {iosBefore}
+          <b>{t("push.ios_not_installed_em")}</b>
+          {iosAfter}
         </p>
       ) : null}
 
       {state === "denied" ? (
         <p className="text-xs text-ink-3">
-          브라우저에서 알림 권한이 차단되어 있어요. 설정에서 사이트 권한을 허용으로 바꿔주세요.
+          {t("push.denied")}
         </p>
       ) : null}
 
       {state === "default" ? (
         <>
-          <p className="text-xs text-ink-3">새 지원·수락 등 중요한 이벤트를 알림으로 받을 수 있어요.</p>
+          <p className="text-xs text-ink-3">{t("push.default_body")}</p>
           <Button onClick={enable} disabled={busy} size="sm" className="gap-2 self-start">
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}
-            알림 받기
+            {t("push.enable")}
           </Button>
         </>
       ) : null}
 
       {state === "subscribed" ? (
         <>
-          <p className="text-xs text-ink-3">이 기기에서 알림을 받고 있어요.</p>
+          <p className="text-xs text-ink-3">{t("push.subscribed_body")}</p>
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={sendTest}
@@ -266,11 +277,11 @@ export function PushPrompt() {
               className="gap-2"
             >
               <Send size={14} />
-              테스트 알림 보내기
+              {t("push.send_test")}
             </Button>
             <Button onClick={disable} disabled={busy} size="sm" variant="ghost" className="gap-2">
               <BellOff size={14} />
-              끄기
+              {t("push.disable")}
             </Button>
           </div>
         </>

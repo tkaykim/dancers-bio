@@ -5,6 +5,9 @@ import { BRAND_META } from "@/lib/brand";
 import { brandMetadata, getBrand } from "@/lib/brand-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ClaimForm } from "@/components/auth/ClaimForm";
+import { getLocale, serverT } from "@/lib/i18n/server";
+import { tCount } from "@/lib/i18n/t";
+import auth from "@/lib/i18n/messages/auth";
 
 interface SearchParams {
   email?: string;
@@ -32,7 +35,8 @@ async function fetchDancerPreview(slug: string | undefined) {
 
 // GRIGO 화이트라벨 호스트에서만 탭 제목을 덮어 deetz 표기가 새지 않게 한다.
 export async function generateMetadata(): Promise<Metadata> {
-  return brandMetadata("GRIGO ENT 정산 · 계정 연결");
+  const t = await serverT(auth);
+  return brandMetadata(t("meta.claim_grigo"));
 }
 
 export default async function ClaimPage({
@@ -46,6 +50,8 @@ export default async function ClaimPage({
   // GRIGO 호스트에서는 co-branding(× deetz) 없이 GRIGO 단독 안내로 보인다.
   const isGrigo = brand === "grigo";
   const brandName = BRAND_META[brand].name;
+  const t = await serverT(auth);
+  const locale = await getLocale();
 
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col lg:justify-center gap-6 px-6 pb-12 pt-10">
@@ -60,23 +66,19 @@ export default async function ClaimPage({
 
       <div className="flex flex-col gap-2.5">
         <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-          {isGrigo ? BRAND_META.grigo.orgName : "그리고엔터테인먼트 × deetz"}
+          {isGrigo ? BRAND_META.grigo.orgName : t("claim.eyebrow")}
         </p>
-        <h1 className="text-[28px] font-extrabold tracking-tight leading-[1.2]">
-          {dancerPreview?.stage_name ? (
-            <>
-              {dancerPreview.stage_name}님,<br />
-              프로필이 준비됐어요
-            </>
-          ) : (
-            <>프로필이<br />준비됐어요</>
-          )}
+        {/* 활동명이 들어가는 문장이라 언어 스윕에서 제외한다. */}
+        <h1
+          className="whitespace-pre-line text-[28px] font-extrabold tracking-tight leading-[1.2]"
+          data-ugc={dancerPreview?.stage_name ? "" : undefined}
+        >
+          {dancerPreview?.stage_name
+            ? t("claim.title_named", { name: dancerPreview.stage_name })
+            : t("claim.title")}
         </h1>
-        <p className="text-sm text-ink-2 leading-relaxed">
-          그리고엔터 에이전시 풀에 지원해주신 정보로<br />
-          {isGrigo
-            ? "댄서 프로필을 미리 만들어두었습니다."
-            : "deetz 댄서 프로필을 미리 만들어두었습니다."}
+        <p className="whitespace-pre-line text-sm text-ink-2 leading-relaxed">
+          {isGrigo ? t("claim.lede_grigo") : t("claim.lede_deetz")}
         </p>
       </div>
 
@@ -102,26 +104,31 @@ export default async function ClaimPage({
             {dancerPreview.korean_name ? (
               <p className="truncate text-sm text-ink-2">{dancerPreview.korean_name}</p>
             ) : null}
-            <p className="mt-0.5 text-xs text-ink-3">
-              경력 {dancerPreview.career_count}건
-              {dancerPreview.location ? ` · ${dancerPreview.location}` : ""}
+            <p className="mt-0.5 text-xs text-ink-3" data-ugc>
+              {dancerPreview.location
+                ? tCount(t, "claim.career_count_location", locale, dancerPreview.career_count, {
+                    location: dancerPreview.location,
+                  })
+                : tCount(t, "claim.career_count", locale, dancerPreview.career_count)}
             </p>
           </div>
-          <span className="text-xs font-medium text-primary whitespace-nowrap">새 탭 ↗</span>
+          <span className="text-xs font-medium text-primary whitespace-nowrap">
+            {t("claim.new_tab")}
+          </span>
         </Link>
       ) : null}
 
       <ClaimForm initialEmail={email} dancerSlug={dancer} brandName={brandName} />
 
       <div className="rounded-xl bg-muted/50 p-4 text-xs leading-relaxed text-ink-2">
-        <p className="font-semibold text-ink-2 mb-1.5">이 페이지가 보이는 이유</p>
-        {`지원하실 때 입력하신 이메일로 ${brandName} 계정을 미리 만들어두었습니다. 비밀번호만 새로 설정하시면 바로 로그인할 수 있고, 본인 프로필이 자동으로 연결됩니다.`}
+        <p className="font-semibold text-ink-2 mb-1.5">{t("claim.why_title")}</p>
+        {t("claim.why_body", { brand: brandName })}
       </div>
 
       <p className="text-center text-xs text-ink-3">
-        이미 비밀번호를 설정하셨나요?{" "}
+        {t("claim.already_set")}{" "}
         <Link href="/login" className="font-medium text-foreground underline-offset-2 hover:underline">
-          로그인
+          {t("claim.login_link")}
         </Link>
       </p>
     </div>

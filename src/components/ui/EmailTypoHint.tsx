@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { suggestEmailCorrection } from "@/lib/utils/email-typo";
+import { useT } from "@/lib/i18n/provider";
+import ui from "@/lib/i18n/messages/ui";
 
 /**
  * 이메일 도메인 오타를 제안하는 공용 조각.
@@ -25,9 +27,9 @@ export function EmailTypoHint({
   email,
   onFix,
   inputName,
-  label = "혹시",
-  suffix = " 아닌가요?",
-  actionLabel = "이걸로 고치기",
+  label,
+  suffix,
+  actionLabel,
   className,
 }: {
   /** 현재 입력값. 비어 있거나 오타가 아니면 아무것도 렌더하지 않는다. */
@@ -36,12 +38,16 @@ export function EmailTypoHint({
   onFix?: (fixed: string) => void;
   /** 비제어형 입력이면 같은 form 안의 input[name] 을 직접 고친다. */
   inputName?: string;
-  /** 제안값 앞에 붙는 말. 뒤에 붙는 말은 suffix 로 준다(언어마다 어순이 다르다). */
+  /**
+   * 제안값 앞에 붙는 말. 뒤에 붙는 말은 suffix 로 준다(언어마다 어순이 다르다).
+   * 안 넘기면 화면 언어의 기본 문구를 쓴다(기본값 자리에서는 훅을 부를 수 없다).
+   */
   label?: string;
   suffix?: string;
   actionLabel?: string;
   className?: string;
 }) {
+  const t = useT(ui);
   // 한 번 무시한 제안은 다시 띄우지 않는다. 계속 뜨면 그게 더 방해가 된다.
   const [dismissed, setDismissed] = useState<string | null>(null);
 
@@ -56,8 +62,8 @@ export function EmailTypoHint({
       }
     >
       <span>
-        {label} <b>{suggestion}</b>
-        {suffix}
+        {label ?? t("email_typo.label")} <b>{suggestion}</b>
+        {suffix ?? t("email_typo.suffix")}
       </span>
       <button
         type="button"
@@ -76,7 +82,7 @@ export function EmailTypoHint({
           setDismissed(suggestion);
         }}
       >
-        {actionLabel}
+        {actionLabel ?? t("email_typo.action")}
       </button>
     </div>
   );

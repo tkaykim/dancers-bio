@@ -5,6 +5,8 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { XIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import ui from "@/lib/i18n/messages/ui";
 
 type BottomSheetProps = {
   open: boolean;
@@ -27,6 +29,7 @@ export function BottomSheet({
   style,
   footer,
 }: BottomSheetProps) {
+  const t = useT(ui);
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
@@ -58,7 +61,7 @@ export function BottomSheet({
               <span />
             )}
             <DialogPrimitive.Close
-              aria-label="닫기"
+              aria-label={t("sheet.close")}
               className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-secondary hover:text-foreground"
             >
               <XIcon className="size-4" />

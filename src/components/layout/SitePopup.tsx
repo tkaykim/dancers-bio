@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getBrowserClient } from "@/lib/supabase/browser";
+import { useT } from "@/lib/i18n/provider";
+import nav from "@/lib/i18n/messages/nav";
 
 // 사이트 진입 공지 팝업 (관리: /admin/popup, 데이터: site_popups).
 // 닫기 = 이번 세션만 숨김 / 다시 보지 않음 = 이 팝업(id)에 한해 영구 숨김.
@@ -32,6 +34,7 @@ export function SitePopup() {
   const pathname = usePathname();
   const [popup, setPopup] = useState<Popup | null>(null);
   const [visible, setVisible] = useState(false);
+  const t = useT(nav);
 
   const excluded = EXCLUDED_PREFIXES.some((p) => pathname?.startsWith(p));
 
@@ -96,10 +99,14 @@ export function SitePopup() {
         className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="text-lg font-bold leading-snug text-[#171611] [word-break:keep-all]">
+        {/* 팝업 제목·본문·CTA 는 운영자가 /admin/popup 에서 쓴 글이라 언어 스윕에서 제외한다. */}
+        <p className="text-lg font-bold leading-snug text-[#171611] [word-break:keep-all]" data-ugc>
           {popup.title}
         </p>
-        <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-[#4f4a40] [word-break:keep-all]">
+        <p
+          className="mt-3 whitespace-pre-line text-sm leading-relaxed text-[#4f4a40] [word-break:keep-all]"
+          data-ugc
+        >
           {popup.body}
         </p>
 
@@ -108,6 +115,7 @@ export function SitePopup() {
             href={popup.cta_href}
             onClick={close}
             className="mt-5 block rounded-xl bg-[#171611] py-3 text-center text-sm font-semibold text-white hover:bg-[#171611]/90"
+            data-ugc
           >
             {popup.cta_label} →
           </Link>
@@ -115,10 +123,10 @@ export function SitePopup() {
 
         <div className="mt-3 flex items-center justify-between text-xs text-[#81796a]">
           <button type="button" onClick={hideForever} className="py-2 underline-offset-2 hover:underline">
-            다시 보지 않음
+            {t("popup.dont_show_again")}
           </button>
           <button type="button" onClick={close} className="py-2 font-medium text-[#4f4a40] hover:text-[#171611]">
-            닫기
+            {t("popup.close")}
           </button>
         </div>
       </div>
