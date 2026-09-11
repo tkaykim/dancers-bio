@@ -148,7 +148,7 @@ export function EvaluationPanel({
       </div>
 
       {/* 1~10 점수 — 탭하면 바로 저장 */}
-      <div className="grid grid-cols-5 gap-1.5">
+      <div className="grid w-full max-w-[280px] grid-cols-5 gap-1.5">
         {SCORES.map((n) => (
           <button
             key={n}

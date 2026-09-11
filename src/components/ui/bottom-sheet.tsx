@@ -14,6 +14,7 @@ type BottomSheetProps = {
   className?: string;
   contentClassName?: string;
   style?: React.CSSProperties;
+  footer?: React.ReactNode;
 };
 
 export function BottomSheet({
@@ -24,6 +25,7 @@ export function BottomSheet({
   className,
   contentClassName,
   style,
+  footer,
 }: BottomSheetProps) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -47,9 +49,9 @@ export function BottomSheet({
             className,
           )}
         >
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-hairline-2 px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-hairline-2 px-4 py-2 sm:px-6 sm:py-3">
             {title ? (
-              <DialogPrimitive.Title className="min-w-0 flex-1 break-keep [overflow-wrap:anywhere] text-base font-bold text-foreground">
+              <DialogPrimitive.Title title={title} className="min-w-0 flex-1 line-clamp-2 break-keep [overflow-wrap:anywhere] text-base font-bold text-foreground">
                 {title}
               </DialogPrimitive.Title>
             ) : (
@@ -62,7 +64,8 @@ export function BottomSheet({
               <XIcon className="size-4" />
             </DialogPrimitive.Close>
           </div>
-          <div className={cn("min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain break-keep p-4 pb-[max(1rem,env(safe-area-inset-bottom))] [overflow-wrap:anywhere] sm:p-6", contentClassName)}>{children}</div>
+          <div data-sheet-content className={cn("min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain break-keep p-4 pb-[max(1rem,env(safe-area-inset-bottom))] [overflow-wrap:anywhere] sm:p-6", contentClassName)}>{children}</div>
+          {footer ? <div data-sheet-footer className="shrink-0 border-t border-hairline-2 bg-card px-4 pt-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:rounded-b-2xl sm:px-6">{footer}</div> : null}
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
