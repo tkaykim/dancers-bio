@@ -415,7 +415,9 @@ export default messages;
 | 롤백 | 어떤 단계든 | 환경변수를 `ko`로 바꾸고 재배포하거나, 이전 배포로 복귀한다. Vercel 환경변수는 기존 배포에 즉시 반영되지 않는다. 기능 사전과 메일 CTA는 영향 없음 |
 
 - `UI_LOCALES` 등록 시 `reference_vercel_env_empty_trap`(stdin 파이프 빈 값)을 따른다.
-- **진행 상태(2026-09-11)**: R0 = PR #236 squash 머지(`fdf772b`) → 운영 배포 `dpl_HCibae7nyMnRbCeA2iJXsXMDtWNn` READY, 운영 스모크(강제 ko·전환기 숨김·쿠키·리다이렉트·로그인) 통과. M4 백필 20명 적용(`db/migrations/20260911_003_*.sql`). 대표 결정: 일본어 금액 표기 `1,000,000ウォン` 채택, 영어·일본어는 검수 후 **동시 개방**(R1·R2 통합 = `UI_LOCALES=ko,en,ja`).
+- **진행 상태(2026-09-11)**: R0 = PR #236 squash 머지(`fdf772b`) → 운영 배포 READY, 운영 스모크 통과, M4 백필 20명 적용(`db/migrations/20260911_003_*.sql`). 대표 결정: 일본어 금액 표기 `1,000,000ウォン` 채택, 영어·일본어는 검수 후 **동시 개방**.
+- **R2 개방 완료(2026-09-11)**: PR #237(번역 검수: Claude 에이전트 4개 + Codex ja 교차검수, `/me` 언어 카드 R0 숨김) 머지 → 운영 env `UI_LOCALES=ko,en,ja` 등록 → 운영 `dpl_Fy6v6PSVYmxJjY5CKVpEQshkdMCz`부터 세 언어 라이브. 운영 스윕 32/32.
+- **가입 언어 선택·언어 중립 표기(2026-09-11, PR #240)**: 가입 폼 맨 위 자기 표기 pill(한국어/English/日本語)이 중첩 `LocaleProvider`로 폼을 즉시 그 언어로 바꾸고(입력값 유지), 가입 액션이 고른 언어를 `profiles.preferred_lang`(트리거)과 쿠키에 저장한다. 언어 설정 제목은 어느 UI 언어에서도 `언어 · Language · 言語`(`LANGUAGE_LABEL_NEUTRAL`, 스윕 제외 `data-i18n-ignore`)로 쓴다(`/me` 카드·가입 폼). `/signup`은 우상단 전환기를 숨긴다. E2E = `e2e/signup-language.spec.ts`.
 - 배포 순서: M1·M2·M3 → PR(S0) → PR(S1~S4, 디렉터리별 작은 PR) → 번역 반영 PR → Preview 스윕 → R1 → R2.
 
 ---
