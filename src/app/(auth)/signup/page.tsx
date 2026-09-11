@@ -14,7 +14,6 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function SignupPage() {
   const brand = await getBrand();
-  const t = await serverT(auth);
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col lg:justify-center gap-8 px-6 pb-10 pt-12">
       {/* GRIGO 호스트의 루트는 외부 리다이렉트라 로고를 링크로 감싸지 않는다. */}
@@ -26,18 +25,7 @@ export default async function SignupPage() {
         </Link>
       )}
 
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-extrabold tracking-tight leading-tight">
-          {t("signup.title")}
-        </h1>
-        <p className="text-sm text-ink-2">
-          {t("signup.subtitle")}
-        </p>
-        <p className="text-sm text-ink-3">
-          {t("signup.lede")}
-        </p>
-      </div>
-
+      {/* 제목·안내는 폼의 언어 선택에 따라 즉시 바뀌어야 해서 SignupForm(클라이언트) 안에서 그린다. */}
       <SignupForm />
     </div>
   );

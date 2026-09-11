@@ -34,6 +34,13 @@ export const LOCALE_LABELS: Record<Locale, string> = {
   ja: "日本語",
 };
 
+/**
+ * "언어 설정" 자체를 가리키는 표기. 어느 UI 언어 화면에서도 같은 문자열을 보여
+ * 한국어 화면에 놓인 외국인도 언어 설정을 찾을 수 있게 한다(자기 표기 LOCALE_LABELS 와 함께 쓴다).
+ * 번역하지 않으며, 스윕의 한글 검사에서는 data-i18n-ignore 로 제외한다.
+ */
+export const LANGUAGE_LABEL_NEUTRAL = "언어 · Language · 言語";
+
 /** Intl·<html lang>·JSON-LD inLanguage 용 BCP 47 태그. */
 export const LOCALE_TAGS: Record<Locale, string> = {
   ko: "ko-KR",
