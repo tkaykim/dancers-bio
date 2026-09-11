@@ -12,6 +12,9 @@ import {
   ROSTER_ACCESS_PURPOSES,
   type RosterAccessPurpose,
 } from "@/lib/roster-access";
+import { useLocale, useT } from "@/lib/i18n/provider";
+import { localeTag } from "@/lib/i18n/t";
+import directory from "@/lib/i18n/messages/directory";
 
 const PAGE_SIZE = 24;
 // 비로그인·로그인 모두 디렉토리 브라우즈는 이만큼까지만 — 그 이상은 '열람 요청'.
@@ -68,6 +71,8 @@ export function DirectoryClient({
   ownDancers: OwnDancer[];
 }) {
   const router = useRouter();
+  const t = useT(directory);
+  const locale = useLocale();
   const [requesting, setRequesting] = useState(false);
   const [requested, setRequested] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
@@ -212,7 +217,7 @@ export function DirectoryClient({
       const res = await requestRosterAccessAction({ purpose, details });
       if (res.ok) {
         setRequested(true);
-        toast.success("문의가 접수되었습니다. 검토 후 연락드리겠습니다.");
+        toast.success(t("request.success"));
       } else {
         toast.error(res.error);
       }
@@ -238,12 +243,12 @@ export function DirectoryClient({
         <TabBtn
           active={tab === "dancers"}
           onClick={() => setTab("dancers")}
-          label="개인"
+          label={t("tab.dancers")}
         />
         <TabBtn
           active={tab === "teams"}
           onClick={() => setTab("teams")}
-          label="팀"
+          label={t("tab.teams")}
         />
       </div>
 
@@ -251,7 +256,11 @@ export function DirectoryClient({
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={tab === "teams" ? "팀명 검색" : "활동명, 한글 이름 검색"}
+          placeholder={
+            tab === "teams"
+              ? t("search.placeholder_teams")
+              : t("search.placeholder_dancers")
+          }
           autoComplete="off"
           type="search"
           enterKeyHint="search"
@@ -260,17 +269,20 @@ export function DirectoryClient({
 
       {total > 0 && !debouncedQ ? (
         <p className="text-[11px] text-ink-3">
-          총 {total.toLocaleString()}{tab === "dancers" ? "명" : "팀"} 중 {shown.toLocaleString()}{tab === "dancers" ? "명" : "팀"} 표시
+          {t(tab === "dancers" ? "count.dancers" : "count.teams", {
+            total: total.toLocaleString(localeTag(locale)),
+            shown: shown.toLocaleString(localeTag(locale)),
+          })}
         </p>
       ) : null}
 
       {list.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-hairline-2 p-8 text-center text-sm text-ink-3">
           {debouncedQ
-            ? "검색 결과가 없습니다."
+            ? t("empty.search")
             : tab === "dancers"
-              ? "아직 등록된 댄서가 없습니다."
-              : "아직 등록된 팀이 없습니다."}
+              ? t("empty.dancers")
+              : t("empty.teams")}
         </p>
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -283,19 +295,21 @@ export function DirectoryClient({
                     sub={d.korean_name}
                     tags={d.genres}
                     img={d.profile_img}
-                    badge={!d.profile_id && !d.is_verified ? "큐레이션" : null}
+                    badge={
+                      !d.profile_id && !d.is_verified ? t("badge.curation") : null
+                    }
                   />
                 </li>
               ))
-            : teams.map((t) => (
-                <li key={t.id}>
+            : teams.map((team) => (
+                <li key={team.id}>
                   <Card
-                    href={`/t/${t.slug ?? t.id}`}
-                    name={t.team_name}
-                    sub={t.korean_name}
-                    tags={t.genres}
-                    img={t.profile_img}
-                    badge="팀"
+                    href={`/t/${team.slug ?? team.id}`}
+                    name={team.team_name}
+                    sub={team.korean_name}
+                    tags={team.genres}
+                    img={team.profile_img}
+                    badge={t("badge.team")}
                   />
                 </li>
               ))}
@@ -305,12 +319,12 @@ export function DirectoryClient({
       {atDancerCap ? (
         <div className="mx-auto mt-2 flex max-w-md flex-col items-center gap-3 rounded-2xl border border-hairline-2 bg-card p-6 text-center">
           <p className="text-sm font-semibold text-foreground">
-            더 많은 댄서가 필요하신가요?
+            {t("cap.title")}
           </p>
           <p className="text-xs leading-relaxed text-ink-3">
-            공개 디렉토리에는 {PUBLIC_BROWSE_CAP}명까지 표시됩니다.
+            {t("cap.body_limit", { count: PUBLIC_BROWSE_CAP })}
             <br />
-            전체 명단은 공개하지 않고, 목적을 확인한 뒤 개별적으로 안내드립니다.
+            {t("cap.body_notice")}
           </p>
           <button
             type="button"
@@ -318,14 +332,18 @@ export function DirectoryClient({
             disabled={requesting || requested || showRequestForm}
             className="rounded-full bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
           >
-            {requested ? "문의 접수됨 ✓" : isLoggedIn ? "목적 선택하고 문의하기" : "로그인하고 문의하기"}
+            {requested
+              ? t("cap.requested")
+              : isLoggedIn
+                ? t("cap.cta_member")
+                : t("cap.cta_guest")}
           </button>
 
           {showRequestForm ? (
             <div className="mt-2 flex w-full flex-col gap-3 text-left">
               <div className="flex flex-col gap-2">
                 <p className="text-xs font-semibold text-foreground">
-                  어떤 목적으로 찾고 계신가요?
+                  {t("request.purpose_question")}
                 </p>
                 {ROSTER_ACCESS_PURPOSES.map((item) => (
                   <button
@@ -340,10 +358,10 @@ export function DirectoryClient({
                     }
                   >
                     <span className="block text-sm font-medium text-foreground">
-                      {item.label}
+                      {t(`purpose.${item.value}.label`)}
                     </span>
                     <span className="mt-1 block text-xs leading-relaxed text-ink-3">
-                      {item.description}
+                      {t(`purpose.${item.value}.description`)}
                     </span>
                   </button>
                 ))}
@@ -357,7 +375,7 @@ export function DirectoryClient({
                     htmlFor="roster-request-details"
                     className="text-xs font-semibold text-foreground"
                   >
-                    구체적인 내용을 적어주세요.
+                    {t("request.details_label")}
                   </label>
                   <textarea
                     id="roster-request-details"
@@ -365,11 +383,11 @@ export function DirectoryClient({
                     onChange={(event) => setDetails(event.target.value)}
                     maxLength={2000}
                     rows={5}
-                    placeholder="프로젝트·회사명, 찾는 장르/조건, 예상 일정, 협업 내용 등을 적어주세요."
+                    placeholder={t("request.details_placeholder")}
                     className="w-full resize-y rounded-xl border border-border bg-card px-3 py-3 text-sm leading-relaxed outline-none transition-colors placeholder:text-ink-3 focus:border-primary"
                   />
                   <p className="text-[11px] leading-relaxed text-ink-3">
-                    작성해주신 내용을 확인한 뒤 deetz 운영팀이 이메일로 연락드립니다.
+                    {t("request.notice")}
                   </p>
                   <button
                     type="button"
@@ -378,15 +396,15 @@ export function DirectoryClient({
                     className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
                   >
                     {requested
-                      ? "문의 접수됨 ✓"
+                      ? t("cap.requested")
                       : requesting
-                        ? "전송 중…"
-                        : "문의 접수하기"}
+                        ? t("request.sending")
+                        : t("request.submit")}
                   </button>
                 </div>
               ) : (
                 <p className="text-xs leading-relaxed text-ink-3">
-                  목적을 선택하면 필요한 안내가 표시됩니다.
+                  {t("request.pick_purpose")}
                 </p>
               )}
             </div>
@@ -399,7 +417,7 @@ export function DirectoryClient({
           disabled={loadingMore}
           className="mx-auto mt-2 rounded-full border border-hairline-2 bg-card px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
         >
-          {loadingMore ? "불러오는 중…" : "더 보기"}
+          {loadingMore ? t("more.loading") : t("more.label")}
         </button>
       ) : null}
     </div>
@@ -407,9 +425,12 @@ export function DirectoryClient({
 }
 
 function ProfileLinkPanel({ ownDancers }: { ownDancers: OwnDancer[] }) {
+  const t = useT(directory);
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-secondary/40 p-4">
-      <p className="text-sm font-semibold text-foreground">내 공개 프로필</p>
+      <p className="text-sm font-semibold text-foreground">
+        {t("profile_link.title")}
+      </p>
       {ownDancers.length > 0 ? (
         ownDancers.map((dancer) => {
           const profileKey = dancer.slug ?? dancer.id;
@@ -422,11 +443,11 @@ function ProfileLinkPanel({ ownDancers }: { ownDancers: OwnDancer[] }) {
               key={dancer.id}
               className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3"
             >
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-sm font-medium text-foreground" data-ugc>
                 {dancer.stage_name}
               </p>
               <p className="text-xs leading-relaxed text-ink-3">
-                두 링크 중 하나를 SNS 프로필에 등록해두시면 됩니다.
+                {t("profile_link.hint")}
               </p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <a
@@ -435,7 +456,7 @@ function ProfileLinkPanel({ ownDancers }: { ownDancers: OwnDancer[] }) {
                   rel="noreferrer"
                   className="rounded-lg border border-border px-3 py-2 text-center text-xs font-semibold text-foreground hover:bg-secondary"
                 >
-                  deetz.kr 프로필 보기
+                  {t("profile_link.deetz")}
                 </a>
                 <a
                   href={dancersBioUrl}
@@ -443,7 +464,7 @@ function ProfileLinkPanel({ ownDancers }: { ownDancers: OwnDancer[] }) {
                   rel="noreferrer"
                   className="rounded-lg border border-border px-3 py-2 text-center text-xs font-semibold text-foreground hover:bg-secondary"
                 >
-                  dancers.bio 프로필 보기
+                  {t("profile_link.dancers_bio")}
                 </a>
               </div>
             </div>
@@ -452,13 +473,13 @@ function ProfileLinkPanel({ ownDancers }: { ownDancers: OwnDancer[] }) {
       ) : (
         <>
           <p className="text-xs leading-relaxed text-ink-3">
-            아직 연결된 댄서 프로필이 없습니다.
+            {t("profile_link.empty")}
           </p>
           <Link
             href="/me/portfolio"
             className="rounded-lg bg-primary px-3 py-2 text-center text-xs font-semibold text-primary-foreground hover:bg-primary/90"
           >
-            내 프로필 확인·등록하기
+            {t("profile_link.create")}
           </Link>
         </>
       )}
@@ -536,12 +557,16 @@ function Card({
         }}
       />
       <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-0.5 p-3">
-        <p className="text-sm font-semibold leading-tight text-white">
+        <p className="text-sm font-semibold leading-tight text-white" data-ugc>
           {name}
         </p>
-        {sub ? <p className="text-[11px] text-white/65">{sub}</p> : null}
+        {sub ? (
+          <p className="text-[11px] text-white/65" data-ugc>
+            {sub}
+          </p>
+        ) : null}
         {(tags ?? []).length > 0 ? (
-          <p className="text-[10px] text-white/55">
+          <p className="text-[10px] text-white/55" data-ugc>
             {(tags ?? []).slice(0, 2).join(" · ")}
           </p>
         ) : null}

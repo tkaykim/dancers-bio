@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InternationalPhoneField } from "@/components/auth/InternationalPhoneField";
+import { useT } from "@/lib/i18n/provider";
+import profile from "@/lib/i18n/messages/profile";
 
 type Props = {
   userId: string;
@@ -20,6 +22,7 @@ type Props = {
 };
 
 export function ProfileEditForm({ userId, defaultValues, onSaved }: Props) {
+  const t = useT(profile);
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
@@ -49,7 +52,7 @@ export function ProfileEditForm({ userId, defaultValues, onSaved }: Props) {
             setMessage({ kind: "error", text: result.error });
             return;
           }
-          setMessage({ kind: "ok", text: "저장됐습니다." });
+          setMessage({ kind: "ok", text: t("edit.saved") });
           if (fileRef.current) fileRef.current.value = "";
           router.refresh();
           onSaved?.();
@@ -58,7 +61,7 @@ export function ProfileEditForm({ userId, defaultValues, onSaved }: Props) {
       className="flex flex-col gap-4"
     >
       <div className="flex flex-col gap-2">
-        <Label htmlFor="display_name">이름</Label>
+        <Label htmlFor="display_name">{t("edit.name")}</Label>
         <Input
           id="display_name"
           name="display_name"
@@ -76,20 +79,20 @@ export function ProfileEditForm({ userId, defaultValues, onSaved }: Props) {
       />
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="bio">소개</Label>
+        <Label htmlFor="bio">{t("edit.bio")}</Label>
         <textarea
           id="bio"
           name="bio"
           defaultValue={defaultValues.bio ?? ""}
           rows={4}
           maxLength={500}
-          placeholder="자신을 소개해 주세요"
+          placeholder={t("edit.bio_placeholder")}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="avatar">프로필 사진 (선택)</Label>
+        <Label htmlFor="avatar">{t("edit.avatar")}</Label>
         <Input
           ref={fileRef}
           id="avatar"
@@ -97,7 +100,7 @@ export function ProfileEditForm({ userId, defaultValues, onSaved }: Props) {
           type="file"
           accept="image/jpeg,image/png,image/webp,image/gif"
         />
-        <p className="text-xs text-muted-foreground">10MB 이하 JPG/PNG/WEBP/GIF</p>
+        <p className="text-xs text-muted-foreground">{t("edit.avatar_hint")}</p>
       </div>
 
       {message ? (
@@ -114,7 +117,11 @@ export function ProfileEditForm({ userId, defaultValues, onSaved }: Props) {
       ) : null}
 
       <Button type="submit" disabled={pending} className="w-fit">
-        {uploading ? "업로드 중..." : pending ? "저장 중..." : "저장하기"}
+        {uploading
+          ? t("edit.uploading")
+          : pending
+            ? t("edit.saving")
+            : t("edit.submit")}
       </Button>
     </form>
   );

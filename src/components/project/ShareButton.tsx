@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Check, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n/provider";
+import project from "@/lib/i18n/messages/project";
 
 /**
  * 프로젝트(공고) 공유 버튼.
@@ -17,6 +19,7 @@ export function ShareButton({
   shortCode: string;
   title: string;
 }) {
+  const t = useT(project);
   const [copied, setCopied] = useState(false);
 
   async function handleShare() {
@@ -39,10 +42,10 @@ export function ShareButton({
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      toast.success("링크를 복사했습니다");
+      toast.success(t("share.copied_toast"));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("복사하지 못했습니다");
+      toast.error(t("share.copy_failed"));
     }
   }
 
@@ -50,7 +53,7 @@ export function ShareButton({
     <button
       type="button"
       onClick={handleShare}
-      aria-label="공고 공유"
+      aria-label={t("share.aria")}
       className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-ink-2 transition-colors hover:bg-secondary hover:text-foreground"
     >
       {copied ? (
@@ -58,7 +61,7 @@ export function ShareButton({
       ) : (
         <Share2 className="size-3.5" />
       )}
-      공유
+      {t("share.label")}
     </button>
   );
 }

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { ShareLinkButton } from "@/components/share/ShareLinkButton";
+import { useT } from "@/lib/i18n/provider";
+import profile from "@/lib/i18n/messages/profile";
 
 /**
  * 내 프로필 공유 유도 카드 (마이페이지 · 본인 공개 프로필).
@@ -19,6 +21,7 @@ export function ProfileShareCard({
   title: string;
   text?: string;
 }) {
+  const t = useT(profile);
   const [copied, setCopied] = useState(false);
   // 표시는 스킴 없이 깔끔하게 (https:// 제거). 복사는 전체 URL.
   const display = url.replace(/^https?:\/\//, "");
@@ -27,27 +30,27 @@ export function ProfileShareCard({
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      toast.success("링크를 복사했어요");
+      toast.success(t("share.card_copied_toast"));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("복사하지 못했습니다");
+      toast.error(t("share.copy_failed"));
     }
   }
 
   return (
     <section className="rounded-2xl border border-primary/30 bg-primary/5 p-5">
-      <h2 className="text-sm font-bold text-foreground">📣 내 프로필 공유하기</h2>
+      <h2 className="text-sm font-bold text-foreground">{t("share.card_title")}</h2>
       <p className="mt-1 text-xs leading-relaxed text-ink-3">
-        카카오톡·인스타그램에 프로필 링크를 공유해보세요.
+        {t("share.card_line1")}
         <br />
-        많이 보일수록 매칭·캐스팅 기회가 늘어납니다.
+        {t("share.card_line2")}
       </p>
 
       {/* 복붙용 URL 박스 */}
       <button
         type="button"
         onClick={copy}
-        aria-label="프로필 링크 복사"
+        aria-label={t("share.card_copy")}
         className="mt-3 flex w-full items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-left transition-colors hover:bg-secondary"
       >
         <span className="min-w-0 flex-1 truncate font-mono text-xs text-ink-2">
@@ -65,7 +68,7 @@ export function ProfileShareCard({
           url={url}
           title={title}
           text={text}
-          label="공유하기"
+          label={t("share.card_button")}
           variant="block"
         />
       </div>

@@ -9,6 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useT } from "@/lib/i18n/provider";
+import profile from "@/lib/i18n/messages/profile";
 
 type MediaItem = {
   url: string;
@@ -42,6 +44,7 @@ export function ProfileMediaGallery({
   name: string;
   variant: "photos" | "videos";
 }) {
+  const t = useT(profile);
   const [active, setActive] = useState<ActiveMedia>(null);
 
   if (items.length === 0) return null;
@@ -77,13 +80,16 @@ export function ProfileMediaGallery({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={thumbnail}
-                  alt={`${name} ${imageItem ? "photo" : "reel"} ${index + 1}`}
+                  alt={t(imageItem ? "media.alt_photo" : "media.alt_reel", {
+                    name,
+                    index: index + 1,
+                  })}
                   loading="lazy"
                   className="absolute inset-0 size-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.035]"
                 />
               ) : (
                 <span className="absolute inset-0 flex items-center justify-center text-sm text-white/55">
-                  {externalItem ? "외부 미디어" : "영상"}
+                  {externalItem ? t("media.external") : t("media.video")}
                 </span>
               )}
 
@@ -127,7 +133,7 @@ export function ProfileMediaGallery({
                 target="_blank"
                 rel="noopener noreferrer"
                 className={mediaClassName}
-                aria-label={`${name} 외부 미디어 ${index + 1} 새 창에서 열기`}
+                aria-label={t("media.open_external", { name, index: index + 1 })}
               >
                 {mediaContent}
               </a>
@@ -139,7 +145,7 @@ export function ProfileMediaGallery({
               <div
                 key={`${item.url}-${index}`}
                 className={mediaClassName}
-                aria-label={`${name} 미디어 ${index + 1}을 열 수 없음`}
+                aria-label={t("media.unavailable", { name, index: index + 1 })}
               >
                 {mediaContent}
               </div>
@@ -158,7 +164,10 @@ export function ProfileMediaGallery({
                 )
               }
               className={mediaClassName}
-              aria-label={`${name} ${imageItem ? "사진" : "영상"} ${index + 1} 크게 보기`}
+              aria-label={t(imageItem ? "media.open_photo" : "media.open_video", {
+                name,
+                index: index + 1,
+              })}
             >
               {mediaContent}
             </button>
@@ -172,7 +181,7 @@ export function ProfileMediaGallery({
       >
         <DialogContent className="max-h-[92vh] overflow-hidden border-0 bg-[#11100e] p-2 text-white [&_[data-slot=dialog-close]]:size-11 [&_[data-slot=dialog-close]]:rounded-full [&_[data-slot=dialog-close]]:bg-black/55 [&_[data-slot=dialog-close]]:hover:bg-black/75 sm:max-w-4xl">
           <DialogHeader className="sr-only">
-            <DialogTitle>{name} 포트폴리오 미디어</DialogTitle>
+            <DialogTitle>{t("media.dialog_title", { name })}</DialogTitle>
           </DialogHeader>
           {active?.kind === "video" ? (
             <VideoEmbed

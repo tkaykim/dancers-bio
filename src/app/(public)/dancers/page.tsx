@@ -2,31 +2,31 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth/guard";
 import { DirectoryClient } from "@/components/directory/DirectoryClient";
+import { getLocale, serverT } from "@/lib/i18n/server";
+import { translator } from "@/lib/i18n/t";
+import meta from "@/lib/i18n/messages/meta";
+import directory from "@/lib/i18n/messages/directory";
 
-export const metadata: Metadata = {
-  title: { absolute: "댄서·댄스팀 포트폴리오 디렉토리 | deetz(디츠)" },
-  description:
-    "디츠(deetz)에서 검증된 댄서와 댄스팀의 경력·영상 포트폴리오를 확인하세요. 댄서 섭외, 댄스팀 섭외, 안무가 섭외에 맞는 프로필을 비교하고 캐스팅할 수 있는 댄서 플랫폼입니다.",
-  keywords: [
-    "댄서 포트폴리오",
-    "댄스팀 섭외",
-    "댄서 섭외",
-    "댄서 플랫폼",
-    "안무가 섭외",
-    "K-POP 댄서",
-    "디츠",
-    "deetz",
-  ],
-  alternates: { canonical: "https://deetz.kr/dancers" },
-  openGraph: {
-    title: "댄서·댄스팀 포트폴리오 디렉토리 | deetz(디츠)",
-    description:
-      "검증된 댄서·댄스팀의 경력과 영상 포트폴리오를 확인하고 댄서 섭외·캐스팅에 활용하세요.",
-    url: "https://deetz.kr/dancers",
-    siteName: "deetz",
-    type: "website",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const m = translator(meta, locale);
+  const d = translator(directory, locale);
+  const title = m("dancers.title");
+  const description = m("dancers.description");
+  return {
+    title: { absolute: title },
+    description,
+    keywords: d("meta.keywords").split(","),
+    alternates: { canonical: "https://deetz.kr/dancers" },
+    openGraph: {
+      title,
+      description,
+      url: "https://deetz.kr/dancers",
+      siteName: "deetz",
+      type: "website",
+    },
+  };
+}
 
 const PAGE_SIZE = 24;
 
@@ -48,6 +48,7 @@ export default async function DirectoryPage({
   const initialTab: Tab = params.tab === "teams" ? "teams" : "dancers";
   const supabase = await createClient();
   const user = await getUser();
+  const t = await serverT(directory);
 
   const [dancersRes, teamsRes, dancerCountRes, teamCountRes, ownDancersRes] =
     await Promise.all([
@@ -88,10 +89,10 @@ export default async function DirectoryPage({
     <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8 lg:max-w-6xl lg:px-8 lg:py-10">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-          ↳ 디렉토리
+          {t("header.eyebrow")}
         </p>
         <h1 className="text-2xl font-bold tracking-tight leading-tight lg:text-3xl">
-          댄서 / 팀 찾기
+          {t("header.title")}
         </h1>
       </header>
 

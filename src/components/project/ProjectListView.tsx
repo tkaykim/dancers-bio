@@ -8,6 +8,11 @@ import {
   deadlineLabel,
   isExpired,
 } from "@/lib/utils/deadline";
+import { useLocale, useT } from "@/lib/i18n/provider";
+import { localeTag, tCount, type Translator } from "@/lib/i18n/t";
+import type { Locale } from "@/lib/i18n/locale";
+import { labelFor } from "@/lib/i18n/labels";
+import feed from "@/lib/i18n/messages/feed";
 
 export type ProjectCategory =
   | "performance"
@@ -39,16 +44,7 @@ export type ListProject = {
 
 type SortKey = "deadline" | "latest" | "pay";
 
-const CATEGORY_LABEL: Record<ProjectCategory, string> = {
-  performance: "공연",
-  choreography: "안무제작",
-  instructor: "강사",
-  broadcast: "방송",
-  advertisement: "광고",
-  event: "행사",
-  video: "영상촬영",
-  other: "기타",
-};
+type FeedT = Translator<typeof feed>;
 
 const CATEGORY_ORDER: ProjectCategory[] = [
   "performance",
@@ -73,18 +69,27 @@ export function isListClosed(p: ListProject): boolean {
   return isExpired(p.application_deadline, p.is_standing_pool);
 }
 
-function formatPayShort(p: ListProject): string {
-  if (p.pay_amount === 0 && p.pay_type === "total") return "별도 페이 없음";
-  if (p.pay_type === "negotiable") return "협의";
-  if (!p.pay_amount) return "협의";
+// 축약 단위는 언어마다 다르다 — ko·ja 는 만/천만(万/千万), en 은 K/M 이다.
+function formatPayShort(p: ListProject, t: FeedT, locale: Locale): string {
+  if (p.pay_amount === 0 && p.pay_type === "total") return t("pay.none");
+  if (p.pay_type === "negotiable") return t("pay.negotiable");
+  if (!p.pay_amount) return t("pay.negotiable");
   const amount = p.pay_amount;
+  const large = locale === "en" ? 1000000 : 10000000;
+  const small = locale === "en" ? 1000 : 10000;
   let label: string;
-  if (amount >= 10000000)
-    label = `${(amount / 10000000).toFixed(amount % 10000000 === 0 ? 0 : 1)}천만`;
-  else if (amount >= 10000)
-    label = `${(amount / 10000).toFixed(amount % 10000 === 0 ? 0 : 1)}만`;
-  else label = amount.toLocaleString("ko-KR");
-  return p.pay_type === "per_session" ? `₩${label}/회` : `₩${label}`;
+  if (amount >= large)
+    label = t("pay.compact_large", {
+      value: (amount / large).toFixed(amount % large === 0 ? 0 : 1),
+    });
+  else if (amount >= small)
+    label = t("pay.compact_small", {
+      value: (amount / small).toFixed(amount % small === 0 ? 0 : 1),
+    });
+  else label = amount.toLocaleString(localeTag(locale));
+  return p.pay_type === "per_session"
+    ? t("pay.short_per_session", { amount: label })
+    : t("pay.short", { amount: label });
 }
 
 function payValue(p: ListProject): number {
@@ -92,13 +97,15 @@ function payValue(p: ListProject): number {
   return p.pay_type === "per_session" ? p.pay_amount * 4 : p.pay_amount;
 }
 
+// 한국어 지역명에서만 붙는 행정구역 접미사. 화면 문구가 아니라 ko 라벨을 줄이는 값이라
+// 사전으로 옮기지 않는다. en·ja 라벨에는 이 문자열이 없어 결과가 바뀌지 않는다.
+/* eslint-disable no-restricted-syntax -- i18n: 한국어 지역명 접미사(표시 문구 아님) */
+const KO_REGION_SUFFIXES = ["특별시", "광역시", "특별자치도", "특별자치시"];
+/* eslint-enable no-restricted-syntax */
+
 function shortRegion(s: string | null): string {
   if (!s) return "";
-  return s
-    .replace("특별시", "")
-    .replace("광역시", "")
-    .replace("특별자치도", "")
-    .replace("특별자치시", "");
+  return KO_REGION_SUFFIXES.reduce((acc, suffix) => acc.replace(suffix, ""), s);
 }
 
 export function ProjectListView({
@@ -108,6 +115,9 @@ export function ProjectListView({
   projects: ListProject[];
   isAdmin?: boolean;
 }) {
+  const t = useT(feed);
+  const locale = useLocale();
+  const privateTitle = t("row.private_title");
   const [query, setQuery] = useState("");
   const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
   const [selectedCats, setSelectedCats] = useState<Set<ProjectCategory>>(new Set());
@@ -162,7 +172,7 @@ export function ProjectListView({
       }
       if (q) {
         const hay = masked
-          ? "비공개 공고"
+          ? privateTitle
           : `${p.title} ${p.owner_name ?? ""} ${p.region_label ?? ""} ${p.genre_label ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
@@ -192,7 +202,17 @@ export function ProjectListView({
       sorted.sort((a, b) => payValue(b) - payValue(a));
     }
     return sorted;
-  }, [projects, query, selectedGenres, selectedCats, region, sort, isAdmin, showExpired]);
+  }, [
+    projects,
+    query,
+    selectedGenres,
+    selectedCats,
+    region,
+    sort,
+    isAdmin,
+    showExpired,
+    privateTitle,
+  ]);
 
   const activeCount =
     selectedGenres.size +
@@ -234,7 +254,7 @@ export function ProjectListView({
       {/* Search */}
       <Input
         type="search"
-        placeholder="제목·주최자·지역 검색"
+        placeholder={t("list.search_placeholder")}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         className="h-9 lg:h-11"
@@ -248,7 +268,7 @@ export function ProjectListView({
           className="flex w-full items-center justify-between px-3 py-2 text-left lg:px-4 lg:py-3"
         >
           <span className="flex items-center gap-2">
-            <span className="text-xs font-semibold">필터</span>
+            <span className="text-xs font-semibold">{t("list.filter")}</span>
             {activeCount > 0 ? (
               <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground">
                 {activeCount}
@@ -272,7 +292,7 @@ export function ProjectListView({
                 }}
                 className="cursor-pointer rounded px-1 text-ink-3 hover:text-foreground"
               >
-                초기화
+                {t("list.reset")}
               </span>
             ) : null}
             <span aria-hidden>{filterOpen ? "▾" : "▸"}</span>
@@ -282,21 +302,21 @@ export function ProjectListView({
         {filterOpen ? (
           <div className="flex flex-col gap-3 border-t border-border px-3 py-3 lg:px-4">
             {availableCats.length > 0 ? (
-              <FilterGroup label="종류">
+              <FilterGroup label={t("list.group_category")}>
                 {availableCats.map((c) => (
                   <Chip
                     key={c}
                     active={selectedCats.has(c)}
                     onClick={() => toggleCat(c)}
                   >
-                    {CATEGORY_LABEL[c]}
+                    {labelFor("category", c, locale)}
                   </Chip>
                 ))}
               </FilterGroup>
             ) : null}
 
             {genres.length > 0 ? (
-              <FilterGroup label="장르">
+              <FilterGroup label={t("list.group_genre")}>
                 {genres.map((g) => (
                   <Chip
                     key={g}
@@ -315,7 +335,7 @@ export function ProjectListView({
                 onChange={(e) => setRegion(e.target.value)}
                 className="h-8 rounded-md border border-input bg-background px-2 text-xs"
               >
-                <option value="">지역 전체</option>
+                <option value="">{t("list.region_all")}</option>
                 {regions.map((r) => (
                   <option key={r} value={r}>
                     {shortRegion(r)}
@@ -327,9 +347,9 @@ export function ProjectListView({
                 onChange={(e) => setSort(e.target.value as SortKey)}
                 className="h-8 rounded-md border border-input bg-background px-2 text-xs"
               >
-                <option value="deadline">마감 임박순</option>
-                <option value="latest">최신순</option>
-                <option value="pay">페이 높은순</option>
+                <option value="deadline">{t("list.sort_deadline")}</option>
+                <option value="latest">{t("list.sort_latest")}</option>
+                <option value="pay">{t("list.sort_pay")}</option>
               </select>
             </div>
 
@@ -339,8 +359,9 @@ export function ProjectListView({
 
       <div className="flex items-center justify-between gap-2 px-1">
         <span className="text-[10px] text-ink-3">
-          {filtered.length}
-          {filtered.length !== poolSize ? ` / ${poolSize}` : ""}건
+          {filtered.length !== poolSize
+            ? t("list.count_filtered", { shown: filtered.length, total: poolSize })
+            : t("list.count", { count: filtered.length })}
         </span>
         {/*
           마감 공고 토글은 접이식 필터 안에 있었다. 모바일에서 두 번 접혀 있어
@@ -349,14 +370,14 @@ export function ProjectListView({
         {expiredCount > 0 ? (
           <div
             role="group"
-            aria-label="마감 공고 표시"
+            aria-label={t("list.scope_group")}
             className="flex shrink-0 items-center gap-0.5 rounded-full border border-border bg-card p-0.5"
           >
             <ScopeChip active={!showExpired} onClick={() => setShowExpired(false)}>
-              모집 중
+              {t("list.scope_open")}
             </ScopeChip>
             <ScopeChip active={showExpired} onClick={() => setShowExpired(true)}>
-              마감 포함 {expiredCount}
+              {t("list.scope_closed", { count: expiredCount })}
             </ScopeChip>
           </div>
         ) : null}
@@ -364,14 +385,14 @@ export function ProjectListView({
 
       {/* Header row */}
       <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-border px-2 py-1.5 text-[10px] uppercase tracking-wider text-ink-3 lg:grid-cols-[minmax(0,1fr)_120px_72px] lg:px-4 lg:py-2">
-        <span>공고</span>
-        <span className="w-16 text-right lg:w-[120px]">페이</span>
-        <span className="w-10 text-right lg:w-[72px]">마감</span>
+        <span>{t("list.col_project")}</span>
+        <span className="w-16 text-right lg:w-[120px]">{t("list.col_pay")}</span>
+        <span className="w-10 text-right lg:w-[72px]">{t("list.col_deadline")}</span>
       </div>
 
       {filtered.length === 0 ? (
         <div className="rounded-md border border-dashed border-hairline-2 p-6 text-center">
-          <p className="text-xs text-ink-3">조건에 맞는 공고가 없습니다.</p>
+          <p className="text-xs text-ink-3">{t("list.empty")}</p>
         </div>
       ) : (
         <ul className="flex flex-col">
@@ -459,6 +480,8 @@ function ProjectRow({
   project: ListProject;
   isAdmin: boolean;
 }) {
+  const t = useT(feed);
+  const locale = useLocale();
   const standing = !!project.is_standing_pool;
   const dDay = daysUntilDeadline(project.application_deadline);
   const closed = isListClosed(project);
@@ -477,31 +500,38 @@ function ProjectRow({
         <div className="flex items-center gap-1.5">
           {project.visibility === "private" ? (
             <span className="shrink-0 rounded-full border border-border bg-secondary px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider text-ink-3">
-              비공개
+              {t("row.private")}
             </span>
           ) : null}
           {standing && !closed ? (
             <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider text-primary">
-              상시 모집
+              {t("row.standing")}
             </span>
           ) : null}
           {closed ? (
             <span className="shrink-0 rounded-full border border-border bg-secondary px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider text-ink-3">
-              마감
+              {t("row.closed")}
             </span>
           ) : null}
-          <div className="truncate text-sm font-medium leading-tight lg:text-[15px]">
-            {masked ? "비공개 공고" : project.title}
+          <div
+            className="truncate text-sm font-medium leading-tight lg:text-[15px]"
+            data-ugc={masked ? undefined : true}
+          >
+            {masked ? t("row.private_title") : project.title}
           </div>
         </div>
         <div className="mt-0.5 truncate text-[10px] text-ink-3 lg:mt-1 lg:text-xs">
           {masked
-            ? "링크를 받은 사람만 열람 가능"
+            ? t("row.private_hint")
             : [
-                project.category ? CATEGORY_LABEL[project.category] : null,
+                project.category
+                  ? labelFor("category", project.category, locale)
+                  : null,
                 project.genre_label,
                 shortRegion(project.region_label),
-                project.session_count ? `${project.session_count}회` : null,
+                project.session_count
+                  ? tCount(t, "row.sessions", locale, project.session_count)
+                  : null,
                 project.owner_name,
               ]
                 .filter(Boolean)
@@ -509,16 +539,20 @@ function ProjectRow({
         </div>
       </div>
       <span className="w-16 text-right font-mono text-[11px] lg:w-[120px] lg:text-sm">
-        {masked ? "—" : formatPayShort(project)}
+        {masked ? "—" : formatPayShort(project, t, locale)}
       </span>
       <span
         className={`w-10 text-right font-mono text-[11px] lg:w-[72px] lg:text-sm ${urgent ? "text-destructive" : "text-ink-3"}`}
       >
         {closed
-          ? "마감"
+          ? t("row.deadline_closed")
           : standing
-            ? "상시"
-            : deadlineLabel(project.application_deadline, { none: "상시" })}
+            ? t("row.deadline_standing")
+            : deadlineLabel(
+                project.application_deadline,
+                { none: t("row.deadline_none") },
+                locale,
+              )}
       </span>
     </>
   );
