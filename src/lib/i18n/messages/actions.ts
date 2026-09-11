@@ -181,7 +181,7 @@ const en: Record<Key, string> = {
   "common.invalid_request": "That request is not valid.",
   "common.update_forbidden": "You do not have permission to edit this.",
   "common.unknown_error": "Unknown error",
-  "common.unexpected_error": "Something went wrong.",
+  "common.unexpected_error": "An unknown error occurred.",
 
   "auth.email_taken": "This email is already registered.",
   "auth.login_failed": "The email or password is incorrect.",
@@ -212,7 +212,7 @@ const en: Record<Key, string> = {
   "portfolio_ai.text_too_long": "The text must be {max} characters or fewer.",
   "portfolio_ai.invalid_path": "That file path is not valid.",
   "portfolio_ai.rate_limited":
-    "Please try again in a moment. (One try per {minutes} minutes)",
+    "Please try again in a moment. (Retries are blocked for {minutes} minutes)",
   "portfolio_ai.daily_limit":
     "You have used all of today's analyses ({limit} per day).",
   "portfolio_ai.pdf_read_failed": "We could not read the PDF: {reason}",
@@ -233,7 +233,7 @@ const en: Record<Key, string> = {
   "team.slug_taken": "That slug is already in use. Please enter another one.",
   "team.member_duplicate": "That member is already on the team.",
   "team.lead_remove_blocked":
-    "The leader cannot be removed from the members directly. Transfer the lead or disband the team.",
+    "The leader cannot be removed from the member list directly. Transfer the lead role or disband the team.",
   "team.dancer_required": "You need a dancer profile before you can create a team.",
   "team.member_uuid_not_found":
     "We could not find a dancer profile for that UUID. Leave the ID field empty to add a name only.",
@@ -246,7 +246,7 @@ const en: Record<Key, string> = {
   "project.post_not_found": "We could not find that casting call.",
   "project.closed": "This project is closed.",
   "project.create_forbidden":
-    "You do not have permission to create projects. Please contact the team.",
+    "You do not have permission to create projects. Please contact an administrator.",
   "project.manage_forbidden": "You do not have permission to manage this project.",
   "project.update_forbidden": "You do not have permission to edit this project.",
   "project.delete_forbidden":
@@ -280,7 +280,7 @@ const en: Record<Key, string> = {
   "proposal.already_handled": "That offer has already been handled.",
 
   "apply.own_project": "You cannot apply to a project you created.",
-  "apply.closed": "This casting call is not accepting applications right now.",
+  "apply.closed": "This casting call is closed right now.",
   "apply.deadline_passed": "The application deadline has passed.",
   "apply.channel_check_failed": "We could not verify the recruitment channel.",
   "apply.channel_invalid": "That recruitment channel is not valid.",
@@ -299,19 +299,19 @@ const en: Record<Key, string> = {
   "application.withdraw_already_handled":
     "An application that has already been handled cannot be withdrawn.",
   "application.withdraw_not_owner": "You can only withdraw your own application.",
-  "application.decline_not_owner": "You can only step back from your own application.",
+  "application.decline_not_owner": "You can only decline your own application.",
   "application.decline_state_invalid":
-    "You can only step back while you are a round 1 pass.",
+    "You can only decline while you are a round 1 pass.",
   "application.decline_final_blocked":
-    "A final selection cannot be declined here. Please contact contact@deetz.kr.",
+    "You cannot decline a final selection yourself. Please email contact@deetz.kr.",
   "application.decline_reason_required":
-    "At this stage you need to leave a reason for stepping back.",
+    "At this stage you have to give a reason.",
 
   "claim.relation_required": "Choose how you are related to this profile.",
   "claim.message_max": "Use 1000 characters or fewer for your message.",
   "claim.already_owned": "That profile already has an owner.",
   "claim.already_requested":
-    "You already requested this profile. Please wait for the team to review it.",
+    "You already requested this profile. Please wait for an administrator to review it.",
 
   "bug_report.save_failed":
     "We could not save your report. Please try again in a moment.",
@@ -324,14 +324,14 @@ const en: Record<Key, string> = {
   "db.own_team_lead": "You cannot apply to a project created by a team you lead.",
   "db.owner_team": "The team that owns this project cannot apply to it.",
   "db.own_project": "You cannot apply or send offers to your own project.",
-  "db.remove_team_lead": "The team lead cannot be removed from the members directly. Hand over the lead role or disband the team.",
+  "db.remove_team_lead": "The leader cannot be removed from the member list directly. Transfer the lead role or disband the team.",
   "db.admin_only": "We could not confirm admin permission. Please log in again.",
   "db.verification_gone": "This verification request was already handled or does not exist.",
   "db.rls_denied": "You do not have permission, or the security policy rejected this.",
   "db.duplicate": "This item is already registered.",
 
-  "apply.availability_required": "Select at least one schedule you can attend.",
-  "apply.availability_invalid": "Please check the schedules you selected.",
+  "apply.availability_required": "Select at least one session you can attend.",
+  "apply.availability_invalid": "Please check the sessions you selected again.",
 
 };
 
@@ -377,8 +377,8 @@ const ja: Record<Key, string> = {
   "portfolio_ai.text_too_long": "テキストは{max}文字以内で入力してください。",
   "portfolio_ai.invalid_path": "ファイルパスが正しくありません。",
   "portfolio_ai.rate_limited":
-    "しばらくしてからもう一度お試しください。({minutes}分以内の再試行はできません)",
-  "portfolio_ai.daily_limit": "本日の解析回数({limit}回)をすべて使い切りました。",
+    "しばらくしてからもう一度お試しください。（{minutes}分以内の再試行はできません）",
+  "portfolio_ai.daily_limit": "本日の解析回数（{limit}回）をすべて使い切りました。",
   "portfolio_ai.pdf_read_failed": "PDFを読み込めませんでした: {reason}",
   "portfolio_ai.pdf_too_large": "PDFは32MB以下のみアップロードできます。",
 
@@ -386,7 +386,7 @@ const ja: Record<Key, string> = {
 
   "rate_card.forbidden": "このダンサーの料金を編集する権限がありません。",
   "rate_card.service_required": "サービスの種類を選択してください。",
-  "rate_card.country_code_invalid": "国コードは英字2文字です。(例: JP, US)",
+  "rate_card.country_code_invalid": "国コードは英字2文字です。（例: JP, US）",
   "rate_card.price_required": "料金または料金の範囲を1つ以上入力してください。",
   "rate_card.price_range_invalid": "料金範囲の下限が上限を超えています。",
 
@@ -404,16 +404,16 @@ const ja: Record<Key, string> = {
     "プラットフォームのアカウントまたは名前のいずれかが必要です。",
   "team.new_lead_needs_dancer": "後任にはダンサープロフィールが必要です。",
   "team.new_lead_must_be_member":
-    "後任はチームの既存メンバーである必要があります(ダンサープロフィールの連携が必要)。",
+    "後任はチームの既存メンバーである必要があります（ダンサープロフィールの連携が必要）。",
 
   "project.not_found": "プロジェクトが見つかりません。",
   "project.post_not_found": "募集が見つかりません。",
   "project.closed": "締め切られたプロジェクトです。",
   "project.create_forbidden":
-    "プロジェクトを作成する権限がありません。運営までお問い合わせください。",
+    "プロジェクトを作成する権限がありません。管理者までお問い合わせください。",
   "project.manage_forbidden": "このプロジェクトを管理する権限がありません。",
   "project.update_forbidden": "このプロジェクトを編集する権限がありません。",
-  "project.delete_forbidden": "削除する権限がありません。(オーナー・管理者のみ)",
+  "project.delete_forbidden": "削除する権限がありません。（オーナー・管理者のみ）",
   "project.agreed_pay_forbidden": "確定費用を編集する権限がありません。",
   "project.rounds_cannot_shrink":
     "すでに{deepest}段階まで進んだ応募者がいるため、選考ステップを{requested}段階に減らすことはできません。",
@@ -439,27 +439,27 @@ const ja: Record<Key, string> = {
   "proposal.already_handled": "すでに処理されたオファーです。",
 
   "apply.own_project": "ご自身が作成したプロジェクトには応募できません。",
-  "apply.closed": "現在この募集は受付を停止しています。",
-  "apply.deadline_passed": "応募の締切が過ぎています。",
+  "apply.closed": "現在この募集は締め切っています。",
+  "apply.deadline_passed": "応募の締切日が過ぎました。",
   "apply.channel_check_failed": "募集チャネルを確認できませんでした。",
   "apply.channel_invalid": "無効な募集チャネルです。",
   "apply.schedule_load_failed":
-    "スケジュール情報を確認できませんでした。しばらくしてからもう一度お試しください。",
+    "日程情報を確認できませんでした。しばらくしてからもう一度お試しください。",
   "apply.nationality_load_failed":
     "国籍情報を確認できませんでした。しばらくしてからもう一度お試しください。",
   "apply.nationality_required": "先にプロフィールへ国籍を登録してください。",
-  "apply.fee_required": "おおよその金額でかまいませんので、希望する出演料を入力してください。",
+  "apply.fee_required": "おおよその金額でかまいませんので、希望出演料をご入力ください。",
   "apply.duplicate": "すでに応募済みです。",
   "apply.forbidden": "応募する権限がありません。",
   "apply.schedule_save_failed":
-    "応募は受け付けましたが、スケジュールの回答を保存できませんでした。運営までお問い合わせください。",
+    "応募は受け付けましたが、日程の回答を保存できませんでした。運営までお問い合わせください。",
 
   "application.not_found": "応募情報が見つかりません。",
   "application.withdraw_already_handled":
     "すでに処理された応募は取り消せません。",
   "application.withdraw_not_owner": "ご自身の応募のみ取り消せます。",
   "application.decline_not_owner": "ご自身の応募のみ辞退できます。",
-  "application.decline_state_invalid": "一次合格の状態でのみ辞退できます。",
+  "application.decline_state_invalid": "1次合格の状態でのみ辞退できます。",
   "application.decline_final_blocked":
     "最終合格した応募はご自身で辞退できません。contact@deetz.kr までご連絡ください。",
   "application.decline_reason_required":
@@ -469,19 +469,19 @@ const ja: Record<Key, string> = {
   "claim.message_max": "メッセージは1000文字以内で入力してください。",
   "claim.already_owned": "すでに所有者がいるプロフィールです。",
   "claim.already_requested":
-    "すでに申請済みのプロフィールです。運営の確認結果をお待ちください。",
+    "すでに申請済みのプロフィールです。管理者の確認結果をお待ちください。",
 
   "bug_report.save_failed":
     "レポートを保存できませんでした。しばらくしてからもう一度お試しください。",
 
   "verification.handle_invalid":
-    "正しいInstagramのユーザー名を入力してください。(英数字・ドット・アンダースコア、最大30文字)",
+    "正しいInstagramのユーザーネームを入力してください。（英数字・ドット・アンダースコア、最大30文字）",
   "db.generic": "処理中にエラーが発生しました。しばらくしてからもう一度お試しください。",
-  "db.self_apply_dancer": "自分が作成したプロジェクトに自分のダンサープロフィールで応募することはできません。",
+  "db.self_apply_dancer": "ご自身が作成したプロジェクトに、ご自身のダンサープロフィールで応募することはできません。",
   "db.owner_dancer": "プロジェクトを所有するダンサーは同じプロジェクトに応募できません。",
-  "db.own_team_lead": "自分がリーダーのチームが作成したプロジェクトには応募できません。",
+  "db.own_team_lead": "ご自身がリーダーのチームが作成したプロジェクトには応募できません。",
   "db.owner_team": "プロジェクトを所有するチームは同じプロジェクトに応募できません。",
-  "db.own_project": "自分が作成したプロジェクトには応募・オファーを送れません。",
+  "db.own_project": "ご自身が作成したプロジェクトには応募・オファーを送れません。",
   "db.remove_team_lead": "リーダーをメンバーから直接外すことはできません。リーダーを委任するか、チームを解散してください。",
   "db.admin_only": "管理者権限を確認できませんでした。もう一度ログインしてください。",
   "db.verification_gone": "すでに処理済みか、存在しない認証リクエストです。",
@@ -489,7 +489,7 @@ const ja: Record<Key, string> = {
   "db.duplicate": "すでに登録されている項目です。",
 
   "apply.availability_required": "参加できる日程を1つ以上選択してください。",
-  "apply.availability_invalid": "選択した日程情報をもう一度ご確認ください。",
+  "apply.availability_invalid": "選択した日程をもう一度ご確認ください。",
 
 };
 

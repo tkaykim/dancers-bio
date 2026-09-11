@@ -415,6 +415,7 @@ export default messages;
 | 롤백 | 어떤 단계든 | 환경변수를 `ko`로 바꾸고 재배포하거나, 이전 배포로 복귀한다. Vercel 환경변수는 기존 배포에 즉시 반영되지 않는다. 기능 사전과 메일 CTA는 영향 없음 |
 
 - `UI_LOCALES` 등록 시 `reference_vercel_env_empty_trap`(stdin 파이프 빈 값)을 따른다.
+- **진행 상태(2026-09-11)**: R0 = PR #236 squash 머지(`fdf772b`) → 운영 배포 `dpl_HCibae7nyMnRbCeA2iJXsXMDtWNn` READY, 운영 스모크(강제 ko·전환기 숨김·쿠키·리다이렉트·로그인) 통과. M4 백필 20명 적용(`db/migrations/20260911_003_*.sql`). 대표 결정: 일본어 금액 표기 `1,000,000ウォン` 채택, 영어·일본어는 검수 후 **동시 개방**(R1·R2 통합 = `UI_LOCALES=ko,en,ja`).
 - 배포 순서: M1·M2·M3 → PR(S0) → PR(S1~S4, 디렉터리별 작은 PR) → 번역 반영 PR → Preview 스윕 → R1 → R2.
 
 ---

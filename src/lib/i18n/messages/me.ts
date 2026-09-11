@@ -236,12 +236,12 @@ const en: Record<Key, string> = {
   "account.managed_projects_title": "Casting calls I manage",
   "account.managed_projects_desc": "{open} open · {total} total",
   "account.portfolio_title": "Dancer portfolio",
-  "account.portfolio_desc_has": "Stage name, career history, videos",
+  "account.portfolio_desc_has": "Edit your stage name, credits and videos",
   "account.portfolio_desc_none": "Create your portfolio",
   "account.teams_title": "My teams",
   "account.teams_desc": "Team profile · member management",
-  "account.settlements_title": "Settlements · payouts",
-  "account.settlements_desc": "Check your balance, register a bank account, request a payout",
+  "account.settlements_title": "Payouts · withdrawals",
+  "account.settlements_desc": "Check your balance · register a bank account · request a withdrawal",
   "account.workshops_title": "My workshop reservations",
   "account.workshops_desc": "Deposit payments · status",
   "account.new_project_title": "Create a project",
@@ -259,7 +259,7 @@ const en: Record<Key, string> = {
   "notifications.title": "Notification settings",
   "notifications.desc": "Choose the notifications you want. You can change this any time.",
   "notifications.group_email": "Email notifications",
-  "notifications.email_project_match_label": "Casting calls that fit you",
+  "notifications.email_project_match_label": "New casting calls that fit you",
   "notifications.email_project_match_desc":
     "We email you when a new casting call matches your genres and conditions.",
   "notifications.email_marketing_label": "deetz news and events",
@@ -287,13 +287,13 @@ const en: Record<Key, string> = {
   "rates.eyebrow": "Dancer rates",
   "rates.title": "My rate card",
   "rates.desc":
-    "Set your own rates for choreography, challenges, modeling, and classes. They are used for offers such as brand challenges.",
+    "Set your own rates for choreography, challenges, modeling, and classes. They are used for offers such as challenges from entertainment companies.",
   "rates.no_dancer_title": "Create a dancer profile first",
-  "rates.no_dancer_desc": "You can set your rates once your profile exists",
+  "rates.no_dancer_desc": "You can set your rates after you create a profile",
 
   // /me/workshops
   "workshops.meta_title": "My workshop reservations | deetz",
-  "workshops.back": "My info",
+  "workshops.back": "My account",
   "workshops.title": "My workshop reservations",
   "workshops.desc": "Check your deposit payments and their status.",
   "workshops.empty": "You have no workshop reservations yet.",
@@ -304,7 +304,7 @@ const en: Record<Key, string> = {
   "workshops.status.refunded": "Refunded",
   "workshops.status.transferred": "Transferred",
   "workshops.status.confirmed": "Confirmed",
-  "workshops.status.recovery_required": "Needs review (paid)",
+  "workshops.status.recovery_required": "Needs checking (paid)",
   "workshops.artist_confirmed": "Artist confirmed",
   "workshops.card_title": "{artist} workshop",
   "workshops.expected_period": "Expected {period}",
@@ -320,7 +320,7 @@ const en: Record<Key, string> = {
     "If the workshop does not run because too few people join, your deposit is refunded in full.",
 
   // /me/portfolio
-  "portfolio.meta_title_grigo": "GRIGO ENT settlement · My profile",
+  "portfolio.meta_title_grigo": "GRIGO ENT payout · My profile",
   "portfolio.eyebrow": "Dancer portfolio",
   "portfolio.title": "My dancer profile",
   "portfolio.desc": "Manage your own dancer profile.",
@@ -384,8 +384,8 @@ const en: Record<Key, string> = {
     "It appears in the public directory once an admin approves it.",
 
   // /me/portfolio/[dancerId]/careers
-  "careers.eyebrow": "Career history",
-  "careers.desc": "Add your work by category and attach video links.",
+  "careers.eyebrow": "Credits",
+  "careers.desc": "Add your credits by category and attach video links.",
   "careers.back_profile": "Profile",
 
   // /me/teams
@@ -443,7 +443,7 @@ const en: Record<Key, string> = {
     "The current page address and your browser information are sent automatically.",
   "bug.field_severity": "Severity",
   "bug.severity_low": "Low",
-  "bug.severity_normal": "Normal",
+  "bug.severity_normal": "Medium",
   "bug.severity_high": "High",
   "bug.severity_critical": "Critical",
   "bug.field_email": "Reply email (optional)",
@@ -515,13 +515,13 @@ const ja: Record<Key, string> = {
   "rates.eyebrow": "ダンサー料金",
   "rates.title": "料金表",
   "rates.desc":
-    "振付制作 · チャレンジ · モデル料 · レッスンの料金をご自身で登録してください。チャレンジのオファーなどに活用されます。",
+    "振付制作 · チャレンジ · モデル料 · レッスンの料金をご自身で登録してください。エンターテインメント関連のチャレンジ提案などに活用されます。",
   "rates.no_dancer_title": "先にダンサープロフィールを作成してください",
   "rates.no_dancer_desc": "プロフィールを作成すると料金を登録できます",
 
   // /me/workshops
   "workshops.meta_title": "ワークショップ予約 | deetz",
-  "workshops.back": "マイページ",
+  "workshops.back": "マイアカウント",
   "workshops.title": "ワークショップ予約",
   "workshops.desc": "予約金の決済履歴と進行状況を確認できます。",
   "workshops.empty": "まだ予約したワークショップはありません。",
@@ -532,9 +532,9 @@ const ja: Record<Key, string> = {
   "workshops.status.refunded": "返金完了",
   "workshops.status.transferred": "譲渡",
   "workshops.status.confirmed": "参加確定",
-  "workshops.status.recovery_required": "確認が必要（決済済み）",
-  "workshops.artist_confirmed": "招聘確定",
-  "workshops.card_title": "{artist} 招聘ワークショップ",
+  "workshops.status.recovery_required": "要確認（決済済み）",
+  "workshops.artist_confirmed": "招へい確定",
+  "workshops.card_title": "{artist} 招へいワークショップ",
   "workshops.expected_period": "開催予定 {period}",
   "workshops.order_no": "決済番号",
   "workshops.deposit": "予約金",
@@ -545,7 +545,7 @@ const ja: Record<Key, string> = {
   "workshops.receipt": "領収書",
   "workshops.note_contact": "キャンセル・譲渡のご依頼は contact@deetz.kr までお送りください。",
   "workshops.note_refund":
-    "定員に満たずワークショップが開催されない場合、予約金は全額返金されます。",
+    "参加人数が集まらずワークショップが開催されない場合、予約金は全額返金されます。",
 
   // /me/portfolio
   "portfolio.meta_title_grigo": "GRIGO ENT 精算 · マイプロフィール",
@@ -570,10 +570,10 @@ const ja: Record<Key, string> = {
   "portfolio_search.eyebrow": "ダンサーポートフォリオ",
   "portfolio_search.title": "既存プロフィールの検索",
   "portfolio_search.desc":
-    "すでに登録されたプロフィールがあるかもしれません。活動名・韓国語名で検索してみてください。",
+    "すでに登録されたプロフィールがあるかもしれません。活動名・ハングル表記の名前で検索してみてください。",
   "portfolio_search.role_self": "本人として登録",
   "portfolio_search.role_manager": "マネージャーとして登録",
-  "portfolio_search.input_placeholder": "活動名、韓国語名で検索",
+  "portfolio_search.input_placeholder": "活動名、ハングル表記の名前で検索",
   "portfolio_search.count_summary": "全{total}名のうち{shown}名を表示",
   "portfolio_search.empty": "登録されたダンサーがいません。",
   "portfolio_search.empty_query":
@@ -593,7 +593,7 @@ const ja: Record<Key, string> = {
   "portfolio_search.claim_submit": "権限を申請",
   "portfolio_search.load_more": "もっと見る",
   "portfolio_search.loading_more": "読み込み中…",
-  "portfolio_search.create_new_query": "ありません、新しく作成",
+  "portfolio_search.create_new_query": "見つからない場合は新しく作成",
   "portfolio_search.create_new": "スキップして新しく作成",
 
   // /me/portfolio/[dancerId]
@@ -620,7 +620,7 @@ const ja: Record<Key, string> = {
   "teams.section_led": "自分がリーダーのチーム",
   "teams.empty_led": "リーダーとして活動しているチームはありません。",
   "teams.section_member": "所属チーム",
-  "teams.empty_member": "他のチームのメンバーとして登録されているところはありません。",
+  "teams.empty_member": "他のチームのメンバーとしては登録されていません。",
   "teams.role_lead": "リーダー",
   "teams.role_member": "メンバー",
   "teams.status_inactive": "非アクティブ",
@@ -647,7 +647,7 @@ const ja: Record<Key, string> = {
   "team_edit.approval_pending_title": "審査中",
   "team_edit.approval_pending_note": "管理者の承認後、公開ディレクトリに掲載されます。",
   "team_edit.members_eyebrow": "メンバー管理",
-  "team_edit.members_title": "メンバーの追加・削除 / リーダーの委任 / 解散",
+  "team_edit.members_title": "メンバーの追加・削除 / リーダー権限の移譲 / 解散",
 
   // /me/teams/[id]/members
   "team_members.eyebrow": "メンバー管理",
@@ -664,16 +664,16 @@ const ja: Record<Key, string> = {
   "bug.field_desc": "詳細",
   "bug.field_desc_placeholder":
     "いつ・どこで・どのように発生したかをお知らせください。画面のメッセージや再現手順があるとより早く対応できます。",
-  "bug.auto_info_note": "現在のページアドレスとブラウザ情報は自動的に一緒に送信されます。",
+  "bug.auto_info_note": "現在のページのURLとブラウザ情報も自動的に送信されます。",
   "bug.field_severity": "緊急度",
   "bug.severity_low": "低",
   "bug.severity_normal": "中",
   "bug.severity_high": "高",
-  "bug.severity_critical": "重大",
+  "bug.severity_critical": "致命的",
   "bug.field_email": "返信用メールアドレス（任意）",
   "bug.cancel": "キャンセル",
   "bug.submit": "報告を送信",
-  "bug.sending": "送信中...",
+  "bug.sending": "送信中…",
   "bug.sent_title": "ありがとうございます！",
   "bug.sent_body_1": "バグレポートを受け付けました。",
   "bug.sent_body_2": "早急に確認し修正いたします。",

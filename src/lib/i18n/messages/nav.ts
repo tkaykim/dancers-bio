@@ -99,14 +99,14 @@ const en: Record<Key, string> = {
   "side.new_project": "Post a casting call",
   "side.brand_sub": "Magazine / Casting",
 
-  "lang.switcher": "Language",
+  "lang.switcher": "Select language",
   "lang.switch_failed": "We could not change the language. Please try again in a moment.",
   "lang.setting_title": "Language",
-  "lang.setting_desc": "Your choice is saved to this account.",
+  "lang.setting_desc": "The language you pick here is saved to this account.",
 
   "install.aria": "Install the app",
   "install.title": "Install the app",
-  "install.body": "Install it and get alerts for casting calls that fit you.",
+  "install.body": "Install it and get notified about new casting calls that fit you.",
   "install.cta": "Install",
   "install.how": "How to install",
   "install.guide": "Guide",
@@ -136,7 +136,7 @@ const en: Record<Key, string> = {
   "push.disable": "Turn off",
   "push.enabled_ok": "Notifications are on.",
   "push.disabled_ok": "Notifications are off.",
-  "push.test_sent": "Test notification sent: {sent}/{total} delivered.",
+  "push.test_sent": "Test notification sent: {sent}/{total} succeeded.",
   "push.error_no_vapid": "The VAPID key is not configured.",
   "push.error_subscribe": "Could not register the subscription",
   "push.error_enable": "Something went wrong while turning notifications on.",
@@ -152,7 +152,7 @@ const ja: Record<Key, string> = {
   "tab.casting": "募集",
   "tab.dancers": "ダンサー",
   "tab.applications": "応募",
-  "tab.me": "マイ",
+  "tab.me": "マイページ",
   "tab.messages": "メッセージ",
 
   "side.casting": "Casting",
@@ -175,7 +175,7 @@ const ja: Record<Key, string> = {
   "lang.switcher": "言語を選択",
   "lang.switch_failed": "言語を変更できませんでした。しばらくしてからもう一度お試しください。",
   "lang.setting_title": "言語",
-  "lang.setting_desc": "選んだ言語はこのアカウントに保存されます。",
+  "lang.setting_desc": "表示言語を選ぶと、このアカウントに保存されます。",
 
   "install.aria": "アプリのインストール案内",
   "install.title": "アプリとしてインストール",
@@ -195,7 +195,7 @@ const ja: Record<Key, string> = {
   "install.later": "あとで",
 
   "push.title": "プッシュ通知",
-  "push.checking": "状態を確認中...",
+  "push.checking": "状態を確認中…",
   "push.unsupported": "このブラウザはプッシュ通知に対応していません。",
   "push.ios_not_installed":
     "iPhone/iPadではまず{add}してから、インストールしたアプリで通知をオンにできます。（Safariの共有 → ホーム画面に追加）",
@@ -209,7 +209,7 @@ const ja: Record<Key, string> = {
   "push.disable": "オフにする",
   "push.enabled_ok": "通知の受け取りを開始しました。",
   "push.disabled_ok": "通知をオフにしました。",
-  "push.test_sent": "テスト通知の送信: {sent}/{total} 成功。",
+  "push.test_sent": "テスト通知の送信：{sent}/{total} 成功。",
   "push.error_no_vapid": "VAPIDキーが設定されていません。",
   "push.error_subscribe": "購読の登録に失敗しました",
   "push.error_enable": "通知の登録中にエラーが発生しました。",

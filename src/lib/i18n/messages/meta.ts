@@ -39,7 +39,7 @@ const en: Record<Key, string> = {
     "Browse open casting calls on deetz for music videos, ads, stages, broadcasts and events. Find dancer, backup dancer, choreographer and dance team casting calls and apply with your portfolio.",
   "dancers.title": "Dancer & dance team portfolio directory | deetz",
   "dancers.description":
-    "Browse verified dancers and dance teams on deetz with their credits and video portfolios. Compare profiles by genre and region and cast for your project.",
+    "Browse verified dancers and dance teams on deetz with their credits and video portfolios. Compare profiles for dancer, dance team and choreographer casting and book the right fit.",
   "login.title": "Log in",
   "signup.title": "Sign up",
   "me.title": "My account",
@@ -59,7 +59,7 @@ const ja: Record<Key, string> = {
     "deetzに掲載されたダンサー募集・キャスティングを一か所で。MV・広告・ステージ・放送・イベントのバックダンサー、振付制作、振付師、ダンスチームの募集を確認し、ポートフォリオで応募できます。",
   "dancers.title": "ダンサー・ダンスチームのポートフォリオ一覧 | deetz",
   "dancers.description":
-    "deetzで認証済みのダンサーとダンスチームの経歴・映像ポートフォリオを確認できます。ジャンル・地域からプロフィールを比較してキャスティングできるダンサープラットフォームです。",
+    "deetzで認証済みのダンサーとダンスチームの経歴・映像ポートフォリオを確認できます。ダンサー・ダンスチーム・振付師の手配に合うプロフィールを比較してキャスティングできるダンサープラットフォームです。",
   "login.title": "ログイン",
   "signup.title": "会員登録",
   "me.title": "マイアカウント",

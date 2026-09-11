@@ -75,7 +75,8 @@ function formatPayShort(p: ListProject, t: FeedT, locale: Locale): string {
   if (p.pay_type === "negotiable") return t("pay.negotiable");
   if (!p.pay_amount) return t("pay.negotiable");
   const amount = p.pay_amount;
-  const large = locale === "en" ? 1000000 : 10000000;
+  // ja 는 "1.5千万" 같은 표기를 쓰지 않으므로 万 단위만 쓴다("1500万"). ko 는 종전 그대로(천만).
+  const large = locale === "en" ? 1000000 : locale === "ja" ? Number.POSITIVE_INFINITY : 10000000;
   const small = locale === "en" ? 1000 : 10000;
   let label: string;
   if (amount >= large)

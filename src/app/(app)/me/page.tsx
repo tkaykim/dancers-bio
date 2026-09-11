@@ -11,6 +11,7 @@ import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { MessagesTextLink } from "@/components/messaging/MessagesBadge";
 import { BugReportRow } from "@/components/feedback/BugReport";
 import { serverT, getLocale } from "@/lib/i18n/server";
+import { enabledLocales } from "@/lib/i18n/locale";
 import { formatNumber } from "@/lib/i18n/t";
 import me from "@/lib/i18n/messages/me";
 import nav from "@/lib/i18n/messages/nav";
@@ -157,15 +158,18 @@ export default async function MePage() {
         >
           {t("account.password_link")} →
         </Link>
-        <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card px-4 py-3">
-          <div className="flex flex-col gap-0.5">
-            <p className="text-sm font-semibold text-foreground">
-              {tNav("lang.setting_title")}
-            </p>
-            <p className="text-xs text-ink-3">{tNav("lang.setting_desc")}</p>
+        {/* 언어가 하나만 열려 있으면(운영 R0) 전환기가 비어 카드만 남으므로 숨긴다. */}
+        {enabledLocales().size > 1 ? (
+          <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card px-4 py-3">
+            <div className="flex flex-col gap-0.5">
+              <p className="text-sm font-semibold text-foreground">
+                {tNav("lang.setting_title")}
+              </p>
+              <p className="text-xs text-ink-3">{tNav("lang.setting_desc")}</p>
+            </div>
+            <LanguageSwitcher variant="full" />
           </div>
-          <LanguageSwitcher variant="full" />
-        </div>
+        ) : null}
         <form action={logoutAction}>
           <button
             type="submit"
