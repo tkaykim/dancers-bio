@@ -2,6 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, ExternalLink, FileText, ShieldCheck } from "lucide-react";
 import { requireUser } from "@/lib/auth/guard";
+import { getRequestedLocale } from "@/lib/i18n/server";
+import { translator } from "@/lib/i18n/t";
+import visaMember from "@/lib/i18n/messages/visa-member";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadMemberVisaAccess } from "@/lib/visa/member-case";
 import { isPaidVisaDocumentCase } from "@/lib/visa/document-products";
@@ -34,6 +37,7 @@ function objectValue(row: Record<string, unknown>, key: string): Record<string, 
 function applicantNote(value: string | null): string | null {
   const note = value?.trim();
   if (!note) return null;
+  // eslint-disable-next-line no-restricted-syntax -- i18n: 화면 문구가 아니라 운영자가 쓴 한국어 메모를 걸러내는 대조값이다.
   if (note.includes("결제 링크 발송") || note.includes("결제 완료") || note.includes("결제 취소")) return null;
   if (/^(온라인\s*(미팅|상담)\s*예정|온라인 미팅 완료.*)$/i.test(note)) return null;
   return note;
@@ -45,25 +49,25 @@ export default async function MemberVisaPage() {
   if (!access.eligible) redirect("/me");
 
   if (!access.application) {
+    // 빈 상태는 저장된 케이스 언어가 없으므로 요청 언어를 따른다(docs/design-i18n-ui.md §3.8).
+    const emptyLang = await getRequestedLocale();
+    const t = translator(visaMember, emptyLang);
     return (
-      <div className="px-5 pb-12 pt-6 md:mx-auto md:max-w-2xl md:px-6">
+      <div lang={emptyLang} className="px-5 pb-12 pt-6 md:mx-auto md:max-w-2xl md:px-6">
         <Link href="/me" className="inline-flex items-center gap-1.5 text-sm text-ink-3 hover:text-foreground">
           <ArrowLeft className="size-4" />
-          My page
+          {t("empty.back")}
         </Link>
         <section className="mt-6 rounded-2xl border border-primary/25 bg-card p-6">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Visa &amp; Korea</p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight">Start with the visa program guide</h1>
-          <p className="mt-3 text-sm leading-relaxed text-ink-2">
-            Your nationality profile is eligible to view this area, but no visa program case is connected to your account yet.
-          </p>
-          <Link href="/program?lang=en" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground">
-            View the program
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">{t("empty.eyebrow")}</p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight">{t("empty.title")}</h1>
+          <p className="mt-3 text-sm leading-relaxed text-ink-2">{t("empty.body")}</p>
+          {/* 언어는 쿠키·요청 언어가 이어 나르므로 `?lang=` 을 붙이지 않는다. */}
+          <Link href="/program" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground">
+            {t("empty.cta")}
             <ExternalLink className="size-4" />
           </Link>
-          <p className="mt-4 text-xs leading-relaxed text-ink-3">
-            Program participation does not guarantee a visa, employment, or project placement.
-          </p>
+          <p className="mt-4 text-xs leading-relaxed text-ink-3">{t("empty.disclaimer")}</p>
         </section>
       </div>
     );
@@ -102,6 +106,7 @@ export default async function MemberVisaPage() {
     try {
       paymentUrl = makeVisaPaymentUrl(applicationId, paymentProductSlug);
     } catch (error) {
+      // eslint-disable-next-line no-restricted-syntax -- i18n: 이용자에게 보이지 않는 서버 로그 문자열이다.
       console.error("[me/visa] payment url 생성 실패 (non-fatal):", error);
     }
   }
@@ -110,15 +115,20 @@ export default async function MemberVisaPage() {
   const settlementNeeds = Array.isArray(answers.settlementNeeds)
     ? answers.settlementNeeds.filter((value): value is string => typeof value === "string")
     : [];
+  // 케이스에 저장된 언어가 우선이고, 없으면 요청 언어로 떨어진다(docs/design-i18n-ui.md §3.2·§3.8).
   const defaultLangRaw = stringValue(row, "preferred_lang");
   const defaultLang: VisaJourneyLang =
-    defaultLangRaw === "ja" || defaultLangRaw === "ko" ? defaultLangRaw : "en";
+    defaultLangRaw === "ja" || defaultLangRaw === "ko" || defaultLangRaw === "en"
+      ? defaultLangRaw
+      : await getRequestedLocale();
   const documentCta = {
+    /* eslint-disable no-restricted-syntax -- i18n: 케이스 언어를 따르는 인라인 3개국어 사전의 ko 값이다(사전 키가 아니라 값). */
     ko: {
       title: "비자 서류 정보",
       body: "서류 준비에 필요한 정보를 안전하게 제출해 주세요. 작성 내용은 자동으로 임시 저장됩니다.",
       action: "서류 작성하기",
     },
+    /* eslint-enable no-restricted-syntax */
     en: {
       title: "Visa document information",
       body: "Submit the information needed to prepare your documents. Your progress is saved automatically.",

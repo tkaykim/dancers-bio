@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { MAX_SELECTION_ROUNDS } from "@/lib/application-stage";
 
+/* eslint-disable no-restricted-syntax -- i18n: admin-only. 아래 라벨 상수는 관리자 화면이 그대로 쓰는 ko 값이다.
+   사용자 화면용 번역본은 src/lib/i18n/messages/labels.ts 이며 labelFor() 로 읽는다 (docs/design-i18n-ui.md §3.6). */
 export const VISIBILITY_LABELS = {
   public: "공개",
   private: "비공개",
@@ -66,15 +68,17 @@ export const APPLICATION_STATUS_LABELS = {
   cancelled_by_applicant: "취소됨",
   cancelled_by_owner: "취소됨",
 } as const;
+/* eslint-enable no-restricted-syntax */
 
 // 선발 단계 설정 — 생성·수정 스키마가 공유한다.
 // round_labels 는 단계 수만큼만 저장하고, 빈 칸은 기본 이름("N차 합격"/"최종 합격")으로 표시된다.
+// v.selection_rounds_max 문구에는 MAX_SELECTION_ROUNDS(=3)가 각 언어 문장 안에 박혀 있다.
 const selectionRoundsShape = {
   selection_rounds: z.coerce
     .number()
     .int()
-    .min(1, "선발 단계는 1단계 이상이어야 합니다.")
-    .max(MAX_SELECTION_ROUNDS, `선발 단계는 최대 ${MAX_SELECTION_ROUNDS}단계입니다.`)
+    .min(1, "v.selection_rounds_min")
+    .max(MAX_SELECTION_ROUNDS, "v.selection_rounds_max")
     .default(2),
   round_labels: z
     .array(z.string().trim().max(20))
@@ -84,11 +88,11 @@ const selectionRoundsShape = {
 };
 
 export const projectSchema = z.object({
-  title: z.string().trim().min(1, "제목을 입력해 주세요.").max(120),
+  title: z.string().trim().min(1, "v.project_title_required").max(120),
   description: z
     .string()
     .trim()
-    .min(10, "10자 이상 설명을 입력해 주세요.")
+    .min(10, "v.project_description_min")
     .max(2000),
   visibility: z.enum(["public", "private"]).default("public"),
   category: z
@@ -126,11 +130,11 @@ export const projectSchema = z.object({
 
 export const projectUpdateSchema = z.object({
   id: z.string().uuid(),
-  title: z.string().trim().min(1, "제목을 입력해 주세요.").max(120),
+  title: z.string().trim().min(1, "v.project_title_required").max(120),
   description: z
     .string()
     .trim()
-    .min(10, "10자 이상 설명을 입력해 주세요.")
+    .min(10, "v.project_description_min")
     .max(2000),
   visibility: z.enum(["public", "private"]).default("public"),
   category: z

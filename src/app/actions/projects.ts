@@ -23,7 +23,13 @@ import {
   projectSchema,
   projectUpdateSchema,
 } from "@/lib/validation/projects";
+import { getLocale, serverT } from "@/lib/i18n/server";
+import { localizeZodError } from "@/lib/i18n/zod";
+import type { Translator } from "@/lib/i18n/t";
+import i18nActions from "@/lib/i18n/messages/actions";
 import type { ActionResult } from "./auth";
+
+type ActionT = Translator<typeof i18nActions>;
 
 function strOrNull(formData: FormData, key: string): string | null {
   const v = (formData.get(key) ?? "").toString().trim();
@@ -80,6 +86,7 @@ function parseProjectAttachments(
   raw: string | null,
   actorId: string,
   options: { allowExisting: boolean },
+  t: ActionT,
 ):
   | { ok: true; data: ProjectAttachmentDraft[] }
   | { ok: false; error: string } {
@@ -89,16 +96,16 @@ function parseProjectAttachments(
   try {
     value = JSON.parse(raw);
   } catch {
-    return { ok: false, error: "첨부파일 정보를 읽을 수 없습니다." };
+    return { ok: false, error: t("project.attachment_unreadable") };
   }
 
   if (!Array.isArray(value)) {
-    return { ok: false, error: "첨부파일 형식이 올바르지 않습니다." };
+    return { ok: false, error: t("project.attachment_invalid") };
   }
   if (value.length > PROJECT_FILE_MAX_COUNT) {
     return {
       ok: false,
-      error: `첨부파일은 최대 ${PROJECT_FILE_MAX_COUNT}개까지 등록할 수 있습니다.`,
+      error: t("project.attachment_max", { max: PROJECT_FILE_MAX_COUNT }),
     };
   }
 
@@ -106,14 +113,14 @@ function parseProjectAttachments(
   const attachments: ProjectAttachmentDraft[] = [];
   for (const item of value) {
     if (!item || typeof item !== "object") {
-      return { ok: false, error: "첨부파일 형식이 올바르지 않습니다." };
+      return { ok: false, error: t("project.attachment_invalid") };
     }
 
     const candidate = item as Partial<ProjectAttachmentDraft>;
     const id = typeof candidate.id === "string" ? candidate.id : undefined;
     if (id) {
       if (!options.allowExisting || !UUID_PATTERN.test(id) || seen.has(`id:${id}`)) {
-        return { ok: false, error: "기존 첨부파일 정보가 올바르지 않습니다." };
+        return { ok: false, error: t("project.attachment_existing_invalid") };
       }
       seen.add(`id:${id}`);
       attachments.push({
@@ -142,7 +149,7 @@ function parseProjectAttachments(
       size > PROJECT_FILE_MAX_BYTES ||
       !isAllowedProjectFileMime(mime)
     ) {
-      return { ok: false, error: "새 첨부파일 정보가 올바르지 않습니다." };
+      return { ok: false, error: t("project.attachment_new_invalid") };
     }
 
     seen.add(`path:${path}`);
@@ -157,11 +164,13 @@ export async function createProjectAction(
 ): Promise<ActionResult<{ id: string; short_code: string }>> {
   // 프로젝트 생성 권한(can_create_project) 또는 슈퍼관리자. owner = 생성자 본인.
   const creator = await requireCreator();
+  const t = await serverT(i18nActions);
 
   const attachmentInput = parseProjectAttachments(
     strOrNull(formData, "attachments"),
     creator.id,
     { allowExisting: false },
+    t,
   );
   if (!attachmentInput.ok) return attachmentInput;
 
@@ -195,10 +204,7 @@ export async function createProjectAction(
     posted_by_label: strOrNull(formData, "posted_by_label"),
   });
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
-    };
+    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
   }
 
   const supabase = await createClient();
@@ -244,10 +250,7 @@ export async function createProjectAction(
 
   if (error) {
     if (error.code === "42501") {
-      return {
-        ok: false,
-        error: "프로젝트 개설 권한이 없습니다. 관리자에게 문의해 주세요.",
-      };
+      return { ok: false, error: t("project.create_forbidden") };
     }
     return { ok: false, error: error.message };
   }
@@ -256,8 +259,10 @@ export async function createProjectAction(
   // 유지하고, 채널별 배포가 필요할 때 /c/[share_code] 링크를 사용한다.
   await supabase.from("recruitment_channels").insert({
     project_id: project.id,
+    // eslint-disable-next-line no-restricted-syntax -- i18n: admin-only. DB 에 저장되는 기본 채널 이름(운영 콘솔 표시값).
     name: "기본 모집",
     channel_type: "general",
+    // eslint-disable-next-line no-restricted-syntax -- i18n: admin-only. DB 에 저장되는 기본 담당자 표기(운영 콘솔 표시값).
     manager_label: "프로젝트 관리자",
     sort_order: 0,
     created_by: creator.id,
@@ -341,10 +346,11 @@ export async function closeProjectAction(
   formData: FormData,
 ): Promise<ActionResult> {
   await requireUser();
+  const t = await serverT(i18nActions);
   const id = formData.get("id");
-  if (typeof id !== "string") return { ok: false, error: "잘못된 요청입니다." };
+  if (typeof id !== "string") return { ok: false, error: t("common.invalid_request") };
   if (!(await canManageProject(id)))
-    return { ok: false, error: "이 프로젝트를 관리할 권한이 없습니다." };
+    return { ok: false, error: t("project.manage_forbidden") };
   const supabase = await createClient();
   const { error } = await supabase
     .from("projects")
@@ -361,11 +367,12 @@ export async function deleteProjectAction(
   formData: FormData,
 ): Promise<ActionResult> {
   await requireUser();
+  const t = await serverT(i18nActions);
   const id = formData.get("id");
-  if (typeof id !== "string") return { ok: false, error: "잘못된 요청입니다." };
+  if (typeof id !== "string") return { ok: false, error: t("common.invalid_request") };
   // 삭제는 소유자·슈퍼관리자만. 공동관리자는 삭제 불가.
   if (!(await isProjectOwnerOrAdmin(id)))
-    return { ok: false, error: "삭제 권한이 없습니다. (소유자·관리자만 가능)" };
+    return { ok: false, error: t("project.delete_forbidden") };
   const supabase = await createClient();
   const { error } = await supabase
     .from("projects")
@@ -382,11 +389,15 @@ export async function updateProjectAction(
   formData: FormData,
 ): Promise<ActionResult<{ id: string }>> {
   const actor = await requireUser();
+  const t = await serverT(i18nActions);
 
   const attachmentInput = formData.has("attachments")
-    ? parseProjectAttachments(strOrNull(formData, "attachments"), actor.id, {
-        allowExisting: true,
-      })
+    ? parseProjectAttachments(
+        strOrNull(formData, "attachments"),
+        actor.id,
+        { allowExisting: true },
+        t,
+      )
     : null;
   if (attachmentInput && !attachmentInput.ok) return attachmentInput;
 
@@ -418,15 +429,12 @@ export async function updateProjectAction(
     status: strOrNull(formData, "status") ?? undefined,
   });
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
-    };
+    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
   }
 
   // 소유자·슈퍼관리자·공동관리자만 수정 가능.
   if (!(await canManageProject(parsed.data.id)))
-    return { ok: false, error: "이 프로젝트를 수정할 권한이 없습니다." };
+    return { ok: false, error: t("project.update_forbidden") };
 
   const supabase = await createClient();
 
@@ -438,7 +446,7 @@ export async function updateProjectAction(
     .maybeSingle();
   if (selErr) return { ok: false, error: selErr.message };
   if (!existing || existing.deleted_at)
-    return { ok: false, error: "공고를 찾을 수 없습니다." };
+    return { ok: false, error: t("project.post_not_found") };
 
   // 선발 단계 수를 이미 진행된 단계보다 낮추면 지원자 상태가 모순된다
   // (예: 2차 합격자가 있는데 1단계 공고로 바꾸면 passed_round=2 가 범위를 벗어남).
@@ -456,7 +464,10 @@ export async function updateProjectAction(
   if (parsed.data.selection_rounds < deepestRound) {
     return {
       ok: false,
-      error: `이미 ${deepestRound}단계까지 진행된 지원자가 있어 선발 단계를 ${parsed.data.selection_rounds}단계로 줄일 수 없습니다.`,
+      error: t("project.rounds_cannot_shrink", {
+        deepest: deepestRound,
+        requested: parsed.data.selection_rounds,
+      }),
     };
   }
 
@@ -479,7 +490,7 @@ export async function updateProjectAction(
       (attachment) => attachment.id && !existingIds.has(attachment.id),
     );
     if (includesForeignAttachment) {
-      return { ok: false, error: "이 공고에 속하지 않은 첨부파일이 포함되어 있습니다." };
+      return { ok: false, error: t("project.attachment_foreign") };
     }
   }
 
@@ -514,7 +525,7 @@ export async function updateProjectAction(
     .eq("id", parsed.data.id);
   if (updErr) {
     if (updErr.code === "42501")
-      return { ok: false, error: "수정 권한이 없습니다." };
+      return { ok: false, error: t("common.update_forbidden") };
     return { ok: false, error: updErr.message };
   }
 
@@ -598,15 +609,13 @@ export async function setAgreedPayAction(
   formData: FormData,
 ): Promise<ActionResult> {
   await requireUser();
+  const t = await serverT(i18nActions);
   const parsed = agreedPaySchema.safeParse({
     project_id: formData.get("project_id"),
     agreed_pay: strOrNull(formData, "agreed_pay") ?? null,
   });
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "잘못된 입력값입니다.",
-    };
+    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
   }
   const supabase = await createClient();
   const { error } = await supabase
@@ -615,7 +624,7 @@ export async function setAgreedPayAction(
     .eq("id", parsed.data.project_id);
   if (error) {
     if (error.code === "42501") {
-      return { ok: false, error: "확정 비용 수정 권한이 없습니다." };
+      return { ok: false, error: t("project.agreed_pay_forbidden") };
     }
     return { ok: false, error: error.message };
   }

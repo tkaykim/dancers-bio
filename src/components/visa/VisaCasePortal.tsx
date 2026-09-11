@@ -480,19 +480,33 @@ function arrayValue(answers: Answers, key: string): string[] {
 
 export function VisaCasePortal({
   token,
+  lang,
   initial,
   declineRequested = false,
   editRequested = null,
 }: {
   token: string;
+  /**
+   * 화면 언어. 페이지가 `?lang= → row.preferred_lang → 요청 언어` 순으로 정해 넘긴다
+   * (docs/design-i18n-ui.md §3.2). 언어가 바뀌면 페이지가 `key` 로 이 컴포넌트를 다시 마운트한다.
+   */
+  lang: Lang;
   initial: VisaCaseInitial;
   declineRequested?: boolean;
   /** 메일에서 "다시 제출" 링크로 들어온 경우 — "slots"면 일정 입력 단계로 바로 연다. */
   editRequested?: "form" | "slots" | null;
 }) {
   const router = useRouter();
-  const initialLang: Lang = initial.preferredLang === "ja" || initial.preferredLang === "ko" ? initial.preferredLang : "en";
-  const [lang, setLang] = useState<Lang>(initialLang);
+  /**
+   * 이 화면의 언어 전환은 쿠키를 바꾸지 않는다 — 케이스에 저장된 언어가 우선이기 때문이다.
+   * 대신 `?lang=` 만 갱신하고, 서버가 다시 정한 언어로 화면이 돌아온다.
+   */
+  const pickLang = (next: Lang) => {
+    if (next === lang) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("lang", next);
+    router.replace(`${url.pathname}${url.search}${url.hash}`, { scroll: false });
+  };
   const trackingToken = useMemo(() => {
     if (typeof window === "undefined") return null;
     return new URLSearchParams(window.location.search).get("vt");
@@ -823,12 +837,13 @@ export function VisaCasePortal({
   })();
 
   return (
-    <main className={cn("mx-auto min-h-screen w-full max-w-3xl px-5 py-7 md:px-8 md:py-10", lang === "ko" && "break-keep")}>
+    // 본문 언어를 DOM 에도 표시한다 — <html lang> 은 UI 언어라 이 화면과 다를 수 있다(§3.2·§3.10).
+    <main lang={lang} className={cn("mx-auto min-h-screen w-full max-w-3xl px-5 py-7 md:px-8 md:py-10", lang === "ko" && "break-keep")}>
       <header className="mb-8 flex items-center justify-between">
         <DeetzLogo className="h-7 w-auto" priority />
         <div className="flex gap-1">
           {(["en", "ja", "ko"] as Lang[]).map((value) => (
-            <button key={value} type="button" onClick={() => setLang(value)} className={cn("rounded-md border px-2 py-1 text-xs", value === lang ? "border-foreground text-foreground" : "border-hairline-2 text-ink-3")}>
+            <button key={value} type="button" lang={value} onClick={() => pickLang(value)} className={cn("rounded-md border px-2 py-1 text-xs", value === lang ? "border-foreground text-foreground" : "border-hairline-2 text-ink-3")}>
               {value === "ja" ? "日本語" : value === "ko" ? "한국어" : "EN"}
             </button>
           ))}

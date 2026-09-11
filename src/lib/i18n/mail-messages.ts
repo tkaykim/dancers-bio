@@ -229,7 +229,101 @@ const en: Record<MailKey, string> = {
     "Sign in, check your account, then request the withdrawal (paid out after 3.3% withholding tax)",
 };
 
-const MAIL_MESSAGES: Record<Locale, Record<MailKey, string>> = { ko, en, ja: en }; // TODO(S4): 일본어 메일 사전
+/** ko·en 과 키가 어긋나면 여기서 타입 에러가 난다 — です・ます체, 브랜드 표기는 그대로 둔다. */
+const ja: Record<MailKey, string> = {
+  "mail.brand.tagline": "ダンサーマガジン & キャスティングプラットフォーム",
+  "mail.brand.sent_notice": "このメールは deetz にご応募いただいたアドレス宛にお送りしています。",
+  "mail.recipient.fallback_name": "応募者",
+  "mail.text.greeting": "{name}さん、こんにちは。",
+  "mail.common.hello": "{name}さん、こんにちは。",
+  "mail.common.project": "プロジェクト",
+  "mail.text.important_prefix": "[重要] ",
+  "mail.signature.line1": "deetz · ダンサーマガジン & キャスティングプラットフォーム",
+  "mail.signature.line2": "deetz.kr · contact@deetz.kr",
+  "mail.signature.social":
+    "Instagram instagram.com/deetz.kr · YouTube youtube.com/@deetzmagazine",
+
+
+  "mail.stage.subject_final": "[deetz] 最終合格のご案内",
+  "mail.stage.subject_round": "[deetz] {label}のご案内（最終確定ではありません）",
+  "mail.stage.pill_not_final": "{label}（最終確定ではありません）",
+  "mail.stage.heading_final": "{name}さん、最終合格されました。",
+  "mail.stage.heading_round": "{name}さん、{label}をご案内します。",
+  "mail.stage.body_final_1": "すべての選考が終わり、最終合格されましたのでご案内します。",
+  "mail.stage.body_final_2": "ご一緒できることを嬉しく思います。",
+  "mail.stage.body_round_1": "deetz からご応募いただきありがとうございます。",
+  "mail.stage.body_round_2": "お送りいただいたプロフィールを確認した結果、{label}されました。",
+  "mail.stage.row_project": "応募プロジェクト",
+  "mail.stage.row_stage": "現在の段階",
+  "mail.stage.stage_value": "{label}（{round}/{total}段階）",
+  "mail.stage.notice_final_1": "この段階からはアプリでご自身で辞退することはできません。",
+  "mail.stage.notice_final_2":
+    "やむを得ない事情が生じた場合は、すぐに contact@deetz.kr までご連絡ください。",
+  "mail.stage.notice_final_3":
+    "確定後の辞退は、クライアントのスケジュールと他の参加者に影響します。",
+  "mail.stage.notice_round_1": "今回のご案内は最終合格ではありません。",
+  "mail.stage.notice_round_2":
+    "次の段階（{next}）の結果によっては、最終的に進行しない場合があります。",
+  "mail.stage.notice_round_3":
+    "結果が出次第、合否にかかわらず改めてご案内します。",
+  "mail.stage.footer_round_1":
+    "スケジュールやご事情で参加が難しい場合は、応募状況からご自身で辞退できます。",
+  "mail.stage.footer_round_2":
+    "最終合格として確定した後は辞退が難しいため、スケジュールに変更がある場合はあらかじめご反映ください。",
+  "mail.stage.cta": "応募状況を見る",
+  "mail.stage.text_applications": "応募状況",
+
+  "mail.reject.subject": "[deetz] 選考結果のご案内",
+  "mail.reject.pill": "選考結果のご案内",
+  "mail.reject.body_1": "deetz からご応募いただき、誠にありがとうございます。",
+  "mail.reject.body_2":
+    "慎重に検討しましたが、残念ながら今回のプロジェクトではご一緒できないこととなりました。",
+  "mail.reject.notice_1":
+    "プロフィールを充実させておくと、次のキャスティングで決まる可能性が高まります。",
+  "mail.reject.notice_2":
+    "プロフィール写真、主な経歴、ダンス動画、Instagram の連携がとくに大きく影響します。",
+  "mail.reject.notice_3":
+    "キャスティングを依頼するクライアントは、この情報を見て候補を絞り込むためです。",
+  "mail.reject.footer_1": "ご自身で整理するのが大変な場合は、このメールにご返信いただくだけでも構いません。",
+  "mail.reject.footer_2":
+    "プロフィール写真、ポートフォリオのファイル、または経歴をまとめたテキストをお送りいただければ、こちらでプロフィールを更新します。",
+  "mail.reject.footer_3":
+    "ご関心とご尽力に深く感謝いたします。より良い機会で改めてお会いできることを願っています。",
+  "mail.reject.cta": "プロフィールを充実させる",
+  "mail.reject.text_profile": "マイプロフィール",
+  "mail.reject.text_feed": "他のキャスティングを見る",
+
+  "mail.announce.pill": "お知らせ",
+  "mail.announce.subject_fallback": "お知らせ",
+  "mail.announce.heading_fallback": "{name}さんへのご案内です。",
+  "mail.announce.empty": "（内容なし）",
+
+  "mail.schedule.subject": "[deetz] {name}さん、{count}件のスケジュールの参加可否をお知らせください",
+  "mail.schedule.pill": "スケジュールのご案内",
+  "mail.schedule.intro": "{project} プロジェクトのスケジュールが決まりましたのでご案内します。",
+  "mail.schedule.instruct": "以下の{count}件のスケジュールについて、参加可否を選んでまとめてご提出ください。",
+  "mail.schedule.text_instruct":
+    "以下のリンクから、ログインなしで各スケジュールの参加可否を選んでまとめてご提出ください。（参加可能 / 一部の時間のみ / 参加不可）",
+  "mail.schedule.when": "日時",
+  "mail.schedule.where": "場所",
+  "mail.schedule.cta": "参加可否を知らせる",
+  "mail.schedule.cta_note": "ログインなしで30秒で終わります（参加可能 / 一部の時間のみ / 参加不可）",
+
+  "mail.settle.subject": "[deetz] {name}さん、精算金額が確定しました — 出金申請のご案内",
+  "mail.settle.pill": "精算のご案内",
+  "mail.settle.intro": "{project} プロジェクトの精算金額が確定しましたのでご案内します。",
+  "mail.settle.row_gross": "税引前の金額",
+  "mail.settle.row_tax": "源泉徴収（3.3%）",
+  "mail.settle.row_net": "手取り額",
+  "mail.settle.text_instruct_1":
+    "以下のリンクからログインし、口座を確認して出金申請を押してください。",
+  "mail.settle.text_instruct_2":
+    "申請されると、源泉徴収3.3%を差し引いた{net}が登録された口座に入金されます。",
+  "mail.settle.cta": "出金を申請する",
+  "mail.settle.cta_note": "ログイン後に口座を確認 → 出金申請（源泉徴収3.3%を差し引いて入金）",
+};
+
+const MAIL_MESSAGES: Record<Locale, Record<MailKey, string>> = { ko, en, ja };
 
 export function mailT(
   locale: Locale,

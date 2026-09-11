@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { VisaNextSteps } from "@/components/visa/VisaNextSteps";
+import { getRequestedLocale } from "@/lib/i18n/server";
 
 // 레벨테스트 통과자에게만 링크로 보내는 비공개 안내 페이지.
 // 지금은 내용이 모두 같아 공통 페이지 하나로 둔다 — 결제를 붙여 개인별 금액이
@@ -19,5 +20,6 @@ export default async function VisaNextStepsPage({
 }) {
   const query = await searchParams;
   const lang = Array.isArray(query.lang) ? query.lang[0] : query.lang;
-  return <VisaNextSteps preferredLang={lang ?? null} />;
+  // ?lang= 이 없으면 요청 언어(쿠키·Accept-Language)를 따른다 (docs/design-i18n-ui.md §3.1).
+  return <VisaNextSteps preferredLang={lang ?? (await getRequestedLocale())} />;
 }

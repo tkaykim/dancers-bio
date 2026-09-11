@@ -5,14 +5,14 @@ export const profileUpdateSchema = z.object({
   display_name: z
     .string()
     .trim()
-    .min(1, "이름을 입력해 주세요.")
-    .max(50, "이름은 50자 이내로 입력해 주세요."),
-  bio: z.string().trim().max(500, "소개는 500자 이내로 입력해 주세요.").optional().nullable(),
+    .min(1, "v.name_required")
+    .max(50, "v.name_max_50"),
+  bio: z.string().trim().max(500, "v.bio_max_500").optional().nullable(),
   avatar_url: z
     .string()
     .trim()
     .url()
-    .refine(isValidProfilePhotoUrl, "허용되지 않는 이미지 URL입니다.")
+    .refine(isValidProfilePhotoUrl, "v.image_url_not_allowed")
     .optional()
     .nullable(),
 });

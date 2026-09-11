@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { listVillagePhotos } from "@/app/actions/village-photos";
 import { VillageLanding, type VillagePhoto } from "@/components/village/VillageLanding";
+import { getRequestedLocale } from "@/lib/i18n/server";
 
 export const metadata: Metadata = {
   title: "deetz Village by GRIGO Entertainment — a dancer house in Seoul, without key money",
@@ -9,16 +10,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "/village" },
 };
 
-type Lang = "en" | "ja" | "ko";
-
-export default async function VillagePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ lang?: string }>;
-}) {
-  const { lang } = await searchParams;
-  const explicit = lang === "ja" || lang === "ko" || lang === "en";
-  const initialLang: Lang = lang === "ja" || lang === "ko" ? lang : "en";
+export default async function VillagePage() {
+  // `?lang=` 은 미들웨어가 요청 언어로 바꿔 주므로 여기서 직접 읽지 않는다.
+  const initialLang = await getRequestedLocale();
 
   const rows = await listVillagePhotos();
   const photos: VillagePhoto[] = rows.map((r) => ({
@@ -28,5 +22,5 @@ export default async function VillagePage({
     caption: r.caption,
   }));
 
-  return <VillageLanding initialLang={initialLang} lockLang={explicit} photos={photos} />;
+  return <VillageLanding initialLang={initialLang} photos={photos} />;
 }

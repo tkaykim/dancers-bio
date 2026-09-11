@@ -6,7 +6,9 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { loginSchema, signupSchema } from "@/lib/validation/auth";
 import { LOCALE_COOKIE, isLocale } from "@/lib/i18n/locale";
-import { getRequestedLocale } from "@/lib/i18n/server";
+import { getLocale, getRequestedLocale, serverT } from "@/lib/i18n/server";
+import { localizeZodError } from "@/lib/i18n/zod";
+import actions from "@/lib/i18n/messages/actions";
 
 export type ActionResult<T = void> =
   | { ok: true; data?: T }
@@ -22,10 +24,7 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
     phone_unavailable: formData.get("phone_unavailable"),
   });
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
-    };
+    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
   }
 
   const supabase = await createClient();
@@ -47,7 +46,8 @@ export async function signupAction(formData: FormData): Promise<ActionResult> {
   });
   if (error) {
     if (error.message.toLowerCase().includes("registered")) {
-      return { ok: false, error: "이미 가입된 이메일입니다." };
+      const t = await serverT(actions);
+      return { ok: false, error: t("auth.email_taken") };
     }
     return { ok: false, error: error.message };
   }
@@ -62,16 +62,14 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
     password: formData.get("password"),
   });
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
-    };
+    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
-    return { ok: false, error: "이메일 또는 비밀번호가 올바르지 않습니다." };
+    const t = await serverT(actions);
+    return { ok: false, error: t("auth.login_failed") };
   }
 
   // Auto-claim any pre-curated dancer rows that were provisioned for this
@@ -118,7 +116,8 @@ export async function forgotPasswordAction(
 ): Promise<ActionResult> {
   const email = (formData.get("email") ?? "").toString().trim().toLowerCase();
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    return { ok: false, error: "올바른 이메일 주소를 입력해 주세요." };
+    const t = await serverT(actions);
+    return { ok: false, error: t("auth.email_invalid") };
   }
   const supabase = await createClient();
   const origin =
@@ -134,7 +133,8 @@ export async function changePasswordAction(
 ): Promise<ActionResult> {
   const password = (formData.get("password") ?? "").toString();
   if (password.length < 8 || password.length > 72) {
-    return { ok: false, error: "비밀번호는 8~72자여야 합니다." };
+    const t = await serverT(actions);
+    return { ok: false, error: t("auth.password_length") };
   }
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password });
@@ -161,7 +161,8 @@ export async function autoClaimDancersAction(): Promise<ActionResult> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return { ok: false, error: "로그인 세션을 찾을 수 없습니다." };
+    const t = await serverT(actions);
+    return { ok: false, error: t("common.session_missing") };
   }
   try {
     await supabase.rpc("auto_claim_dancers_for_email");

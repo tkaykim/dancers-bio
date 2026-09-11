@@ -5,6 +5,8 @@ import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { profileUpdateSchema } from "@/lib/validation/profile";
 import { parseInternationalPhone } from "@/lib/phone";
+import { getLocale } from "@/lib/i18n/server";
+import { localizeMessage, localizeZodError } from "@/lib/i18n/zod";
 import type { ActionResult } from "./auth";
 
 export async function updateProfileAction(formData: FormData): Promise<ActionResult> {
@@ -17,10 +19,7 @@ export async function updateProfileAction(formData: FormData): Promise<ActionRes
     avatar_url: rawAvatarUrl ? rawAvatarUrl : null,
   });
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
-    };
+    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
   }
 
   const phoneUnavailable = ["true", "on"].includes(
@@ -33,7 +32,11 @@ export async function updateProfileAction(formData: FormData): Promise<ActionRes
       (formData.get("phone_country") ?? "KR").toString(),
     );
     if (!parsedPhone.ok) {
-      return { ok: false, error: parsedPhone.error };
+      // parseInternationalPhone 의 error 는 validation 사전 키(v.phone_*)다.
+      return {
+        ok: false,
+        error: localizeMessage(parsedPhone.error, await getLocale()),
+      };
     }
     phone = parsedPhone.e164;
   }

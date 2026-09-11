@@ -7,7 +7,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { recomputeScores } from "@/lib/scoring/recompute";
 import { parseVideoUrl } from "@/lib/utils/video";
 import { careerSchema } from "@/lib/validation/portfolio";
+import { getLocale, serverT } from "@/lib/i18n/server";
+import { localizeZodError } from "@/lib/i18n/zod";
+import type { Translator } from "@/lib/i18n/t";
+import actions from "@/lib/i18n/messages/actions";
 import type { ActionResult } from "./auth";
+
+type ActionT = Translator<typeof actions>;
 
 /**
  * 경력 변경 후 해당 댄서의 내부 점수를 백그라운드 재계산 (사용자 무인지).
@@ -92,6 +98,7 @@ async function resolveTargetDancer(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
   formData: FormData,
+  t: ActionT,
 ): Promise<
   | { ok: true; dancer: { id: string; slug: string | null; profile_id: string | null } }
   | { ok: false; error: string }
@@ -104,7 +111,7 @@ async function resolveTargetDancer(
       .select("id, slug, profile_id")
       .eq("id", explicit)
       .maybeSingle();
-    if (!dancer) return { ok: false, error: "댄서 프로필을 찾을 수 없습니다." };
+    if (!dancer) return { ok: false, error: t("dancer.not_found") };
 
     const isOwner = dancer.profile_id === userId;
     let isManager = false;
@@ -127,7 +134,7 @@ async function resolveTargetDancer(
       }
     }
     if (!isOwner && !isManager && !isAdmin) {
-      return { ok: false, error: "이 댄서 프로필의 경력을 수정할 권한이 없습니다." };
+      return { ok: false, error: t("career.forbidden") };
     }
     return { ok: true, dancer };
   }
@@ -140,7 +147,7 @@ async function resolveTargetDancer(
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
-  if (!dancer) return { ok: false, error: "먼저 댄서 프로필을 만들어 주세요." };
+  if (!dancer) return { ok: false, error: t("dancer.create_first") };
   return { ok: true, dancer };
 }
 
@@ -158,13 +165,14 @@ export async function addCareerAction(
 ): Promise<ActionResult<{ id: number }>> {
   const user = await requireUser();
   const supabase = await createClient();
+  const t = await serverT(actions);
 
-  const target = await resolveTargetDancer(supabase, user.id, formData);
+  const target = await resolveTargetDancer(supabase, user.id, formData, t);
   if (!target.ok) return target;
 
   const parsed = parseFormToCareerInput(formData);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값 오류" };
+    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
   }
 
   const details = buildCareerDetails(parsed.data);
@@ -196,17 +204,18 @@ export async function updateCareerAction(
 ): Promise<ActionResult> {
   const user = await requireUser();
   const supabase = await createClient();
+  const t = await serverT(actions);
 
-  const target = await resolveTargetDancer(supabase, user.id, formData);
+  const target = await resolveTargetDancer(supabase, user.id, formData, t);
   if (!target.ok) return target;
 
   const idRaw = formData.get("id");
   const id = idRaw ? Number(idRaw) : NaN;
-  if (!Number.isFinite(id)) return { ok: false, error: "잘못된 요청입니다." };
+  if (!Number.isFinite(id)) return { ok: false, error: t("common.invalid_request") };
 
   const parsed = parseFormToCareerInput(formData);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값 오류" };
+    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
   }
   const details = buildCareerDetails(parsed.data);
 
@@ -235,13 +244,14 @@ export async function setCareerVisibilityAction(
 ): Promise<ActionResult> {
   const user = await requireUser();
   const supabase = await createClient();
+  const t = await serverT(actions);
 
-  const target = await resolveTargetDancer(supabase, user.id, formData);
+  const target = await resolveTargetDancer(supabase, user.id, formData, t);
   if (!target.ok) return target;
 
   const idRaw = formData.get("id");
   const id = idRaw ? Number(idRaw) : NaN;
-  if (!Number.isFinite(id)) return { ok: false, error: "잘못된 요청입니다." };
+  if (!Number.isFinite(id)) return { ok: false, error: t("common.invalid_request") };
 
   const isPublic =
     formData.get("is_public") === "true" || formData.get("is_public") === "on";
@@ -263,13 +273,14 @@ export async function deleteCareerAction(
 ): Promise<ActionResult> {
   const user = await requireUser();
   const supabase = await createClient();
+  const t = await serverT(actions);
 
-  const target = await resolveTargetDancer(supabase, user.id, formData);
+  const target = await resolveTargetDancer(supabase, user.id, formData, t);
   if (!target.ok) return target;
 
   const idRaw = formData.get("id");
   const id = idRaw ? Number(idRaw) : NaN;
-  if (!Number.isFinite(id)) return { ok: false, error: "잘못된 요청입니다." };
+  if (!Number.isFinite(id)) return { ok: false, error: t("common.invalid_request") };
 
   const { error } = await supabase
     .from("careers")

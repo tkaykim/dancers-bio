@@ -24,7 +24,16 @@ import {
   dancerOnboardingSchema,
   dancerProfileSchema,
 } from "@/lib/validation/portfolio";
+import { getLocale, serverT } from "@/lib/i18n/server";
+import { isValidationKey, localizeZodError } from "@/lib/i18n/zod";
+import { translator, type Translator } from "@/lib/i18n/t";
+import type { Locale } from "@/lib/i18n/locale";
+import i18nActions from "@/lib/i18n/messages/actions";
+import validationMessages from "@/lib/i18n/messages/validation";
 import type { ActionResult } from "./auth";
+
+type ActionT = Translator<typeof i18nActions>;
+type ValidationKey = keyof typeof validationMessages.ko;
 
 /**
  * 사용자 입력 슬러그가 비어있으면 stage_name 기반 자동 생성, 충돌 시 -2,-3.. 접미사.
@@ -170,6 +179,7 @@ async function upsertPrivateInfo(
         .insert({ dancer_id: dancerId, ...patch });
     }
   } catch (e) {
+    // eslint-disable-next-line no-restricted-syntax -- i18n: log. 서버 로그 문구(화면에 나가지 않음).
     console.error("[upsertPrivateInfo] 실패:", e);
   }
 }
@@ -263,6 +273,7 @@ export async function upsertDancerProfileAction(
   formData: FormData,
 ): Promise<ActionResult<{ id: string }>> {
   const user = await requireUser();
+  const t = await serverT(i18nActions);
 
   const parsed = dancerProfileSchema.safeParse({
     stage_name: formData.get("stage_name"),
@@ -279,10 +290,7 @@ export async function upsertDancerProfileAction(
     profile_img_url: strOrNull(formData, "profile_img_url"),
   });
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
-    };
+    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
   }
 
   const supabase = await createClient();
@@ -319,7 +327,7 @@ export async function upsertDancerProfileAction(
       .select("id, profile_id")
       .eq("id", explicitDancerId)
       .maybeSingle();
-    if (!dancer) return { ok: false, error: "댄서 프로필을 찾을 수 없습니다." };
+    if (!dancer) return { ok: false, error: t("dancer.not_found") };
 
     const isOwner = dancer.profile_id === user.id;
     let isManager = false;
@@ -342,7 +350,7 @@ export async function upsertDancerProfileAction(
       }
     }
     if (!isOwner && !isManager && !isAdmin) {
-      return { ok: false, error: "수정 권한이 없습니다." };
+      return { ok: false, error: t("common.update_forbidden") };
     }
 
     dancerId = explicitDancerId;
@@ -350,7 +358,7 @@ export async function upsertDancerProfileAction(
       .from("dancers")
       .update(baseValues)
       .eq("id", dancerId);
-    if (error) return { ok: false, error: humanizeDancerError(error.message) };
+    if (error) return { ok: false, error: humanizeDancerError(error.message, t) };
   } else {
     // 하위 호환 경로: profile_id로 기존 댄서 찾아 업데이트, 없으면 생성
     const existing = await supabase
@@ -365,14 +373,14 @@ export async function upsertDancerProfileAction(
         .from("dancers")
         .update(baseValues)
         .eq("id", dancerId);
-      if (error) return { ok: false, error: humanizeDancerError(error.message) };
+      if (error) return { ok: false, error: humanizeDancerError(error.message, t) };
     } else {
       const { data, error } = await supabase
         .from("dancers")
         .insert({ ...baseValues, profile_id: user.id })
         .select("id")
         .single();
-      if (error) return { ok: false, error: humanizeDancerError(error.message) };
+      if (error) return { ok: false, error: humanizeDancerError(error.message, t) };
       dancerId = data.id as string;
     }
   }
@@ -389,45 +397,49 @@ export async function upsertDancerProfileAction(
 
 // DB 원문 에러(영문·스키마명 포함)를 절대 사용자에게 그대로 보이지 않도록 한글 안내로 변환.
 // 매칭 안 되는 경우도 원문 대신 일반 안내를 돌려준다(개발자 워딩/스키마명 노출 금지).
-function humanizeDancerError(message: string): string {
+function humanizeDancerError(message: string, t: ActionT): string {
   // 세션(JWT)이 만료/갱신 중이면 RLS로 INSERT가 거부된다(온보딩 세션 레이스).
   if (message.includes("row-level security") || message.includes("42501")) {
-    return "로그인이 만료되었어요. 페이지를 새로고침한 뒤 다시 시도해 주세요.";
+    return t("dancer.session_expired");
   }
   if (
     message.includes("dancers_slug_key") ||
     (message.toLowerCase().includes("duplicate") && message.includes("slug"))
   ) {
-    return "프로필 주소가 다른 분과 겹쳤어요. 활동명을 조금 바꿔서 다시 시도해 주세요.";
+    return t("dancer.slug_conflict");
   }
   if (message.includes("dancers_profile_id_unique")) {
-    return "이미 프로필이 만들어져 있어요. 내 프로필에서 확인해 주세요.";
+    return t("dancer.already_exists");
   }
-  return "프로필을 저장하는 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요. 계속되면 문의해 주세요.";
+  return t("dancer.save_failed");
 }
 
-// 온보딩 입력 필드의 사용자용 한글 이름(검증 에러를 '어느 칸'인지 알려주기 위함).
-const ONBOARDING_FIELD_LABELS: Record<string, string> = {
-  stage_name: "활동명",
-  korean_name: "한글 이름",
-  location: "활동 지역",
-  gender: "성별",
-  bio: "소개",
-  specialties: "전문 분야",
-  genres: "장르",
-  social_instagram_handle: "인스타그램 아이디",
-  social_youtube_handle: "유튜브 아이디",
-  social_tiktok_handle: "틱톡 아이디",
+// 온보딩 입력 필드의 사용자용 이름 키(검증 에러를 '어느 칸'인지 알려주기 위함).
+const ONBOARDING_FIELD_LABEL_KEYS: Record<string, ValidationKey> = {
+  stage_name: "v.field.stage_name",
+  korean_name: "v.field.korean_name",
+  location: "v.field.location",
+  gender: "v.field.gender",
+  bio: "v.field.bio",
+  specialties: "v.field.specialties",
+  genres: "v.field.genres",
+  social_instagram_handle: "v.field.social_instagram_handle",
+  social_youtube_handle: "v.field.social_youtube_handle",
+  social_tiktok_handle: "v.field.social_tiktok_handle",
 };
 
 // zod 검증 실패를 사용자가 이해할 수 있는 한 문장으로. 어느 칸이 문제인지 이름을 붙인다.
-function friendlyValidationError(err: ZodError): string {
+function friendlyValidationError(err: ZodError, locale: Locale): string {
+  const tv = translator(validationMessages, locale);
   const issue = err.issues[0];
-  if (!issue) return "입력한 정보를 다시 확인해 주세요.";
-  const key = String(issue.path[0] ?? "");
-  const label = ONBOARDING_FIELD_LABELS[key];
-  const msg = issue.message || "형식이 올바르지 않아요.";
-  return label ? `${label} — ${msg}` : msg;
+  if (!issue) return tv("v.check_input");
+  const labelKey = ONBOARDING_FIELD_LABEL_KEYS[String(issue.path[0] ?? "")];
+  const message = isValidationKey(issue.message)
+    ? tv(issue.message)
+    : tv("v.format_invalid");
+  return labelKey
+    ? tv("v.field_error", { field: tv(labelKey), message })
+    : message;
 }
 
 async function currentUserAgent(): Promise<string | null> {
@@ -445,13 +457,15 @@ export async function createDancerProfileAction(
   // (기존엔 requireUser가 별도 클라이언트로 세션을 확인해, 인앱 브라우저 토큰 갱신 레이스 시
   //  INSERT용 클라이언트가 만료 토큰을 읽어 RLS(auth.uid() null)로 조용히 거부되던 버그가 있었다.)
   const userAgent = await currentUserAgent();
+  const locale = await getLocale();
+  const t = await serverT(i18nActions);
   const supabase = await createClient();
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
   if (authError || !user) {
-    const msg = "로그인이 만료되었어요. 페이지를 새로고침한 뒤 다시 시도해 주세요.";
+    const msg = t("dancer.session_expired");
     await reportServerError({
       area: "dancer_onboarding",
       code: "auth_expired",
@@ -479,7 +493,7 @@ export async function createDancerProfileAction(
     social_tiktok_handle: strOrNull(formData, "social_tiktok_handle"),
   });
   if (!parsed.success) {
-    const msg = friendlyValidationError(parsed.error);
+    const msg = friendlyValidationError(parsed.error, locale);
     // 어느 칸이 왜 막혔는지 자동 리포트(예: SNS 아이디에 한글). 사용자 잘못이라 severity=low.
     await reportServerError({
       area: "dancer_onboarding",
@@ -504,7 +518,7 @@ export async function createDancerProfileAction(
   // 업로드 후 받은 URL이 우리 Supabase storage 버킷과 다르면 에러.
   // (이전엔 silently null이어서 사진이 사라지는 버그 발생)
   if (profileImgUrlRaw && !isValidProfilePhotoUrl(profileImgUrlRaw)) {
-    const msg = "프로필 사진을 저장하지 못했어요. 사진을 다시 올리거나, 사진 없이 진행해 주세요.";
+    const msg = t("dancer.photo_failed");
     await reportServerError({
       area: "dancer_onboarding",
       code: "photo_invalid",
@@ -576,7 +590,7 @@ export async function createDancerProfileAction(
         .maybeSingle();
       if (dup?.id) return { ok: true, data: { id: dup.id as string } };
     }
-    const msg = humanizeDancerError(insertError.message);
+    const msg = humanizeDancerError(insertError.message, t);
     const isRls =
       insertError.message.includes("row-level security") ||
       insertError.message.includes("42501") ||
@@ -606,7 +620,7 @@ export async function createDancerProfileAction(
     if (mgrError) {
       // 댄서 row 정리 (best-effort)
       await supabase.from("dancers").delete().eq("id", dancerId);
-      const msg = "매니저 등록에 문제가 생겼어요. 잠시 후 다시 시도해 주세요. 계속되면 문의해 주세요.";
+      const msg = t("dancer.manager_insert_failed");
       await reportServerError({
         area: "dancer_onboarding",
         code: "manager_insert_failed",
@@ -636,13 +650,14 @@ async function assertDancerOwnership(
   supabase: Awaited<ReturnType<typeof createClient>>,
   dancerId: string,
   userId: string,
+  t: ActionT,
 ): Promise<ActionResult<{ slug: string | null }>> {
   const { data: dancer } = await supabase
     .from("dancers")
     .select("id, profile_id, slug")
     .eq("id", dancerId)
     .maybeSingle();
-  if (!dancer) return { ok: false, error: "댄서 프로필을 찾을 수 없습니다." };
+  if (!dancer) return { ok: false, error: t("dancer.not_found") };
   if (dancer.profile_id !== userId) {
     // admin 분기: profiles.is_admin
     const { data: viewer } = await supabase
@@ -651,7 +666,7 @@ async function assertDancerOwnership(
       .eq("id", userId)
       .maybeSingle();
     if (!viewer?.is_admin) {
-      return { ok: false, error: "이 프로필을 편집할 권한이 없습니다." };
+      return { ok: false, error: t("dancer.edit_forbidden") };
     }
   }
   return { ok: true, data: { slug: (dancer.slug as string | null) ?? null } };
@@ -661,29 +676,30 @@ export async function setDancerPortfolioFileAction(
   formData: FormData,
 ): Promise<ActionResult> {
   const user = await requireUser();
+  const t = await serverT(i18nActions);
   const dancer_id = (formData.get("dancer_id") ?? "").toString();
   const url = (formData.get("url") ?? "").toString();
   const name = (formData.get("name") ?? "").toString().slice(0, 200);
   const size = Number(formData.get("size") ?? 0);
   const mime = (formData.get("mime") ?? "").toString();
 
-  if (!dancer_id) return { ok: false, error: "잘못된 요청입니다." };
+  if (!dancer_id) return { ok: false, error: t("common.invalid_request") };
   if (!isValidPortfolioFileUrl(url)) {
-    return { ok: false, error: "허용되지 않은 파일 URL입니다." };
+    return { ok: false, error: t("portfolio_file.url_not_allowed") };
   }
   if (
     !Number.isFinite(size) ||
     size <= 0 ||
     size > MAX_PORTFOLIO_FILE_BYTES
   ) {
-    return { ok: false, error: "파일 크기가 허용 범위를 벗어났습니다." };
+    return { ok: false, error: t("portfolio_file.size_invalid") };
   }
   if (!(ALLOWED_PORTFOLIO_FILE_TYPES as readonly string[]).includes(mime)) {
-    return { ok: false, error: "허용되지 않은 파일 형식입니다." };
+    return { ok: false, error: t("portfolio_file.type_not_allowed") };
   }
 
   const supabase = await createClient();
-  const guard = await assertDancerOwnership(supabase, dancer_id, user.id);
+  const guard = await assertDancerOwnership(supabase, dancer_id, user.id, t);
   if (!guard.ok) return guard;
 
   const { error } = await supabase
@@ -707,11 +723,12 @@ export async function removeDancerPortfolioFileAction(
   formData: FormData,
 ): Promise<ActionResult> {
   const user = await requireUser();
+  const t = await serverT(i18nActions);
   const dancer_id = (formData.get("dancer_id") ?? "").toString();
-  if (!dancer_id) return { ok: false, error: "잘못된 요청입니다." };
+  if (!dancer_id) return { ok: false, error: t("common.invalid_request") };
 
   const supabase = await createClient();
-  const guard = await assertDancerOwnership(supabase, dancer_id, user.id);
+  const guard = await assertDancerOwnership(supabase, dancer_id, user.id, t);
   if (!guard.ok) return guard;
 
   // 현재 URL에서 storage path 추출하여 best-effort 삭제 (실패해도 진행).

@@ -4,12 +4,12 @@ const slugSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .min(2, "slug는 2자 이상이어야 합니다.")
-  .max(40, "slug는 40자 이하로 입력해 주세요.")
-  .regex(/^[a-z0-9-]+$/i, "영문 소문자, 숫자, 하이픈만 사용할 수 있습니다.");
+  .min(2, "v.slug_min_2")
+  .max(40, "v.slug_max_40")
+  .regex(/^[a-z0-9-]+$/i, "v.slug_pattern");
 
 export const teamProfileSchema = z.object({
-  team_name: z.string().trim().min(1, "팀명을 입력해 주세요.").max(80),
+  team_name: z.string().trim().min(1, "v.team_name_required").max(80),
   korean_name: z.string().trim().max(40).optional().nullable(),
   slug: slugSchema.optional().nullable(),
   bio: z.string().trim().max(1000).optional().nullable(),
@@ -31,7 +31,7 @@ export const addMemberSchema = z
   })
   .refine(
     (v) => Boolean(v.profile_id) || Boolean(v.display_name?.trim()),
-    { message: "플랫폼 계정 또는 이름 중 하나는 필수입니다." },
+    { message: "v.member_identity_required" },
   );
 export type AddMemberInput = z.infer<typeof addMemberSchema>;
 

@@ -5,12 +5,12 @@ export const emailSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .email("올바른 이메일 주소를 입력해 주세요.");
+  .email("v.email_address_invalid");
 
 export const passwordSchema = z
   .string()
-  .min(8, "비밀번호는 8자 이상이어야 합니다.")
-  .max(72, "비밀번호는 72자 이하여야 합니다.");
+  .min(8, "v.password_min_8")
+  .max(72, "v.password_max_72");
 
 const phoneUnavailableSchema = z.preprocess(
   (value) => value === true || value === "true" || value === "on",
@@ -24,8 +24,8 @@ export const signupSchema = z
     display_name: z
       .string()
       .trim()
-      .min(1, "이름을 입력해 주세요. / Enter your name.")
-      .max(50, "이름은 50자 이내로 입력해 주세요. / Use 50 characters or fewer."),
+      .min(1, "v.name_required")
+      .max(50, "v.name_max_50"),
     phone: z.string().trim().max(40).optional().default(""),
     phone_country: z.string().trim().toUpperCase().optional().default("KR"),
     phone_unavailable: phoneUnavailableSchema,
@@ -54,7 +54,7 @@ export const signupSchema = z
 
 export const loginSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, "비밀번호를 입력해 주세요."),
+  password: z.string().min(1, "v.password_required"),
 });
 
 export type SignupInput = z.infer<typeof signupSchema>;

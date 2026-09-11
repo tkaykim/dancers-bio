@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { VisaCasePortal, type VisaCaseInitial } from "@/components/visa/VisaCasePortal";
 import { visaLabel } from "@/lib/data/korea-visas";
+import { getRequestedLocale } from "@/lib/i18n/server";
 import { verifyVisaCaseToken } from "@/lib/quick-token";
 import {
   makeVisaPaymentUrl,
@@ -55,9 +56,15 @@ type CaseRow = {
   payment_meta?: Record<string, unknown> | null;
 };
 
-function requestedLang(value: string | string[] | undefined): string | null {
+type CaseLang = "en" | "ja" | "ko";
+
+function requestedLang(value: string | string[] | undefined): CaseLang | null {
   const lang = Array.isArray(value) ? value[0] : value;
   return lang === "en" || lang === "ja" || lang === "ko" ? lang : null;
+}
+
+function storedLang(value: string | null): CaseLang | null {
+  return value === "en" || value === "ja" || value === "ko" ? value : null;
 }
 
 export default async function VisaCasePage({
@@ -89,6 +96,11 @@ export default async function VisaCasePage({
     .maybeSingle();
   if (!raw) notFound();
   const row = raw as unknown as CaseRow;
+
+  // 케이스 언어 우선순위 (docs/design-i18n-ui.md §3.2 예외):
+  //   ?lang= → 저장된 row.preferred_lang → 요청 언어(강등 전).
+  const lang: CaseLang =
+    requestedLang(query.lang) ?? storedLang(row.preferred_lang) ?? (await getRequestedLocale());
 
   // 확정된 온라인 미팅 — 가장 최근에 발송(sent)된 초대를 여정 타임라인에 보여준다.
   const { data: meetingInvite } = await admin
@@ -155,7 +167,7 @@ export default async function VisaCasePage({
     currentlyInKorea: row.currently_in_korea,
     skillLevel: row.skill_level,
     danceVideoUrl: row.dance_video_url,
-    preferredLang: requestedLang(query.lang) ?? row.preferred_lang,
+    preferredLang: lang,
     followUpAnswers: row.follow_up_answers ?? {},
     followUpSubmittedAt: row.follow_up_submitted_at ?? null,
     caseStage: row.case_stage ?? "application_received",
@@ -197,8 +209,12 @@ export default async function VisaCasePage({
   };
 
   return (
+    // 포털의 언어 상태는 prop 으로 초기화되고 prop 변경을 따라가지 못한다.
+    // 언어가 바뀌면 key 로 다시 마운트해 새 언어를 반영한다(docs/design-i18n-ui.md §3.8).
     <VisaCasePortal
+      key={lang}
       token={token}
+      lang={lang}
       initial={initial}
       declineRequested={declineRequested}
       editRequested={editRequested}

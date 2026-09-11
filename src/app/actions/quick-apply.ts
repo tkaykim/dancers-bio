@@ -3,8 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizePhone } from "@/lib/alimtalk/solapi";
 import { sendChallengeGuidelineMail } from "@/lib/notify/challenge-guideline-mail";
-import { resolveLocale } from "@/lib/i18n/locale";
-import { acceptLanguage } from "@/lib/i18n/server";
+import { localeFor } from "@/lib/i18n/server";
 import { t, isMessageKey, type MessageKey } from "@/lib/i18n/messages/quick";
 import { z } from "zod";
 
@@ -74,10 +73,8 @@ export async function quickApplyAction(
     .eq("short_code", shortCode)
     .maybeSingle();
 
-  const locale = resolveLocale({
-    text: [project?.title, project?.description],
-    acceptLanguage: await acceptLanguage(),
-  });
+  // 공고 본문의 언어가 1순위, 판단이 안 서면 요청 언어(쿼리·쿠키·Accept-Language).
+  const locale = await localeFor(project?.title, project?.description);
   const fail = (key: MessageKey): QuickApplyResult => ({
     ok: false,
     error: t(locale, key),

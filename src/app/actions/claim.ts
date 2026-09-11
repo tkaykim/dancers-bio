@@ -2,6 +2,8 @@
 
 import { requireProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { serverT } from "@/lib/i18n/server";
+import actions from "@/lib/i18n/messages/actions";
 
 type Result<T = undefined> =
   | { ok: true; data?: T }
@@ -11,18 +13,19 @@ export async function claimDancerProfileAction(
   formData: FormData,
 ): Promise<Result<{ claim_request_id: string; dancer_id: string }>> {
   const profile = await requireProfile();
+  const t = await serverT(actions);
   const dancer_id = String(formData.get("dancer_id") ?? "");
   const relation = String(formData.get("relation") ?? "self");
   const message = String(formData.get("message") ?? "").trim();
 
   if (!dancer_id) {
-    return { ok: false, error: "잘못된 요청입니다." };
+    return { ok: false, error: t("common.invalid_request") };
   }
   if (!["self", "manager", "other"].includes(relation)) {
-    return { ok: false, error: "관계 정보를 선택해 주세요." };
+    return { ok: false, error: t("claim.relation_required") };
   }
   if (message.length > 1000) {
-    return { ok: false, error: "메시지는 1000자 이내로 작성해 주세요." };
+    return { ok: false, error: t("claim.message_max") };
   }
 
   const supabase = await createClient();
@@ -34,13 +37,10 @@ export async function claimDancerProfileAction(
     .eq("id", dancer_id)
     .maybeSingle();
   if (dancerErr || !dancer) {
-    return { ok: false, error: "댄서 프로필을 찾을 수 없습니다." };
+    return { ok: false, error: t("dancer.not_found") };
   }
   if (dancer.profile_id) {
-    return {
-      ok: false,
-      error: "이미 소유자가 있는 프로필입니다.",
-    };
+    return { ok: false, error: t("claim.already_owned") };
   }
 
   // 기존 pending 요청이 있으면 그것을 그대로 사용 (Idempotent — 재시도가 IG 인증 단계로 자연 진입).
@@ -72,10 +72,7 @@ export async function claimDancerProfileAction(
 
   if (error) {
     if (error.code === "23505") {
-      return {
-        ok: false,
-        error: "이미 신청한 프로필입니다. 관리자 처리 결과를 기다려 주세요.",
-      };
+      return { ok: false, error: t("claim.already_requested") };
     }
     return { ok: false, error: error.message };
   }

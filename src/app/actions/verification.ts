@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { requireProfile, requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { serverT } from "@/lib/i18n/server";
+import actions from "@/lib/i18n/messages/actions";
 import type { ActionResult } from "./auth";
 
 const HANDLE_RE = /^[a-zA-Z0-9._]{1,30}$/;
@@ -25,10 +27,8 @@ export async function requestInstagramVerification(
   const handleRaw = (formData.get("instagram_handle") ?? "").toString().trim();
   const handle = handleRaw.replace(/^@/, "").trim();
   if (!handle || !HANDLE_RE.test(handle)) {
-    return {
-      ok: false,
-      error: "올바른 인스타그램 핸들을 입력해 주세요. (영문/숫자/./_, 최대 30자)",
-    };
+    const t = await serverT(actions);
+    return { ok: false, error: t("verification.handle_invalid") };
   }
   // Lite: claim 본인확인용일 때 claim_request_id 를 함께 저장.
   // 같은 사용자가 동시에 creator-perm용 + claim용을 동시에 가질 수 있으니
@@ -104,9 +104,11 @@ export async function approveInstagramVerificationAction(
 ): Promise<ActionResult> {
   const profile = await requireProfile();
   if (!profile.is_admin) {
+    // eslint-disable-next-line no-restricted-syntax -- i18n: admin-only (/admin/verifications 전용 액션)
     return { ok: false, error: "관리자만 가능합니다." };
   }
   const id = (formData.get("id") ?? "").toString();
+  // eslint-disable-next-line no-restricted-syntax -- i18n: admin-only (/admin/verifications 전용 액션)
   if (!id) return { ok: false, error: "잘못된 요청입니다." };
 
   const supabase = await createClient();
@@ -119,6 +121,7 @@ export async function approveInstagramVerificationAction(
   });
   if (error) {
     if (error.message === "admin only") {
+      // eslint-disable-next-line no-restricted-syntax -- i18n: admin-only (/admin/verifications 전용 액션)
       return { ok: false, error: "관리자 권한 확인에 실패했습니다. 다시 로그인해 주세요." };
     }
     return { ok: false, error: error.message };
@@ -173,10 +176,12 @@ export async function rejectInstagramVerificationAction(
 ): Promise<ActionResult> {
   const profile = await requireProfile();
   if (!profile.is_admin) {
+    // eslint-disable-next-line no-restricted-syntax -- i18n: admin-only (/admin/verifications 전용 액션)
     return { ok: false, error: "관리자만 가능합니다." };
   }
   const id = (formData.get("id") ?? "").toString();
   const reason = (formData.get("reason") ?? "").toString().trim() || null;
+  // eslint-disable-next-line no-restricted-syntax -- i18n: admin-only (/admin/verifications 전용 액션)
   if (!id) return { ok: false, error: "잘못된 요청입니다." };
 
   const supabase = await createClient();
@@ -187,6 +192,7 @@ export async function rejectInstagramVerificationAction(
   });
   if (error) {
     if (error.message === "admin only") {
+      // eslint-disable-next-line no-restricted-syntax -- i18n: admin-only (/admin/verifications 전용 액션)
       return { ok: false, error: "관리자 권한 확인에 실패했습니다. 다시 로그인해 주세요." };
     }
     return { ok: false, error: error.message };

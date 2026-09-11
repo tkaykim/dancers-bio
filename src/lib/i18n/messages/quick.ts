@@ -7,14 +7,14 @@ import { interpolate } from "../interpolate";
  * 이 두 흐름만 담는 이유
  *   로그인 없이 외부인이 들어오는 유일한 경로이고, 외국인 지원자가 실제로 막히는 곳이다.
  *   로그인 뒤 운영자 콘솔은 한국어 사용자만 쓰므로 여기 포함하지 않는다.
- *   범위를 넓힐 때는 키를 추가하면 되고, en 번역이 빠지면 타입 에러로 잡힌다.
+ *   범위를 넓힐 때는 키를 추가하면 되고, en·ja 번역이 빠지면 타입 에러로 잡힌다.
  *
- * 사용법
- *   const locale = resolveLocale({ text: [project.title, project.description], acceptLanguage });
+ * 사용법 (서버)
+ *   const locale = await localeFor(project.title, project.description);  // ./server
  *   t(locale, "apply.error.quota_full")
  *
- * 클라이언트 컴포넌트에서도 그대로 import 한다(서버 전용 코드 없음).
- * 서버에서 Accept-Language 가 필요하면 ./server 의 acceptLanguage() 를 쓴다.
+ * 언어는 공고 본문이 1순위고, 판단이 안 서면 요청 언어(쿼리·쿠키·Accept-Language)로 떨어진다
+ * (docs/design-i18n-ui.md §3.2 예외). 클라이언트 컴포넌트에서도 그대로 import 한다(서버 전용 코드 없음).
  */
 
 const ko = {
@@ -353,8 +353,165 @@ const en: Record<MessageKey, string> = {
   "submit.api.record_failed": "We could not record your submission.",
 };
 
-// TODO(S4): 일본어 사전 추가 전까지 ja 는 en 으로 폴백한다.
-const MESSAGES: Record<Locale, Record<MessageKey, string>> = { ko, en, ja: en };
+/** ko·en 과 키가 어긋나면 여기서 타입 에러가 난다 — です・ます체, 브랜드 표기는 그대로 둔다. */
+const ja: Record<MessageKey, string> = {
+  "stage.label.final": "最終合格",
+  "stage.label.round": "{round}次合格",
+
+  "apply.error.name_required": "お名前を入力してください。",
+  "apply.error.name_too_long": "お名前が長すぎます。",
+  "apply.error.email_invalid": "メールアドレスの形式をご確認ください。",
+  "apply.error.phone_required": "電話番号を入力してください。",
+  "apply.error.phone_invalid": "電話番号をもう一度ご確認ください。",
+  "apply.error.instagram_required": "Instagramのユーザーネームを入力してください。",
+  "apply.error.instagram_invalid": "Instagramのユーザーネームをもう一度ご確認ください。",
+  "apply.error.invalid_input": "入力内容をご確認ください。",
+  "apply.error.not_found": "募集が見つかりません。",
+  "apply.error.closed": "締め切られた募集です。",
+  "apply.error.not_public": "公開募集ではありません。",
+  "apply.error.needs_full_form":
+    "この募集は詳細な応募フォームの入力が必要なため、かんたん応募はご利用いただけません。ログインのうえご応募ください。",
+  "apply.error.deadline_passed": "応募の締切日が過ぎています。",
+  "apply.error.quota_full": "募集定員に達しました。",
+  "apply.error.email_taken":
+    "すでに登録されているメールアドレスです。ログインのうえご応募ください。",
+  "apply.error.generic": "応募の処理中に問題が発生しました。",
+  "apply.error.generic_retry":
+    "応募の処理中に問題が発生しました。しばらくしてからもう一度お試しください。",
+  "apply.error.submit_link_failed":
+    "応募は受け付けましたが、アップロードリンクの作成に失敗しました。メールで改めてご案内します。",
+
+  "apply.meta.not_found": "募集が見つかりません | deetz",
+  "apply.meta.title": "{title} | deetz かんたん応募",
+  "apply.meta.description": "会員登録なしで、お名前と連絡先だけですぐに応募できます。",
+  "apply.badge.no_signup": "会員登録なしで応募",
+  "apply.row.pay": "出演料",
+  "apply.row.deadline": "応募締切",
+  "apply.row.region": "地域",
+  "apply.pay.krw": "{amount}ウォン",
+  "apply.closed": "応募は締め切られました。",
+  "apply.full_form.title": "この募集は詳細な応募フォームで受け付けます。",
+  "apply.full_form.body":
+    "身長・生年・ジャンル・ダンス動画リンクなどを一緒にご提出いただくため、かんたん応募ではご応募いただけません。",
+  "apply.full_form.hint": "下からログインのうえご応募ください。",
+  "apply.full_form.cta": "ログインして応募する →",
+  "apply.description_heading": "募集内容",
+
+  "apply.form.name": "お名前",
+  "apply.form.name_placeholder": "山田花子",
+  "apply.form.instagram": "Instagramのユーザーネーム",
+  "apply.form.instagram_hint":
+    "動画ファイルと投稿の確認に使用します。@は付けずにユーザーネームのみご入力ください。",
+  "apply.form.email": "メールアドレス",
+  "apply.form.email_hint": "ガイドラインとアップロードリンクをお送りします。",
+  "apply.form.recovery_title": "すでに応募されましたか。",
+  "apply.form.recovery_body": "アップロードリンクが見つからない場合は、応募時にご入力いただいた情報をそのままもう一度ご入力ください。",
+  "apply.form.recovery_note": "既存のリンクを改めて表示します。重複して応募されることはありません。",
+  "apply.form.email_typo_prefix": "もしかして",
+  "apply.form.email_typo_suffix": " ではありませんか。",
+  "apply.form.email_typo_apply": "これに修正する",
+  "apply.form.phone": "電話番号",
+  "apply.form.submit": "応募する",
+  "apply.form.submitting": "応募中...",
+  "apply.form.terms_prefix": "応募をもって deetz の",
+  "apply.form.terms_link": "利用規約",
+  "apply.form.terms_mid": "および",
+  "apply.form.privacy_link": "プライバシーポリシー",
+  "apply.form.terms_suffix": "に同意したものとみなします。",
+
+  "apply.done.new.title": "応募が完了しました",
+  "apply.done.review.title": "応募を受け付けました",
+  "apply.done.review.body": "応募の受付と最終選考は別のものです。\n選考結果と参加のご案内は担当者から別途お知らせします。",
+  "apply.done.new.body": "ガイドをご確認のうえ撮影してください。",
+  "apply.done.existing.title": "すでに応募されています",
+  "apply.done.existing.body": "同じInstagramのユーザーネームで応募された記録があります。",
+  "apply.done.rejoined.title": "再度の参加として処理しました",
+  "apply.done.rejoined.body":
+    "先に参加が難しいとお知らせいただいた件を、改めてお受けしました。ガイドをご確認のうえ撮影してください。",
+  "apply.done.guide_cta": "先に制作ガイドを確認する",
+  "apply.done.checklist_title": "撮影前の必須確認",
+  "apply.done.checklist_audio":
+    "· 音源はInstagramのオーディオタブから「AI-DOL I Wash」をご自身で選択",
+  "apply.done.checklist_tags": "· ハッシュタグ #광고 #iwash #aidol",
+  "apply.done.checklist_mention": "· アカウントタグ @awc.ent",
+  "apply.done.checklist_warning": "一つでも抜けると広告案件として認められません。",
+  "apply.done.after_shoot": "撮影が終わりましたら",
+  "apply.done.upload_cta": "動画をアップロードする",
+  "apply.done.link_mail": "同じ内容をメールでもお送りします。",
+  "apply.done.link_note":
+    "以下はご本人専用のアップロードリンクです。後でアップロードされる場合は保存しておいてください。",
+
+  "submit.meta.title": "動画提出 · deetz",
+  "submit.heading": "動画提出",
+  "submit.fallback_project": "プロジェクト",
+  "submit.blocked.title": "現在は提出いただけません。",
+  "submit.blocked.revoked": "提出は締め切られました。",
+  "submit.blocked.no_application": "応募の記録が見つかりません。",
+  "submit.blocked.not_confirmed":
+    "まだ参加が確定していません。確定のご案内を受け取られてからご利用ください。",
+  "submit.footer.personal": "ご本人にのみ発行されたリンクです。",
+  "submit.footer.no_share": "他の方と共有しないでください。",
+  "submit.footer.contact": "お問い合わせ contact@deetz.kr",
+
+  "submit.panel.submitter": "提出者",
+  "submit.panel.account_note":
+    "アップロードした動画はこのアカウントを基準に整理されます。アカウントが変わった場合や誤って登録されている場合は修正してください。",
+  "submit.handle.short_label": "Instagram",
+  "submit.handle.label": "Instagramのユーザーネーム",
+  "submit.handle.edit": "修正",
+  "submit.handle.save": "保存",
+  "submit.handle.saving": "保存中",
+  "submit.handle.cancel": "キャンセル",
+  "submit.handle.saved": "保存しました。",
+  "submit.handle.save_failed": "保存できませんでした。",
+
+  "submit.upload.received": "提出を受け付けました。",
+  "submit.upload.choose": "動画ファイルを選択",
+  "submit.upload.reupload": "もう一度アップロード",
+  "submit.upload.preparing": "準備中...",
+  "submit.upload.uploading": "アップロード中 {percent}%",
+  "submit.upload.finishing": "仕上げ中...",
+  "submit.upload.start_failed": "アップロードを開始できませんでした。",
+  "submit.upload.bad_response": "アップロードの応答を確認できませんでした。",
+  "submit.upload.failed_status": "アップロードに失敗しました。({status})",
+  "submit.upload.network": "ネットワークエラーでアップロードが中断されました。",
+  "submit.upload.aborted": "アップロードをキャンセルしました。",
+  "submit.upload.complete_failed": "提出を完了できませんでした。",
+  "submit.upload.failed": "アップロードに失敗しました。",
+  "submit.upload.note_filename": "ファイル名は自動的に {handle} として保存されます。",
+  "submit.upload.note_no_rename": "ご自身でファイル名を変更する必要はありません。",
+  "submit.upload.note_keep_open": "アップロード中はウィンドウを閉じないでください。",
+  "submit.upload.note_last_wins":
+    "もう一度アップロードされた場合は、最後にアップロードされた動画が最終提出となります。",
+
+  "submit.collab.title": "一緒に撮影した方",
+  "submit.collab.help":
+    "動画に他のダンサーが一緒に映っている場合や、Instagramのコラボ投稿として公開される予定の場合は、ユーザーネームをご記入ください。確認のうえ個別にご案内します。",
+  "submit.collab.remove_aria": "{index}番目を削除",
+  "submit.collab.remove": "削除",
+  "submit.collab.add": "+ 追加",
+  "submit.collab.save": "保存",
+  "submit.collab.saving": "保存中",
+  "submit.collab.saved": "保存しました — {list}",
+  "submit.collab.saved_none": "保存しました — なし",
+  "submit.collab.save_failed": "保存できませんでした。",
+
+  "submit.api.invalid_link": "有効なリンクではありません。",
+  "submit.api.video_only": "動画ファイルのみアップロードできます。",
+  "submit.api.size_unknown": "ファイルサイズを確認できません。",
+  "submit.api.too_large": "ファイルが大きすぎます。8GB以下でアップロードしてください。",
+  "submit.api.server_misconfig": "サーバー設定が不足しています。管理者にお問い合わせください。",
+  "submit.api.handle_format":
+    "Instagramのユーザーネームの形式が正しくありません。英数字・ピリオド・アンダースコアのみ使用できます。",
+  "submit.api.handle_taken":
+    "すでに他の参加者が登録したユーザーネームです。ご本人のアカウントである場合は contact@deetz.kr までお知らせください。",
+  "submit.api.save_failed": "保存に失敗しました。",
+  "submit.api.file_info_missing": "ファイル情報を確認できません。",
+  "submit.api.upload_location": "アップロード先を確認できませんでした。",
+  "submit.api.record_failed": "提出の記録に失敗しました。",
+};
+
+const MESSAGES: Record<Locale, Record<MessageKey, string>> = { ko, en, ja };
 
 export function t(
   locale: Locale,

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowRight, FileCheck, GraduationCap, Stamp } from "lucide-react";
+import { setLocaleAction } from "@/app/actions/locale";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { cn } from "@/lib/utils";
 
@@ -69,14 +70,23 @@ const T: Record<Lang, Copy> = {
 const ICONS = [FileCheck, GraduationCap, Stamp];
 
 export function VisaLanding({ initialLang = "en" }: { initialLang?: Lang }) {
+  // 초기 언어는 서버가 정한 요청 언어(prop)뿐이다. 마운트 후 navigator.language 로 다시 정하지
+  // 않는다 — 첫 렌더가 달라지면 hydration 이 깨진다(docs/design-i18n-ui.md §3.4·§3.8).
   const [lang, setLang] = useState<Lang>(initialLang);
+  const [, startTransition] = useTransition();
 
-  // 첫 방문 시 브라우저 언어로 자동 선택(ja/ko, 그 외 en).
-  useEffect(() => {
-    const nav = navigator.language?.toLowerCase() ?? "";
-    if (nav.startsWith("ja")) setLang("ja");
-    else if (nav.startsWith("ko")) setLang("ko");
-  }, []);
+  // 즉시 반응을 위해 낙관적으로 표시를 바꾸고, 서버 액션이 쿠키·프로필을 저장한 뒤 redirect 한다.
+  // 성공한 redirect 는 rejection 으로 오므로 실패는 반환값 { ok: false } 로만 판단한다.
+  const selectLang = (l: Lang) => {
+    if (l === lang) return;
+    const prev = lang;
+    setLang(l);
+    startTransition(async () => {
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      const result = await setLocaleAction(l, currentUrl);
+      if (result && result.ok === false) setLang(prev);
+    });
+  };
 
   const c = T[lang];
   const [bodyA, bodyB] = c.body.split("%s");
@@ -90,7 +100,7 @@ export function VisaLanding({ initialLang = "en" }: { initialLang?: Lang }) {
             <button
               key={l.code}
               type="button"
-              onClick={() => setLang(l.code)}
+              onClick={() => selectLang(l.code)}
               className={cn(
                 "rounded-md border px-2 py-1 text-xs transition-colors",
                 lang === l.code

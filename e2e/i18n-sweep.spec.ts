@@ -115,7 +115,13 @@ for (const locale of LOCALES) {
         if (/hydrat/i.test(msg.text())) errors.push(`hydration: ${msg.text()}`);
       });
       page.on("pageerror", (err) => errors.push(`pageerror: ${err.message}`));
-      if (ROUTES.some((r) => r.auth) && process.env.E2E_EMAIL) await login(page);
+      if (ROUTES.some((r) => r.auth) && process.env.E2E_EMAIL) {
+        await login(page);
+        // 로그인 액션이 계정에 저장된 언어(profiles.preferred_lang)를 쿠키로 복사하므로(설계 §3.9),
+        // 검사 대상 언어로 쿠키를 다시 고정한다.
+        const url = new URL(baseURL!);
+        await ctx.addCookies([{ name: "deetz_lang", value: locale, domain: url.hostname, path: "/" }]);
+      }
     });
 
     test.afterAll(async () => {

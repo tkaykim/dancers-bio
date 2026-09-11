@@ -4,6 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { bugReportSchema, type BugReportInput } from "@/lib/validation/bug-report";
 import { sendBugReportEmail } from "@/lib/notify/bug-mail";
+import { getLocale, serverT } from "@/lib/i18n/server";
+import { localizeZodError } from "@/lib/i18n/zod";
+import actions from "@/lib/i18n/messages/actions";
 import type { ActionResult } from "./auth";
 
 export async function submitBugReportAction(
@@ -11,10 +14,7 @@ export async function submitBugReportAction(
 ): Promise<ActionResult<{ id: string; emailed: boolean }>> {
   const parsed = bugReportSchema.safeParse(input);
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요.",
-    };
+    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
   }
   const data = parsed.data;
 
@@ -53,7 +53,8 @@ export async function submitBugReportAction(
 
   if (error || !row) {
     console.error("[bug-report] insert failed:", error?.message);
-    return { ok: false, error: "리포트 저장에 실패했습니다. 잠시 후 다시 시도해 주세요." };
+    const t = await serverT(actions);
+    return { ok: false, error: t("bug_report.save_failed") };
   }
 
   const mail = await sendBugReportEmail({
