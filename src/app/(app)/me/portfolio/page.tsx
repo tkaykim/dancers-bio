@@ -121,13 +121,13 @@ function DancerCard({
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Crown size={12} className="text-primary" aria-hidden />
           <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-ink-3">
             {t("portfolio.own_badge")}
           </span>
           {approvalLabel ? (
-            <span className="rounded-full bg-warn/10 px-1.5 py-0.5 text-[10px] font-medium text-warn">
+            <span className="whitespace-nowrap rounded-full bg-warn/10 px-1.5 py-0.5 text-[10px] font-medium text-warn">
               {approvalLabel}
             </span>
           ) : null}

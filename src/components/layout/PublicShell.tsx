@@ -142,7 +142,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
           <div className="mt-auto border-t border-border pt-5">
             {/* 언어 전환기 — 데스크톱 사이드바 하단 (docs/design-i18n-ui.md §3.8) */}
             <div className="mb-5">
-              <LanguageSwitcher />
+              <LanguageSwitcher icon={false} />
             </div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-3">
               {t("side.client")}

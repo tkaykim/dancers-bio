@@ -290,7 +290,7 @@ const en: Record<Key, string> = {
 
   "withdraw.confirm": "Withdraw your application?",
   "withdraw.pending": "Withdrawing...",
-  "withdraw.label": "Withdraw application",
+  "withdraw.label": "Withdraw",
 
   "decline.confirm":
     "Give up your place on this project?\nYou will be removed from this casting round, and this cannot be undone.",
@@ -298,7 +298,7 @@ const en: Record<Key, string> = {
   "decline.reason_optional": "Tell us why you are giving up your place. (optional)",
   "decline.reason_missing": "At this stage you have to give a reason.",
   "decline.pending": "Working...",
-  "decline.label": "Give up my place",
+  "decline.label": "Decline",
 };
 
 const ja: Record<Key, string> = {

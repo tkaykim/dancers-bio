@@ -14,6 +14,8 @@ import nav from "@/lib/i18n/messages/nav";
 const COMPACT_LABELS: Record<Locale, string> = { ko: "한국어", en: "EN", ja: "日本語" };
 
 type Props = {
+  /** 지구본 아이콘 표시 여부(사이드바처럼 폭이 143px 남짓이면 끈다) */
+  icon?: boolean;
   /** compact = 사이드바·헤더 pill, full = 설정 카드 */
   variant?: "compact" | "full";
   className?: string;
@@ -32,7 +34,7 @@ export function LanguageSwitcher(props: Props) {
   );
 }
 
-function LanguageSwitcherInner({ variant = "compact", className }: Props) {
+function LanguageSwitcherInner({ variant = "compact", icon = true, className }: Props) {
   const locale = useLocale();
   const enabled = useEnabledLocales();
   const t = useT(nav);
@@ -65,10 +67,11 @@ function LanguageSwitcherInner({ variant = "compact", className }: Props) {
       aria-label={t("lang.switcher")}
       data-i18n-ignore
       className={
-        "inline-flex items-center gap-1 " + (className ?? "")
+        // pill 은 줄바꿈 금지, 자리가 모자라면 pill 단위로 다음 줄로 내린다(사이드바 143px·320px 헤더).
+        "inline-flex flex-wrap items-center gap-1 " + (className ?? "")
       }
     >
-      <Globe size={14} aria-hidden className="shrink-0 text-ink-3" />
+      {icon ? <Globe size={14} aria-hidden className="shrink-0 text-ink-3" /> : null}
       {options.map((l) => {
         const active = l === locale;
         return (
@@ -80,7 +83,8 @@ function LanguageSwitcherInner({ variant = "compact", className }: Props) {
             disabled={pending}
             onClick={() => select(l)}
             className={
-              "rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors disabled:opacity-60 " +
+              "whitespace-nowrap rounded-full py-0.5 text-[11px] font-semibold transition-colors disabled:opacity-60 " +
+              (variant === "full" ? "px-2.5 " : "px-1.5 ") +
               (active
                 ? "bg-foreground text-background"
                 : "text-ink-3 hover:bg-secondary hover:text-foreground")

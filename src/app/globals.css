@@ -118,6 +118,13 @@
   line-break: strict;
 }
 
+/* word-break: keep-all 은 한국어 어절 단위 줄바꿈용이다. 일본어는 띄어쓰기가 없어 keep-all 이면
+   문장이 한 줄로 넘친다(320px 랜딩 FAQ 제목이 920px 까지 늘어남). 유틸리티 레이어보다 우선하도록
+   레이어 밖에 둔다. */
+:lang(ja) :is([class~="[word-break:keep-all]"], .break-keep) {
+  word-break: normal;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

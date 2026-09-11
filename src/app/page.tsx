@@ -166,12 +166,15 @@ export default async function HomePage() {
 
       <section className="mx-auto grid min-h-svh max-w-6xl grid-cols-1 gap-10 px-5 pb-10 pt-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:px-8">
         <div className="flex flex-col justify-between gap-12">
-          <nav className="flex items-center justify-between gap-4">
-            <Link href="/" className="inline-flex items-center">
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link href="/" className="order-1 mr-auto inline-flex items-center">
               <DeetzLogo className="h-8 w-auto" priority />
             </Link>
-            <div className="flex items-center gap-2">
-              <LanguageSwitcher className="mr-1" />
+            {/* sm 미만: 로고·버튼 줄 아래 한 줄을 전환기가 쓴다. sm 이상: 버튼 왼쪽에 붙는다. */}
+            <div className="order-3 flex basis-full justify-end sm:order-2 sm:basis-auto">
+              <LanguageSwitcher />
+            </div>
+            <div className="order-2 flex items-center gap-2 sm:order-3">
               <Link href="/dancers">
                 <Button variant="ghost" size="sm" className="rounded-full">
                   {t("nav.dancers")}
@@ -190,7 +193,13 @@ export default async function HomePage() {
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
               {t("hero.badge")}
             </p>
-            <h1 className="mt-7 max-w-4xl whitespace-pre-line text-5xl font-extrabold leading-[0.96] tracking-normal text-[#171611] [word-break:keep-all] sm:text-6xl lg:text-7xl">
+            <h1
+              className={
+                "mt-7 max-w-4xl whitespace-pre-line font-extrabold leading-[0.96] tracking-normal text-[#171611] [word-break:keep-all] sm:text-6xl lg:text-7xl " +
+                // 영어는 "choreography" 같은 긴 단어가 320px 에서 48px 로는 넘친다. ko 는 종전 크기 유지.
+                (locale === "ko" ? "text-5xl" : "text-[clamp(2.25rem,12vw,3rem)]")
+              }
+            >
               {t("hero.title")}
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-[#4f4a40] [word-break:keep-all]">

@@ -318,19 +318,6 @@ export default async function ApplicationsPage() {
                             >
                               {r.project?.title ?? t("list.project_deleted")}
                             </p>
-                            <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-ink-3">
-                              <span
-                                className={`rounded-full px-2 py-0.5 font-semibold ${style.chip}`}
-                                data-ugc={chip.ugc ? "" : undefined}
-                              >
-                                {chip.text}
-                              </span>
-                              <span>
-                                {r.source === "direct_proposal"
-                                  ? t("list.source.direct_proposal")
-                                  : t("list.source.apply")}
-                              </span>
-                            </p>
                           </Link>
                           {r.project ? (
                             <OpenThreadButton
@@ -348,6 +335,20 @@ export default async function ApplicationsPage() {
                             />
                           ) : null}
                         </div>
+                        {/* 단계 칩은 버튼 옆 좁은 열이 아니라 카드 전체 폭에 둔다(긴 영어 라벨이 320px 에서 3줄로 꺾이던 문제). */}
+                        <p className="-mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-ink-3">
+                          <span
+                            className={`whitespace-nowrap rounded-full px-2 py-0.5 font-semibold ${style.chip}`}
+                            data-ugc={chip.ugc ? "" : undefined}
+                          >
+                            {chip.text}
+                          </span>
+                          <span>
+                            {r.source === "direct_proposal"
+                              ? t("list.source.direct_proposal")
+                              : t("list.source.apply")}
+                          </span>
+                        </p>
 
                         {/* 중간 단계 합격을 최종 합격으로 오해하지 않도록 카드 안에서 한 번 더 못박는다. */}
                         {needsNotFinalCaveat(r, r.project) ? (

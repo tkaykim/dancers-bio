@@ -19,6 +19,8 @@ type Route = {
   path: string;
   /** 로그인 필요 */
   auth?: boolean;
+  /** 비로그인 전용(로그인 상태면 /me 로 리다이렉트되는 화면). 별도 게스트 컨텍스트로 연다 */
+  guest?: boolean;
   /** 화면별 대표 문구(기대 언어 확인). 정규식은 innerText 에 대해 검사 */
   expect: Record<Locale, RegExp>;
   /** 이 라우트에서는 한글 검사를 건너뛴다(공고 언어 우선·이용자 작성 글이 대부분인 화면) */
@@ -26,9 +28,9 @@ type Route = {
 };
 
 const ROUTES: Route[] = [
-  { path: "/", expect: { en: /casting/i, ja: /キャスティング|募集/ } },
-  { path: "/login", expect: { en: /log in/i, ja: /ログイン/ } },
-  { path: "/signup", expect: { en: /get started|sign up/i, ja: /アカウント|登録/ } },
+  { path: "/", guest: true, expect: { en: /casting/i, ja: /キャスティング|募集/ } },
+  { path: "/login", guest: true, expect: { en: /log in/i, ja: /ログイン/ } },
+  { path: "/signup", guest: true, expect: { en: /get started|sign up/i, ja: /アカウント|登録/ } },
   { path: "/feed", expect: { en: /casting/i, ja: /募集/ } },
   { path: "/dancers", expect: { en: /dancer/i, ja: /ダンサー/ } },
   { path: "/me", auth: true, expect: { en: /account|profile/i, ja: /アカウント|プロフィール/ } },
@@ -105,16 +107,25 @@ for (const locale of LOCALES) {
   test.describe(`locale=${locale}`, () => {
     let ctx: BrowserContext;
     let page: Page;
+    let guestCtx: BrowserContext;
+    let guestPage: Page;
     const errors: string[] = [];
 
-    test.beforeAll(async ({ browser, baseURL }) => {
-      ctx = await newContext(browser, locale, baseURL!);
-      page = await ctx.newPage();
-      page.on("console", (msg) => {
+    const watch = (p: Page) => {
+      p.on("console", (msg) => {
         if (msg.type() === "error") errors.push(`console: ${msg.text()}`);
         if (/hydrat/i.test(msg.text())) errors.push(`hydration: ${msg.text()}`);
       });
-      page.on("pageerror", (err) => errors.push(`pageerror: ${err.message}`));
+      p.on("pageerror", (err) => errors.push(`pageerror: ${err.message}`));
+    };
+
+    test.beforeAll(async ({ browser, baseURL }) => {
+      guestCtx = await newContext(browser, locale, baseURL!);
+      guestPage = await guestCtx.newPage();
+      watch(guestPage);
+      ctx = await newContext(browser, locale, baseURL!);
+      page = await ctx.newPage();
+      watch(page);
       if (ROUTES.some((r) => r.auth) && process.env.E2E_EMAIL) {
         await login(page);
         // 로그인 액션이 계정에 저장된 언어(profiles.preferred_lang)를 쿠키로 복사하므로(설계 §3.9),
@@ -126,11 +137,15 @@ for (const locale of LOCALES) {
 
     test.afterAll(async () => {
       await ctx?.close();
+      await guestCtx?.close();
     });
+
+    const loggedPage = () => page;
 
     for (const route of ROUTES) {
       test(`${route.path}`, async () => {
         if (route.auth && !process.env.E2E_EMAIL) test.skip(true, "로그인 계정 미설정");
+        const page = route.guest ? guestPage : loggedPage();
         errors.length = 0;
         await page.setViewportSize({ width: 1280, height: 900 });
         await page.goto(route.path, { waitUntil: "networkidle" });
