@@ -131,6 +131,7 @@ export function AdminSidebarNav({ superAdmin, toolsOnly = false }: { superAdmin:
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 aria-current={active ? "page" : undefined}
                 className={
                   "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors " +
@@ -164,6 +165,7 @@ export function AdminTopNav({ superAdmin, toolsOnly = false }: { superAdmin: boo
           <Link
             key={item.href}
             href={item.href}
+            prefetch={false}
             aria-current={active ? "page" : undefined}
             className={
               "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors " +

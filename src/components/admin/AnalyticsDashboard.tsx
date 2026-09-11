@@ -408,8 +408,8 @@ export function AnalyticsDashboard({
             <p className="text-sm text-ink-3">데이터 없음</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {topChannels.arr.map((c) => (
-                <RankRow key={c.name} label={c.name} value={c.n} max={topChannels.arr[0].n} />
+              {topChannels.arr.map((c, i) => (
+                <RankRow key={`${c.name}-${i}`} label={c.name} value={c.n} max={topChannels.arr[0].n} />
               ))}
               {topChannels.none > 0 ? (
                 <RankRow label="채널 없음" value={topChannels.none} max={topChannels.arr[0].n} muted />

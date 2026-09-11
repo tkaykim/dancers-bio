@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import {
   AnalyticsDashboard,
   type AnalyticsData,
@@ -10,26 +11,57 @@ import { serverNowMs } from "@/lib/server-time";
 
 export const dynamic = "force-dynamic";
 
+type ProfileRow = { id: string; created_at: string };
+type ApplicationRow = {
+  applicant_id: string | null;
+  created_at: string;
+  status: string;
+  recruitment_channel_id: string | null;
+};
+type DancerRow = { profile_id: string | null; created_at: string | null };
+
 export default async function AdminAnalyticsPage() {
   const profile = await requireProfile();
   if (!profile.is_admin) notFound();
 
   const supabase = await createClient();
+  // ⚠️ 과거 버그: profiles/applications/dancers 를 range 없이 select 해서
+  // PostgREST 기본 상한 1,000행에서 조용히 잘렸다 → "누적 유저 1,000" 고정 표기.
+  // 전수 집계가 목적이므로 페이지 단위로 끝까지 읽는다.
   const [
-    { data: pRows },
-    { data: aRows },
-    { data: dRows },
+    pRows,
+    aRows,
+    dRows,
     { data: chRows },
     { data: projRows },
     { data: actSummary },
     { data: dauRows },
     { data: mauRows },
   ] = await Promise.all([
-    supabase.from("profiles").select("id, created_at"),
-    supabase
-      .from("applications")
-      .select("applicant_id, created_at, status, recruitment_channel_id"),
-    supabase.from("dancers").select("profile_id, created_at"),
+    fetchAllRows<ProfileRow>((from, to) =>
+      supabase
+        .from("profiles")
+        .select("id, created_at")
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
+    fetchAllRows<ApplicationRow>((from, to) =>
+      supabase
+        .from("applications")
+        .select("applicant_id, created_at, status, recruitment_channel_id")
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
+    fetchAllRows<DancerRow>((from, to) =>
+      supabase
+        .from("dancers")
+        .select("profile_id, created_at")
+        .order("created_at", { ascending: true, nullsFirst: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
     supabase.from("recruitment_channels").select("id, name"),
     supabase.from("projects").select("status").is("deleted_at", null),
     supabase.rpc("admin_activity_summary"),
@@ -40,17 +72,10 @@ export default async function AdminAnalyticsPage() {
   const num = (v: string | null) => (v ? new Date(v).getTime() : NaN);
 
   const data: AnalyticsData = {
-    signups: ((pRows ?? []) as { id: string; created_at: string }[])
+    signups: pRows
       .map((r) => ({ id: r.id, t: num(r.created_at) }))
       .filter((x) => !Number.isNaN(x.t)),
-    apps: (
-      (aRows ?? []) as {
-        applicant_id: string | null;
-        created_at: string;
-        status: string;
-        recruitment_channel_id: string | null;
-      }[]
-    )
+    apps: aRows
       .map((r) => ({
         uid: r.applicant_id,
         t: num(r.created_at),
@@ -58,9 +83,7 @@ export default async function AdminAnalyticsPage() {
         ch: r.recruitment_channel_id,
       }))
       .filter((x) => !Number.isNaN(x.t)),
-    dancers: (
-      (dRows ?? []) as { profile_id: string | null; created_at: string | null }[]
-    ).map((r) => ({
+    dancers: dRows.map((r) => ({
       claimed: !!r.profile_id,
       t: r.created_at ? num(r.created_at) : null,
     })),
