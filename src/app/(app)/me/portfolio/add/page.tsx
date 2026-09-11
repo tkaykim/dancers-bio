@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Crown } from "lucide-react";
 import { requireUser } from "@/lib/auth/guard";
 import { safeReturnTo } from "@/lib/safeRedirect";
+import { serverT } from "@/lib/i18n/server";
+import me from "@/lib/i18n/messages/me";
 
 export default async function AddDancerRolePage({
   searchParams,
@@ -9,6 +11,7 @@ export default async function AddDancerRolePage({
   searchParams: Promise<{ returnTo?: string }>;
 }) {
   await requireUser();
+  const t = await serverT(me);
   const { returnTo } = await searchParams;
   const safeReturn = returnTo ? safeReturnTo(returnTo, "") : "";
   const returnQs = safeReturn ? `&returnTo=${encodeURIComponent(safeReturn)}` : "";
@@ -17,14 +20,12 @@ export default async function AddDancerRolePage({
     <div className="mx-auto flex max-w-md flex-col lg:max-w-2xl gap-6 px-6 py-8">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-          ↳ 댄서 포트폴리오
+          ↳ {t("portfolio_add.eyebrow")}
         </p>
         <h1 className="text-2xl font-bold tracking-tight leading-tight">
-          프로필 만들기
+          {t("portfolio_add.title")}
         </h1>
-        <p className="text-sm text-ink-2">
-          이미 등록된 댄서가 있는지 먼저 확인할까요?
-        </p>
+        <p className="text-sm text-ink-2">{t("portfolio_add.desc")}</p>
       </header>
 
       <div className="flex flex-col gap-3">
@@ -36,10 +37,8 @@ export default async function AddDancerRolePage({
             <Crown size={18} />
           </span>
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-semibold">시작하기</p>
-            <p className="text-xs text-ink-3">
-              30초만에 본인 댄서 프로필을 만들 수 있어요.
-            </p>
+            <p className="text-sm font-semibold">{t("portfolio_add.start_title")}</p>
+            <p className="text-xs text-ink-3">{t("portfolio_add.start_desc")}</p>
           </div>
         </Link>
       </div>

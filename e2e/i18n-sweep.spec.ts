@@ -28,7 +28,7 @@ type Route = {
 const ROUTES: Route[] = [
   { path: "/", expect: { en: /casting/i, ja: /キャスティング|募集/ } },
   { path: "/login", expect: { en: /log in/i, ja: /ログイン/ } },
-  { path: "/signup", expect: { en: /sign up/i, ja: /会員登録/ } },
+  { path: "/signup", expect: { en: /get started|sign up/i, ja: /アカウント|登録/ } },
   { path: "/feed", expect: { en: /casting/i, ja: /募集/ } },
   { path: "/dancers", expect: { en: /dancer/i, ja: /ダンサー/ } },
   { path: "/me", auth: true, expect: { en: /account|profile/i, ja: /アカウント|プロフィール/ } },

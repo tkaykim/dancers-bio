@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, ImageIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 // 원본 입력 한도(50MB). 큰 사진은 업로드 직전에 자동 압축돼서 Storage 에는 작게 들어감.
 const MAX_INPUT_BYTES = 50 * 1024 * 1024;
@@ -39,11 +41,13 @@ export function AvatarUpload({
   currentUrl,
   name,
   shape = "rounded",
-  alt = "프로필 사진",
+  alt,
   onChange,
   size = 120,
   disabled = false,
 }: Props) {
+  const t = useT(portfolio);
+  const altText = alt ?? t("avatar.alt_default");
   const inputRef = useRef<HTMLInputElement>(null);
   const [pickedFile, setPickedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,11 +69,11 @@ export function AvatarUpload({
     const f = e.target.files?.[0];
     if (!f) return;
     if (!ACCEPTED_TYPES.includes(f.type)) {
-      setError("JPG, PNG, WEBP, GIF 형식만 업로드할 수 있습니다.");
+      setError(t("avatar.error_type"));
       return;
     }
     if (f.size > MAX_INPUT_BYTES) {
-      setError(`이미지는 ${MAX_INPUT_MB}MB 이하만 업로드할 수 있습니다.`);
+      setError(t("avatar.error_size", { max: MAX_INPUT_MB }));
       return;
     }
     setPickedFile(f);
@@ -93,7 +97,7 @@ export function AvatarUpload({
         type="button"
         onClick={handleClickAvatar}
         disabled={disabled}
-        aria-label={previewUrl ? "프로필 사진 변경" : "프로필 사진 추가"}
+        aria-label={previewUrl ? t("avatar.aria_change") : t("avatar.aria_add")}
         className={cn(
           "group relative flex shrink-0 items-center justify-center overflow-hidden border border-hairline-2 bg-surface-2 transition-colors",
           radius,
@@ -107,7 +111,7 @@ export function AvatarUpload({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={previewUrl}
-            alt={alt}
+            alt={altText}
             className="size-full object-cover"
             loading="eager"
           />
@@ -124,7 +128,7 @@ export function AvatarUpload({
             <span className="flex flex-col items-center gap-1">
               <Camera size={20} />
               <span className="text-[11px] font-semibold">
-                {previewUrl ? "사진 변경" : "사진 추가"}
+                {previewUrl ? t("avatar.overlay_change") : t("avatar.overlay_add")}
               </span>
             </span>
           </span>
@@ -145,23 +149,27 @@ export function AvatarUpload({
         {pickedFile ? (
           <div className="flex flex-col gap-1.5">
             <p className="text-xs text-ink-2">
-              <span className="font-semibold text-foreground">새 사진 준비됨</span>
+              <span className="font-semibold text-foreground">
+                {t("avatar.picked_title")}
+              </span>
               {" · "}
-              <span className="truncate">{pickedFile.name}</span>
+              <span className="truncate" data-ugc>
+                {pickedFile.name}
+              </span>
             </p>
             <button
               type="button"
               onClick={handleClearPick}
               className="inline-flex w-fit items-center gap-1 rounded-full border border-hairline-2 px-2.5 py-1 text-[11px] text-ink-2 transition-colors hover:bg-secondary"
             >
-              <X size={12} /> 취소
+              <X size={12} /> {t("avatar.cancel")}
             </button>
-            <p className="text-xs text-ink-3">저장 버튼을 누르면 적용됩니다.</p>
+            <p className="text-xs text-ink-3">{t("avatar.picked_hint")}</p>
           </div>
         ) : (
           <p className="text-xs text-ink-3">
-            사진을 클릭해 변경하세요. <br />
-            JPG, PNG, WEBP, GIF · 최대 {MAX_INPUT_MB}MB · 큰 사진은 자동 압축됩니다
+            {t("avatar.hint_click")} <br />
+            {t("avatar.hint_formats", { max: MAX_INPUT_MB })}
           </p>
         )}
         {error ? (

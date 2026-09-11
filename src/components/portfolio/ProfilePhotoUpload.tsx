@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ImageIcon, Upload, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 // 원본 입력 한도 50MB. 업로드 직전 자동 압축.
@@ -17,6 +19,7 @@ type Props = {
 };
 
 export function ProfilePhotoUpload({ file, onChange }: Props) {
+  const t = useT(portfolio);
   const inputRef = useRef<HTMLInputElement>(null);
   const preview = useMemo(
     () => (file ? URL.createObjectURL(file) : null),
@@ -34,11 +37,11 @@ export function ProfilePhotoUpload({ file, onChange }: Props) {
     if (!next) return;
     setError(null);
     if (!ACCEPTED_TYPES.includes(next.type)) {
-      setError("JPG, PNG, WEBP, GIF 형식만 업로드할 수 있습니다.");
+      setError(t("photo.error_type"));
       return;
     }
     if (next.size > MAX_BYTES) {
-      setError(`이미지는 ${MAX_MB}MB 이하만 업로드할 수 있습니다.`);
+      setError(t("photo.error_size", { max: MAX_MB }));
       return;
     }
     onChange(next);
@@ -62,7 +65,7 @@ export function ProfilePhotoUpload({ file, onChange }: Props) {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={preview}
-              alt="프로필 미리보기"
+              alt={t("photo.preview_alt")}
               className="size-full object-cover"
             />
           ) : (
@@ -83,7 +86,7 @@ export function ProfilePhotoUpload({ file, onChange }: Props) {
             className="inline-flex w-fit items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <Upload className="size-4" />
-            {preview ? "사진 변경" : "사진 업로드"}
+            {preview ? t("photo.change") : t("photo.upload")}
           </button>
           {preview ? (
             <button
@@ -92,10 +95,10 @@ export function ProfilePhotoUpload({ file, onChange }: Props) {
               className="inline-flex w-fit items-center gap-2 rounded-lg border border-hairline-2 px-4 py-2 text-sm text-ink-2 transition-colors hover:bg-secondary"
             >
               <X className="size-4" />
-              제거
+              {t("photo.remove")}
             </button>
           ) : null}
-          <p className="text-xs text-ink-3">JPG, PNG, WEBP, GIF · 최대 {MAX_MB}MB · 큰 사진은 자동 압축됩니다</p>
+          <p className="text-xs text-ink-3">{t("photo.hint", { max: MAX_MB })}</p>
         </div>
       </div>
       {error ? (

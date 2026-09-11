@@ -34,6 +34,7 @@ const PRIORITY_COUNTRIES: CountryCode[] = [
 ];
 
 const PRIORITY_COUNTRY_LABELS: Partial<Record<CountryCode, string>> = {
+  // eslint-disable-next-line no-restricted-syntax -- 한·영 병기, ko 외 언어에서는 InternationalPhoneField 가 한글 접두를 뗀다
   KR: "대한민국 / South Korea",
   US: "United States",
   JP: "Japan",

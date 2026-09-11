@@ -13,6 +13,9 @@ import { useEffect } from "react";
 import { usePortfolioImport } from "./usePortfolioImport";
 import { ImportReviewList } from "./ImportReviewList";
 import type { ParsedPortfolio } from "@/lib/ai/portfolio-extractor";
+import { useT, useLocale } from "@/lib/i18n/provider";
+import { formatNumber } from "@/lib/i18n/t";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 type Props = {
   open: boolean;
@@ -38,6 +41,8 @@ export function PortfolioImportSheet({
   onParsed,
   onCompleted,
 }: Props) {
+  const t = useT(portfolio);
+  const locale = useLocale();
   const [tab, setTab] = useState<"pdf" | "text">("pdf");
   const [text, setText] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -82,11 +87,10 @@ export function PortfolioImportSheet({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Sparkles size={16} className="text-primary" />
-            포트폴리오 자동 입력
+            {t("import.sheet_title")}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            PDF 또는 텍스트를 첨부하면 AI가 경력을 정리해서 추출합니다. 저장
-            전에 직접 검토·수정할 수 있어요.
+            {t("import.sheet_desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -115,7 +119,7 @@ export function PortfolioImportSheet({
                     : "text-ink-3")
                 }
               >
-                <FileText size={12} /> 텍스트
+                <FileText size={12} /> {t("import.tab_text")}
               </button>
             </div>
 
@@ -123,9 +127,9 @@ export function PortfolioImportSheet({
               <div className="flex flex-col gap-2">
                 <label className="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border border-dashed border-hairline-2 p-8 text-center text-sm transition-colors hover:bg-secondary">
                   <Upload size={20} className="text-ink-3" />
-                  <span className="font-medium">PDF 파일 선택</span>
+                  <span className="font-medium">{t("import.pdf_pick")}</span>
                   <span className="text-[11px] text-ink-3">
-                    32MB 이하 · application/pdf
+                    {t("import.pdf_limit")}
                   </span>
                   <input
                     ref={fileRef}
@@ -143,11 +147,13 @@ export function PortfolioImportSheet({
                   onChange={(e) => setText(e.target.value)}
                   rows={10}
                   maxLength={50000}
-                  placeholder="포트폴리오 텍스트를 붙여넣으세요. 예) 활동명, 경력, 수상, SNS 등."
+                  placeholder={t("import.text_placeholder")}
                   className="rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
                 <p className="text-[11px] text-ink-3">
-                  {text.length.toLocaleString()} / 50,000자
+                  {t("import.text_count", {
+                    count: formatNumber(text.length, locale),
+                  })}
                 </p>
                 <button
                   type="button"
@@ -155,7 +161,7 @@ export function PortfolioImportSheet({
                   disabled={!text.trim()}
                   className="self-end rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                 >
-                  분석 시작
+                  {t("import.analyze")}
                 </button>
               </div>
             )}
@@ -167,8 +173,8 @@ export function PortfolioImportSheet({
             <Loader2 className="size-6 animate-spin text-primary" />
             <p>
               {importer.phase === "uploading"
-                ? "PDF 업로드 중…"
-                : "AI가 포트폴리오를 분석하고 있어요. 약 20~60초 소요됩니다."}
+                ? t("import.uploading")
+                : t("import.analyzing")}
             </p>
           </div>
         ) : null}
@@ -183,7 +189,7 @@ export function PortfolioImportSheet({
               onClick={importer.reset}
               className="self-end rounded-full border border-hairline-2 px-4 py-2 text-sm font-medium"
             >
-              다시 시도
+              {t("import.retry")}
             </button>
           </div>
         ) : null}

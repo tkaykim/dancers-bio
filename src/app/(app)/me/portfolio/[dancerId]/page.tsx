@@ -7,6 +7,9 @@ import { CareersNavLink } from "@/components/portfolio/CareersNavLink";
 import { PortfolioFileUploader } from "@/components/portfolio/PortfolioFileUploader";
 import { extractSocialHandle } from "@/lib/utils/social";
 import type { NationalityOption } from "@/lib/nationality";
+import { serverT } from "@/lib/i18n/server";
+import type { Translator } from "@/lib/i18n/t";
+import me from "@/lib/i18n/messages/me";
 
 export default async function MyPortfolioEditPage({
   params,
@@ -15,6 +18,7 @@ export default async function MyPortfolioEditPage({
 }) {
   const { dancerId } = await params;
   const user = await requireUser();
+  const t = await serverT(me);
   const supabase = await createClient();
   const { data: dancer } = await supabase
     .from("dancers")
@@ -63,24 +67,22 @@ export default async function MyPortfolioEditPage({
       <header className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-            ↳ 댄서 포트폴리오
+            ↳ {t("portfolio_edit.eyebrow")}
           </p>
           <h1 className="text-2xl font-bold tracking-tight leading-tight">
-            프로필 편집
+            {t("portfolio_edit.title")}
           </h1>
-          <p className="text-sm text-ink-2">
-            공개 페이지에 노출되는 정보를 편집합니다.
-          </p>
+          <p className="text-sm text-ink-2">{t("portfolio_edit.desc")}</p>
         </div>
         <Link
           href={publicHref}
           className="shrink-0 rounded-full border border-hairline-2 px-3 py-1.5 text-xs uppercase tracking-[0.14em] text-ink-2 hover:text-foreground"
         >
-          공개 보기 →
+          {t("portfolio_edit.view_public")} →
         </Link>
       </header>
 
-      <ApprovalBanner dancer={dancer} />
+      <ApprovalBanner dancer={dancer} t={t} />
 
       <DancerProfileForm
         userId={user.id}
@@ -143,41 +145,45 @@ export default async function MyPortfolioEditPage({
 
 function ApprovalBanner({
   dancer,
+  t,
 }: {
   dancer: {
     approval_status: "pending" | "approved" | "rejected" | null;
     approval_reject_reason: string | null;
   };
+  t: Translator<typeof me>;
 }) {
   const status = dancer.approval_status ?? "pending";
   if (status === "approved") {
     return (
       <div className="flex items-center gap-2 rounded-xl border border-ok/30 bg-ok/5 px-4 py-3 text-sm text-ok">
         <span className="text-base">●</span>
-        <span>공개 중 — 디렉토리에 노출되고 있습니다.</span>
+        <span>{t("portfolio_edit.approval_approved")}</span>
       </div>
     );
   }
   if (status === "rejected") {
     return (
       <div className="flex flex-col gap-1 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-        <p className="font-semibold">거부됨 — 디렉토리에 노출되지 않습니다.</p>
+        <p className="font-semibold">{t("portfolio_edit.approval_rejected_title")}</p>
         {dancer.approval_reject_reason ? (
-          <p className="text-xs text-destructive/80">
-            사유: {dancer.approval_reject_reason}
+          <p data-ugc className="text-xs text-destructive/80">
+            {t("portfolio_edit.approval_reject_reason", {
+              reason: dancer.approval_reject_reason,
+            })}
           </p>
         ) : null}
         <p className="text-xs text-destructive/80">
-          내용을 수정해도 재노출은 관리자가 다시 검토해야 합니다.
+          {t("portfolio_edit.approval_rejected_note")}
         </p>
       </div>
     );
   }
   return (
     <div className="flex flex-col gap-1 rounded-xl border border-warn/30 bg-warn/5 px-4 py-3 text-sm text-warn">
-      <p className="font-semibold">심사 중</p>
+      <p className="font-semibold">{t("portfolio_edit.approval_pending_title")}</p>
       <p className="text-xs text-warn/80">
-        관리자 승인 후 공개 디렉토리에 노출됩니다.
+        {t("portfolio_edit.approval_pending_note")}
       </p>
     </div>
   );

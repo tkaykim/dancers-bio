@@ -30,11 +30,11 @@ export function LocaleProvider({
   enabled,
   children,
 }: LocaleContextValue & { children: ReactNode }) {
+  // enabled 는 서버가 만든 배열이라 참조가 렌더마다 바뀔 수 있어 내용(문자열)으로 비교한다.
+  const enabledKey = enabled.join(",");
   const value = useMemo<LocaleContextValue>(
-    () => ({ locale, requested, enabled }),
-    // enabled 는 서버가 만든 배열이라 참조가 렌더마다 바뀔 수 있어 내용으로 비교한다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [locale, requested, enabled.join(",")],
+    () => ({ locale, requested, enabled: enabledKey.split(",") as Locale[] }),
+    [locale, requested, enabledKey],
   );
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }

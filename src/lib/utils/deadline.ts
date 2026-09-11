@@ -74,6 +74,7 @@ export type DeadlineLabels = {
 
 /** 언어별 기본 라벨. 호출처의 labels override 가 이보다 우선한다. */
 const DEFAULT_DEADLINE_LABELS: Record<Locale, Required<Pick<DeadlineLabels, "none" | "past" | "today">>> = {
+  // eslint-disable-next-line no-restricted-syntax -- 언어별 기본 라벨(ko 분기)
   ko: { none: "—", past: "마감", today: "오늘" },
   en: { none: "—", past: "Closed", today: "Today" },
   ja: { none: "—", past: "締切", today: "今日" },

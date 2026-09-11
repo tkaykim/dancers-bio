@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 type Props = {
   href: string;
@@ -15,6 +17,7 @@ type Props = {
  * 미저장 상태에서 클릭하면 확인 모달을 띄운다.
  */
 export function CareersNavLink({ href }: Props) {
+  const t = useT(portfolio);
   const router = useRouter();
   const [dirty, setDirty] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -49,20 +52,18 @@ export function CareersNavLink({ href }: Props) {
       >
         <div className="flex items-center justify-between">
           <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-            ↳ 경력 관리
+            {t("careers_nav.eyebrow")}
           </p>
           <span className="text-ink-3 transition-transform group-hover:translate-x-1">
             →
           </span>
         </div>
-        <p className="text-lg font-bold leading-tight">안무·출연·수상·공연.</p>
-        <p className="text-sm text-ink-2">
-          카테고리별로 경력을 추가하고 영상 링크를 첨부합니다.
-        </p>
+        <p className="text-lg font-bold leading-tight">{t("careers_nav.title")}</p>
+        <p className="text-sm text-ink-2">{t("careers_nav.desc")}</p>
         {dirty ? (
           <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-warn">
             <AlertTriangle size={12} />
-            프로필에 미저장 변경사항이 있어요. 먼저 저장하세요.
+            {t("careers_nav.dirty_warning")}
           </p>
         ) : null}
       </Link>
@@ -83,10 +84,8 @@ export function CareersNavLink({ href }: Props) {
                 <AlertTriangle size={18} />
               </span>
               <div className="flex flex-col gap-1">
-                <h3 className="text-base font-bold">저장하지 않고 이동할까요?</h3>
-                <p className="text-sm text-ink-2">
-                  프로필에 변경사항이 있어요. 이동하면 변경사항이 사라집니다.
-                </p>
+                <h3 className="text-base font-bold">{t("careers_nav.confirm_title")}</h3>
+                <p className="text-sm text-ink-2">{t("careers_nav.confirm_body")}</p>
               </div>
             </div>
             <div className="mt-4 flex gap-2">
@@ -95,14 +94,14 @@ export function CareersNavLink({ href }: Props) {
                 onClick={() => setConfirming(false)}
                 className="flex-1 rounded-lg border border-hairline-2 bg-background py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
               >
-                돌아가서 저장하기
+                {t("careers_nav.confirm_stay")}
               </button>
               <button
                 type="button"
                 onClick={discardAndGo}
                 className="flex-1 rounded-lg bg-destructive/10 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/20"
               >
-                변경사항 버리기
+                {t("careers_nav.confirm_discard")}
               </button>
             </div>
           </div>

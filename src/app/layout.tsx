@@ -98,6 +98,7 @@ export default async function RootLayout({
         "@type": "Organization",
         "@id": `${SITE}/#organization`,
         name: "deetz",
+        // eslint-disable-next-line no-restricted-syntax -- 브랜드 한글 표기(구조화 데이터, 화면 문구 아님)
         alternateName: ["디츠", "deetz", "dancers.bio"],
         url: SITE,
         logo: `${SITE}/brand/deetz-logo-black.png`,
@@ -115,6 +116,7 @@ export default async function RootLayout({
         "@id": `${SITE}/#website`,
         url: SITE,
         name: "deetz",
+        // eslint-disable-next-line no-restricted-syntax -- 브랜드 한글 표기(구조화 데이터)
         alternateName: "디츠",
         inLanguage: LOCALE_TAGS[locale],
         publisher: { "@id": `${SITE}/#organization` },

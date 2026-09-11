@@ -3,9 +3,12 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { TeamProfileForm } from "@/components/team/TeamProfileForm";
+import { serverT } from "@/lib/i18n/server";
+import me from "@/lib/i18n/messages/me";
 
 export default async function NewTeamPage() {
   const user = await requireUser();
+  const t = await serverT(me);
   const supabase = await createClient();
 
   // multi-dancer 안전(R3): 본인 소유 dancer가 여럿일 수 있어 limit(1).
@@ -23,13 +26,13 @@ export default async function NewTeamPage() {
   return (
     <div className="mx-auto flex max-w-md flex-col lg:max-w-2xl gap-8 px-6 py-8 pb-40">
       <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 팀 만들기</p>
-        <h1 className="text-2xl font-bold tracking-tight">새 팀 프로필</h1>
-        <p className="text-sm text-ink-2">
-          만들면 자동으로 팀장이 되며, 관리자 승인 후 디렉토리에 노출됩니다.
+        <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
+          ↳ {t("team_new.eyebrow")}
         </p>
+        <h1 className="text-2xl font-bold tracking-tight">{t("team_new.title")}</h1>
+        <p className="text-sm text-ink-2">{t("team_new.desc")}</p>
         <Link href="/me/teams" className="text-xs text-ink-3 hover:text-foreground">
-          ← 내 팀 목록
+          ← {t("team_new.back")}
         </Link>
       </header>
 

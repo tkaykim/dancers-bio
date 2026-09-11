@@ -79,7 +79,9 @@ export function InternationalPhoneField({
             className="h-8 w-full min-w-0 rounded-lg border border-input bg-background px-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
           >
             {PHONE_COUNTRY_OPTIONS.map((option) => (
-              <option key={option.code} value={option.code}>
+              // Intl.DisplayNames 결과가 Node ICU 와 브라우저 ICU 에서 다를 수 있어(예: "Falkland Islands (Islas Malvinas)")
+              // 서버 HTML 과 클라이언트 텍스트가 어긋난다. 라벨은 표시용이라 이 요소만 경고를 억제한다.
+              <option key={option.code} value={option.code} suppressHydrationWarning>
                 +{option.callingCode} {option.code} · {countryLabel(option.label, locale)}
               </option>
             ))}

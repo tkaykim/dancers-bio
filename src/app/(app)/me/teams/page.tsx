@@ -3,9 +3,13 @@ import { redirect } from "next/navigation";
 import { ChevronRight, Plus } from "lucide-react";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { serverT } from "@/lib/i18n/server";
+import type { Translator } from "@/lib/i18n/t";
+import me from "@/lib/i18n/messages/me";
 
 export default async function MyTeamsPage() {
   const user = await requireUser();
+  const t = await serverT(me);
   const supabase = await createClient();
 
   const { data: ownDancers } = await supabase
@@ -51,30 +55,31 @@ export default async function MyTeamsPage() {
   return (
     <div className="flex flex-col gap-6 px-6 pb-10 pt-8">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold tracking-tight">내 팀</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">{t("teams.title")}</h1>
         <Link
           href="/me/teams/new"
           className="flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold"
         >
-          <Plus size={14} aria-hidden /> 팀 만들기
+          <Plus size={14} aria-hidden /> {t("teams.create_cta")}
         </Link>
       </header>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-ink-2">내가 팀장인 팀</h2>
+        <h2 className="text-sm font-bold text-ink-2">{t("teams.section_led")}</h2>
         <ul className="overflow-hidden rounded-2xl border border-border bg-card">
           {(ledTeams ?? []).length === 0 ? (
-            <EmptyRow text="팀장으로 활동 중인 팀이 없습니다." />
+            <EmptyRow text={t("teams.empty_led")} />
           ) : (
-            (ledTeams ?? []).map((t) => (
+            (ledTeams ?? []).map((team) => (
               <TeamRow
-                key={t.id}
-                href={`/me/teams/${t.id}`}
-                publicHref={`/t/${t.slug ?? t.id}`}
-                name={t.team_name}
-                approvalStatus={t.approval_status as "pending" | "approved" | "rejected"}
-                isActive={t.is_active}
-                slug={t.slug}
+                key={team.id}
+                t={t}
+                href={`/me/teams/${team.id}`}
+                publicHref={`/t/${team.slug ?? team.id}`}
+                name={team.team_name}
+                approvalStatus={team.approval_status as "pending" | "approved" | "rejected"}
+                isActive={team.is_active}
+                slug={team.slug}
               />
             ))
           )}
@@ -82,19 +87,20 @@ export default async function MyTeamsPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-ink-2">소속 팀</h2>
+        <h2 className="text-sm font-bold text-ink-2">{t("teams.section_member")}</h2>
         <ul className="overflow-hidden rounded-2xl border border-border bg-card">
           {memberTeams.length === 0 ? (
-            <EmptyRow text="다른 팀의 멤버로 등록된 곳이 없습니다." />
+            <EmptyRow text={t("teams.empty_member")} />
           ) : (
-            memberTeams.map((t) => (
+            memberTeams.map((team) => (
               <TeamRow
-                key={t.id}
-                href={t.slug ? `/t/${t.slug}` : `/t/${t.id}`}
-                name={t.team_name}
-                approvalStatus={t.approval_status as "pending" | "approved" | "rejected"}
-                isActive={t.is_active}
-                slug={t.slug}
+                key={team.id}
+                t={t}
+                href={team.slug ? `/t/${team.slug}` : `/t/${team.id}`}
+                name={team.team_name}
+                approvalStatus={team.approval_status as "pending" | "approved" | "rejected"}
+                isActive={team.is_active}
+                slug={team.slug}
                 memberOnly
               />
             ))
@@ -106,6 +112,7 @@ export default async function MyTeamsPage() {
 }
 
 function TeamRow({
+  t,
   href,
   publicHref,
   name,
@@ -114,6 +121,7 @@ function TeamRow({
   slug,
   memberOnly,
 }: {
+  t: Translator<typeof me>;
   href: string;
   publicHref?: string | null;
   name: string;
@@ -123,12 +131,12 @@ function TeamRow({
   memberOnly?: boolean;
 }) {
   const statusText = !isActive
-    ? "비활성"
+    ? t("teams.status_inactive")
     : approvalStatus === "approved"
-      ? "공개 중"
+      ? t("teams.status_public")
       : approvalStatus === "rejected"
-        ? "노출 거부됨"
-        : "심사 중";
+        ? t("teams.status_rejected")
+        : t("teams.status_pending");
   return (
     <li className="flex items-center justify-between gap-2 border-b border-border pr-3 last:border-b-0">
       <Link
@@ -136,9 +144,9 @@ function TeamRow({
         className="flex min-w-0 flex-1 items-center px-4 py-4 transition-colors active:bg-secondary"
       >
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="truncate text-base font-semibold">{name}</span>
+          <span data-ugc className="truncate text-base font-semibold">{name}</span>
           <span className="text-xs text-ink-3">
-            {memberOnly ? "멤버" : "팀장"} · {statusText}
+            {memberOnly ? t("teams.role_member") : t("teams.role_lead")} · {statusText}
             {slug ? ` · /t/${slug}` : ""}
           </span>
         </div>
@@ -148,7 +156,7 @@ function TeamRow({
           href={publicHref}
           className="shrink-0 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-card"
         >
-          보기 ↗
+          {t("teams.view_public")} ↗
         </Link>
       ) : (
         <ChevronRight size={18} className="mr-1 shrink-0 text-ink-3" aria-hidden />

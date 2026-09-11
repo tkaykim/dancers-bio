@@ -6,6 +6,8 @@ import {
   submitFitBySessionAction,
 } from "@/app/actions/quick-fit";
 import { TOP_SIZES, WAIST_INCHES, LENGTH_CMS } from "@/lib/fit/sizes";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 function Select({
   id,
@@ -22,6 +24,7 @@ function Select({
   options: string[];
   render?: (v: string) => string;
 }) {
+  const t = useT(portfolio);
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="text-sm font-medium">
@@ -34,7 +37,7 @@ function Select({
         defaultValue={defaultValue}
         className="h-12 rounded-xl border border-border bg-background px-4 text-base"
       >
-        <option value="">선택</option>
+        <option value="">{t("fit.select_placeholder")}</option>
         {options.map((o) => (
           <option key={o} value={o}>
             {render ? render(o) : o}
@@ -59,6 +62,7 @@ function ComboNumber({
   defaultValue: string;
   options: string[];
 }) {
+  const t = useT(portfolio);
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="text-sm font-medium">
@@ -71,7 +75,7 @@ function ComboNumber({
         type="number"
         inputMode="numeric"
         defaultValue={defaultValue}
-        placeholder={`선택 또는 직접입력 (${unit})`}
+        placeholder={t("fit.combo_placeholder", { unit })}
         className="h-12 rounded-xl border border-border bg-background px-4 text-base placeholder:text-ink-3"
       />
       <datalist id={`${id}-list`}>
@@ -98,6 +102,7 @@ export function QuickFitForm({
   waist: string | null;
   length: string | null;
 }) {
+  const t = useT(portfolio);
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,10 +110,8 @@ export function QuickFitForm({
   if (done) {
     return (
       <div className="rounded-2xl border border-ok/30 bg-ok/10 p-6 text-center">
-        <p className="text-base font-bold text-foreground">저장됐어요! 🙆</p>
-        <p className="mt-1 text-sm text-ink-2">
-          사이즈 입력 감사합니다. 이 창은 닫으셔도 됩니다.
-        </p>
+        <p className="text-base font-bold text-foreground">{t("fit.done_title")}</p>
+        <p className="mt-1 text-sm text-ink-2">{t("fit.done_desc")}</p>
       </div>
     );
   }
@@ -138,31 +141,31 @@ export function QuickFitForm({
 
       <Select
         id="top_size"
-        label="상의 사이즈"
+        label={t("fit.top_size")}
         defaultValue={top ?? ""}
         options={TOP_SIZES}
       />
 
       <div className="rounded-xl border border-border/70 bg-muted/30 p-3">
-        <p className="mb-2 text-sm font-medium">하의 사이즈</p>
+        <p className="mb-2 text-sm font-medium">{t("fit.bottom_size")}</p>
         <div className="grid grid-cols-2 gap-3">
           <ComboNumber
             id="pants_waist_inch"
-            label="허리"
-            unit="인치"
+            label={t("fit.waist")}
+            unit={t("fit.waist_unit")}
             defaultValue={waist ?? ""}
             options={WAIST_INCHES}
           />
           <ComboNumber
             id="pants_length_cm"
-            label="기장"
+            label={t("fit.length")}
             unit="cm"
             defaultValue={length ?? ""}
             options={LENGTH_CMS}
           />
         </div>
         <p className="mt-2 text-[11px] text-ink-3">
-          목록에서 선택하거나 숫자를 직접 입력해도 됩니다.
+          {t("fit.combo_hint")}
         </p>
       </div>
 
@@ -176,10 +179,10 @@ export function QuickFitForm({
         disabled={pending}
         className="h-12 rounded-xl bg-primary text-base font-semibold text-primary-foreground disabled:opacity-50"
       >
-        {pending ? "저장 중…" : "제출하기"}
+        {pending ? t("fit.saving") : t("fit.submit")}
       </button>
       <p className="text-center text-[11px] text-ink-3">
-        {name}님의 정보로 저장됩니다. 신발은 검정색으로 직접 지참해 주세요.
+        {t("fit.footer", { name })}
       </p>
     </form>
   );

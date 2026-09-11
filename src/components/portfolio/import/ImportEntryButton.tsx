@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { PortfolioImportSheet } from "./PortfolioImportSheet";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 /**
  * CTA card + modal trigger for the AI portfolio import flow on the
@@ -16,6 +18,7 @@ export function ImportEntryButton({
   profileId: string;
   dancerId: string;
 }) {
+  const t = useT(portfolio);
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -28,10 +31,8 @@ export function ImportEntryButton({
           <Sparkles size={18} />
         </span>
         <div className="flex flex-1 flex-col gap-0.5">
-          <p className="text-sm font-semibold">AI로 포트폴리오 일괄 추가</p>
-          <p className="text-xs text-ink-3">
-            PDF나 텍스트를 첨부하면 경력을 자동으로 정리해 드려요.
-          </p>
+          <p className="text-sm font-semibold">{t("import.entry_title")}</p>
+          <p className="text-xs text-ink-3">{t("import.entry_desc")}</p>
         </div>
       </button>
       <PortfolioImportSheet

@@ -19,17 +19,22 @@ import {
   type NationalityVisaValue,
 } from "@/components/portfolio/NationalityVisaFields";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/provider";
+import type { Translator } from "@/lib/i18n/t";
+import portfolio from "@/lib/i18n/messages/portfolio";
+
+type T = Translator<typeof portfolio>;
 
 const TOTAL_STEPS = 6;
 
 const SPECIALTIES = [
-  { value: "choreo", label: "안무 (Choreography)" },
-  { value: "broadcast", label: "방송 (Broadcast)" },
-  { value: "battle", label: "배틀 (Battle)" },
-  { value: "workshop", label: "워크샵 (Workshop)" },
-  { value: "judge", label: "심사 (Judge)" },
-  { value: "performance", label: "공연 (Performance)" },
-];
+  { value: "choreo", labelKey: "wizard.specialty_choreo" },
+  { value: "broadcast", labelKey: "wizard.specialty_broadcast" },
+  { value: "battle", labelKey: "wizard.specialty_battle" },
+  { value: "workshop", labelKey: "wizard.specialty_workshop" },
+  { value: "judge", labelKey: "wizard.specialty_judge" },
+  { value: "performance", labelKey: "wizard.specialty_performance" },
+] as const;
 
 const GENRES = [
   "Hip Hop",
@@ -97,6 +102,7 @@ type CreateProfileWizardProps = {
 };
 
 export function CreateProfileWizard({ userId, role, returnTo = null }: CreateProfileWizardProps) {
+  const t = useT(portfolio);
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [data, setData] = useState<FormState>(initialState);
@@ -149,15 +155,14 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              // eslint-disable-next-line no-restricted-syntax -- i18n: 운영 담당자가 보는 내부 오류 리포트(사용자 화면 문구 아님)
               message: `[온보딩] 프로필 사진 업로드 실패: ${upload.error}`,
               url: typeof window !== "undefined" ? window.location.href : null,
               source: "client",
               context: { area: "dancer_onboarding", step: "photo_upload" },
             }),
           }).catch(() => {});
-          failWith(
-            "프로필 사진을 올리지 못했어요. 잠시 후 다시 시도하거나, 사진 없이 진행해 주세요.",
-          );
+          failWith(t("wizard.error_photo_upload"));
           return;
         }
         profileImgUrl = upload.url;
@@ -230,7 +235,7 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
       if (careerFailedCount > 0) {
         // 프로필은 만들어졌으니 경력 페이지로 보내되 안내.
         setError(
-          `프로필은 생성됐지만 경력 ${careerFailedCount}건은 저장에 실패했습니다. 경력 페이지에서 직접 추가해 주세요.`,
+          t("wizard.error_careers_partial", { count: careerFailedCount }),
         );
       }
 
@@ -272,13 +277,13 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
           <button
             type="button"
             onClick={step === 1 ? () => router.back() : goPrev}
-            aria-label="뒤로"
+            aria-label={t("wizard.aria_back")}
             className="-ml-2 rounded-full p-2 text-foreground transition-colors hover:bg-secondary"
           >
             <ArrowLeft className="size-5" />
           </button>
           <span className="text-base font-bold tracking-tight">
-            {role === "manager" ? "매니저 프로필 생성" : "프로필 생성"}
+            {role === "manager" ? t("wizard.title_manager") : t("wizard.title_self")}
             <span className="ml-2 font-mono text-xs text-ink-3">
               {step}/{TOTAL_STEPS}
             </span>
@@ -309,13 +314,16 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
         className="mx-auto max-w-md animate-in slide-in-from-right-4 fade-in px-6 py-8 duration-300"
       >
         {step === 1 ? (
-          <StepBasic data={data} setData={setData} />
+          <StepBasic t={t} data={data} setData={setData} />
         ) : null}
         {step === 2 ? (
           <StepPriority
-            title="전문 분야"
-            description="주요 활동 영역을 선택하세요. 선택 순서가 우선순위입니다."
-            options={SPECIALTIES}
+            title={t("wizard.step_specialty_title")}
+            description={t("wizard.step_specialty_desc")}
+            options={SPECIALTIES.map((s) => ({
+              value: s.value,
+              label: t(s.labelKey),
+            }))}
             selected={data.specialties}
             onChange={(specialties) => setData({ ...data, specialties })}
             variant="list"
@@ -323,8 +331,8 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
         ) : null}
         {step === 3 ? (
           <StepPriority
-            title="장르"
-            description="주로 하는 장르를 선택하세요. 선택 순서가 우선순위입니다."
+            title={t("wizard.step_genre_title")}
+            description={t("wizard.step_genre_desc")}
             options={GENRES.map((g) => ({ value: g, label: g }))}
             selected={data.genres}
             onChange={(genres) => setData({ ...data, genres })}
@@ -345,6 +353,7 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
         ) : null}
         {step === 6 ? (
           <StepReview
+            t={t}
             data={data}
             previewUrl={previewUrl}
             role={role}
@@ -362,7 +371,7 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
               disabled={pending}
               className="rounded-lg border border-hairline-2 bg-secondary px-5 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-surface-3 disabled:opacity-50"
             >
-              이전
+              {t("wizard.prev")}
             </button>
           ) : null}
           <button
@@ -379,7 +388,7 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
               <Loader2 className="size-5 animate-spin" />
             ) : (
               <>
-                {isLast ? "프로필 생성 완료" : "다음"}
+                {isLast ? t("wizard.submit") : t("wizard.next")}
                 {!isLast ? <ChevronRight className="size-4" /> : null}
               </>
             )}
@@ -391,55 +400,57 @@ export function CreateProfileWizard({ userId, role, returnTo = null }: CreatePro
 }
 
 function StepBasic({
+  t,
   data,
   setData,
 }: {
+  t: T;
   data: FormState;
   setData: (next: FormState) => void;
 }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h2 className="text-2xl font-bold tracking-tight">기본 정보</h2>
-        <p className="text-sm text-ink-2">활동명과 기본 정보를 입력하세요.</p>
+        <h2 className="text-2xl font-bold tracking-tight">{t("wizard.basic_title")}</h2>
+        <p className="text-sm text-ink-2">{t("wizard.basic_desc")}</p>
       </div>
 
       <div className="flex flex-col gap-4">
-        <Field label="활동명 (Stage Name)" required>
+        <Field label={t("wizard.field_stage_name")} required>
           <input
             type="text"
-            placeholder="예: Hong Gil Dong"
+            placeholder={t("wizard.placeholder_stage_name")}
             className={fieldInputClass}
             value={data.stage_name}
             onChange={(e) => setData({ ...data, stage_name: e.target.value })}
             autoFocus
           />
         </Field>
-        <Field label="한글 이름 (선택)">
+        <Field label={t("wizard.field_korean_name")}>
           <input
             type="text"
-            placeholder="예: 홍길동"
+            placeholder={t("wizard.placeholder_korean_name")}
             className={fieldInputClass}
             value={data.korean_name}
             onChange={(e) => setData({ ...data, korean_name: e.target.value })}
           />
         </Field>
-        <Field label="활동 지역 (선택)">
+        <Field label={t("wizard.field_location")}>
           <input
             type="text"
-            placeholder="예: Seoul"
+            placeholder={t("wizard.placeholder_location")}
             className={fieldInputClass}
             value={data.location}
             onChange={(e) => setData({ ...data, location: e.target.value })}
           />
         </Field>
-        <Field label="성별 (선택)">
+        <Field label={t("wizard.field_gender")}>
           <div className="flex gap-2">
             {(
               [
-                { value: "male", label: "남성" },
-                { value: "female", label: "여성" },
-                { value: "other", label: "기타" },
+                { value: "male", label: t("wizard.gender_male") },
+                { value: "female", label: t("wizard.gender_female") },
+                { value: "other", label: t("wizard.gender_other") },
               ] as const
             ).map((option) => (
               <button
@@ -463,14 +474,14 @@ function StepBasic({
             ))}
           </div>
         </Field>
-        <Field label="키 · 신발 사이즈 (선택)">
+        <Field label={t("wizard.field_body")}>
           <div className="flex gap-2">
             <input
               type="number"
               inputMode="numeric"
               min={100}
               max={250}
-              placeholder="키 (cm)"
+              placeholder={t("wizard.placeholder_height")}
               className={fieldInputClass}
               value={data.height_cm}
               onChange={(e) => setData({ ...data, height_cm: e.target.value })}
@@ -480,18 +491,16 @@ function StepBasic({
               inputMode="numeric"
               min={180}
               max={330}
-              placeholder="신발 (mm)"
+              placeholder={t("wizard.placeholder_shoe")}
               className={fieldInputClass}
               value={data.shoe_size_mm}
               onChange={(e) => setData({ ...data, shoe_size_mm: e.target.value })}
             />
           </div>
-          <p className="mt-1.5 text-xs text-ink-3">
-            입력하면 캐스팅 매칭·섭외 확률이 올라가요. 국적·신체정보는 본인과 관리자에게만 보이며, 지원할 때 별도로 공개 동의를 받습니다.
-          </p>
+          <p className="mt-1.5 text-xs text-ink-3">{t("wizard.body_hint")}</p>
         </Field>
 
-        <Field label="국적 · 비자">
+        <Field label={t("wizard.field_nationality")}>
           <NationalityVisaFields
             defaultValue={data.nationalityVisa}
             emitHiddenInputs={false}
@@ -541,11 +550,12 @@ function StepPhoto({
   file: File | null;
   onChange: (file: File | null) => void;
 }) {
+  const t = useT(portfolio);
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h2 className="text-2xl font-bold tracking-tight">프로필 사진</h2>
-        <p className="text-sm text-ink-2">대표 이미지를 업로드하세요. (선택)</p>
+        <h2 className="text-2xl font-bold tracking-tight">{t("wizard.photo_title")}</h2>
+        <p className="text-sm text-ink-2">{t("wizard.photo_desc")}</p>
       </div>
       <ProfilePhotoUpload file={file} onChange={onChange} />
     </div>
@@ -559,13 +569,12 @@ function StepSocial({
   value: SocialHandles;
   onChange: (next: SocialHandles) => void;
 }) {
+  const t = useT(portfolio);
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h2 className="text-2xl font-bold tracking-tight">SNS 연결</h2>
-        <p className="text-sm text-ink-2">
-          소셜 미디어 핸들을 입력하세요. (선택)
-        </p>
+        <h2 className="text-2xl font-bold tracking-tight">{t("wizard.social_title")}</h2>
+        <p className="text-sm text-ink-2">{t("wizard.social_desc")}</p>
       </div>
       <SocialLinksInput value={value} onChange={onChange} />
     </div>
@@ -573,11 +582,13 @@ function StepSocial({
 }
 
 function StepReview({
+  t,
   data,
   previewUrl,
   role,
   onChangeBio,
 }: {
+  t: T;
   data: FormState;
   previewUrl: string | null;
   role: "self" | "manager";
@@ -586,16 +597,14 @@ function StepReview({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h2 className="text-2xl font-bold tracking-tight">소개 및 확인</h2>
-        <p className="text-sm text-ink-2">
-          간단한 소개를 작성하고 입력 정보를 확인하세요.
-        </p>
+        <h2 className="text-2xl font-bold tracking-tight">{t("wizard.review_title")}</h2>
+        <p className="text-sm text-ink-2">{t("wizard.review_desc")}</p>
       </div>
 
-      <Field label="소개 (선택)">
+      <Field label={t("wizard.field_bio")}>
         <textarea
           rows={4}
-          placeholder="자신을 소개하는 글을 작성하세요..."
+          placeholder={t("wizard.placeholder_bio")}
           className={cn(fieldInputClass, "resize-none")}
           value={data.bio}
           onChange={(e) => onChangeBio(e.target.value)}
@@ -605,7 +614,7 @@ function StepReview({
       {role === "manager" ? (
         <div className="flex items-center gap-1.5 rounded-full border border-hairline-2 bg-card px-3 py-1.5 text-[11px] font-medium text-ink-2 w-fit">
           <Shield size={10} />
-          매니저로 등록 — 프로필 소유자가 나중에 클레임 가능
+          {t("wizard.manager_badge")}
         </div>
       ) : null}
 
@@ -616,39 +625,45 @@ function StepReview({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={previewUrl}
-                alt="프로필 미리보기"
+                alt={t("wizard.preview_alt")}
                 className="size-full object-cover"
               />
             ) : null}
           </div>
           <div className="flex flex-col gap-0.5">
-            <h3 className="text-lg font-bold leading-tight">
-              {data.stage_name || "(활동명 미입력)"}
+            <h3 className="text-lg font-bold leading-tight" data-ugc>
+              {data.stage_name || t("wizard.stage_name_empty")}
             </h3>
             {data.korean_name ? (
-              <p className="text-sm text-ink-2">{data.korean_name}</p>
+              <p className="text-sm text-ink-2" data-ugc>
+                {data.korean_name}
+              </p>
             ) : null}
             {data.location ? (
-              <p className="text-xs text-ink-3">{data.location}</p>
+              <p className="text-xs text-ink-3" data-ugc>
+                {data.location}
+              </p>
             ) : null}
           </div>
         </div>
 
         {data.specialties.length > 0 ? (
           <ReviewBadges
-            label="전문 분야 (우선순위)"
-            items={data.specialties.map((value, i) => ({
-              value,
-              label:
-                SPECIALTIES.find((s) => s.value === value)?.label ?? value,
-              priority: i + 1,
-            }))}
+            label={t("wizard.review_specialties")}
+            items={data.specialties.map((value, i) => {
+              const found = SPECIALTIES.find((s) => s.value === value);
+              return {
+                value,
+                label: found ? t(found.labelKey) : value,
+                priority: i + 1,
+              };
+            })}
           />
         ) : null}
 
         {data.genres.length > 0 ? (
           <ReviewBadges
-            label="장르 (우선순위)"
+            label={t("wizard.review_genres")}
             items={data.genres.map((value, i) => ({
               value,
               label: value,
@@ -683,9 +698,7 @@ function StepReview({
         ) : null}
       </div>
 
-      <p className="text-xs text-ink-3">
-        프로필 생성 후 관리자 승인을 거쳐 디렉토리에 노출됩니다.
-      </p>
+      <p className="text-xs text-ink-3">{t("wizard.review_note")}</p>
     </div>
   );
 }

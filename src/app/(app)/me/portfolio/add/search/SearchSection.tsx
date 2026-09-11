@@ -13,6 +13,9 @@ import {
 import { claimDancerProfileAction } from "@/app/actions/claim";
 import { createClient } from "@/lib/supabase/browser";
 import { Input } from "@/components/ui/input";
+import { useT, useLocale } from "@/lib/i18n/provider";
+import { formatNumber } from "@/lib/i18n/t";
+import me from "@/lib/i18n/messages/me";
 
 const PAGE_SIZE = 24;
 
@@ -45,6 +48,8 @@ export function SearchSection({
   returnTo = null,
 }: Props) {
   const router = useRouter();
+  const t = useT(me);
+  const locale = useLocale();
   const [query, setQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [dancers, setDancers] = useState<DancerResult[]>(initialDancers);
@@ -57,7 +62,10 @@ export function SearchSection({
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimPending, startClaim] = useTransition();
 
-  const roleLabel = role === "manager" ? "매니저로 등록" : "본인으로 등록";
+  const roleLabel =
+    role === "manager"
+      ? t("portfolio_search.role_manager")
+      : t("portfolio_search.role_self");
   const roleIcon =
     role === "manager" ? (
       <Shield size={12} className="text-ink-2" />
@@ -155,14 +163,12 @@ export function SearchSection({
     <div className="mx-auto flex max-w-md flex-col lg:max-w-2xl gap-6 px-6 py-8">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-          ↳ 댄서 포트폴리오
+          ↳ {t("portfolio_search.eyebrow")}
         </p>
         <h1 className="text-2xl font-bold tracking-tight leading-tight">
-          기존 프로필 검색
+          {t("portfolio_search.title")}
         </h1>
-        <p className="text-sm text-ink-2">
-          이미 등록된 프로필이 있을 수 있어요. 활동명·한글 이름으로 검색해 보세요.
-        </p>
+        <p className="text-sm text-ink-2">{t("portfolio_search.desc")}</p>
         <div className="mt-1 flex items-center gap-1.5">
           {roleIcon}
           <span className="text-xs font-medium text-ink-3">{roleLabel}</span>
@@ -172,7 +178,8 @@ export function SearchSection({
       <Input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="활동명, 한글 이름 검색"
+        placeholder={t("portfolio_search.input_placeholder")}
+        aria-label={t("portfolio_search.input_placeholder")}
         autoComplete="off"
         type="search"
         enterKeyHint="search"
@@ -181,15 +188,18 @@ export function SearchSection({
 
       {totalCount > 0 && !debouncedQ ? (
         <p className="text-[11px] text-ink-3">
-          총 {totalCount.toLocaleString()}명 중 {shown.toLocaleString()}명 표시
+          {t("portfolio_search.count_summary", {
+            total: formatNumber(totalCount, locale),
+            shown: formatNumber(shown, locale),
+          })}
         </p>
       ) : null}
 
       {dancers.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-hairline-2 p-8 text-center text-sm text-ink-3">
           {debouncedQ
-            ? `"${debouncedQ}" 와 일치하는 프로필이 없어요. 아래에서 새로 만들어드릴게요.`
-            : "등록된 댄서가 없습니다."}
+            ? t("portfolio_search.empty_query", { query: debouncedQ })
+            : t("portfolio_search.empty")}
         </p>
       ) : (
         <ul className="grid grid-cols-2 gap-3">
@@ -200,11 +210,11 @@ export function SearchSection({
                   <div className="flex items-center gap-3 rounded-2xl border border-ok/30 bg-ok/5 p-4 text-sm text-ok">
                     <CheckCircle size={16} className="shrink-0" />
                     <div className="flex flex-col gap-0.5">
-                      <p className="font-semibold">
-                        {d.stage_name} — 권한 신청 완료
+                      <p data-ugc className="font-semibold">
+                        {t("portfolio_search.claim_submitted", { name: d.stage_name })}
                       </p>
                       <p className="text-xs text-ok/80">
-                        관리자 승인 후 프로필이 연결됩니다.
+                        {t("portfolio_search.claim_submitted_desc")}
                       </p>
                     </div>
                   </div>
@@ -244,7 +254,9 @@ export function SearchSection({
           disabled={loadingMore}
           className="mx-auto mt-2 rounded-full border border-hairline-2 bg-card px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
         >
-          {loadingMore ? "불러오는 중…" : "더 보기"}
+          {loadingMore
+            ? t("portfolio_search.loading_more")
+            : t("portfolio_search.load_more")}
         </button>
       ) : null}
 
@@ -257,7 +269,9 @@ export function SearchSection({
           }}
           className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-hairline-2 p-4 text-sm font-medium text-ink-2 transition-colors hover:bg-secondary"
         >
-          {debouncedQ ? "없어요, 새로 만들기" : "건너뛰고 바로 새로 만들기"}
+          {debouncedQ
+            ? t("portfolio_search.create_new_query")
+            : t("portfolio_search.create_new")}
           <ChevronRight size={14} />
         </button>
       </div>
@@ -272,6 +286,7 @@ function DancerCard({
   dancer: DancerResult;
   onClick: () => void;
 }) {
+  const t = useT(me);
   return (
     <button
       type="button"
@@ -303,20 +318,20 @@ function DancerCard({
         }}
       />
       <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-0.5 p-3">
-        <p className="text-sm font-semibold leading-tight text-white">
+        <p data-ugc className="text-sm font-semibold leading-tight text-white">
           {dancer.stage_name}
         </p>
         {dancer.korean_name ? (
-          <p className="text-[11px] text-white/65">{dancer.korean_name}</p>
+          <p data-ugc className="text-[11px] text-white/65">{dancer.korean_name}</p>
         ) : null}
         {(dancer.genres ?? []).length > 0 ? (
-          <p className="text-[10px] text-white/55">
+          <p data-ugc className="text-[10px] text-white/55">
             {(dancer.genres ?? []).slice(0, 2).join(" · ")}
           </p>
         ) : null}
       </div>
       <span className="absolute right-2 top-2 rounded-full bg-card/80 px-2 py-0.5 text-[10px] text-ink-3 backdrop-blur">
-        큐레이션
+        {t("portfolio_search.curated_badge")}
       </span>
     </button>
   );
@@ -337,6 +352,7 @@ function ClaimForm({
   error: string | null;
   pending: boolean;
 }) {
+  const t = useT(me);
   const [message, setMessage] = useState("");
 
   return (
@@ -356,16 +372,21 @@ function ClaimForm({
           </div>
         )}
         <div className="flex flex-col gap-0.5">
-          <p className="text-sm font-semibold">{dancer.stage_name}</p>
+          <p data-ugc className="text-sm font-semibold">{dancer.stage_name}</p>
           <p className="text-xs text-ink-3">
-            {role === "manager" ? "매니저로 권한 신청" : "본인 프로필로 권한 신청"}
+            {role === "manager"
+              ? t("portfolio_search.claim_role_manager")
+              : t("portfolio_search.claim_role_self")}
           </p>
         </div>
       </div>
 
       <div className="flex flex-col gap-1">
         <label className="text-xs font-medium text-ink-2">
-          관리자에게 전달할 메시지 <span className="text-ink-4">(선택)</span>
+          {t("portfolio_search.claim_message_label")}{" "}
+          <span className="text-ink-4">
+            {t("portfolio_search.claim_message_optional")}
+          </span>
         </label>
         <textarea
           rows={3}
@@ -374,9 +395,10 @@ function ClaimForm({
           maxLength={1000}
           placeholder={
             role === "manager"
-              ? "예: 이 댄서의 매니저입니다. 연락처: ..."
-              : "예: 본인입니다. 인스타그램 @..."
+              ? t("portfolio_search.claim_message_placeholder_manager")
+              : t("portfolio_search.claim_message_placeholder_self")
           }
+          aria-label={t("portfolio_search.claim_message_label")}
           className="w-full resize-none rounded-lg border border-hairline-2 bg-background px-3 py-2 text-sm placeholder:text-ink-4 focus:border-primary focus:outline-none"
         />
       </div>
@@ -387,9 +409,7 @@ function ClaimForm({
         </p>
       ) : null}
 
-      <p className="text-xs text-ink-3">
-        신청 후 관리자 검토를 거쳐 연결됩니다.
-      </p>
+      <p className="text-xs text-ink-3">{t("portfolio_search.claim_note")}</p>
 
       <div className="flex gap-2">
         <button
@@ -398,7 +418,7 @@ function ClaimForm({
           disabled={pending}
           className="flex-1 rounded-lg border border-hairline-2 bg-background py-2.5 text-sm font-medium text-ink-2 transition-colors hover:bg-secondary disabled:opacity-50"
         >
-          취소
+          {t("portfolio_search.claim_cancel")}
         </button>
         <button
           type="button"
@@ -406,7 +426,11 @@ function ClaimForm({
           disabled={pending}
           className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
-          {pending ? <Loader2 size={14} className="animate-spin" /> : "권한 신청"}
+          {pending ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            t("portfolio_search.claim_submit")
+          )}
         </button>
       </div>
     </div>

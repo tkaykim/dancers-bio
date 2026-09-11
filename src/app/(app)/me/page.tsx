@@ -7,8 +7,13 @@ import { createClient } from "@/lib/supabase/server";
 import { ProfileCard } from "@/components/profile/ProfileCard";
 import { ProfileShareCard } from "@/components/share/ProfileShareCard";
 import { PushPrompt } from "@/components/layout/PushPrompt";
+import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { MessagesTextLink } from "@/components/messaging/MessagesBadge";
 import { BugReportRow } from "@/components/feedback/BugReport";
+import { serverT, getLocale } from "@/lib/i18n/server";
+import { formatNumber } from "@/lib/i18n/t";
+import me from "@/lib/i18n/messages/me";
+import nav from "@/lib/i18n/messages/nav";
 import { listManagedProjects } from "@/lib/projects/managed";
 import { visaByCode } from "@/lib/data/korea-visas";
 import {
@@ -22,6 +27,9 @@ import { deriveVisaProgress, VISA_PROGRESS_LABELS } from "@/lib/visa/progress";
 // 팀 기능은 재활성화됨(댄서 프로필 보유 시 "내 팀" 노출).
 export default async function MePage() {
   const user = await requireUser();
+  const t = await serverT(me);
+  const tNav = await serverT(nav);
+  const locale = await getLocale();
   const supabase = await createClient();
   const { data: profile } = await supabase
     .from("profiles")
@@ -46,7 +54,9 @@ export default async function MePage() {
       ? `https://dancers.bio/${ownDancer.slug}`
       : `https://dancers.bio/d/${ownDancer.id}`
     : null;
-  const shareTitle = `${profile.display_name ?? "댄서"} | 댄서 프로필 · dancers.bio`;
+  const shareTitle = t("account.share_title", {
+    name: profile.display_name ?? t("account.share_title_fallback_name"),
+  });
   const visaAccess = await loadMemberVisaAccess(user.id);
 
   // 관리 공고는 마이페이지에 줄줄이 펼치지 않고 메뉴 한 줄로만 요약한다 — 목록은 /me/projects.
@@ -72,50 +82,57 @@ export default async function MePage() {
       ) : null}
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-bold text-ink-2">활동</h2>
+        <h2 className="text-sm font-bold text-ink-2">{t("account.section_activity")}</h2>
         <ul className="overflow-hidden rounded-2xl border border-border bg-card">
           {managedProjects.length > 0 ? (
             <SettingsRow
               href="/me/projects"
-              title="내가 관리하는 공고"
-              desc={`모집 중 ${managedOpenCount}건 · 전체 ${managedProjects.length}건`}
+              title={t("account.managed_projects_title")}
+              desc={t("account.managed_projects_desc", {
+                open: formatNumber(managedOpenCount, locale),
+                total: formatNumber(managedProjects.length, locale),
+              })}
             />
           ) : null}
           <SettingsRow
             href="/me/portfolio"
-            title="댄서 포트폴리오"
-            desc={ownDancer ? "활동명·경력·영상 편집" : "포트폴리오 만들기"}
+            title={t("account.portfolio_title")}
+            desc={
+              ownDancer
+                ? t("account.portfolio_desc_has")
+                : t("account.portfolio_desc_none")
+            }
           />
           {ownDancer ? (
             <SettingsRow
               href="/me/teams"
-              title="내 팀"
-              desc="팀 프로필 · 멤버 관리"
+              title={t("account.teams_title")}
+              desc={t("account.teams_desc")}
             />
           ) : null}
           <SettingsRow
             href="/me/settlements"
-            title="정산 · 출금"
-            desc="정산금액 확인 · 계좌 등록 · 출금 신청"
+            title={t("account.settlements_title")}
+            desc={t("account.settlements_desc")}
           />
           <SettingsRow
             href="/me/workshops"
-            title="내 워크샵 예약"
-            desc="예약금 결제 내역 · 진행 상태"
+            title={t("account.workshops_title")}
+            desc={t("account.workshops_desc")}
           />
           {profile.is_admin ? (
             <SettingsRow
               href="/projects/new"
-              title="프로젝트 개설"
-              desc="캐스팅 공고 등록"
+              title={t("account.new_project_title")}
+              desc={t("account.new_project_desc")}
               accent
             />
           ) : null}
           {profile.is_admin ? (
             <SettingsRow
               href="/admin"
-              title="관리자 콘솔"
-              desc="인증 큐 · 사용자 권한"
+              title={t("account.admin_title")}
+              desc={t("account.admin_desc")}
             />
           ) : null}
           <BugReportRow />
@@ -125,28 +142,37 @@ export default async function MePage() {
       <PushPrompt />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-ink-2">계정</h2>
+        <h2 className="text-sm font-bold text-ink-2">{t("account.section_account")}</h2>
         <p className="px-1 text-xs text-ink-3">{user.email}</p>
         <MessagesTextLink className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-ink-2 hover:bg-secondary" />
         <Link
           href="/me/notifications"
           className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-ink-2 hover:bg-secondary"
         >
-          알림 설정 →
+          {t("account.notifications_link")} →
         </Link>
         <Link
           href="/me/password"
           className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-ink-2 hover:bg-secondary"
         >
-          비밀번호 변경 →
+          {t("account.password_link")} →
         </Link>
+        <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card px-4 py-3">
+          <div className="flex flex-col gap-0.5">
+            <p className="text-sm font-semibold text-foreground">
+              {tNav("lang.setting_title")}
+            </p>
+            <p className="text-xs text-ink-3">{tNav("lang.setting_desc")}</p>
+          </div>
+          <LanguageSwitcher variant="full" />
+        </div>
         <form action={logoutAction}>
           <button
             type="submit"
             className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card px-4 py-4 text-sm font-semibold text-ink-2 transition-colors active:bg-secondary"
           >
             <LogOut size={16} aria-hidden />
-            로그아웃
+            {t("account.logout")}
           </button>
         </form>
       </section>

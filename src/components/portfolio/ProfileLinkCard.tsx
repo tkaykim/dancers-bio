@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Copy, ExternalLink } from "lucide-react";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 /**
  * 내 프로필 링크 카드 — 승인된 댄서에게만 보인다.
@@ -17,6 +19,7 @@ export function ProfileLinkCard({
   slug: string | null;
   approved: boolean;
 }) {
+  const t = useT(portfolio);
   const [copied, setCopied] = useState(false);
 
   if (!approved || !slug) return null;
@@ -34,14 +37,14 @@ export function ProfileLinkCard({
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold">내 프로필 링크</h2>
+        <h2 className="text-sm font-semibold">{t("profile_link.title")}</h2>
         <a
           href={`https://deetz.kr/d/${slug}`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-[11px] text-ink-3 hover:text-foreground"
         >
-          deetz.kr에서 보기
+          {t("profile_link.view_on_deetz")}
           <ExternalLink size={10} aria-hidden />
         </a>
       </div>
@@ -56,16 +59,16 @@ export function ProfileLinkCard({
           className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-foreground px-2.5 py-1.5 text-xs font-semibold text-background hover:opacity-90"
         >
           <Copy size={12} aria-hidden />
-          {copied ? "복사됨" : "복사"}
+          {copied ? t("profile_link.copied") : t("profile_link.copy")}
         </button>
       </div>
 
       <p className="text-[11px] leading-relaxed text-ink-3">
-        이 주소를 인스타그램 프로필에 걸어두시면 좋습니다.
+        {t("profile_link.tip_1")}
         <br />
-        프로필 편집 → 웹사이트 칸에 붙여넣기만 하면 됩니다.
+        {t("profile_link.tip_2")}
         <br />
-        경력과 영상, 연락 경로가 한 페이지에 정리되어 전달됩니다.
+        {t("profile_link.tip_3")}
       </p>
     </section>
   );

@@ -6,11 +6,15 @@ import {
   RateCardManager,
   type RateCardRow,
 } from "@/components/portfolio/RateCardManager";
+import { serverT } from "@/lib/i18n/server";
+import type { Translator } from "@/lib/i18n/t";
+import me from "@/lib/i18n/messages/me";
 
 // 댄서 본인이 서비스별 단가(안무제작/챌린지/모델료/국내강습/해외워크샵)를 입력하는 페이지.
 // 해외워크샵은 국가별로 단가를 따로 둘 수 있다. (RLS: 본인/매니저/관리자만 쓰기)
 export default async function MyRatesPage() {
   const user = await requireUser();
+  const t = await serverT(me);
   const supabase = await createClient();
 
   const { data: dancer } = await supabase
@@ -24,7 +28,7 @@ export default async function MyRatesPage() {
   if (!dancer) {
     return (
       <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
-        <Header />
+        <Header t={t} />
         <Link
           href="/me/portfolio/add"
           className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-hairline-2 p-8 text-center transition-colors hover:bg-secondary"
@@ -33,10 +37,8 @@ export default async function MyRatesPage() {
             <Plus size={20} />
           </span>
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-semibold">먼저 댄서 프로필을 만들어 주세요</p>
-            <p className="text-xs text-ink-3">
-              프로필을 만든 뒤 단가를 등록할 수 있어요
-            </p>
+            <p className="text-sm font-semibold">{t("rates.no_dancer_title")}</p>
+            <p className="text-xs text-ink-3">{t("rates.no_dancer_desc")}</p>
           </div>
         </Link>
       </div>
@@ -54,25 +56,35 @@ export default async function MyRatesPage() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
-      <Header dancerName={dancer.stage_name} />
+      <Header t={t} dancerName={dancer.stage_name} />
       <RateCardManager initialCards={initialCards} dancerId={dancer.id} />
     </div>
   );
 }
 
-function Header({ dancerName }: { dancerName?: string }) {
+function Header({
+  t,
+  dancerName,
+}: {
+  t: Translator<typeof me>;
+  dancerName?: string;
+}) {
   return (
     <header className="flex flex-col gap-2">
       <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-        ↳ 댄서 단가
+        ↳ {t("rates.eyebrow")}
       </p>
       <h1 className="text-2xl font-bold tracking-tight leading-tight">
-        내 단가표
+        {t("rates.title")}
       </h1>
       <p className="text-sm text-ink-2">
-        {dancerName ? `${dancerName} · ` : ""}
-        안무제작 · 챌린지 · 모델료 · 강습 단가를 직접 등록하세요. 엔터테인먼트 챌린지
-        제안 등에 활용됩니다.
+        {dancerName ? (
+          <>
+            <span data-ugc>{dancerName}</span>
+            {" · "}
+          </>
+        ) : null}
+        {t("rates.desc")}
       </p>
     </header>
   );

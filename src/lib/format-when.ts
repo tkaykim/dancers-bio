@@ -1,5 +1,6 @@
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 
+/* eslint-disable no-restricted-syntax -- 언어별 표기 데이터(ko 분기)를 한 파일에서 관리한다 */
 const WDAY_KO = ["일", "월", "화", "수", "목", "금", "토"];
 const WDAY_JA = ["日", "月", "火", "水", "木", "金", "土"];
 const WDAY_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

@@ -15,6 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 type Props = {
   userId: string;
@@ -46,6 +48,7 @@ export function DancerProfileForm({
   defaultValues,
   isCreate,
 }: Props) {
+  const t = useT(portfolio);
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -73,20 +76,20 @@ export function DancerProfileForm({
   useEffect(() => {
     const s = slug.trim();
     if (!s) { setSlugStatus({ kind: "idle" }); return; }
-    if (s.length < 2) { setSlugStatus({ kind: "error", text: "2자 이상이어야 합니다." }); return; }
+    if (s.length < 2) { setSlugStatus({ kind: "error", text: t("dancer_form.slug_too_short") }); return; }
     if (!/^[a-z0-9-]+$/.test(s)) {
-      setSlugStatus({ kind: "error", text: "영문 소문자/숫자/하이픈만." });
+      setSlugStatus({ kind: "error", text: t("dancer_form.slug_invalid") });
       return;
     }
     setSlugStatus({ kind: "checking" });
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       const r = await checkSlugAvailability(s, "dancers", dancerId ?? null);
       if (!r.ok) { setSlugStatus({ kind: "error", text: r.error }); return; }
-      if (r.available) setSlugStatus({ kind: "ok", text: "사용 가능" });
-      else setSlugStatus({ kind: "warn", text: "이미 사용 중", suggestion: r.suggestion });
+      if (r.available) setSlugStatus({ kind: "ok", text: t("dancer_form.slug_available") });
+      else setSlugStatus({ kind: "warn", text: t("dancer_form.slug_taken"), suggestion: r.suggestion });
     }, 400);
-    return () => clearTimeout(t);
-  }, [slug, dancerId]);
+    return () => clearTimeout(timer);
+  }, [slug, dancerId, t]);
 
   // 미저장 변경사항 있을 때 페이지 떠나기 경고
   useEffect(() => {
@@ -132,7 +135,7 @@ export function DancerProfileForm({
           setDirty(false);
           setMessage({
             kind: "ok",
-            text: isCreate ? "댄서 프로필이 생성됐습니다." : "저장됐습니다.",
+            text: isCreate ? t("dancer_form.created") : t("dancer_form.saved"),
           });
           router.refresh();
         });
@@ -152,14 +155,14 @@ export function DancerProfileForm({
         currentUrl={currentProfileImg}
         name="profile_img"
         shape="rounded"
-        alt={defaultValues.stage_name || "프로필 사진"}
+        alt={defaultValues.stage_name || t("dancer_form.avatar_alt")}
         size={120}
         onChange={(file) => {
           if (file) setDirty(true);
         }}
       />
 
-      <Field label="활동명 (영문/예명)" htmlFor="stage_name">
+      <Field label={t("dancer_form.field_stage_name")} htmlFor="stage_name">
         <Input
           id="stage_name"
           name="stage_name"
@@ -167,25 +170,25 @@ export function DancerProfileForm({
           maxLength={80}
           value={stageName}
           onChange={(e) => setStageName(e.target.value)}
-          placeholder="예: Hong Gil Dong"
+          placeholder={t("dancer_form.placeholder_stage_name")}
         />
       </Field>
-      <Field label="한글 이름 (선택)" htmlFor="korean_name">
+      <Field label={t("dancer_form.field_korean_name")} htmlFor="korean_name">
         <Input
           id="korean_name"
           name="korean_name"
           maxLength={40}
           defaultValue={defaultValues.korean_name}
-          placeholder="예: 홍길동"
+          placeholder={t("dancer_form.placeholder_korean_name")}
         />
       </Field>
       <Field
-        label="공개 페이지 주소"
+        label={t("dancer_form.field_slug")}
         htmlFor="slug"
         hint={
           slugTouched
-            ? "영문 소문자/숫자/하이픈만 가능. 중복 시 자동으로 -2, -3 등이 붙어요."
-            : "활동명에서 자동으로 만들어집니다. 직접 정하고 싶으면 '직접 설정'을 누르세요."
+            ? t("dancer_form.hint_slug_manual")
+            : t("dancer_form.hint_slug_auto")
         }
       >
         {slugTouched ? (
@@ -200,14 +203,17 @@ export function DancerProfileForm({
               placeholder="my-stage-name"
             />
             {slugStatus.kind === "checking" ? (
-              <p className="text-xs text-ink-3">확인 중...</p>
+              <p className="text-xs text-ink-3">{t("dancer_form.slug_checking")}</p>
             ) : slugStatus.kind === "ok" ? (
               <p className="text-xs text-ok">✓ {slugStatus.text} · /d/{slug}</p>
             ) : slugStatus.kind === "warn" ? (
               <p className="text-xs text-warn">
-                이미 사용 중. 저장하면 자동으로{" "}
-                <span className="font-mono text-foreground">{slugStatus.suggestion}</span>{" "}
-                같이 뒤에 숫자가 붙어요.
+                <SlugTakenHint
+                  sentence={t("dancer_form.slug_taken_hint", {
+                    suggestion: slugStatus.suggestion,
+                  })}
+                  suggestion={slugStatus.suggestion}
+                />
               </p>
             ) : slugStatus.kind === "error" ? (
               <p className="text-xs text-destructive">{slugStatus.text}</p>
@@ -217,63 +223,66 @@ export function DancerProfileForm({
               onClick={() => { setSlugTouched(false); setSlug(slugify(stageName)); }}
               className="self-start text-xs text-ink-3 underline-offset-4 hover:underline"
             >
-              ← 자동 생성으로 되돌리기
+              {t("dancer_form.slug_reset")}
             </button>
             {/* slug hidden input ensures formData captures even if visible input is unmounted */}
           </>
         ) : (
           <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2 text-sm">
             <span className="truncate font-mono text-ink-2">
-              /d/<span className="text-foreground">{slug || "자동 생성됩니다"}</span>
+              /d/
+              <span className="text-foreground">
+                {slug || t("dancer_form.slug_auto_placeholder")}
+              </span>
             </span>
             <button
               type="button"
               onClick={() => setSlugTouched(true)}
               className="shrink-0 text-xs text-primary underline-offset-4 hover:underline"
             >
-              직접 설정
+              {t("dancer_form.slug_set_manually")}
             </button>
             <input type="hidden" name="slug" value={slug} />
           </div>
         )}
       </Field>
-      <Field label="성별 (선택)" htmlFor="gender">
+      <Field label={t("dancer_form.field_gender")} htmlFor="gender">
         <select
           id="gender"
           name="gender"
           defaultValue={defaultValues.gender}
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
         >
-          <option value="">선택 안 함</option>
-          <option value="female">여성</option>
-          <option value="male">남성</option>
-          <option value="other">기타</option>
+          <option value="">{t("dancer_form.gender_none")}</option>
+          <option value="female">{t("dancer_form.gender_female")}</option>
+          <option value="male">{t("dancer_form.gender_male")}</option>
+          <option value="other">{t("dancer_form.gender_other")}</option>
         </select>
       </Field>
-      <Field label="소개" htmlFor="bio">
+      <Field label={t("dancer_form.field_bio")} htmlFor="bio">
         <textarea
           id="bio"
           name="bio"
           rows={4}
           maxLength={1000}
           defaultValue={defaultValues.bio}
-          placeholder="댄서로서의 자신을 소개해 주세요"
+          placeholder={t("dancer_form.placeholder_bio")}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
         />
       </Field>
-      <Field label="활동 지역" htmlFor="location">
+      <Field label={t("dancer_form.field_location")} htmlFor="location">
         <Input
           id="location"
           name="location"
           maxLength={80}
           defaultValue={defaultValues.location}
-          placeholder="예: 서울"
+          placeholder={t("dancer_form.placeholder_location")}
         />
       </Field>
       <Field
-        label="키 · 신발 사이즈 (선택)"
+        label={t("dancer_form.field_body")}
         htmlFor="height_cm"
-        hint="입력하면 캐스팅 매칭·섭외 확률이 올라가요. 키 등 신체정보는 본인과 관리자에게만 보입니다."
+        hint={t("dancer_form.hint_body")}
       >
         <div className="flex gap-2">
           <Input
@@ -284,7 +293,7 @@ export function DancerProfileForm({
             min={100}
             max={250}
             defaultValue={defaultValues.height_cm}
-            placeholder="키 (cm)"
+            placeholder={t("dancer_form.placeholder_height")}
           />
           <Input
             id="shoe_size_mm"
@@ -294,16 +303,16 @@ export function DancerProfileForm({
             min={180}
             max={330}
             defaultValue={defaultValues.shoe_size_mm}
-            placeholder="신발 (mm)"
+            placeholder={t("dancer_form.placeholder_shoe")}
           />
         </div>
       </Field>
 
       <fieldset className="flex flex-col gap-3 rounded-md border border-input p-4">
-        <legend className="px-1 text-sm font-medium">국적 · 비자</legend>
-        <p className="text-xs text-ink-3">
-          국적·비자 정보는 본인과 관리자에게만 보입니다. 외국 국적이면 체류 자격을 함께 입력해 주세요.
-        </p>
+        <legend className="px-1 text-sm font-medium">
+          {t("dancer_form.nationality_legend")}
+        </legend>
+        <p className="text-xs text-ink-3">{t("dancer_form.nationality_hint")}</p>
         <NationalityVisaFields
           defaultValue={defaultValues.nationalityVisa}
           onChange={() => {
@@ -313,9 +322,9 @@ export function DancerProfileForm({
         />
       </fieldset>
       <Field
-        label="특기 (쉼표로 구분)"
+        label={t("dancer_form.field_specialties")}
         htmlFor="specialties"
-        hint="예: choreo, broadcast, workshop"
+        hint={t("dancer_form.hint_specialties")}
       >
         <Input
           id="specialties"
@@ -325,9 +334,9 @@ export function DancerProfileForm({
         />
       </Field>
       <Field
-        label="장르 (쉼표로 구분)"
+        label={t("dancer_form.field_genres")}
         htmlFor="genres"
-        hint="예: Hip Hop, K-Pop, Locking"
+        hint={t("dancer_form.hint_genres")}
       >
         <Input
           id="genres"
@@ -338,10 +347,10 @@ export function DancerProfileForm({
       </Field>
 
       <fieldset className="flex flex-col gap-3 rounded-md border border-input p-4">
-        <legend className="px-1 text-sm font-medium">SNS 핸들</legend>
-        <p className="text-xs text-ink-3">
-          @ 뒤의 사용자명만 입력하세요. URL을 붙여넣어도 자동 정리됩니다.
-        </p>
+        <legend className="px-1 text-sm font-medium">
+          {t("dancer_form.social_legend")}
+        </legend>
+        <p className="text-xs text-ink-3">{t("dancer_form.social_hint")}</p>
         <Field label="Instagram" htmlFor="social_instagram">
           <Input
             id="social_instagram"
@@ -402,12 +411,12 @@ export function DancerProfileForm({
           {dirty ? (
             <span className="flex items-center gap-1.5 rounded-full bg-warn/10 px-2.5 py-1 text-[11px] font-medium text-warn">
               <span className="size-1.5 rounded-full bg-warn" />
-              변경사항 있음
+              {t("dancer_form.dirty")}
             </span>
           ) : message?.kind === "ok" ? (
             <span className="flex items-center gap-1.5 rounded-full bg-ok/10 px-2.5 py-1 text-[11px] font-medium text-ok">
               <CheckCircle2 size={11} />
-              저장됨
+              {t("dancer_form.saved_badge")}
             </span>
           ) : null}
           <Button
@@ -421,16 +430,38 @@ export function DancerProfileForm({
               <Save size={14} />
             )}
             {uploading
-              ? "업로드 중..."
+              ? t("dancer_form.uploading")
               : pending
-              ? "저장 중..."
+              ? t("dancer_form.saving")
               : isCreate
-              ? "댄서 프로필 만들기"
-              : "저장하기"}
+              ? t("dancer_form.create")
+              : t("dancer_form.save")}
           </Button>
         </div>
       </div>
     </form>
+  );
+}
+
+/**
+ * 문장 가운데 들어가는 동적 값(<span>)을 살리려고 문장을 쪼개지 않는다.
+ * 통 문장 키 하나를 번역한 뒤, 그 값의 위치만 찾아 감싼다.
+ */
+function SlugTakenHint({
+  sentence,
+  suggestion,
+}: {
+  sentence: string;
+  suggestion: string;
+}) {
+  const at = sentence.indexOf(suggestion);
+  if (at < 0) return <>{sentence}</>;
+  return (
+    <>
+      {sentence.slice(0, at)}
+      <span className="font-mono text-foreground">{suggestion}</span>
+      {sentence.slice(at + suggestion.length)}
+    </>
   );
 }
 

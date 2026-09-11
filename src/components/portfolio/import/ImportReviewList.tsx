@@ -8,6 +8,8 @@ import {
 } from "@/lib/validation/portfolio";
 import { addCareerAction } from "@/app/actions/careers";
 import type { ParsedPortfolio } from "@/lib/ai/portfolio-extractor";
+import { useT } from "@/lib/i18n/provider";
+import portfolio from "@/lib/i18n/messages/portfolio";
 
 type Career = ParsedPortfolio["careers"][number];
 type CareerWithMeta = Career & { _id: string; _include: boolean };
@@ -39,6 +41,7 @@ export function ImportReviewList({
   onDone: () => void;
   onCancel: () => void;
 }) {
+  const t = useT(portfolio);
   const router = useRouter();
   const [careers, setCareers] = useState<CareerWithMeta[]>(() =>
     parsed.careers.map((c, i) => ({
@@ -59,7 +62,7 @@ export function ImportReviewList({
 
   function handleSaveAll() {
     if (!dancerId) {
-      setErrors(["저장할 댄서 프로필을 찾지 못했습니다."]);
+      setErrors([t("import.review_error_no_dancer")]);
       return;
     }
     const selected = careers.filter((c) => c._include);
@@ -99,7 +102,7 @@ export function ImportReviewList({
     <div className="flex flex-col gap-5">
       {parsed.warnings.length > 0 ? (
         <div className="rounded-xl border border-warn/30 bg-warn/10 p-3 text-xs text-warn">
-          <p className="mb-1 font-semibold">⚠ 확인 필요</p>
+          <p className="mb-1 font-semibold">{t("import.review_warnings_title")}</p>
           <ul className="list-disc space-y-0.5 pl-4">
             {parsed.warnings.map((w, i) => (
               <li key={i}>{w}</li>
@@ -111,19 +114,31 @@ export function ImportReviewList({
       {showProfile ? (
         <div className="rounded-xl border border-border bg-card p-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink-3">
-            ↳ 프로필 정보
+            {t("import.review_profile_title")}
           </p>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-            <Field label="활동명" value={parsed.profile.stage_name} />
-            <Field label="한글 이름" value={parsed.profile.korean_name} />
-            <Field label="지역" value={parsed.profile.location} />
-            <Field label="성별" value={parsed.profile.gender} />
             <Field
-              label="장르"
+              label={t("import.review_field_stage_name")}
+              value={parsed.profile.stage_name}
+            />
+            <Field
+              label={t("import.review_field_korean_name")}
+              value={parsed.profile.korean_name}
+            />
+            <Field
+              label={t("import.review_field_location")}
+              value={parsed.profile.location}
+            />
+            <Field
+              label={t("import.review_field_gender")}
+              value={parsed.profile.gender}
+            />
+            <Field
+              label={t("import.review_field_genres")}
               value={(parsed.profile.genres ?? []).join(", ")}
             />
             <Field
-              label="전문분야"
+              label={t("import.review_field_specialties")}
               value={(parsed.profile.specialties ?? []).join(", ")}
             />
             <Field
@@ -140,19 +155,25 @@ export function ImportReviewList({
             />
           </dl>
           {parsed.profile.bio ? (
-            <p className="mt-3 whitespace-pre-wrap rounded-md bg-secondary/40 p-3 text-xs text-ink-2">
+            <p
+              className="mt-3 whitespace-pre-wrap rounded-md bg-secondary/40 p-3 text-xs text-ink-2"
+              data-ugc
+            >
               {parsed.profile.bio}
             </p>
           ) : null}
           <p className="mt-2 text-[10px] text-ink-3">
-            프로필 정보는 검토용입니다. 온보딩 다음 단계에서 수정 가능.
+            {t("import.review_profile_note")}
           </p>
         </div>
       ) : null}
 
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-3">
-          ↳ 추출된 경력 {careers.filter((c) => c._include).length}/{careers.length}
+          {t("import.review_extracted", {
+            selected: careers.filter((c) => c._include).length,
+            total: careers.length,
+          })}
         </p>
         <button
           type="button"
@@ -161,13 +182,13 @@ export function ImportReviewList({
           }
           className="text-xs text-ink-3 underline-offset-4 hover:text-foreground hover:underline"
         >
-          전체 선택
+          {t("import.review_select_all")}
         </button>
       </div>
 
       {careers.length === 0 ? (
         <p className="rounded-xl border border-dashed border-hairline-2 p-6 text-center text-sm text-ink-3">
-          추출된 경력이 없습니다.
+          {t("import.review_empty")}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -217,7 +238,7 @@ export function ImportReviewList({
                     />
                     {c._confidence === "low" ? (
                       <span className="rounded-full bg-warn/15 px-2 py-0.5 text-[10px] text-warn">
-                        ⚠ 추정
+                        {t("import.review_badge_estimated")}
                       </span>
                     ) : null}
                   </div>
@@ -228,7 +249,7 @@ export function ImportReviewList({
                       updateCareer(c._id, { title: e.target.value })
                     }
                     className="rounded-md border border-input bg-background px-2 py-1.5 text-sm font-medium"
-                    placeholder="제목"
+                    placeholder={t("import.review_placeholder_title")}
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <input
@@ -238,7 +259,7 @@ export function ImportReviewList({
                         updateCareer(c._id, { role: e.target.value || null })
                       }
                       className="rounded-md border border-input bg-background px-2 py-1 text-[11px]"
-                      placeholder="역할 (선택)"
+                      placeholder={t("import.review_placeholder_role")}
                     />
                     <input
                       type="text"
@@ -247,7 +268,7 @@ export function ImportReviewList({
                         updateCareer(c._id, { link: e.target.value || null })
                       }
                       className="rounded-md border border-input bg-background px-2 py-1 text-[11px]"
-                      placeholder="YouTube/Vimeo 링크 (선택)"
+                      placeholder={t("import.review_placeholder_link")}
                     />
                   </div>
                   {c.description ? (
@@ -260,12 +281,12 @@ export function ImportReviewList({
                       }
                       rows={2}
                       className="rounded-md border border-input bg-background px-2 py-1 text-[11px]"
-                      placeholder="설명"
+                      placeholder={t("import.review_placeholder_description")}
                     />
                   ) : null}
                   {c._raw_date ? (
                     <p className="text-[10px] text-ink-3">
-                      원본 표기: {c._raw_date}
+                      {t("import.review_raw_date", { value: c._raw_date })}
                     </p>
                   ) : null}
                 </div>
@@ -277,7 +298,7 @@ export function ImportReviewList({
 
       {errors.length > 0 ? (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-          <p className="mb-1 font-semibold">일부 저장 실패</p>
+          <p className="mb-1 font-semibold">{t("import.review_errors_title")}</p>
           <ul className="list-disc space-y-0.5 pl-4">
             {errors.map((e, i) => (
               <li key={i}>{e}</li>
@@ -288,7 +309,10 @@ export function ImportReviewList({
 
       {progress ? (
         <p className="text-xs text-ink-3">
-          저장 중… {progress.done}/{progress.total}
+          {t("import.review_progress", {
+            done: progress.done,
+            total: progress.total,
+          })}
         </p>
       ) : null}
 
@@ -299,7 +323,7 @@ export function ImportReviewList({
           disabled={submitting}
           className="flex-1 rounded-full border border-hairline-2 px-4 py-2 text-sm font-medium"
         >
-          취소
+          {t("import.review_cancel")}
         </button>
         <button
           type="button"
@@ -307,7 +331,9 @@ export function ImportReviewList({
           disabled={submitting || careers.filter((c) => c._include).length === 0}
           className="flex-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
         >
-          {submitting ? "저장 중…" : "선택 항목 저장"}
+          {submitting
+            ? t("import.review_saving")
+            : t("import.review_save_selected")}
         </button>
       </div>
     </div>
@@ -318,7 +344,9 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   return (
     <>
       <dt className="text-ink-3">{label}</dt>
-      <dd className="truncate text-foreground">{value || "—"}</dd>
+      <dd className="truncate text-foreground" data-ugc>
+        {value || "—"}
+      </dd>
     </>
   );
 }

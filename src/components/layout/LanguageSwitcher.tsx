@@ -10,6 +10,7 @@ import { useEnabledLocales, useLocale, useT } from "@/lib/i18n/provider";
 import nav from "@/lib/i18n/messages/nav";
 
 /** 좁은 자리(사이드바·헤더)용 짧은 표기. 자기 표기 원칙은 유지한다. */
+// eslint-disable-next-line no-restricted-syntax -- 언어의 자기 표기(모든 언어에서 동일하게 보임)
 const COMPACT_LABELS: Record<Locale, string> = { ko: "한국어", en: "EN", ja: "日本語" };
 
 type Props = {
