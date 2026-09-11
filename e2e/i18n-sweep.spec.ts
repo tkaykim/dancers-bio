@@ -143,7 +143,12 @@ for (const locale of LOCALES) {
 
         // (a) 한글 누출
         if (!route.skipHangul) {
-          const leakedLines = text.split("\n").filter((l) => HANGUL.test(l)).slice(0, 20);
+          // "한국어" 는 언어의 자기 표기라 모든 언어에서 그대로 보인다(전역 전환기는 data-i18n-ignore,
+          // 기존 기능 랜딩의 자체 토글은 표시 그대로). 그 한 단어만 있는 줄은 누출로 보지 않는다.
+          const leakedLines = text
+            .split("\n")
+            .filter((l) => HANGUL.test(l) && l.trim() !== "한국어")
+            .slice(0, 20);
           expect(leakedLines, `${route.path} 한글 누출(text)`).toEqual([]);
           const leakedAttrs = attrs.filter((a) => HANGUL.test(a)).slice(0, 20);
           expect(leakedAttrs, `${route.path} 한글 누출(attrs)`).toEqual([]);

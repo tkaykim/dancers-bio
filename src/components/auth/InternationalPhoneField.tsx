@@ -9,7 +9,7 @@ import {
 } from "@/lib/phone";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useT } from "@/lib/i18n/provider";
+import { useT, useLocale } from "@/lib/i18n/provider";
 import type { KeyOf } from "@/lib/i18n/t";
 import auth from "@/lib/i18n/messages/auth";
 import validation from "@/lib/i18n/messages/validation";
@@ -20,6 +20,12 @@ type Props = {
   defaultUnavailable?: boolean;
   privacyHint?: boolean;
 };
+
+/** "대한민국 / South Korea" 처럼 한·영 병기된 국가 라벨은 ko 외 언어에서 한국어 접두를 뗀다. */
+function countryLabel(label: string, locale: string): string {
+  if (locale === "ko") return label;
+  return label.replace(/^[^/]*[가-힣][^/]*\/\s*/, "");
+}
 
 export function InternationalPhoneField({
   idPrefix,
@@ -32,6 +38,7 @@ export function InternationalPhoneField({
   const [unavailable, setUnavailable] = useState(defaultUnavailable);
   const [touched, setTouched] = useState(false);
   const t = useT(auth);
+  const locale = useLocale();
   // parseInternationalPhone 의 error 는 validation 사전 키(v.phone_*)다 (docs/design-i18n-ui.md §3.5).
   const tv = useT(validation);
 
@@ -73,7 +80,7 @@ export function InternationalPhoneField({
           >
             {PHONE_COUNTRY_OPTIONS.map((option) => (
               <option key={option.code} value={option.code}>
-                +{option.callingCode} {option.code} · {option.label}
+                +{option.callingCode} {option.code} · {countryLabel(option.label, locale)}
               </option>
             ))}
           </select>

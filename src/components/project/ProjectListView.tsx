@@ -523,19 +523,27 @@ function ProjectRow({
         <div className="mt-0.5 truncate text-[10px] text-ink-3 lg:mt-1 lg:text-xs">
           {masked
             ? t("row.private_hint")
-            : [
-                project.category
-                  ? labelFor("category", project.category, locale)
-                  : null,
-                project.genre_label,
-                shortRegion(project.region_label),
-                project.session_count
-                  ? tCount(t, "row.sessions", locale, project.session_count)
-                  : null,
-                project.owner_name,
-              ]
-                .filter(Boolean)
-                .join(" · ") || "—"}
+            : (() => {
+                // 지역 자유 입력·등록자명은 이용자 작성 값이라 data-ugc 로 표시한다(언어 스윕 제외).
+                const parts: Array<{ text: string; ugc?: boolean }> = [
+                  { text: project.category ? labelFor("category", project.category, locale) : "" },
+                  { text: project.genre_label ?? "" },
+                  { text: shortRegion(project.region_label) ?? "", ugc: true },
+                  {
+                    text: project.session_count
+                      ? tCount(t, "row.sessions", locale, project.session_count)
+                      : "",
+                  },
+                  { text: project.owner_name ?? "", ugc: true },
+                ].filter((p) => p.text);
+                if (parts.length === 0) return "—";
+                return parts.map((p, i) => (
+                  <span key={i}>
+                    {i > 0 ? " · " : null}
+                    {p.ugc ? <span data-ugc>{p.text}</span> : p.text}
+                  </span>
+                ));
+              })()}
         </div>
       </div>
       <span className="w-16 text-right font-mono text-[11px] lg:w-[120px] lg:text-sm">

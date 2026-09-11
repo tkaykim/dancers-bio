@@ -63,3 +63,8 @@ supabase/.temp/
 scripts/out/
 scripts/profile-nudge-log.csv
 scripts/.profile-nudge-sent.json
+
+# Playwright i18n sweep artifacts
+e2e/screenshots/
+e2e/results/
+e2e/report/

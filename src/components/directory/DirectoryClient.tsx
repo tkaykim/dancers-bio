@@ -536,6 +536,7 @@ function Card({
         <Image
           src={img}
           alt={name}
+          data-ugc
           fill
           sizes="(max-width: 448px) 50vw, 220px"
           className="object-cover transition-transform group-hover:scale-105"

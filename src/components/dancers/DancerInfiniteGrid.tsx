@@ -122,6 +122,7 @@ export function DancerInfiniteGrid({
                 <Image
                   src={d.profile_img}
                   alt={d.stage_name}
+                  data-ugc
                   fill
                   sizes="(max-width: 448px) 50vw, 220px"
                   priority={i < PRIORITY_COUNT}
