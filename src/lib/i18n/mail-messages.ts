@@ -144,18 +144,18 @@ const en: Record<MailKey, string> = {
   "mail.stage.subject_round": "[deetz] {label} — not final yet",
   "mail.stage.pill_not_final": "{label} (not final)",
   "mail.stage.heading_final": "{name}, you have been selected.",
-  "mail.stage.heading_round": "{name}, here is an update on your application.",
+  "mail.stage.heading_round": "{name}, an update on your application: {label}.",
   "mail.stage.body_final_1":
     "All selection rounds are complete, and you have been selected for this project.",
   "mail.stage.body_final_2": "We are glad to have you on board.",
   "mail.stage.body_round_1": "Thank you for applying through deetz.",
   "mail.stage.body_round_2":
-    "After reviewing your profile, we are moving you forward: {label}.",
+    "We reviewed the profile you sent us, and the result is: {label}.",
   "mail.stage.row_project": "Project",
   "mail.stage.row_stage": "Current stage",
   "mail.stage.stage_value": "{label} ({round} of {total})",
   "mail.stage.notice_final_1":
-    "From this point on you cannot withdraw yourself in the app.",
+    "From this stage on, you cannot decline it yourself in the app.",
   "mail.stage.notice_final_2":
     "If something unavoidable comes up, tell us right away at contact@deetz.kr.",
   "mail.stage.notice_final_3":
@@ -166,9 +166,9 @@ const en: Record<MailKey, string> = {
   "mail.stage.notice_round_3":
     "We will let you know either way as soon as the result is in.",
   "mail.stage.footer_round_1":
-    "If your schedule no longer allows it, you can withdraw yourself from My applications.",
+    "If your schedule or circumstances no longer allow it, you can decline it yourself from My applications.",
   "mail.stage.footer_round_2":
-    "Withdrawing is not possible once you are finally selected, so please tell us early if your schedule changes.",
+    "Declining is not possible once you are finally selected, so please tell us early if your schedule changes.",
   "mail.stage.cta": "View my applications",
   "mail.stage.text_applications": "My applications",
 
@@ -178,7 +178,7 @@ const en: Record<MailKey, string> = {
   "mail.reject.body_2":
     "We reviewed your application carefully, but we will not be moving forward together on this project.",
   "mail.reject.notice_1":
-    "Filling out your profile raises your chances on the next casting.",
+    "Filling out your profile improves your chances in the next casting.",
   "mail.reject.notice_2":
     "A profile photo, key credits, dance videos and a linked Instagram make the biggest difference.",
   "mail.reject.notice_3":
@@ -191,7 +191,7 @@ const en: Record<MailKey, string> = {
     "Thank you for your interest and effort. We hope to work with you on a better-fitting project.",
   "mail.reject.cta": "Fill out my profile",
   "mail.reject.text_profile": "My profile",
-  "mail.reject.text_feed": "Browse other castings",
+  "mail.reject.text_feed": "Browse other casting calls",
 
   "mail.announce.pill": "Announcement",
   "mail.announce.subject_fallback": "Announcement",
@@ -213,20 +213,20 @@ const en: Record<MailKey, string> = {
     "No login, about 30 seconds (available / partly / unavailable)",
 
   "mail.settle.subject":
-    "[deetz] {name}, your payment amount is confirmed — how to withdraw",
-  "mail.settle.pill": "Payment",
+    "[deetz] {name}, your payout amount is confirmed — how to withdraw",
+  "mail.settle.pill": "Payout",
   "mail.settle.intro":
-    "The payment amount for the project {project} has been confirmed.",
+    "The payout amount for the project {project} has been confirmed.",
   "mail.settle.row_gross": "Gross amount",
   "mail.settle.row_tax": "Withholding tax (3.3%)",
   "mail.settle.row_net": "Net payout",
   "mail.settle.text_instruct_1":
-    "Sign in through the link below, check your bank account, and press Request withdrawal.",
+    "Log in through the link below, check your bank account, and press Request withdrawal.",
   "mail.settle.text_instruct_2":
-    "Once you request it, {net} is transferred to your registered account after the 3.3% withholding tax.",
+    "Once you request it, we transfer {net} to your registered account after the 3.3% withholding tax.",
   "mail.settle.cta": "Request a withdrawal",
   "mail.settle.cta_note":
-    "Sign in, check your account, then request the withdrawal (paid out after 3.3% withholding tax)",
+    "Log in, check your account, then request the withdrawal (paid out after 3.3% withholding tax)",
 };
 
 /** ko·en 과 키가 어긋나면 여기서 타입 에러가 난다 — です・ます체, 브랜드 표기는 그대로 둔다. */
@@ -234,8 +234,8 @@ const ja: Record<MailKey, string> = {
   "mail.brand.tagline": "ダンサーマガジン & キャスティングプラットフォーム",
   "mail.brand.sent_notice": "このメールは deetz にご応募いただいたアドレス宛にお送りしています。",
   "mail.recipient.fallback_name": "応募者",
-  "mail.text.greeting": "{name}さん、こんにちは。",
-  "mail.common.hello": "{name}さん、こんにちは。",
+  "mail.text.greeting": "{name}様、こんにちは。",
+  "mail.common.hello": "{name}様、こんにちは。",
   "mail.common.project": "プロジェクト",
   "mail.text.important_prefix": "[重要] ",
   "mail.signature.line1": "deetz · ダンサーマガジン & キャスティングプラットフォーム",
@@ -247,11 +247,11 @@ const ja: Record<MailKey, string> = {
   "mail.stage.subject_final": "[deetz] 最終合格のご案内",
   "mail.stage.subject_round": "[deetz] {label}のご案内（最終確定ではありません）",
   "mail.stage.pill_not_final": "{label}（最終確定ではありません）",
-  "mail.stage.heading_final": "{name}さん、最終合格されました。",
-  "mail.stage.heading_round": "{name}さん、{label}をご案内します。",
+  "mail.stage.heading_final": "{name}様、最終合格されました。",
+  "mail.stage.heading_round": "{name}様、{label}をご案内します。",
   "mail.stage.body_final_1": "すべての選考が終わり、最終合格されましたのでご案内します。",
   "mail.stage.body_final_2": "ご一緒できることを嬉しく思います。",
-  "mail.stage.body_round_1": "deetz からご応募いただきありがとうございます。",
+  "mail.stage.body_round_1": "deetz を通じてご応募いただき、ありがとうございます。",
   "mail.stage.body_round_2": "お送りいただいたプロフィールを確認した結果、{label}されました。",
   "mail.stage.row_project": "応募プロジェクト",
   "mail.stage.row_stage": "現在の段階",
@@ -260,22 +260,22 @@ const ja: Record<MailKey, string> = {
   "mail.stage.notice_final_2":
     "やむを得ない事情が生じた場合は、すぐに contact@deetz.kr までご連絡ください。",
   "mail.stage.notice_final_3":
-    "確定後の辞退は、クライアントのスケジュールと他の参加者に影響します。",
+    "確定後の辞退は、クライアントの日程や他の参加者に影響します。",
   "mail.stage.notice_round_1": "今回のご案内は最終合格ではありません。",
   "mail.stage.notice_round_2":
     "次の段階（{next}）の結果によっては、最終的に進行しない場合があります。",
   "mail.stage.notice_round_3":
     "結果が出次第、合否にかかわらず改めてご案内します。",
   "mail.stage.footer_round_1":
-    "スケジュールやご事情で参加が難しい場合は、応募状況からご自身で辞退できます。",
+    "日程やご事情で参加が難しい場合は、応募状況からご自身で辞退できます。",
   "mail.stage.footer_round_2":
-    "最終合格として確定した後は辞退が難しいため、スケジュールに変更がある場合はあらかじめご反映ください。",
+    "最終合格として確定した後は辞退が難しいため、日程に変更がある場合はあらかじめお知らせください。",
   "mail.stage.cta": "応募状況を見る",
   "mail.stage.text_applications": "応募状況",
 
   "mail.reject.subject": "[deetz] 選考結果のご案内",
   "mail.reject.pill": "選考結果のご案内",
-  "mail.reject.body_1": "deetz からご応募いただき、誠にありがとうございます。",
+  "mail.reject.body_1": "deetz を通じてご応募いただき、誠にありがとうございます。",
   "mail.reject.body_2":
     "慎重に検討しましたが、残念ながら今回のプロジェクトではご一緒できないこととなりました。",
   "mail.reject.notice_1":
@@ -295,21 +295,21 @@ const ja: Record<MailKey, string> = {
 
   "mail.announce.pill": "お知らせ",
   "mail.announce.subject_fallback": "お知らせ",
-  "mail.announce.heading_fallback": "{name}さんへのご案内です。",
+  "mail.announce.heading_fallback": "{name}様へのご案内です。",
   "mail.announce.empty": "（内容なし）",
 
-  "mail.schedule.subject": "[deetz] {name}さん、{count}件のスケジュールの参加可否をお知らせください",
-  "mail.schedule.pill": "スケジュールのご案内",
-  "mail.schedule.intro": "{project} プロジェクトのスケジュールが決まりましたのでご案内します。",
-  "mail.schedule.instruct": "以下の{count}件のスケジュールについて、参加可否を選んでまとめてご提出ください。",
+  "mail.schedule.subject": "[deetz] {name}様、{count}件の日程について参加可否をお知らせください",
+  "mail.schedule.pill": "日程のご案内",
+  "mail.schedule.intro": "{project} プロジェクトの日程が決まりましたのでご案内します。",
+  "mail.schedule.instruct": "以下の{count}件の日程について、参加可否を選んでまとめてご提出ください。",
   "mail.schedule.text_instruct":
-    "以下のリンクから、ログインなしで各スケジュールの参加可否を選んでまとめてご提出ください。（参加可能 / 一部の時間のみ / 参加不可）",
+    "以下のリンクから、ログインなしで各日程の参加可否を選んでまとめてご提出ください。（参加可能 / 一部の時間のみ / 参加不可）",
   "mail.schedule.when": "日時",
   "mail.schedule.where": "場所",
   "mail.schedule.cta": "参加可否を知らせる",
   "mail.schedule.cta_note": "ログインなしで30秒で終わります（参加可能 / 一部の時間のみ / 参加不可）",
 
-  "mail.settle.subject": "[deetz] {name}さん、精算金額が確定しました — 出金申請のご案内",
+  "mail.settle.subject": "[deetz] {name}様、精算金額が確定しました — 出金申請のご案内",
   "mail.settle.pill": "精算のご案内",
   "mail.settle.intro": "{project} プロジェクトの精算金額が確定しましたのでご案内します。",
   "mail.settle.row_gross": "税引前の金額",

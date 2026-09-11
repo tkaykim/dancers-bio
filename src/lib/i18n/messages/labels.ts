@@ -91,7 +91,7 @@ const en: Record<Key, string> = {
   "category.other": "Other",
 
   "application_status.pending": "Pending",
-  "application_status.accepted": "Selected",
+  "application_status.accepted": "Passed",
   "application_status.rejected": "Not selected",
   "application_status.withdrawn": "Withdrawn",
   "application_status.declined": "Declined",
@@ -120,7 +120,7 @@ const ja: Record<Key, string> = {
   "status.draft": "下書き",
   "status.open": "募集中",
   "status.closed": "締切",
-  "status.cancelled": "取消",
+  "status.cancelled": "中止",
   "status.completed": "完了",
 
   "session_type.rehearsal": "リハーサル",
@@ -161,7 +161,7 @@ const ja: Record<Key, string> = {
   "stage.round": "{round}次合格",
 
   "source.apply": "直接応募",
-  "source.direct_proposal": "キャスティングオファー",
+  "source.direct_proposal": "直接オファー",
 
   "standing_pool": "常時募集",
 };

@@ -80,7 +80,7 @@ const en: Record<Key, string> = {
   "meta.keywords":
     "deetz, dancer casting, dancer casting platform, book dancers, hire dancers, backup dancers, choreography, choreography production, hire a choreographer, K-POP dancers, dance team booking, dance performance booking, music video dancers, commercial dancers",
 
-  "nav.dancers": "Browse dancers",
+  "nav.dancers": "Dancers",
   "nav.feed": "Casting calls",
 
   "hero.badge": "Dancer casting & Curation",
@@ -97,15 +97,15 @@ const en: Record<Key, string> = {
   "card.dancers": "Check verified dancer and team portfolios.",
   "card.projects": "Post a casting call and compare applicants.",
 
-  "solve.title": "We turn dancer casting into search, compare and apply.",
+  "solve.title": "We turn dancer casting into one flow: search, compare, apply.",
   "usecase.mv": "Book backup dancers for music videos and performance films",
   "usecase.ad": "Cast dancers for ads, brand campaigns and short-form content",
   "usecase.stage": "Recruit stage dancers for broadcasts, events, showcases and fan meetings",
-  "usecase.choreography": "Choreography production, choreographer booking and performance directors",
+  "usecase.choreography": "Choreography production, choreographer booking and introductions to performance directors",
   "usecase.team": "Book dance performances and review dance team portfolios",
   "usecase.portfolio": "Review portfolios of choreographers, directors, instructors and dance teams",
 
-  "faq.title": "Answers written for people looking for dancer casting.",
+  "faq.title": "Written so anyone looking for dancer casting gets it right away.",
   "faq.q_service": "What is deetz?",
   "faq.a_service":
     "deetz is a dancer casting platform that connects music videos, ads, stages, broadcasts and events with dancers and choreographers. You can see the credits and video portfolios of verified dancers and dance teams and book them directly.",
@@ -114,7 +114,7 @@ const en: Record<Key, string> = {
     "Post a casting call with your project type, schedule, region, budget and the genres you need, and dancers and choreographers will apply. You can also send a direct offer to any profile you like.",
   "faq.q_price": "How is the cost of booking a dancer decided?",
   "faq.a_price":
-    "It depends on the project type, the shoot or show schedule, the number of sessions, the region and the experience you need. You can state the pay in the casting call or agree it directly with the dancer or choreographer, after checking their portfolio and credits.",
+    "It depends on the project type, the shoot or show schedule, the number of sessions, the region and the experience you need. You can state the pay in the casting call or agree on it directly with the dancer or choreographer, once you have seen their portfolio and credits.",
   "faq.q_choreography": "Can I also arrange choreography or book a choreographer?",
   "faq.a_choreography":
     "Yes. Beyond booking dancers, you can arrange choreography production, book a choreographer and get connected with a performance director. Watch their work and check their credits to find the right person for your project.",
@@ -127,7 +127,7 @@ const en: Record<Key, string> = {
   "faq.more": "For more, see the {link}.",
   "faq.more_link": "guide to dancer casting and choreography",
 
-  "contact.title": "Send your casting enquiry through whichever channel suits you.",
+  "contact.title": "Send your casting inquiry through whichever channel you prefer.",
   "contact.body":
     "Tell us the project type, schedule, budget and the genres you need, and we can help you faster.",
   "contact.kakao": "Ask on the KakaoTalk channel",
@@ -144,11 +144,11 @@ const ja: Record<Key, string> = {
   "meta.keywords":
     "deetz, ダンサーキャスティング, ダンサー手配, ダンサー募集, バックダンサー, 振付制作, 振付師, 振付師手配, K-POPダンサー, ダンスチーム手配, ダンス公演, MVダンサー, 広告ダンサー",
 
-  "nav.dancers": "ダンサーを見る",
+  "nav.dancers": "ダンサー一覧",
   "nav.feed": "募集一覧",
 
   "hero.badge": "Dancer casting & Curation · キャスティング、キュレーション",
-  "hero.title": "ダンサーの手配と\n振付制作を\nひとつの場所で。",
+  "hero.title": "ダンサー手配と\n振付制作を\n一つの場所で。",
   "hero.lede":
     "deetzは、ダンサー・振付師・ダンスチームのポートフォリオと経歴をもとに、MV・広告・放送・ダンス公演のキャスティングをつなぐプラットフォームです。",
   "hero.cta_feed": "募集を見る",
@@ -157,9 +157,9 @@ const ja: Record<Key, string> = {
 
   "stats.calls_fallback": "公開",
 
-  "magazine.title": "経歴と映像で判断するキャスティング。",
-  "card.dancers": "確認済みのダンサー・チームのポートフォリオをご覧ください。",
-  "card.projects": "案件の募集を出して応募者を比較しましょう。",
+  "magazine.title": "ダンサーの経歴と映像で判断するキャスティング。",
+  "card.dancers": "審査を通過したダンサー・チームのポートフォリオをご覧ください。",
+  "card.projects": "案件の募集を掲載して、応募者を比較しましょう。",
 
   "solve.title": "ダンサーの手配を、検索・比較・応募の流れに変えます。",
   "usecase.mv": "MVやパフォーマンス映像のバックダンサー手配",
@@ -170,24 +170,24 @@ const ja: Record<Key, string> = {
   "usecase.portfolio": "振付師・ディレクター・インストラクター・ダンスチームのポートフォリオ確認",
 
   "faq.title": "ダンサーキャスティングをお探しの方にすぐ分かるようまとめました。",
-  "faq.q_service": "deetzはどんなサービスですか。",
+  "faq.q_service": "deetzはどんなサービスですか？",
   "faq.a_service":
-    "deetzは、MV・広告・ステージ・放送・イベントに必要なダンサーと振付師をつなぐキャスティングプラットフォームです。確認済みのダンサー・ダンスチームの経歴と映像ポートフォリオを直接見て手配できます。",
-  "faq.q_booking": "ダンサーや振付師はどのように手配しますか。",
+    "deetzは、MV・広告・ステージ・放送・イベントに必要なダンサーと振付師をつなぐキャスティングプラットフォームです。審査を通過したダンサー・ダンスチームの経歴と映像ポートフォリオを直接見て手配できます。",
+  "faq.q_booking": "ダンサーや振付師はどのように手配しますか？",
   "faq.a_booking":
     "案件の種類、日程、地域、予算、必要なジャンルをまとめて募集を掲載すると、ダンサーや振付師から応募が届きます。気になるプロフィールには直接オファーを送ることもできます。",
-  "faq.q_price": "ダンサーの出演料はどのように決まりますか。",
+  "faq.q_price": "ダンサーの手配費用はどのように決まりますか？",
   "faq.a_price":
-    "出演料は案件の種類、撮影・公演の日程、回数、地域、求める経歴によって変わります。募集に出演料の条件を記載するか、ダンサー・振付師と直接ご相談のうえ、ポートフォリオと経歴を確認して決められます。",
-  "faq.q_choreography": "振付制作や振付師の手配もできますか。",
+    "費用は案件の種類、撮影・公演の日程、回数、地域、求める経歴によって変わります。募集に出演料の条件を記載するか、ダンサー・振付師と直接相談して決めます。ポートフォリオと経歴を確認したうえで、妥当な金額を判断できます。",
+  "faq.q_choreography": "振付制作や振付師の手配もできますか？",
   "faq.a_choreography":
     "はい。ダンサーの手配だけでなく、振付制作、振付師の手配、パフォーマンスディレクターのご紹介まで可能です。振付師・ディレクターの作品映像と経歴を見て、案件に合う方を手配できます。",
-  "faq.q_team": "公演やイベントのダンスチーム手配もできますか。",
+  "faq.q_team": "公演やイベントのダンスチーム手配もできますか？",
   "faq.a_team":
-    "ステージ、イベント、ショーケース、ファンミーティングなどの公演ダンスチームの手配も可能です。募集を掲載して応募を受けるか、一覧でダンスチームのポートフォリオを見て直接オファーを送れます。",
-  "faq.q_dancer": "ダンサーとして活動したいのですが、どう始めますか。",
+    "ステージ、イベント、ショーケース、ファンミーティングなどに出演するダンスチームの手配も可能です。募集を掲載して応募を受けるか、一覧でダンスチームのポートフォリオを見て直接オファーを送れます。",
+  "faq.q_dancer": "ダンサーとして活動したいのですが、どう始めればよいですか？",
   "faq.a_dancer":
-    "プロフィールを作成し、経歴と映像ポートフォリオを登録すると、公開中の募集に応募したりオファーを受け取ったりできます。Instagramのプロフィールにはdancers.bioのリンクでご自身のページを共有できます。",
+    "プロフィールを作成し、経歴と映像ポートフォリオを登録すると、公開中の募集に応募したりオファーを受け取ったりできます。Instagramのプロフィールにdancers.bioのリンクを載せて、ご自身のページを共有できます。",
   "faq.more": "詳しくは{link}をご覧ください。",
   "faq.more_link": "ダンサー手配・振付制作ガイド",
 
@@ -195,7 +195,7 @@ const ja: Record<Key, string> = {
   "contact.body":
     "案件の種類・日程・予算・必要なジャンルを併せてご記入いただくと、より早くご案内できます。",
   "contact.kakao": "KakaoTalkチャンネルで問い合わせ",
-  "contact.instagram": "InstagramのDM (@deetz.kr)",
+  "contact.instagram": "InstagramのDM（@deetz.kr）",
 
   "jsonld.service_name": "deetz ダンサーキャスティング・振付制作",
   "jsonld.service_description":

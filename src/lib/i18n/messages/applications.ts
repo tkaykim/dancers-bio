@@ -57,7 +57,7 @@ const ko = {
   "proposals.status.pending": "응답 대기",
   "proposals.status.accepted": "수락함",
   "proposals.status.declined": "거절함",
-  "proposals.status.rejected": "거절함",
+  "proposals.status.rejected": "거절됨",
   "proposals.status.withdrawn": "철회됨",
   "proposals.status.expired": "만료됨",
 
@@ -119,8 +119,8 @@ const en: Record<Key, string> = {
 
   "stage.accepted_pending_confirm": "Passed (awaiting final confirmation)",
   "stage.not_final_caveat":
-    "This is not the final selection yet. Depending on the result of the next round ({stage}), you may not move forward.",
-  "stage.decline_hint": "If your schedule changes, please let us know in advance with Decline.",
+    "This is not the final selection yet. Depending on the result of the next step ({stage}), you may not move forward.",
+  "stage.decline_hint": "If your schedule changes, please let us know in advance using Decline.",
   "stage.decline_hint_emphasis": "Decline",
   "stage.final.confirmed": "Your final selection is confirmed.",
   "stage.final.locked":
@@ -129,7 +129,7 @@ const en: Record<Key, string> = {
   "proposals.title": "Direct offers",
   "proposals.subtitle": "Review the casting offers you received and respond.",
   "proposals.empty": "You have not received any offers yet.",
-  "proposals.section.pending": "Awaiting your reply {count}",
+  "proposals.section.pending": "Awaiting reply {count}",
   "proposals.section.resolved": "Handled {count}",
   "proposals.card.from": "Offer from {name}",
   "proposals.card.project_fallback": "Project",
@@ -138,14 +138,14 @@ const en: Record<Key, string> = {
   "proposals.status.pending": "Awaiting reply",
   "proposals.status.accepted": "Accepted",
   "proposals.status.declined": "Declined",
-  "proposals.status.rejected": "Declined",
+  "proposals.status.rejected": "Not selected",
   "proposals.status.withdrawn": "Withdrawn",
   "proposals.status.expired": "Expired",
 
   "verify.eyebrow": "↳ Identity verification",
   "verify.title": "Verify your identity with Instagram",
   "verify.title.claim": "Verify this profile is yours",
-  "verify.claim.heading": "Verify the {name} profile",
+  "verify.claim.heading": "Verify that the {name} profile is yours",
   "verify.claim.desc":
     "One Instagram DM confirms your identity and links the profile to you right away.",
   "verify.intro":
@@ -184,7 +184,7 @@ const ja: Record<Key, string> = {
   "list.source.direct_proposal": "直接オファー",
   "list.campaign.title": "参加中のチャレンジ・投稿の提出",
   "list.campaign.item": "{title} · リンクの提出・確認 →",
-  "list.campaign.untitled": "確定した参加チャレンジ",
+  "list.campaign.untitled": "参加が確定したチャレンジ",
   "list.submit.open": "動画を提出する →",
   "list.submit.done": "提出した動画の確認・再アップロード",
 
@@ -199,8 +199,8 @@ const ja: Record<Key, string> = {
   "stage.accepted_pending_confirm": "合格（最終確定待ち）",
   "stage.not_final_caveat":
     "まだ最終合格ではありません。次の段階（{stage}）の結果によっては、最終的に進まない場合があります。",
-  "stage.decline_hint": "スケジュールに変更がある場合は、辞退から早めにお知らせください。",
-  "stage.decline_hint_emphasis": "辞退",
+  "stage.decline_hint": "スケジュールに変更がある場合は、早めに「参加を辞退」の操作を行ってください。",
+  "stage.decline_hint_emphasis": "参加を辞退",
   "stage.final.confirmed": "最終合格が確定しました。",
   "stage.final.locked":
     "この段階からはご自身で辞退することはできません。やむを得ない事情がある場合は contact@deetz.kr までご連絡ください。",
@@ -210,14 +210,14 @@ const ja: Record<Key, string> = {
   "proposals.empty": "まだ届いたオファーはありません。",
   "proposals.section.pending": "返信待ち {count}",
   "proposals.section.resolved": "対応済み {count}",
-  "proposals.card.from": "{name} さんからのオファー",
+  "proposals.card.from": "{name}さんからのオファー",
   "proposals.card.project_fallback": "プロジェクト",
   "proposals.card.owner_fallback": "プロジェクト作成者",
-  "proposals.card.accepted_note": "承諾しました・プロジェクトページで詳細をご確認ください。",
+  "proposals.card.accepted_note": "承諾しました。プロジェクトページで詳細をご確認ください。",
   "proposals.status.pending": "返信待ち",
   "proposals.status.accepted": "承諾",
   "proposals.status.declined": "辞退",
-  "proposals.status.rejected": "辞退",
+  "proposals.status.rejected": "見送り",
   "proposals.status.withdrawn": "取り下げ",
   "proposals.status.expired": "期限切れ",
 
@@ -240,14 +240,14 @@ const ja: Record<Key, string> = {
   "verify.copy": "メッセージをコピー",
   "verify.copied": "コピーしました！",
   "verify.dm_link": "InstagramでDMを送る →",
-  "verify.expires": "有効期限: {date}",
-  "verify.retry": "別のハンドルでやり直す",
-  "verify.handle_label": "Instagramのハンドル",
+  "verify.expires": "有効期限：{date}",
+  "verify.retry": "別のユーザー名で再試行",
+  "verify.handle_label": "Instagramのユーザー名",
   "verify.handle_placeholder": "your_handle（@なし）",
   "verify.handle_help":
-    "ご自身の公開Instagramハンドルを入力すると6桁のコードを発行します。発行されたコードとご自身のハンドルを {account} へDMで送ると、運営が照合して本人確認を行います。",
+    "ご自身の公開Instagramアカウントのユーザー名を入力すると6桁のコードを発行します。発行されたコードとご自身のユーザー名を {account} へDMで送ると、運営が照合して本人確認を行います。",
   "verify.submit": "認証コードを受け取る",
-  "verify.submitting": "発行中...",
+  "verify.submitting": "発行中…",
 };
 
 const messages = { ko, en, ja } satisfies Messages<Key>;

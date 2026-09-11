@@ -152,7 +152,7 @@ const ko = {
 type Key = keyof typeof ko;
 
 const en: Record<Key, string> = {
-  "meta.not_found": "Casting call not found",
+  "meta.not_found": "Project not found",
   "meta.private_title": "Private project · deetz",
   "meta.private_description": "A private deetz project that only an invite link can open.",
   "meta.fallback_description": "Dancer casting call",
@@ -172,8 +172,8 @@ const en: Record<Key, string> = {
 
   "pay.none": "No separate pay",
   "pay.negotiable": "Negotiable",
-  "pay.amount": "₩ {amount}",
-  "pay.amount_per_session": "₩ {amount} · per session",
+  "pay.amount": "KRW {amount}",
+  "pay.amount_per_session": "KRW {amount} · per session",
 
   "section.description": "↳ Details",
   "section.attachments": "↳ Attachments ({count})",
@@ -204,7 +204,7 @@ const en: Record<Key, string> = {
   "guest.login_cta": "Log in and apply →",
   "guest.signup_cta": "Sign up",
 
-  "mine.link": "See it in my applications →",
+  "mine.link": "View in my applications →",
 
   "media.section": "Casting call photos and videos",
   "media.open_original": "Open the full-size image of {name}",
@@ -213,7 +213,7 @@ const en: Record<Key, string> = {
   "share.label": "Share",
   "share.aria": "Share this casting call",
   "share.copied_toast": "Link copied",
-  "share.copy_failed": "We could not copy that",
+  "share.copy_failed": "We could not copy the link",
 
   "proposal.pending": "Working…",
   "proposal.accept": "Accept",
@@ -221,17 +221,17 @@ const en: Record<Key, string> = {
 
   "apply.needs_dancer_title": "You need a dancer profile before you can apply.",
   "apply.needs_dancer_hint":
-    "It takes 30 seconds. We bring you straight back to this casting call afterwards.",
+    "It takes 30 seconds, and we will bring you right back to this casting call.",
   "apply.needs_dancer_cta": "Create a dancer profile →",
   "apply.error_schedule_required": "Select at least one session you can attend.",
-  "apply.error_fee_required": "Enter your rate, even a rough number.",
-  "apply.success_accepted": "Your application is in. You can go ahead.",
+  "apply.error_fee_required": "Enter your proposed rate, even a rough number.",
+  "apply.success_accepted": "Your application is in. You can get started right away.",
   "apply.success": "Your application is in.",
   "apply.cover_label": "↳ One-line intro (optional)",
   "apply.cover_label_companion": "↳ A note with your application (optional)",
   "apply.companion_hint":
     "If someone is coming with you, leave their Instagram handle (@username).",
-  "apply.channel_label": "Channel:",
+  "apply.channel_label": "Recruitment channel:",
   "apply.cover_placeholder":
     "e.g. 7 years as a stage dancer, lots of K-pop work, quick to pick up choreography.",
   "apply.cover_placeholder_companion": "e.g. coming with @instagram_id",
@@ -261,7 +261,7 @@ const en: Record<Key, string> = {
   "apply.personal_profile_placeholder": "Profile file, about page or portfolio link",
 
   "apply.fee_legend": "↳ Your rate (required)",
-  "apply.fee_private": "Only the organiser sees this",
+  "apply.fee_private": "Only the organizer sees this",
   "apply.fee_hint":
     "It does not have to be exact. Start with a rough number in the range you can work for.",
   "apply.fee_currency": "Currency",
@@ -275,14 +275,14 @@ const en: Record<Key, string> = {
 
   "apply.nationality_legend": "Nationality disclosure (optional)",
   "apply.nationality_hint":
-    "This is never shown on your public profile. Only the organiser of this casting call sees the nationalities below.",
+    "This is never shown on your public profile. Only the organizer of this casting call sees the nationalities below.",
   "apply.nationality_consent":
-    "I agree to share my nationality with the organiser of this casting call.",
+    "I agree to share my nationality with the organizer of this casting call.",
 
   "apply.guide_title": "Read the production guide now",
   "apply.guide_body1":
-    "If the track, hashtags or account tags are missing, the post does not count towards the campaign.",
-  "apply.guide_body2": "We send you the same guide by email.",
+    "If even one of the track, hashtags or account tags is missing, your post will not count for the campaign.",
+  "apply.guide_body2": "We are also sending you the same details by email.",
   "apply.guide_cta": "Open the production guide →",
 
   "apply.submitting": "Applying...",
@@ -293,7 +293,7 @@ const en: Record<Key, string> = {
   "withdraw.label": "Withdraw",
 
   "decline.confirm":
-    "Give up your place on this project?\nYou will be removed from this casting round, and this cannot be undone.",
+    "Give up your place on this project?\nYou will be dropped from consideration for this casting, and this cannot be undone.",
   "decline.reason_required": "Tell us why you are giving up your place. (required)",
   "decline.reason_optional": "Tell us why you are giving up your place. (optional)",
   "decline.reason_missing": "At this stage you have to give a reason.",
@@ -302,7 +302,7 @@ const en: Record<Key, string> = {
 };
 
 const ja: Record<Key, string> = {
-  "meta.not_found": "募集が見つかりません",
+  "meta.not_found": "プロジェクトが見つかりません",
   "meta.private_title": "非公開プロジェクト · deetz",
   "meta.private_description": "招待リンクからのみ確認できるdeetzの非公開プロジェクトです。",
   "meta.fallback_description": "ダンサーキャスティング募集",
@@ -322,8 +322,8 @@ const ja: Record<Key, string> = {
 
   "pay.none": "出演料なし",
   "pay.negotiable": "応相談",
-  "pay.amount": "₩ {amount}",
-  "pay.amount_per_session": "₩ {amount} · 1回あたり",
+  "pay.amount": "{amount}ウォン",
+  "pay.amount_per_session": "{amount}ウォン · 1回あたり",
 
   "section.description": "↳ 詳細",
   "section.attachments": "↳ 参考資料（{count}）",
@@ -338,7 +338,7 @@ const ja: Record<Key, string> = {
   "announcement.pinned": "固定",
 
   "session.confirmed": "確定",
-  "session.cancelled": "取消",
+  "session.cancelled": "中止",
   "session.undecided": "未定",
 
   "manage.applicants": "応募者を見る →",
@@ -366,13 +366,13 @@ const ja: Record<Key, string> = {
   "share.copy_failed": "コピーできませんでした",
 
   "proposal.pending": "処理中…",
-  "proposal.accept": "受ける",
+  "proposal.accept": "承諾",
   "proposal.decline": "辞退",
 
   "apply.needs_dancer_title": "応募するには、まずダンサープロフィールが必要です。",
   "apply.needs_dancer_hint": "30秒で作成できます。作成後はこの募集に自動で戻ります。",
   "apply.needs_dancer_cta": "ダンサープロフィールを作る →",
-  "apply.error_schedule_required": "参加できる日程を1つ以上選んでください。",
+  "apply.error_schedule_required": "参加できる日程を1つ以上選択してください。",
   "apply.error_fee_required": "おおよその金額でかまいませんので、希望出演料をご入力ください。",
   "apply.success_accepted": "応募が完了しました。このまま進めてください。",
   "apply.success": "応募が完了しました。",
@@ -397,7 +397,7 @@ const ja: Record<Key, string> = {
   "apply.name": "氏名 *",
   "apply.birth_year": "生年 *",
   "apply.birth_year_placeholder": "例: 1998",
-  "apply.height": "身長(cm) *",
+  "apply.height": "身長（cm） *",
   "apply.height_placeholder": "例: 165",
   "apply.primary_genre": "メインジャンル *",
   "apply.primary_genre_placeholder": "例: K-POP、コレオグラフィー",

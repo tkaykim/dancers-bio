@@ -194,7 +194,7 @@ export type MessageKey = keyof typeof ko;
 /** ko 와 키가 어긋나면 여기서 타입 에러가 난다 — 번역 누락 방지. */
 const en: Record<MessageKey, string> = {
   "stage.label.final": "Final selection",
-  "stage.label.round": "Round {round} passed",
+  "stage.label.round": "Round {round} pass",
 
   "apply.error.name_required": "Please enter your name.",
   "apply.error.name_too_long": "That name is too long.",
@@ -204,22 +204,22 @@ const en: Record<MessageKey, string> = {
   "apply.error.instagram_required": "Please enter your Instagram handle.",
   "apply.error.instagram_invalid": "Please check your Instagram handle.",
   "apply.error.invalid_input": "Please check what you entered.",
-  "apply.error.not_found": "We could not find this posting.",
-  "apply.error.closed": "This posting is closed.",
-  "apply.error.not_public": "This posting is not open to the public.",
+  "apply.error.not_found": "We could not find this casting call.",
+  "apply.error.closed": "This casting call is closed.",
+  "apply.error.not_public": "This casting call is not open to the public.",
   "apply.error.needs_full_form":
-    "This posting requires the full application form, so quick apply is not available. Please sign in and apply there.",
+    "This casting call requires the full application form, so quick apply is not available. Please log in and apply there.",
   "apply.error.deadline_passed": "The application deadline has passed.",
   "apply.error.quota_full": "All positions have been filled.",
   "apply.error.email_taken":
-    "This email is already registered. Please sign in and apply.",
+    "This email is already registered. Please log in and apply.",
   "apply.error.generic": "Something went wrong while submitting your application.",
   "apply.error.generic_retry":
     "Something went wrong while submitting your application. Please try again in a moment.",
   "apply.error.submit_link_failed":
     "Your application was received, but we could not create your upload link. We will email it to you.",
 
-  "apply.meta.not_found": "Posting not found | deetz",
+  "apply.meta.not_found": "Casting call not found | deetz",
   "apply.meta.title": "{title} | deetz quick apply",
   "apply.meta.description":
     "Apply in one step with your name and contact details, no account needed.",
@@ -229,12 +229,12 @@ const en: Record<MessageKey, string> = {
   "apply.row.region": "Location",
   "apply.pay.krw": "KRW {amount}",
   "apply.closed": "Applications are closed.",
-  "apply.full_form.title": "This posting uses the full application form.",
+  "apply.full_form.title": "This casting call uses the full application form.",
   "apply.full_form.body":
     "It asks for your height, year of birth, genres and dance video links, so quick apply cannot cover it.",
-  "apply.full_form.hint": "Please sign in below and apply there.",
-  "apply.full_form.cta": "Sign in and apply →",
-  "apply.description_heading": "About this posting",
+  "apply.full_form.hint": "Please log in below and apply there.",
+  "apply.full_form.cta": "Log in and apply →",
+  "apply.description_heading": "About this casting call",
 
   "apply.form.name": "Name",
   "apply.form.name_placeholder": "Jane Doe",
@@ -275,10 +275,10 @@ const en: Record<MessageKey, string> = {
   "apply.done.checklist_tags": "· Hashtags #광고 #iwash #aidol",
   "apply.done.checklist_mention": "· Tag the account @awc.ent",
   "apply.done.checklist_warning":
-    "If any one of these is missing, the post does not count as a sponsored entry.",
+    "If even one of these is missing, your post will not count for the campaign.",
   "apply.done.after_shoot": "Once you have finished filming",
   "apply.done.upload_cta": "Upload your video",
-  "apply.done.link_mail": "We are sending the same details by email.",
+  "apply.done.link_mail": "We are also sending you the same details by email.",
   "apply.done.link_note":
     "Below is your personal upload link. Save it if you plan to upload later.",
 
@@ -323,9 +323,9 @@ const en: Record<MessageKey, string> = {
   "submit.upload.note_no_rename": "You do not need to rename it yourself.",
   "submit.upload.note_keep_open": "Please keep this window open while uploading.",
   "submit.upload.note_last_wins":
-    "If you upload again, the last video you send is the one we take.",
+    "If you upload again, the last video you send becomes your final submission.",
 
-  "submit.collab.title": "Filmed with someone else?",
+  "submit.collab.title": "Who you filmed with",
   "submit.collab.help":
     "If another dancer appears in the video, or you will post it as an Instagram collaboration, leave their handle here. We will follow up with them individually.",
   "submit.collab.remove_aria": "Remove row {index}",
@@ -340,7 +340,7 @@ const en: Record<MessageKey, string> = {
   "submit.api.invalid_link": "This link is not valid.",
   "submit.api.video_only": "Only video files can be uploaded.",
   "submit.api.size_unknown": "We could not read the file size.",
-  "submit.api.too_large": "That file is too large. Please keep it under 8GB.",
+  "submit.api.too_large": "That file is too large. Please upload a file of 8GB or less.",
   "submit.api.server_misconfig":
     "A server setting is missing. Please contact the administrator.",
   "submit.api.handle_format":
@@ -371,7 +371,7 @@ const ja: Record<MessageKey, string> = {
   "apply.error.not_public": "公開募集ではありません。",
   "apply.error.needs_full_form":
     "この募集は詳細な応募フォームの入力が必要なため、かんたん応募はご利用いただけません。ログインのうえご応募ください。",
-  "apply.error.deadline_passed": "応募の締切日が過ぎています。",
+  "apply.error.deadline_passed": "応募の締切日が過ぎました。",
   "apply.error.quota_full": "募集定員に達しました。",
   "apply.error.email_taken":
     "すでに登録されているメールアドレスです。ログインのうえご応募ください。",
@@ -404,7 +404,7 @@ const ja: Record<MessageKey, string> = {
     "動画ファイルと投稿の確認に使用します。@は付けずにユーザーネームのみご入力ください。",
   "apply.form.email": "メールアドレス",
   "apply.form.email_hint": "ガイドラインとアップロードリンクをお送りします。",
-  "apply.form.recovery_title": "すでに応募されましたか。",
+  "apply.form.recovery_title": "すでに応募済みですか。",
   "apply.form.recovery_body": "アップロードリンクが見つからない場合は、応募時にご入力いただいた情報をそのままもう一度ご入力ください。",
   "apply.form.recovery_note": "既存のリンクを改めて表示します。重複して応募されることはありません。",
   "apply.form.email_typo_prefix": "もしかして",
@@ -434,7 +434,7 @@ const ja: Record<MessageKey, string> = {
     "· 音源はInstagramのオーディオタブから「AI-DOL I Wash」をご自身で選択",
   "apply.done.checklist_tags": "· ハッシュタグ #광고 #iwash #aidol",
   "apply.done.checklist_mention": "· アカウントタグ @awc.ent",
-  "apply.done.checklist_warning": "一つでも抜けると広告案件として認められません。",
+  "apply.done.checklist_warning": "1つでも欠けると広告案件として認められません。",
   "apply.done.after_shoot": "撮影が終わりましたら",
   "apply.done.upload_cta": "動画をアップロードする",
   "apply.done.link_mail": "同じ内容をメールでもお送りします。",
@@ -458,7 +458,7 @@ const ja: Record<MessageKey, string> = {
     "アップロードした動画はこのアカウントを基準に整理されます。アカウントが変わった場合や誤って登録されている場合は修正してください。",
   "submit.handle.short_label": "Instagram",
   "submit.handle.label": "Instagramのユーザーネーム",
-  "submit.handle.edit": "修正",
+  "submit.handle.edit": "編集",
   "submit.handle.save": "保存",
   "submit.handle.saving": "保存中",
   "submit.handle.cancel": "キャンセル",
@@ -473,9 +473,9 @@ const ja: Record<MessageKey, string> = {
   "submit.upload.finishing": "仕上げ中...",
   "submit.upload.start_failed": "アップロードを開始できませんでした。",
   "submit.upload.bad_response": "アップロードの応答を確認できませんでした。",
-  "submit.upload.failed_status": "アップロードに失敗しました。({status})",
+  "submit.upload.failed_status": "アップロードに失敗しました。（{status}）",
   "submit.upload.network": "ネットワークエラーでアップロードが中断されました。",
-  "submit.upload.aborted": "アップロードをキャンセルしました。",
+  "submit.upload.aborted": "アップロードがキャンセルされました。",
   "submit.upload.complete_failed": "提出を完了できませんでした。",
   "submit.upload.failed": "アップロードに失敗しました。",
   "submit.upload.note_filename": "ファイル名は自動的に {handle} として保存されます。",

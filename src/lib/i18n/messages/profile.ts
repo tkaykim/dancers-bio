@@ -123,9 +123,9 @@ const en: Record<Key, string> = {
   "meta.dancer_title": "{name} | Dancer portfolio · dancers.bio",
   "meta.dancer_og_title": "{name} | Dancer portfolio",
   "meta.dancer_description_tags":
-    "Dancer profile of {name}. See {tags} credits and video portfolio.",
+    "Dancer profile of {name}. See their {tags} credits and video portfolio.",
   "meta.dancer_description": "See the dancer profile and video portfolio of {name}.",
-  "meta.dancer_career_count": "{base} {count} public credits.",
+  "meta.dancer_career_count": "{base} Public credits: {count}.",
   "meta.kw_dancer": "{name} dancer",
   "meta.kw_portfolio": "{name} portfolio",
   "meta.kw_choreographer": "{name} choreographer",
@@ -133,7 +133,7 @@ const en: Record<Key, string> = {
   "meta.team_title": "{name} | Dance team booking · deetz",
   "meta.team_og_title": "{name} | Dance team booking",
   "meta.team_description_tags":
-    "Dance team profile of {name}. See {tags} performance portfolio and booking details.",
+    "Dance team profile of {name}. See their {tags} performance portfolio and booking details.",
   "meta.team_description": "See the dance team profile and performance portfolio of {name}.",
   "meta.kw_team": "{name} dance team",
   "meta.kw_team_booking": "{name} dance team booking",
@@ -157,11 +157,11 @@ const en: Record<Key, string> = {
   "section.selected_work_desc_team": "The credits that show what this team does, at a glance.",
   "section.representative_careers": "Featured credits",
   "section.gallery": "Gallery",
-  "section.gallery_desc_dancer": "Images that capture the stages and the work.",
-  "section.gallery_desc_team": "Images that capture the team's stages and work.",
+  "section.gallery_desc_dancer": "Selected images that capture the stages and the work.",
+  "section.gallery_desc_team": "Selected images that capture the team's stages and work.",
   "section.videos": "Videos",
   "section.credits": "Full credits",
-  "section.credits_desc_dancer": "Credits by field, in order of year.",
+  "section.credits_desc_dancer": "Credits by field, listed by year.",
   "section.credits_desc_team": "Every credit by field, in one place.",
   "section.members": "Members",
 
@@ -189,7 +189,7 @@ const en: Record<Key, string> = {
     "If this is you or you manage this dancer, claim the profile to respond to the offers. Request access below.",
 
   "owner.edit_title": "Edit my profile",
-  "owner.edit_desc": "Photos, bio, credits and videos show up here as soon as you save them",
+  "owner.edit_desc": "Changes to your photos, bio, credits and videos show up here right away",
 
   "user.avatar_alt": "Profile photo",
   "user.verified": "Verified account",
@@ -223,10 +223,10 @@ const en: Record<Key, string> = {
   "share.aria": "Share {label}",
   "share.copied": "Copied",
   "share.copied_toast": "Link copied. Paste it into a message to share.",
-  "share.copy_failed": "We could not copy that",
+  "share.copy_failed": "We couldn't copy that",
   "share.card_title": "📣 Share my profile",
   "share.card_line1": "Share your profile link on messengers and Instagram.",
-  "share.card_line2": "The more it is seen, the more matches and castings you get.",
+  "share.card_line2": "The more people see it, the more matches and casting offers come your way.",
   "share.card_copy": "Copy profile link",
   "share.card_copied_toast": "Link copied",
   "share.card_button": "Share",
@@ -238,7 +238,7 @@ const ja: Record<Key, string> = {
   "meta.dancer_description_tags":
     "{name}のダンサープロフィール。{tags}の経歴と映像ポートフォリオをご覧ください。",
   "meta.dancer_description": "{name}のダンサープロフィールと映像ポートフォリオをご覧ください。",
-  "meta.dancer_career_count": "{base} 公開経歴{count}件。",
+  "meta.dancer_career_count": "{base}公開経歴{count}件。",
   "meta.kw_dancer": "{name} ダンサー",
   "meta.kw_portfolio": "{name} ポートフォリオ",
   "meta.kw_choreographer": "{name} 振付師",
@@ -294,12 +294,12 @@ const ja: Record<Key, string> = {
   "file.fallback_name": "ポートフォリオファイル",
 
   "member.unnamed": "（名前なし）",
-  "member.profile_link": "{name} のプロフィール",
+  "member.profile_link": "{name}のプロフィール",
 
   "claim.proposal_count_one": "このプロフィール宛にキャスティングオファーが{count}件届いています",
   "claim.proposal_count_other": "このプロフィール宛にキャスティングオファーが{count}件届いています",
   "claim.proposal_body":
-    "ご本人またはマネージャーの方は、権限を申請してオファーに返信できます。下のボタンから申請してください。",
+    "ご本人またはマネージャーの方は、権限を申請してオファーに返信できます。以下から申請してください。",
 
   "owner.edit_title": "プロフィールを編集する",
   "owner.edit_desc": "写真・紹介・経歴・映像を編集すると、このページにすぐ反映されます",
@@ -326,11 +326,11 @@ const ja: Record<Key, string> = {
   "media.external": "外部メディア",
   "media.alt_photo": "{name} 写真 {index}",
   "media.alt_reel": "{name} リール {index}",
-  "media.open_external": "{name} の外部メディア {index} を新しいタブで開く",
-  "media.unavailable": "{name} のメディア {index} は開けません",
-  "media.open_photo": "{name} の写真 {index} を拡大表示",
-  "media.open_video": "{name} の映像 {index} を拡大表示",
-  "media.dialog_title": "{name} のポートフォリオメディア",
+  "media.open_external": "{name}の外部メディア{index}を新しいタブで開く",
+  "media.unavailable": "{name}のメディア{index}は開けません",
+  "media.open_photo": "{name}の写真{index}を拡大表示",
+  "media.open_video": "{name}の映像{index}を拡大表示",
+  "media.dialog_title": "{name}のポートフォリオメディア",
 
   "share.label": "共有",
   "share.aria": "{label}を共有",

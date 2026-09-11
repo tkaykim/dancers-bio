@@ -22,22 +22,22 @@ const ko = {
 type Key = keyof typeof ko;
 
 const en: Record<Key, string> = {
-  "empty.back": "My page",
+  "empty.back": "My account",
   "empty.eyebrow": "Visa & Korea",
   "empty.title": "Start with the visa program guide",
   "empty.body":
-    "Your nationality profile is eligible to view this area, but no visa program case is connected to your account yet.",
+    "Based on your nationality you can view this area, but no visa program case is linked to your account yet.",
   "empty.cta": "View the program",
   "empty.disclaimer":
     "Program participation does not guarantee a visa, employment, or project placement.",
 };
 
 const ja: Record<Key, string> = {
-  "empty.back": "マイページ",
+  "empty.back": "マイアカウント",
   "empty.eyebrow": "ビザ・韓国",
   "empty.title": "ビザプログラムのご案内から始めましょう",
   "empty.body":
-    "国籍の情報ではこの領域をご覧いただけますが、アカウントに紐づくビザプログラムのケースがまだありません。",
+    "ご登録の国籍情報ではこの領域をご覧いただけますが、アカウントに紐づくビザプログラムのケースはまだありません。",
   "empty.cta": "プログラムを見る",
   "empty.disclaimer":
     "プログラムへの参加が、ビザの発給・就業・プロジェクトへの参加を保証するものではありません。",

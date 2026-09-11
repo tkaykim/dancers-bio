@@ -35,7 +35,7 @@ const en: Record<Key, string> = {
   "sheet.close": "Close",
   "drawer.close": "Close",
 
-  "priority.order_title": "Order of choice (higher is higher priority)",
+  "priority.order_title": "Order of choice (higher up means higher priority)",
   "priority.move_up": "Move up",
   "priority.move_down": "Move down",
   "priority.remove": "Remove",
@@ -64,10 +64,10 @@ const ja: Record<Key, string> = {
   "select.placeholder": "選択",
   "select.search_placeholder": "検索...",
   "select.clear": "選択を解除",
-  "select.no_results": "該当する項目がありません。",
+  "select.no_results": "検索結果がありません。",
 
   "email_typo.label": "もしかして",
-  "email_typo.suffix": " ではありませんか。",
+  "email_typo.suffix": " ではありませんか？",
   "email_typo.action": "これに修正する",
 };
 

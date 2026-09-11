@@ -97,7 +97,7 @@ const en: Record<Key, string> = {
   "cap.title": "Need more dancers?",
   "cap.body_limit": "The public directory shows up to {count} dancers.",
   "cap.body_notice":
-    "We do not publish the full roster. Tell us what you need and we will get back to you individually.",
+    "We don't publish the full roster. Tell us what you need and we'll get back to you individually.",
   "cap.requested": "Request received ✓",
   "cap.cta_member": "Pick a purpose and contact us",
   "cap.cta_guest": "Log in to contact us",
@@ -106,20 +106,20 @@ const en: Record<Key, string> = {
   "purpose.profile_check.label": "I want to check that my profile is listed correctly",
   "purpose.profile_check.description":
     "You can check your public profile link and share it on social media.",
-  "purpose.casting.label": "I am looking for dancers or teams to cast",
+  "purpose.casting.label": "I'm looking for dancers or teams to cast",
   "purpose.casting.description":
-    "Tell us about the project and what you need, and we will get back to you.",
+    "Tell us about the project and what you need, and we'll get back to you.",
   "purpose.collaboration.label": "I want to propose a collaboration or partnership",
   "purpose.collaboration.description":
-    "Leave your proposal and our team will review it and get back to you.",
+    "Leave your proposal and we'll review it and get back to you.",
   "request.details_label": "Tell us the details.",
   "request.details_placeholder":
-    "Project or company name, the genre and requirements you are looking for, expected dates, what the collaboration involves.",
+    "Project or company name, the genre and requirements you're looking for, rough dates, and what the collaboration involves.",
   "request.notice": "The deetz team reviews your request and replies by email.",
   "request.sending": "Sending…",
   "request.submit": "Send request",
   "request.pick_purpose": "Pick a purpose to see what happens next.",
-  "request.success": "We received your request. We will get back to you after reviewing it.",
+  "request.success": "We've received your request. We'll get back to you after reviewing it.",
 
   "profile_link.title": "My public profile",
   "profile_link.hint": "Add either of these links to your social profile.",
@@ -130,7 +130,7 @@ const en: Record<Key, string> = {
 
   "grid.retry": "Try again",
   "grid.loading_more": "Loading more",
-  "grid.end": "That is everything.",
+  "grid.end": "That's everything.",
 };
 
 const ja: Record<Key, string> = {

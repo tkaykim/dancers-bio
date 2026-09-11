@@ -124,7 +124,7 @@ const en: Record<Key, string> = {
 
   "v.field.stage_name": "Stage name",
   "v.field.korean_name": "Korean name",
-  "v.field.location": "Based in",
+  "v.field.location": "Location",
   "v.field.gender": "Gender",
   "v.field.bio": "Bio",
   "v.field.specialties": "Specialties",
@@ -250,14 +250,14 @@ const ja: Record<Key, string> = {
   "v.slug_pattern": "英小文字・数字・ハイフンのみ使用できます。",
   "v.handle_max_60": "ユーザー名は60文字以内で入力してください。",
   "v.handle_pattern":
-    "SNSのユーザー名に全角文字・空白・記号は使用できません。英数字とドット(.)・アンダースコア(_)・ハイフン(-)のみ使用してください。(例: dancer_kim)",
+    "SNSのユーザー名に日本語などの全角文字・空白・記号は使用できません。英数字とドット（.）・アンダースコア（_）・ハイフン（-）のみ使用してください。（例：dancer_kim）",
 
   "v.stage_name_required": "活動名を入力してください。",
   "v.image_url_not_allowed": "許可されていない画像URLです。",
   "v.bio_max_500": "自己紹介は500文字以内で入力してください。",
   "v.career_title_required": "タイトルを入力してください。",
-  "v.date_format": "YYYY-MM-DD の形式で入力してください。",
-  "v.video_url_unsupported": "対応していない動画URLです。(YouTube/Vimeo)",
+  "v.date_format": "YYYY-MM-DD形式で入力してください。",
+  "v.video_url_unsupported": "対応していない動画URLです。（YouTube/Vimeo）",
 
   "v.project_title_required": "タイトルを入力してください。",
   "v.project_description_min": "説明は10文字以上で入力してください。",
