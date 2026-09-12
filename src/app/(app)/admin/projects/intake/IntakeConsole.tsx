@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- Private signed preview images. */
 import { useState, useEffect, useTransition, useRef } from "react";
 import Link from "next/link";
+import { formatIntakeDate } from "@/lib/project-intake/date";
 import { getBrowserClient } from "@/lib/supabase/browser";
 import type { IntakeJob } from "@/lib/project-intake/db";
 import { LANGUAGES, type ProjectDraft } from "@/lib/project-intake/schema";
@@ -314,7 +315,7 @@ function Review({
         </span>
       </div>
       <p className="text-xs text-ink-3">
-        {new Date(job.created_at).toLocaleString("ko-KR")} ·{" "}
+        {formatIntakeDate(job.created_at)} ·{" "}
         {job.languages.map((l) => labels[l]).join(" → ")}
       </p>
       {job.error && (
@@ -479,7 +480,7 @@ function Review({
           <p className="text-sm">
             마감:{" "}
             {draft.application_deadline
-              ? new Date(draft.application_deadline).toLocaleString("ko-KR")
+              ? formatIntakeDate(draft.application_deadline)
               : "미정"}{" "}
             · 장르: {draft.genre_slug || "미정"}
           </p>

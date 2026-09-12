@@ -1,6 +1,6 @@
 # Text / screenshot project intake
 
-Status (2026-09-12): implemented and tested locally; migration, production web release and scheduled runtime have NOT been activated.
+Status (2026-09-12): production migration and web release activated through PR #242; Windows runtime and hub heartbeat enabled.
 The existing live `/admin/projects/import` text-only API-key importer remains unchanged.
 The new subscription-only path is `/admin/projects/intake`.
 
@@ -51,7 +51,7 @@ Missing facts are not silently filled except the existing database-required head
 The model can still misread screenshots or phrase requirements incorrectly: source/card review remains mandatory.
 Only Korean and English have received actual screenshot-to-render validation in this release; other language choices require operator copy review.
 
-## Deployment prerequisites (not yet executed)
+## Runtime configuration and repeatable activation
 
 Use a stable checkout of this branch, with Node 24+, project dependencies from `npm ci`, and the existing local Studio running on `127.0.0.1:7795`.
 The Studio checkout supplies its existing `@anthropic-ai/claude-agent-sdk`, `ts-node` and card template.
@@ -64,7 +64,7 @@ Optional local path overrides:
 - `DEETZ_CLAUDE_EXECUTABLE`: subscription-authenticated native Claude executable.
 - `DEETZ_HUB_WORKER_DIR`: existing hub worker directory whose private `.env` is read only by the scheduled runner.
 
-After production release approval:
+Activation procedure (completed with production release approval):
 
 1. Apply the additive migration to the canonical deetz database (`wvfmqiajdvbsevlhlgtl`).
 2. Deploy the web code through the repository's normal release workflow.
@@ -80,7 +80,7 @@ To pause after activation, disable the Windows task and the matching hub automat
 
 ## Validation
 
-- `npm run test:project-intake`: input/privacy/OAuth/image checks; PGlite migration, lease recovery, stale-token rejection, admin/revision checks, real worker state transitions with mocked AI/Studio, storage-failure containment and transactional/idempotent registration.
+- `npm run test:project-intake`: input/privacy/OAuth/image checks; PGlite migration, lease recovery, stale-token rejection, admin/revision checks, real worker state transitions with mocked AI/Studio, storage-failure containment, transactional/idempotent registration and UTC/KST timestamp parity.
 - `node scripts/test-project-intake-ui.mjs`: real React component with mocked server actions, text submit, language order, dirty-edit guard, revision flow, registration link, clipboard upload, 390px overflow and page-error checks.
 - `npm run typecheck` and targeted ESLint.
 - `npm run build -- --webpack`: production build.
@@ -88,4 +88,8 @@ To pause after activation, disable the Windows task and the matching hub automat
 
 Test outputs stay in gitignored `scripts/out/` because source transcripts can contain confidential details.
 The UI test is an isolated harness, not proof of production authentication/storage/queue integration.
-The remaining live acceptance checks are explicitly part of activation above.
+Live acceptance used three real source screenshots and Korean/English output: one queue attempt produced four 1080×1350 Studio cards and registered one private draft with one recruitment channel.
+The retained QA job is `d782d5d8-4fd0-4a95-a924-ac474e356527`; its private draft short code is `tzeqj5` (never published or dispatched).
+Anonymous table/RPC access and public screenshot access were denied; unauthenticated intake access redirected to login.
+Production timestamps explicitly use `Asia/Seoul` to keep UTC server rendering and Korean browser hydration identical.
+Local production QA scripts and screenshots remain in gitignored `scripts/out/intake-production/`.
