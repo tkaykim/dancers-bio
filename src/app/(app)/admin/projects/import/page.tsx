@@ -65,6 +65,7 @@ export default async function AdminImportPage() {
       >
         ← 관리자 콘솔
       </Link>
+      <Link href="/admin/projects/intake" className="rounded-xl border border-border p-4 text-sm font-semibold">텍스트·캡처로 공고와 언어별 카드 2장 준비하기 →</Link>
       <header className="flex flex-col gap-1">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
           ↳ 외부 공고 수집
