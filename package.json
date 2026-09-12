@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:project-intake": "node --test scripts/test-project-intake.mjs",
+    "intake:worker": "node --env-file=.env.local scripts/project-intake-worker.mjs --watch",
     "test:rate-check": "node --test src/lib/rate-check/pricing.test.ts src/lib/rate-check/server.test.mjs",
     "test:phone": "node --test src/lib/phone.test.ts",
     "test:payout-validation": "node --test src/lib/payout-validation.test.mjs",
