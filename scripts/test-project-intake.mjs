@@ -1,4 +1,5 @@
 import test from "node:test";
+import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { readFile, mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -13,6 +14,21 @@ import {
   runOnce,
 } from "./project-intake-worker.mjs";
 import sharp from "sharp";
+test("dates match between UTC SSR and Korean browsers", () => {
+  const moduleUrl = new URL(
+    "../src/lib/project-intake/date.ts",
+    import.meta.url,
+  ).href;
+  const script = `import {formatIntakeDate} from ${JSON.stringify(moduleUrl)}; console.log(formatIntakeDate('2026-09-12T13:41:18Z'));`;
+  const render = (tz) =>
+    execFileSync(process.execPath, ["--input-type=module", "-e", script], {
+      env: { ...process.env, TZ: tz },
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  assert.equal(render("UTC"), render("Asia/Seoul"));
+  assert.match(render("UTC"), /10:41:18/);
+});
 const sample = () => ({
   project: {
     title: "단기 레슨 강사 모집",
