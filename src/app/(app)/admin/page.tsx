@@ -160,9 +160,9 @@ export default async function AdminHomePage({
           badge={projectsCount ? `${projectsCount}` : undefined}
         />
         <Tile
-          href="/admin/projects/import"
-          title="공고 수집 (외부)"
-          desc="외부 채널 공고 텍스트 붙여넣기 → LLM 추출 → 발행"
+          href="/projects/new"
+          title="새 공고 등록"
+          desc="직접 입력 또는 텍스트·캡처 자동 입력 → 검토 후 발행"
           accent
         />
         <Tile

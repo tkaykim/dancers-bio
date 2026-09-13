@@ -7,14 +7,17 @@ import { intakeDb } from "@/lib/project-intake/db";
 import { projectDraftSchema } from "@/lib/project-intake/schema";
 import { intakeFormDefaults } from "@/lib/project-intake/prefill";
 import { notFound } from "next/navigation";
+import { ProjectRegistrationModes } from "@/components/project/ProjectRegistrationModes";
+import { IntakeConsole } from "@/app/(app)/admin/projects/intake/IntakeConsole";
+import { listProjectIntakes } from "@/app/actions/project-intake";
 
 export default async function NewProjectPage({
   searchParams,
 }: {
-  searchParams: Promise<{ intake?: string }>;
+  searchParams: Promise<{ intake?: string; mode?: string }>;
 }) {
   const profile = await requireProfile();
-  const { intake: intakeId } = await searchParams;
+  const { intake: intakeId, mode } = await searchParams;
   if (intakeId && !profile.is_admin) notFound();
 
   // 프로젝트 개설은 생성권한(can_create_project) 보유자 또는 슈퍼관리자.
@@ -65,49 +68,69 @@ export default async function NewProjectPage({
     : null;
   if (job && !extracted?.success)
     redirect(`/admin/projects/intake?focus=${job.id}`);
+  // Never fetch or serialize administrator intake sources for ordinary creators.
+  const jobs = profile.is_admin ? await listProjectIntakes() : null;
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-8">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">
-          ↳ 새 프로젝트
+          ↳ 프로젝트
         </p>
         <h1 className="text-2xl font-bold tracking-tight leading-tight">
-          캐스팅 공고 개설
+          새 공고 등록
         </h1>
         <p className="text-sm text-ink-2">
           {job
             ? "원문에서 채운 내용입니다. 모든 항목을 수정한 뒤 공고 발행을 눌러 주세요."
-            : "제목, 설명, 일정을 입력하고 공개하면 피드에 노출됩니다."}
+            : "입력 방식을 선택하고 공고 내용을 작성해 주세요."}
         </p>
       </header>
-      {job && job.result?.missing?.length > 0 && (
-        <div className="rounded-xl border border-border p-4 text-sm">
-          <p className="font-semibold">확인할 내용</p>
-          <ul className="mt-2 list-disc pl-5">
-            {job.result.missing.map((item: string, i: number) => (
-              <li key={i}>{item}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {job && (
-        <Link
-          href={`/admin/projects/intake?focus=${job.id}`}
-          className="text-sm underline"
-        >
-          원문·카드 초안 확인
-        </Link>
-      )}
-      <ProjectForm
+      <ProjectRegistrationModes
         key={job ? `${job.id}:${job.revision}` : "new"}
-        genres={genres}
-        initialValues={
-          extracted?.success
-            ? intakeFormDefaults(extracted.data, genres)
-            : undefined
+        initialMode={
+          !job && mode === "auto" && profile.is_admin ? "auto" : "manual"
         }
-        intake={job ? { id: job.id, revision: job.revision } : undefined}
+        automatic={
+          jobs ? (
+            <IntakeConsole
+              initialJobs={jobs.ok ? jobs.jobs : []}
+              initialError={jobs.ok ? "" : jobs.error}
+            />
+          ) : undefined
+        }
+        manual={
+          <>
+            {job && job.result?.missing?.length > 0 && (
+              <div className="rounded-xl border border-border p-4 text-sm">
+                <p className="font-semibold">확인할 내용</p>
+                <ul className="mt-2 list-disc pl-5">
+                  {job.result.missing.map((item: string, i: number) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {job && (
+              <Link
+                href={`/admin/projects/intake?focus=${job.id}`}
+                className="text-sm underline"
+              >
+                원문·카드 초안 확인
+              </Link>
+            )}
+            <ProjectForm
+              key={job ? `${job.id}:${job.revision}` : "new"}
+              genres={genres}
+              initialValues={
+                extracted?.success
+                  ? intakeFormDefaults(extracted.data, genres)
+                  : undefined
+              }
+              intake={job ? { id: job.id, revision: job.revision } : undefined}
+            />
+          </>
+        }
       />
     </div>
   );
