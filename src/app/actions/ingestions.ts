@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "node:crypto";
+import { submitProjectIntake } from "./project-intake";
 import { requireAdmin } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "./auth";
 import {
   parseProject,
-  parseProjectWithFallback,
   providerConfigured,
   providerHealth,
   LLM_PROVIDER_MODELS,
@@ -23,111 +24,42 @@ function strOrNull(formData: FormData, key: string): string | null {
   return v ? v : null;
 }
 
-// 1. 텍스트 붙여넣기 → 파싱 시도 → ingestion row 생성. 검토 페이지 id 반환.
+// Compatibility for old tabs: all pasted notices use the subscription queue.
 export async function createIngestionAction(
   formData: FormData,
 ): Promise<ActionResult<{ id: string }>> {
-  const admin = await requireAdmin();
-
-  const raw = (formData.get("source_raw") ?? "").toString().trim();
-  if (raw.length < 10) {
-    return { ok: false, error: "공고 텍스트가 너무 짧습니다." };
-  }
-  if (raw.length > 20000) {
-    return { ok: false, error: "공고 텍스트가 너무 깁니다 (20,000자 이내)." };
-  }
-
-  const sourceUrl = strOrNull(formData, "source_url");
-  const overrideProvider = formData.get("provider");
-  const supabase = await createClient();
-
-  // 기본 provider 결정
-  let provider: LlmProvider = "gemini";
-  if (isProvider(overrideProvider)) {
-    provider = overrideProvider;
-  } else {
-    const { data: cfg } = await supabase
-      .from("app_config")
-      .select("default_llm_provider")
-      .eq("id", true)
-      .maybeSingle();
-    if (cfg?.default_llm_provider && isProvider(cfg.default_llm_provider)) {
-      provider = cfg.default_llm_provider;
-    }
-  }
-
-  const result = await parseProjectWithFallback(raw, provider);
-
-  const { data: ingestion, error } = await supabase
-    .from("project_ingestions")
-    .insert({
-      created_by: admin.id,
-      source_url: sourceUrl,
-      source_raw: raw,
-      parsed_json: result.ok ? (result.data as unknown as Record<string, unknown>) : null,
-      parse_error: result.ok ? null : result.error,
-      llm_provider: result.provider,
-      llm_model: result.model,
-      status: "draft",
-    })
-    .select("id")
-    .single();
-
-  if (error) return { ok: false, error: error.message };
-
-  revalidatePath("/admin/projects/import");
-  return { ok: true, data: { id: ingestion!.id as string } };
+  await requireAdmin();
+  const result = await submitProjectIntake({
+    request_id: randomUUID(),
+    source_raw: String(formData.get("source_raw") || ""),
+    source_paths: [],
+    languages: ["ko"],
+    private_terms: [],
+    hide_names: true,
+    operator_notes: "",
+  });
+  return result.ok ? { ok: true, data: { id: result.id } } : result;
 }
 
-// 2. 검토 페이지에서 admin 이 파싱을 다시 실행 (provider 변경 등).
 export async function reparseIngestionAction(
   formData: FormData,
 ): Promise<ActionResult<{ id: string }>> {
   await requireAdmin();
-  const id = (formData.get("id") ?? "").toString();
-  const overrideProvider = formData.get("provider");
-  if (!id) return { ok: false, error: "잘못된 요청." };
-
-  const supabase = await createClient();
-  const { data: ing } = await supabase
+  const id = String(formData.get("id") || "");
+  const db = await createClient();
+  const { data: old } = await db
     .from("project_ingestions")
     .select("source_raw")
     .eq("id", id)
     .maybeSingle();
-  if (!ing) return { ok: false, error: "ingestion 을 찾을 수 없습니다." };
-
-  let provider: LlmProvider = "gemini";
-  if (isProvider(overrideProvider)) provider = overrideProvider;
-  else {
-    const { data: cfg } = await supabase
-      .from("app_config")
-      .select("default_llm_provider")
-      .eq("id", true)
-      .maybeSingle();
-    if (cfg?.default_llm_provider && isProvider(cfg.default_llm_provider))
-      provider = cfg.default_llm_provider;
-  }
-
-  const result = await parseProject(ing.source_raw as string, provider);
-  const { error } = await supabase
-    .from("project_ingestions")
-    .update({
-      parsed_json: result.ok ? (result.data as unknown as Record<string, unknown>) : null,
-      parse_error: result.ok ? null : result.error,
-      llm_provider: result.provider,
-      llm_model: result.model,
-    })
-    .eq("id", id);
-  if (error) return { ok: false, error: error.message };
-
-  revalidatePath(`/admin/projects/import/${id}`);
-  return { ok: true, data: { id } };
+  if (!old) return { ok: false, error: "수집 원문을 찾지 못했습니다." };
+  const input = new FormData();
+  input.set("source_raw", old.source_raw);
+  return createIngestionAction(input);
 }
 
 // 3. 중복 후보 검색 (source_url + title trigram).
-export async function findDuplicateCandidates(
-  ingestionId: string,
-): Promise<
+export async function findDuplicateCandidates(ingestionId: string): Promise<
   Array<{
     id: string;
     short_code: string;
@@ -224,8 +156,10 @@ export async function publishIngestionAction(
     .eq("id", id)
     .maybeSingle();
   if (!ing) return { ok: false, error: "ingestion 을 찾을 수 없습니다." };
-  if (ing.status !== "draft") return { ok: false, error: "이미 처리된 ingestion 입니다." };
-  if (!ing.parsed_json) return { ok: false, error: "파싱 결과가 없습니다. 다시 파싱하세요." };
+  if (ing.status !== "draft")
+    return { ok: false, error: "이미 처리된 ingestion 입니다." };
+  if (!ing.parsed_json)
+    return { ok: false, error: "파싱 결과가 없습니다. 다시 파싱하세요." };
 
   const parsed = ing.parsed_json as unknown as ProjectIngestionData;
 
@@ -252,14 +186,14 @@ export async function publishIngestionAction(
     region_text: regionOverride ?? parsed.region_text ?? null,
     pay_amount: payAmountOverride
       ? Number(payAmountOverride.replace(/[^\d]/g, ""))
-      : parsed.pay_amount ?? null,
+      : (parsed.pay_amount ?? null),
     pay_type:
       (payTypeOverride as "per_session" | "total" | "negotiable" | null) ??
       parsed.pay_type ??
       null,
     recruitment_count: recruitmentOverride
       ? Number(recruitmentOverride)
-      : parsed.recruitment_count ?? 1,
+      : (parsed.recruitment_count ?? 1),
     allow_team_apply: false,
     application_deadline:
       deadlineOverride ?? parsed.application_deadline_iso ?? null,
@@ -438,8 +372,12 @@ export async function llmStatusAction(): Promise<
   const gCfg = providerConfigured("gemini");
 
   const [aH, gH] = await Promise.all([
-    aCfg ? providerHealth("anthropic") : Promise.resolve({ ok: false, error: "키 미설정" }),
-    gCfg ? providerHealth("gemini") : Promise.resolve({ ok: false, error: "키 미설정" }),
+    aCfg
+      ? providerHealth("anthropic")
+      : Promise.resolve({ ok: false, error: "키 미설정" }),
+    gCfg
+      ? providerHealth("gemini")
+      : Promise.resolve({ ok: false, error: "키 미설정" }),
   ]);
 
   return {
@@ -461,9 +399,7 @@ export async function llmStatusAction(): Promise<
   };
 }
 
-export async function llmTestParseAction(
-  formData: FormData,
-): Promise<
+export async function llmTestParseAction(formData: FormData): Promise<
   ActionResult<{
     provider: LlmProvider;
     model: string;
@@ -477,7 +413,8 @@ export async function llmTestParseAction(
   const raw = (formData.get("source_raw") ?? "").toString().trim();
   const providerStr = (formData.get("provider") ?? "").toString();
   if (!raw) return { ok: false, error: "텍스트가 비었습니다." };
-  if (!isProvider(providerStr)) return { ok: false, error: "provider 선택 필요." };
+  if (!isProvider(providerStr))
+    return { ok: false, error: "provider 선택 필요." };
   const result = await parseProject(raw, providerStr);
   if (result.ok) {
     return {

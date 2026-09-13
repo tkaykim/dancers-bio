@@ -104,7 +104,9 @@ Title lines: <= 3 lines, compact natural phrases, preferably <= 12 Korean charac
 Caption <=500 characters. Every caption MUST include @deetz.kr and "link in bio" and explain finding this project and applying.
 When source asks for current/desired fee, set collect_applicant_fee=true and ask for both fees WITH units in 지원 한마디 (or translated equivalent).
 Do not require casting details such as height for instructors. Do not label a project as automatically accepted.
-Keep confirmed schedules in description, dates converted from KST to ISO. Never use a screenshot date as deadline/event date.
+Keep confirmed schedules in description AND project.schedules, dates converted from KST to ISO.
+Each schedule requires a confirmed date; unknown date means no schedule row and a missing[] note.
+If a date is known but time is unknown, starts_at is midnight KST and time_tbd=true. Never use a screenshot date as deadline/event date.
 Current reference time: ${new Date().toISOString()} (Asia/Seoul).
 Known genre slugs: ${JSON.stringify(genres)}. Unknown genre=null, never invent IDs.
 Admin private terms: ${JSON.stringify(job.private_terms)}.
@@ -260,6 +262,7 @@ export async function runOnce(
           .upload(key, bytes, { contentType: "image/png", upsert: true });
         if (error) throw new Error("카드 저장에 실패했습니다.");
         assets.push({ language: deck.language, index, path: key });
+        await update({ assets: [...assets] });
       }
     }
     await update({
