@@ -3,13 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  CAREER_CATEGORY_LABELS,
   type CareerCategory,
 } from "@/lib/validation/portfolio";
 import { addCareerAction } from "@/app/actions/careers";
 import type { ParsedPortfolio } from "@/lib/ai/portfolio-extractor";
 import { useT } from "@/lib/i18n/provider";
 import portfolio from "@/lib/i18n/messages/portfolio";
+import journey from "@/lib/i18n/messages/portfolio-journey";
 
 type Career = ParsedPortfolio["careers"][number];
 type CareerWithMeta = Career & { _id: string; _include: boolean };
@@ -32,6 +32,8 @@ export function ImportReviewList({
   showProfile,
   onDone,
   onCancel,
+  importId,
+  onSavingChange,
 }: {
   parsed: ParsedPortfolio;
   /** When provided, careers attach to this dancer. */
@@ -40,13 +42,16 @@ export function ImportReviewList({
   showProfile: boolean;
   onDone: () => void;
   onCancel: () => void;
+  importId?: string;
+  onSavingChange?: (saving: boolean) => void;
 }) {
   const t = useT(portfolio);
+  const j = useT(journey);
   const router = useRouter();
   const [careers, setCareers] = useState<CareerWithMeta[]>(() =>
     parsed.careers.map((c, i) => ({
       ...c,
-      _id: `${i}-${Date.now()}`,
+      _id: importId ? `${importId.slice(0, 24)}${i.toString(16).padStart(12, "0")}` : crypto.randomUUID(),
       _include: true,
     })),
   );
@@ -71,6 +76,7 @@ export function ImportReviewList({
       return;
     }
     setErrors([]);
+    onSavingChange?.(true);
     setProgress({ done: 0, total: selected.length });
     startTransition(async () => {
       const failed: string[] = [];
@@ -78,6 +84,7 @@ export function ImportReviewList({
       for (const c of selected) {
         const fd = new FormData();
         fd.set("dancer_id", dancerId);
+        fd.set("import_key", c._id);
         fd.set("type", c.type);
         fd.set("title", c.title);
         fd.set("date", c.date);
@@ -85,21 +92,27 @@ export function ImportReviewList({
         if (c.description) fd.set("description", c.description);
         if (c.link) fd.set("link", c.link);
         fd.set("is_public", "true");
-        const res = await addCareerAction(fd);
+        let res;
+        try { res = await addCareerAction(fd); }
+        catch { failed.push(`${c.title}: ${t("import.connection_error")}`); continue; }
         done += 1;
         setProgress({ done, total: selected.length });
         if (!res.ok) {
           failed.push(`${c.title}: ${res.error}`);
+        } else {
+          setCareers((prev) => prev.filter((row) => row._id !== c._id));
         }
       }
       if (failed.length > 0) setErrors(failed);
+      onSavingChange?.(false);
       router.refresh();
       if (failed.length === 0) onDone();
     });
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex min-w-0 flex-col gap-5">
+      <p className="whitespace-pre-line text-sm text-ink-2">{t("import.review_public_note")}</p>
       {parsed.warnings.length > 0 ? (
         <div className="rounded-xl border border-warn/30 bg-warn/10 p-3 text-xs text-warn">
           <p className="mb-1 font-semibold">{t("import.review_warnings_title")}</p>
@@ -205,36 +218,39 @@ export function ImportReviewList({
               <div className="flex items-start gap-2">
                 <input
                   type="checkbox"
+                  aria-label={c.title}
                   checked={c._include}
                   onChange={(e) =>
                     updateCareer(c._id, { _include: e.target.checked })
                   }
                   className="mt-1"
                 />
-                <div className="flex flex-1 flex-col gap-2">
-                  <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <select
+                      aria-label={t("careers.field_category")}
                       value={c.type}
                       onChange={(e) =>
                         updateCareer(c._id, {
                           type: e.target.value as Career["type"],
                         })
                       }
-                      className="rounded-md border border-input bg-background px-2 py-1 text-[11px]"
+                      className="min-h-11 min-w-0 rounded-md border border-input bg-background px-2 py-1 text-base"
                     >
                       {CATEGORIES.map((cat) => (
                         <option key={cat} value={cat}>
-                          {CAREER_CATEGORY_LABELS[cat]}
+                          {j(`category.${cat}`)}
                         </option>
                       ))}
                     </select>
                     <input
                       type="date"
+                      aria-label={j("date")}
                       value={c.date}
                       onChange={(e) =>
                         updateCareer(c._id, { date: e.target.value })
                       }
-                      className="rounded-md border border-input bg-background px-2 py-1 text-[11px]"
+                      className="min-h-11 w-full min-w-0 rounded-md border border-input bg-background px-2 py-1 text-base"
                     />
                     {c._confidence === "low" ? (
                       <span className="rounded-full bg-warn/15 px-2 py-0.5 text-[10px] text-warn">
@@ -244,21 +260,23 @@ export function ImportReviewList({
                   </div>
                   <input
                     type="text"
+                    aria-label={t("import.review_placeholder_title")}
                     value={c.title}
                     onChange={(e) =>
                       updateCareer(c._id, { title: e.target.value })
                     }
-                    className="rounded-md border border-input bg-background px-2 py-1.5 text-sm font-medium"
+                    className="min-h-11 w-full min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-base font-medium"
                     placeholder={t("import.review_placeholder_title")}
                   />
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2">
                     <input
                       type="text"
                       value={c.role ?? ""}
                       onChange={(e) =>
                         updateCareer(c._id, { role: e.target.value || null })
                       }
-                      className="rounded-md border border-input bg-background px-2 py-1 text-[11px]"
+                      className="min-h-11 min-w-0 rounded-md border border-input bg-background px-2 py-1 text-base"
+                      aria-label={t("import.review_placeholder_role")}
                       placeholder={t("import.review_placeholder_role")}
                     />
                     <input
@@ -267,11 +285,11 @@ export function ImportReviewList({
                       onChange={(e) =>
                         updateCareer(c._id, { link: e.target.value || null })
                       }
-                      className="rounded-md border border-input bg-background px-2 py-1 text-[11px]"
+                      className="min-h-11 min-w-0 rounded-md border border-input bg-background px-2 py-1 text-base"
+                      aria-label={t("import.review_placeholder_link")}
                       placeholder={t("import.review_placeholder_link")}
                     />
                   </div>
-                  {c.description ? (
                     <textarea
                       value={c.description ?? ""}
                       onChange={(e) =>
@@ -280,10 +298,10 @@ export function ImportReviewList({
                         })
                       }
                       rows={2}
-                      className="rounded-md border border-input bg-background px-2 py-1 text-[11px]"
+                      className="min-w-0 rounded-md border border-input bg-background px-2 py-2 text-base"
+                      aria-label={t("import.review_placeholder_description")}
                       placeholder={t("import.review_placeholder_description")}
                     />
-                  ) : null}
                   {c._raw_date ? (
                     <p className="text-[10px] text-ink-3">
                       {t("import.review_raw_date", { value: c._raw_date })}

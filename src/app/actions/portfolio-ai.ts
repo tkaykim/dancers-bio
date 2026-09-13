@@ -1,163 +1,51 @@
 "use server";
-
+import { z } from "zod";
 import { requireProfile } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  extractPortfolio,
-  type ParsedPortfolio,
-} from "@/lib/ai/portfolio-extractor";
-import {
-  PORTFOLIO_UPLOADS_BUCKET,
-  isValidPortfolioStoragePath,
-  MAX_PORTFOLIO_PDF_BYTES,
-} from "@/lib/storage/portfolio-uploads";
-import { getLocale, serverT } from "@/lib/i18n/server";
-import { formatNumber } from "@/lib/i18n/t";
-import actions from "@/lib/i18n/messages/actions";
+import { importInputSchema, parsedPortfolioSchema, type ParsedPortfolio } from "@/lib/portfolio-import/schema";
+import { isValidPortfolioStoragePath } from "@/lib/storage/portfolio-uploads";
 import type { ActionResult } from "./auth";
 
-const RATE_LIMIT_MINUTES = 10;
-const DAILY_LIMIT = 5;
-const MAX_TEXT_CHARS = 50_000;
-
-export type ParsePortfolioInput =
-  | { kind: "pdf"; storagePath: string }
-  | { kind: "text"; text: string };
-
-export async function parsePortfolioAction(
-  input: ParsePortfolioInput,
-): Promise<ActionResult<ParsedPortfolio>> {
+export async function parsePortfolioAction(input: unknown, requestId: string): Promise<ActionResult<{ jobId: string }>> {
   const profile = await requireProfile();
-  const locale = await getLocale();
-  const t = await serverT(actions);
+  if (process.env.PORTFOLIO_IMPORT_ENABLED !== "true") return { ok: false, error: "IMPORT_UNAVAILABLE" };
+  const parsed = importInputSchema.safeParse(input);
+  if (!parsed.success || !z.uuid().safeParse(requestId).success) return { ok: false, error: "INVALID_IMPORT" };
+  const source = parsed.data;
+  if (source.kind === "pdf" && !isValidPortfolioStoragePath(source.storagePath, profile.id))
+    return { ok: false, error: "INVALID_IMPORT" };
+  const { data, error } = await createAdminClient().rpc("enqueue_portfolio_import", {
+    p_profile: profile.id, p_request: requestId, p_kind: source.kind,
+    p_text: source.kind === "text" ? source.text : null,
+    p_path: source.kind === "pdf" ? source.storagePath : null,
+  });
+  if (error) return { ok: false, error: error.message.includes("IMPORT_RATE_LIMIT") ? "IMPORT_RATE_LIMIT" : "IMPORT_UNAVAILABLE" };
+  return { ok: true, data: { jobId: data as string } };
+}
 
-  // Validate input shape early
-  if (input.kind === "text") {
-    const text = input.text?.trim() ?? "";
-    if (!text) {
-      return { ok: false, error: t("portfolio_ai.text_required") };
-    }
-    if (text.length > MAX_TEXT_CHARS) {
-      return {
-        ok: false,
-        error: t("portfolio_ai.text_too_long", {
-          max: formatNumber(MAX_TEXT_CHARS, locale),
-        }),
-      };
-    }
-  } else if (input.kind === "pdf") {
-    if (!isValidPortfolioStoragePath(input.storagePath, profile.id)) {
-      return { ok: false, error: t("portfolio_ai.invalid_path") };
-    }
-  } else {
-    return { ok: false, error: t("common.invalid_request") };
-  }
+export async function getPortfolioImportAction(jobId: string): Promise<ActionResult<{ status: string; result: ParsedPortfolio | null }>> {
+  const profile = await requireProfile();
+  if (!z.uuid().safeParse(jobId).success) return { ok: false, error: "INVALID_IMPORT" };
+  const { data, error } = await createAdminClient().from("portfolio_import_jobs")
+    .select("status,result").eq("id", jobId).eq("profile_id", profile.id).maybeSingle();
+  if (error || !data) return { ok: false, error: "IMPORT_UNAVAILABLE" };
+  if (data.status === "failed") return { ok: false, error: "IMPORT_FAILED" };
+  const result = data.status === "ready" ? parsedPortfolioSchema.safeParse(data.result) : null;
+  if (result && !result.success) return { ok: false, error: "IMPORT_FAILED" };
+  return { ok: true, data: { status: data.status, result: result?.success ? result.data : null } };
+}
 
-  const admin = createAdminClient();
+export async function latestPortfolioImportAction(): Promise<string | null> {
+  const profile = await requireProfile();
+  const { data } = await createAdminClient().from("portfolio_import_jobs").select("id")
+    .eq("profile_id", profile.id).is("reviewed_at", null).in("status", ["queued", "processing", "ready"])
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  return data?.id ?? null;
+}
 
-  // Rate limit (admins exempt)
-  if (!profile.is_admin) {
-    const tenMinAgo = new Date(
-      Date.now() - RATE_LIMIT_MINUTES * 60_000,
-    ).toISOString();
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    const [{ count: recentCount }, { count: dailyCount }] = await Promise.all([
-      admin
-        .from("ai_extraction_log")
-        .select("id", { count: "exact", head: true })
-        .eq("profile_id", profile.id)
-        .gte("created_at", tenMinAgo),
-      admin
-        .from("ai_extraction_log")
-        .select("id", { count: "exact", head: true })
-        .eq("profile_id", profile.id)
-        .gte("created_at", todayStart.toISOString()),
-    ]);
-
-    if ((recentCount ?? 0) > 0) {
-      return {
-        ok: false,
-        error: t("portfolio_ai.rate_limited", { minutes: RATE_LIMIT_MINUTES }),
-      };
-    }
-    if ((dailyCount ?? 0) >= DAILY_LIMIT) {
-      return {
-        ok: false,
-        error: t("portfolio_ai.daily_limit", { limit: DAILY_LIMIT }),
-      };
-    }
-  }
-
-  let pages: number | null = null;
-  let extractInput:
-    | { kind: "pdf"; buffer: Buffer; filename: string }
-    | { kind: "text"; text: string };
-
-  try {
-    if (input.kind === "pdf") {
-      const { data, error } = await admin.storage
-        .from(PORTFOLIO_UPLOADS_BUCKET)
-        .download(input.storagePath);
-      if (error || !data) {
-        return {
-          ok: false,
-          error: t("portfolio_ai.pdf_read_failed", {
-            reason: error?.message ?? t("common.unknown_error"),
-          }),
-        };
-      }
-      const buf = Buffer.from(await data.arrayBuffer());
-      if (buf.byteLength > MAX_PORTFOLIO_PDF_BYTES) {
-        return { ok: false, error: t("portfolio_ai.pdf_too_large") };
-      }
-      const filename = input.storagePath.split("/").pop() ?? "portfolio.pdf";
-      extractInput = { kind: "pdf", buffer: buf, filename };
-      // Rough page estimate (PDFs vary; not critical for logging)
-      pages = (buf.toString("latin1").match(/\/Type\s*\/Page[^s]/g) || []).length || null;
-    } else {
-      extractInput = { kind: "text", text: input.text };
-    }
-
-    const result = await extractPortfolio(extractInput);
-
-    // Log success (best-effort; never throw)
-    await admin
-      .from("ai_extraction_log")
-      .insert({
-        profile_id: profile.id,
-        kind: input.kind,
-        pages,
-        input_tokens: result.usage.input_tokens,
-        output_tokens: result.usage.output_tokens,
-        saved_count: result.data.careers.length,
-        warnings_count: result.data.warnings.length,
-      })
-      .then(() => undefined, () => undefined);
-
-    return { ok: true, data: result.data };
-  } catch (err) {
-    const message =
-      err instanceof Error ? err.message : t("common.unexpected_error");
-    // Log failure
-    await admin
-      .from("ai_extraction_log")
-      .insert({
-        profile_id: profile.id,
-        kind: input.kind,
-        pages,
-        error: message.slice(0, 500),
-      })
-      .then(() => undefined, () => undefined);
-    return { ok: false, error: message };
-  } finally {
-    // Always remove uploaded PDF — we don't store user portfolios
-    if (input.kind === "pdf") {
-      await admin.storage
-        .from(PORTFOLIO_UPLOADS_BUCKET)
-        .remove([input.storagePath])
-        .catch(() => undefined);
-    }
-  }
+export async function finishPortfolioImportAction(jobId: string): Promise<void> {
+  const profile = await requireProfile();
+  if (!z.uuid().safeParse(jobId).success) return;
+  await createAdminClient().from("portfolio_import_jobs").update({ reviewed_at: new Date().toISOString() })
+    .eq("id", jobId).eq("profile_id", profile.id);
 }

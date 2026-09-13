@@ -24,7 +24,7 @@ export async function uploadPortfolioPdfFromBrowser(
   const valid = validatePortfolioPdfFile(file);
   if (!valid.ok) return valid;
 
-  const path = `${ownerId}/portfolio_${Date.now()}.pdf`;
+  const path = `${ownerId}/portfolio_${crypto.randomUUID()}.pdf`;
   const supabase = createClient();
   const { error } = await supabase.storage
     .from(PORTFOLIO_UPLOADS_BUCKET)

@@ -45,6 +45,7 @@ export function PortfolioImportSheet({
   const locale = useLocale();
   const [tab, setTab] = useState<"pdf" | "text">("pdf");
   const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const importer = usePortfolioImport(profileId);
 
@@ -60,13 +61,9 @@ export function PortfolioImportSheet({
   }, [importer.phase]);
 
   function close() {
+    if (saving) return;
     onOpenChange(false);
-    // Reset after close animation
-    setTimeout(() => {
-      importer.reset();
-      setText("");
-      if (fileRef.current) fileRef.current.value = "";
-    }, 250);
+    // Closing does not discard a running job or an unsaved review.
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -148,7 +145,8 @@ export function PortfolioImportSheet({
                   rows={10}
                   maxLength={50000}
                   placeholder={t("import.text_placeholder")}
-                  className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  aria-label={t("import.tab_text")}
+                  className="rounded-md border border-input bg-background px-3 py-2 text-base"
                 />
                 <p className="text-[11px] text-ink-3">
                   {t("import.text_count", {
@@ -171,7 +169,7 @@ export function PortfolioImportSheet({
         {importer.phase === "uploading" || importer.phase === "analyzing" ? (
           <div className="flex flex-col items-center gap-3 py-12 text-sm text-ink-2">
             <Loader2 className="size-6 animate-spin text-primary" />
-            <p>
+            <p className="whitespace-pre-line">
               {importer.phase === "uploading"
                 ? t("import.uploading")
                 : t("import.analyzing")}
@@ -181,12 +179,13 @@ export function PortfolioImportSheet({
 
         {importer.phase === "error" ? (
           <div className="flex flex-col gap-3">
-            <div className="rounded-md bg-destructive/10 px-3 py-3 text-sm text-destructive">
-              {importer.error}
+            <div className="whitespace-pre-line rounded-md bg-destructive/10 px-3 py-3 text-sm text-destructive">
+              {importer.error?.startsWith("IMPORT_") || importer.error === "INVALID_IMPORT"
+                ? t("import.error", { code: importer.error }) : importer.error}
             </div>
             <button
               type="button"
-              onClick={importer.reset}
+              onClick={importer.retry}
               className="self-end rounded-full border border-hairline-2 px-4 py-2 text-sm font-medium"
             >
               {t("import.retry")}
@@ -195,16 +194,23 @@ export function PortfolioImportSheet({
         ) : null}
 
         {importer.phase === "review" && importer.result ? (
+          <>
+          <button type="button" disabled={saving} onClick={importer.reset} className="min-h-11 text-left text-sm underline disabled:opacity-50">{t("import.another_source")}</button>
           <ImportReviewList
             parsed={importer.result}
+            importId={importer.jobId ?? undefined}
+            onSavingChange={setSaving}
             dancerId={dancerId}
             showProfile={showProfileReview}
             onCancel={close}
             onDone={() => {
               onCompleted?.();
-              close();
+              importer.reset();
+              setText("");
+              onOpenChange(false);
             }}
           />
+          </>
         ) : null}
       </DialogContent>
     </Dialog>

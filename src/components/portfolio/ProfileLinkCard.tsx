@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Copy, ExternalLink } from "lucide-react";
 import { useT } from "@/lib/i18n/provider";
 import portfolio from "@/lib/i18n/messages/portfolio";
+import journey from "@/lib/i18n/messages/portfolio-journey";
 
 /**
  * 내 프로필 링크 카드 — 승인된 댄서에게만 보인다.
@@ -20,7 +21,9 @@ export function ProfileLinkCard({
   approved: boolean;
 }) {
   const t = useT(portfolio);
+  const j = useT(journey);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   if (!approved || !slug) return null;
 
@@ -28,10 +31,12 @@ export function ProfileLinkCard({
   const vanityUrl = `https://${vanity}`;
 
   function copy() {
+    setCopyFailed(false);
+    if (!navigator.clipboard) { setCopyFailed(true); return; }
     void navigator.clipboard.writeText(vanityUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    }).catch(() => setCopyFailed(true));
   }
 
   return (
@@ -39,18 +44,18 @@ export function ProfileLinkCard({
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold">{t("profile_link.title")}</h2>
         <a
-          href={`https://deetz.kr/d/${slug}`}
+          href={vanityUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-[11px] text-ink-3 hover:text-foreground"
         >
-          {t("profile_link.view_on_deetz")}
+          {j("preview")}
           <ExternalLink size={10} aria-hidden />
         </a>
       </div>
 
       <div className="flex items-center gap-2 rounded-xl bg-secondary px-3 py-2.5">
-        <span className="min-w-0 flex-1 truncate font-mono text-sm font-semibold">
+        <span className="min-w-0 flex-1 select-all break-all font-mono text-sm font-semibold">
           {vanity}
         </span>
         <button
@@ -63,13 +68,10 @@ export function ProfileLinkCard({
         </button>
       </div>
 
-      <p className="text-[11px] leading-relaxed text-ink-3">
-        {t("profile_link.tip_1")}
-        <br />
-        {t("profile_link.tip_2")}
-        <br />
-        {t("profile_link.tip_3")}
-      </p>
+      <p className="text-sm text-ink-2">{j("instagram")}</p>
+      <p role="status" className="text-xs text-ink-3">{copyFailed ? j("copyError") : copied ? j("copied") : ""}</p>
+
+      <p className="text-xs leading-relaxed text-ink-3">{t("profile_link.tip_3")}</p>
     </section>
   );
 }

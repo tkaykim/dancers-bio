@@ -9,6 +9,7 @@ import {
 } from "@/components/portfolio/CareerHistoryManager";
 import { serverT } from "@/lib/i18n/server";
 import me from "@/lib/i18n/messages/me";
+import { ImportEntryButton } from "@/components/portfolio/import/ImportEntryButton";
 
 export default async function CareersPage({
   params,
@@ -84,7 +85,7 @@ export default async function CareersPage({
         </Link>
       </header>
 
-      {/* Lite: AI 경력 추출 UI 비활성. */}
+      {isOwner && process.env.PORTFOLIO_IMPORT_ENABLED === "true" && <ImportEntryButton profileId={user.id} dancerId={dancer.id} />}
       <CareerHistoryManager initialCareers={list} dancerId={dancer.id} />
     </div>
   );
