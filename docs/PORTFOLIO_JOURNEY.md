@@ -52,14 +52,17 @@ Partial import saves retried already successful rows and could duplicate careers
 - Public career visibility and existing profile approval policy are preserved.
   Imported profile-name/bio fields are not automatically applied over an existing profile; the user edits those in the profile form.
 
-## Activation checklist (not executed)
+## Activation checklist
 
 1. Review/apply the migration to deetz Supabase `wvfmqiajdvbsevlhlgtl`.
 2. Verify subscription authentication and queue access:
    `node --env-file=<deetz production env path> scripts/portfolio-import-worker.mjs --check`.
 3. Register the dedicated Windows worker and hub automation before enabling intake.
-   Proposed hub key: `deetz:portfolio-import`; command: `node --env-file=<env> scripts/portfolio-import-worker.mjs --watch`.
-   It polls every 15 seconds, processes one job at a time, and needs automatic restart on process failure.
+   Run `powershell -NoProfile -File scripts/install-portfolio-import-worker.ps1 -Enable` after release approval.
+   Hub key: `deetz:portfolio-import`; Windows task: `DeetzPortfolioImport`.
+   It runs one job every minute through the shared hidden launcher, prevents overlapping instances, and records heartbeat and outcome in the hub.
+   The Windows user must be logged in; failed runs restart on the next scheduled minute.
+   Optional foreground development command: `node --env-file=<env> scripts/portfolio-import-worker.mjs --watch` (15-second polling).
    This is not an active automation until present and enabled in the hub registry.
 4. Set `PORTFOLIO_IMPORT_ENABLED=true` and deploy the approved branch to Vercel `dancers-bio-lite`.
    Keep the flag absent/false until the migration and worker are healthy.
@@ -68,6 +71,13 @@ Partial import saves retried already successful rows and could duplicate careers
 6. Disable new intake by setting the flag false and redeploying.
    Existing profile/career/media editors continue to work.
    Preserve queued data; no destructive rollback is required.
+
+### Production activation, 2026-09-13
+
+The user approved production deployment after reviewing the local result.
+The migration was applied to the canonical deetz Supabase project, with owner-only reads and service-only queue mutations verified.
+`DeetzPortfolioImport` was installed using the existing `wscript.exe` hidden launcher and registered in the hub.
+Production `PORTFOLIO_IMPORT_ENABLED=true` was configured; release and canary identifiers are recorded in the project memory after verification.
 
 ## Verification
 
