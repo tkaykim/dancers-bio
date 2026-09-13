@@ -341,7 +341,7 @@ export default async function AdminVisaPage() {
   const actionCount = rows.filter((r) => r.derived.sortBucket === 0).length;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.18em] text-ink-3">↳ 관리자 · 비자</p>
         <h1 className="text-2xl font-bold leading-tight tracking-tight">E-6-1 비자 신청</h1>
@@ -351,7 +351,13 @@ export default async function AdminVisaPage() {
         </p>
       </header>
 
-      <VisaAuditionInvitePanel />
+      <details className="group rounded-xl border border-border bg-card">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+          오디션 회차 일괄 초대
+          <span aria-hidden className="shrink-0 text-lg text-ink-3 group-open:rotate-45">+</span>
+        </summary>
+        <VisaAuditionInvitePanel />
+      </details>
 
       <VisaAdminList rows={rows} />
     </div>

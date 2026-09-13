@@ -254,8 +254,8 @@ export function VisaCaseOpsEditor({ row }: { row: VisaAdminRow }) {
           <Route className="size-4 text-primary" />
           <p className="text-sm font-semibold">프로그램 케이스 운영</p>
         </div>
-        <div className="flex gap-2">
-          <input readOnly value={row.case_url} className="min-w-0 flex-1 rounded-lg border border-hairline-2 bg-surface-2 px-3 py-2 text-xs text-ink-2" />
+        <div className="flex flex-wrap gap-2">
+          <input aria-label="지원자 케이스 링크" readOnly value={row.case_url} className="min-w-0 basis-full rounded-lg border border-hairline-2 bg-surface-2 px-3 py-2 text-xs text-ink-2" />
           <button type="button" onClick={copyLink} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-hairline-2 px-3 py-2 text-xs font-medium hover:bg-secondary">
             {copied ? <Check className="size-3.5" /> : <Clipboard className="size-3.5" />}
             {copied ? "복사됨" : "지원자 링크 복사"}
@@ -341,7 +341,7 @@ export function VisaCaseOpsEditor({ row }: { row: VisaAdminRow }) {
         {saved ? "운영 정보 저장됨" : "운영 정보 저장"}
       </button>
       <style jsx>{`
-        .admin-input { width: 100%; border: 1px solid var(--hairline-2); border-radius: 0.5rem; background: var(--surface-2); padding: 0.5rem 0.75rem; font-size: 0.8125rem; color: var(--foreground); outline: none; }
+        .admin-input { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--hairline-2); border-radius: 0.5rem; background: var(--surface-2); padding: 0.5rem 0.75rem; font-size: 1rem; color: var(--foreground); outline: none; }
         .admin-input:focus { border-color: var(--primary); }
       `}</style>
     </div>

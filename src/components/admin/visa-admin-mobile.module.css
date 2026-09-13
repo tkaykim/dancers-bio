@@ -1,0 +1,49 @@
+.detail {
+  container: visa-detail / inline-size;
+  overflow-wrap: anywhere;
+}
+
+.bulk input:not([type="checkbox"]) {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.bulk label {
+  min-width: 0;
+}
+
+.bulk button {
+  min-height: 44px;
+}
+
+.detail :is(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.detail :is(button, a) {
+  min-height: 44px;
+}
+
+.detail label,
+.detail :global(.grid) > *,
+.detail :global(.flex) > * {
+  min-width: 0;
+}
+
+/* The drawer is narrow even on a wide desktop viewport. */
+@container visa-detail (max-width: 560px) {
+  .detail :global(.grid):has(input),
+  .detail :global(.grid):has(select),
+  .detail :global(.grid):has(textarea) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .detail :global(.grid):is(:has(input), :has(select), :has(textarea)) > * {
+    grid-column: auto;
+  }
+}
