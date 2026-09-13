@@ -205,7 +205,7 @@ export function DancerProfileForm({
             {slugStatus.kind === "checking" ? (
               <p className="text-xs text-ink-3">{t("dancer_form.slug_checking")}</p>
             ) : slugStatus.kind === "ok" ? (
-              <p className="text-xs text-ok">✓ {slugStatus.text} · /d/{slug}</p>
+              <p className="text-xs text-ok">✓ {slugStatus.text} · dancers.bio/{slug}</p>
             ) : slugStatus.kind === "warn" ? (
               <p className="text-xs text-warn">
                 <SlugTakenHint
@@ -230,7 +230,7 @@ export function DancerProfileForm({
         ) : (
           <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2 text-sm">
             <span className="truncate font-mono text-ink-2">
-              /d/
+              dancers.bio/
               <span className="text-foreground">
                 {slug || t("dancer_form.slug_auto_placeholder")}
               </span>

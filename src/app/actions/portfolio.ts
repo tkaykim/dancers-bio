@@ -14,6 +14,7 @@ import {
   isValidPortfolioFileUrl,
 } from "@/lib/storage/dancer-portfolio-file";
 import { slugify } from "@/lib/utils/slug";
+import { isVanityNickname } from "@/lib/utils/vanity-nickname";
 import { buildSocialUrl } from "@/lib/utils/social";
 import { COUNTRIES, countryLabel } from "@/lib/data/countries";
 import {
@@ -36,8 +37,8 @@ type ActionT = Translator<typeof i18nActions>;
 type ValidationKey = keyof typeof validationMessages.ko;
 
 /**
- * 사용자 입력 슬러그가 비어있으면 stage_name 기반 자동 생성, 충돌 시 -2,-3.. 접미사.
- * DB의 next_available_slug() 함수가 충돌 회피를 처리.
+ * Preserve an explicit nickname exactly; never silently append a suffix.
+ * New profiles with an unavailable name choose their nickname in the sharing step.
  */
 async function resolveSlug(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -45,14 +46,15 @@ async function resolveSlug(
   stageName: string,
   excludeDancerId: string | null,
 ): Promise<string | null> {
-  const base = userInputSlug?.trim() || slugify(stageName);
-  if (!base) return null;
+  const base = userInputSlug?.trim().toLowerCase() || slugify(stageName);
+  if (!isVanityNickname(base)) return null;
+  if (userInputSlug?.trim()) return base;
   const { data } = await supabase.rpc("next_available_slug", {
     base,
     target_table: "dancers",
     exclude_id: excludeDancerId ?? null,
   });
-  return (data as string | null) ?? null;
+  return data === base ? base : null;
 }
 
 function buildSocialLinksFromHandles(handles: {
@@ -306,6 +308,7 @@ export async function upsertDancerProfileAction(
     parsed.data.stage_name,
     explicitDancerId,
   );
+  if (parsed.data.slug && !resolvedSlug) return { ok: false, error: t("dancer.slug_conflict") };
 
   const baseValues = {
     stage_name: parsed.data.stage_name,
