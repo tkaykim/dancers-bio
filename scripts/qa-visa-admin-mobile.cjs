@@ -87,7 +87,12 @@ const password = account.match(/비밀번호: `([^`]+)`/)[1];
       }));
       assert.ok(metrics.every(m => m.font >= 16 && m.height >= 44 && !m.outside), `Form controls at ${width}: ${JSON.stringify(metrics.filter(m => m.font < 16 || m.height < 44 || m.outside))}`);
       const memo = dialog.getByPlaceholder('메모 (담당자 메모, 진행 상황 등)');
+      await memo.scrollIntoViewIfNeeded();
       await memo.fill('QA unsaved draft');
+      const memoBox = await memo.boundingBox();
+      const closeBox = await dialog.getByRole('button', { name: /닫기|Close/ }).boundingBox();
+      assert.ok(memoBox.y >= 0 && memoBox.y + memoBox.height <= 845, 'Memo is reachable by scrolling');
+      assert.ok(closeBox.y >= 0 && closeBox.y + closeBox.height <= 845, 'Close stays reachable while scrolled');
       await page.screenshot({ path: path.join(out, `${engine}-${width}-detail-bottom.png`) });
       report.push({ width, formControlsChecked: metrics.length });
     }
