@@ -72,7 +72,9 @@ export function IntakeConsole({
           else setError(r.error);
         })
         .catch(() =>
-          setError("상태 갱신이 지연되고 있습니다. 연결을 확인하거나 새로고침해 주세요."),
+          setError(
+            "상태 갱신이 지연되고 있습니다. 연결을 확인하거나 새로고침해 주세요.",
+          ),
         );
     }, 10000);
     return () => clearInterval(t);
@@ -550,7 +552,14 @@ function Review({
               </p>
             ))}
           </details>
-          {!!job.result?.decks.length && (
+          {!!job.result?.decks.length && job.result.pay_policy !== "omit" && (
+            <p className="rounded-lg border border-amber-300 p-3 text-sm">
+              이전에 만든 카드에는 페이가 포함될 수 있어 미리보기·복사를
+              숨겼습니다. 아래 수정 지침에 ‘페이 제외’를 입력해 다시 준비해
+              주세요.
+            </p>
+          )}
+          {!!job.result?.decks.length && job.result.pay_policy === "omit" && (
             <details className="rounded-lg border border-border p-3">
               <summary className="cursor-pointer text-sm">
                 카드·게시글 초안 · {job.assets.length}장

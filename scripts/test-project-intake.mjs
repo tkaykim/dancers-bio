@@ -19,6 +19,25 @@ import {
   koreanDateTimeInput,
 } from "../src/lib/project-intake/prefill.ts";
 import { intakeProgress } from "../src/lib/project-intake/progress.ts";
+test('pay defaults exclude source amounts from form, notice and cards but keep private evidence', () => {
+  const raw = sample();
+  raw.project.pay_amount = 500000;
+  raw.project.description += '\n페이: 50만원\n지원 한마디에 희망 단가와 단위를 적어 주세요.';
+  raw.source_transcript = '페이: 50';
+  raw.evidence = [{field:'페이', quote:'50만원'}];
+  raw.decks[0].caption += '\nPay: USD 500';
+  raw.decks[0].slides[1].items.push(['페이', '500,000 KRW']);
+  const result = validateResult(raw, ['ko'], []);
+  assert.equal(result.pay_policy, 'omit');
+  assert.equal(result.project.pay_amount, null);
+  assert.equal(result.project.pay_type, null);
+  assert.doesNotMatch(JSON.stringify({project:result.project,decks:result.decks}), /50만원|USD 500|500,000/);
+  assert.match(result.project.description, /희망 단가/);
+  assert.equal(result.evidence[0].quote, '50만원');
+  const legacy = intakeFormDefaults(raw.project, []);
+  assert.equal(legacy.pay_amount, null);
+  assert.doesNotMatch(legacy.description, /50만원/);
+});
 test("existing form prefill preserves Korean deadlines, fees, genre and schedules", () => {
   const draft = {
     ...sample().project,
@@ -39,7 +58,8 @@ test("existing form prefill preserves Korean deadlines, fees, genre and schedule
   ]);
   assert.equal(koreanDateTimeInput("2026-09-14T14:00:00Z"), "2026-09-14T23:00");
   assert.equal(values.genre_id, "genre-id");
-  assert.equal(values.pay_amount, 150000);
+  assert.equal(values.pay_amount, null);
+  assert.equal(values.pay_type, null);
   assert.deepEqual(values.schedules, [
     {
       label: "촬영",

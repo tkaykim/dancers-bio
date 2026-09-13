@@ -94,8 +94,10 @@ try {
     await page.getByLabel("지원 마감 (선택)", { exact: true }).inputValue(),
     "2026-09-14T23:00",
   );
-  assert.equal(await page.getByLabel("지급 단위").inputValue(), "per_session");
-  assert.equal(await page.getByLabel("페이 (KRW)").inputValue(), "150,000");
+  assert.equal(await page.getByLabel("페이 공개 (직접 입력 시에만)").isChecked(), false);
+  assert.equal(await page.getByLabel("지급 단위").inputValue(), "");
+  assert.equal(await page.getByLabel("페이 (KRW)").inputValue(), "");
+  assert.equal(await page.getByLabel("페이 (KRW)").isDisabled(), true);
   assert.equal(
     await page.getByLabel("장르", { exact: true }).inputValue(),
     defaults.genre_id,
@@ -109,6 +111,7 @@ try {
   await page.getByRole('button', {name:'텍스트·캡처로 자동 입력', exact:true}).click();
   assert.equal(await page.getByLabel('원문', {exact:true}).inputValue(), '보존할 원문');
   await page.getByRole('button', {name:'직접 입력', exact:true}).click();
+  await page.getByLabel("페이 공개 (직접 입력 시에만)").check();
   await page.getByLabel("페이 (KRW)").fill("170000");
   await page
     .getByLabel("지원 마감 (선택)", { exact: true })
@@ -124,14 +127,18 @@ try {
   );
   assert.equal(payload.title, "수정된 공고 제목");
   assert.equal(payload.pay_amount, "170000");
+  assert.equal(payload.publish_pay, "on");
   assert.equal(payload.recruitment_count, "5");
   assert.equal(payload.application_deadline, "2026-09-15T22:30:00+09:00");
   assert.equal(payload.intake_revision, "3");
   assert.equal(payload.publish_now, "on");
   assert.equal(payload["schedules[0][starts_at]"], "2026-10-03T17:30:00+09:00");
   await page.getByLabel("지금 바로 공개하기 (체크 해제 시 임시저장)").uncheck();
+  await page.getByLabel("페이 공개 (직접 입력 시에만)").uncheck();
   await page.getByRole("button", { name: "임시저장", exact: true }).click();
   await page.waitForFunction(() => window.__submissions.length === 2);
+  assert.equal(await page.evaluate(() => window.__submissions[1].publish_pay), undefined);
+  assert.equal(await page.evaluate(() => window.__submissions[1].pay_amount), '');
   assert.equal(
     await page.evaluate(() => window.__submissions[1].publish_now),
     undefined,

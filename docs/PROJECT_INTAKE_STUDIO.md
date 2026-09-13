@@ -84,6 +84,12 @@ To pause after activation, disable the Windows task and the matching hub automat
 
 ## Validation
 
+Pay privacy default (2026-09-13): assisted extraction always sets `pay_amount`/`pay_type` to null and omits offered compensation from public text, decks and captions.
+Private source/evidence retain the original for administrator review; applicant fee requests remain independent.
+Legacy intake prefills remove payment-bearing lines and start with empty pay fields.
+New ProjectForm requires the unchecked-by-default `publish_pay` opt-in plus manual entry for publishing a fixed fee; the create action also enforces the opt-in and rejects payment-bearing public copy when off.
+Old cards without `pay_policy=omit` are not offered for preview/copy until regenerated; already published projects/social posts are not rewritten.
+
 The main registration entry is `/projects/new`: administrators switch between direct entry and text/screenshot-assisted entry without losing mounted form values.
 `?mode=auto` opens assisted entry; `?intake=<id>` opens the existing form with extracted values for review.
 Ordinary creators keep their existing direct-entry permission and receive no administrator queue data.

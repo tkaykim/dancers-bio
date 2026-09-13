@@ -1,4 +1,5 @@
 import type { ProjectDraft } from "./schema";
+import { stripPayDisclosure } from "./pay-policy.mjs";
 
 export type ProjectFormDefaults = Partial<
   Omit<ProjectDraft, "genre_slug" | "schedules">
@@ -28,6 +29,10 @@ export function intakeFormDefaults(
 ): ProjectFormDefaults {
   return {
     ...project,
+    title: stripPayDisclosure(project.title),
+    description: stripPayDisclosure(project.description),
+    pay_amount: null,
+    pay_type: null,
     genre_id: genres.find((g) => g.slug === project.genre_slug)?.id ?? null,
     posted_by_label: "deetz",
     schedules: (project.schedules ?? []).map((s) => ({
