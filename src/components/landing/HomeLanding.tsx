@@ -9,7 +9,7 @@ import styles from "./home-landing.module.css";
 
 type Props = {
   locale: Locale;
-  stats: { dancers: number | null; teams: number | null; openProjects: number | null };
+  stats: { dancers: number | null; teams: number | null; totalProjects: number | null };
   faqs: { question: string; answer: string }[];
 };
 
@@ -19,10 +19,12 @@ function Arrow({ diagonal = false }: { diagonal?: boolean }) {
 
 export function HomeLanding({ locale, stats, faqs }: Props) {
   const t = translator(landing, locale);
+  // International applicants enter through English regardless of the landing locale.
+  const programT = translator(landing, "en");
   const numbers = [
     { value: stats.dancers, label: t("home.stat_dancers") },
     { value: stats.teams, label: t("home.stat_teams") },
-    { value: stats.openProjects, label: t("home.stat_calls") },
+    { value: stats.totalProjects, label: t("home.stat_calls") },
   ];
   const services = [
     { title: t("home.service_film"), body: t("usecase.mv") },
@@ -126,8 +128,8 @@ export function HomeLanding({ locale, stats, faqs }: Props) {
               </li>
             ))}
           </ul>
-          <Link href="/program" className={styles.programLink}>
-            <span>{t("home.program_label")}<strong>{t("home.program_title")}</strong></span>
+          <Link href="/program?lang=en" lang="en" data-i18n-ignore className={styles.programLink}>
+            <span>{programT("home.program_label")}<strong>{programT("home.program_title")}</strong></span>
             <Arrow diagonal />
           </Link>
         </div>

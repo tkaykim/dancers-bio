@@ -39,3 +39,13 @@ The user selected “댄서 섭외부터 안무 제작까지.” with the suppor
 The Korean copy now matches that selection, with English and Japanese conveying the same service scope.
 The copy/color update passed all seven i18n tests, changed-file ESLint and the Chromium browser script's 12 viewport/language cases and navigation checks on the local dev server, with no overflow or page errors.
 Updated screenshots are in `Desktop/deliverables/deetz-homepage-redesign/selected-copy`.
+
+Follow-up: the homepage now shows cumulative public casting calls (`visibility=public`, status `open` or `closed`, `deleted_at IS NULL`) as “누적 공고” / “Total casting calls” / “累計募集件数”.
+Drafts, cancellations, deleted records and private projects are excluded.
+A read-only production count on 2026-09-13 returned 28: 7 open-status records and 21 closed records.
+Three of the seven open-status records already passed their deadline under the existing KST deadline utility, so the old “open calls” total overstated currently available public calls.
+The cumulative cache uses a new key while retaining the existing invalidation tag and 600-second refresh.
+
+The international-dancer program link deliberately uses English in every landing locale, has `lang=en`, and routes to `/program?lang=en`.
+Follow-up validation: TypeScript, changed-file ESLint, seven i18n tests and Chromium's 12 language/viewport cases and interactions passed.
+Evidence: `Desktop/deliverables/deetz-homepage-redesign/cumulative-program`.

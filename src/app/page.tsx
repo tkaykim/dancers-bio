@@ -36,7 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
 type Stats = {
   dancers: number | null;
   teams: number | null;
-  openProjects: number | null;
+  totalProjects: number | null;
 };
 
 // 조회 실패를 600초 동안 캐시에 남기지 않으려면 캐시 안에서 throw 해야 한다
@@ -60,7 +60,8 @@ async function loadStatsStrict(): Promise<Stats> {
       .from("projects")
       .select("id", { count: "exact", head: true })
       .eq("visibility", "public")
-      .eq("status", "open")
+      // Published public calls, including closed calls; never drafts or cancellations.
+      .in("status", ["open", "closed"])
       .is("deleted_at", null),
   ]);
   if (dancers.error) throw dancers.error;
@@ -69,11 +70,11 @@ async function loadStatsStrict(): Promise<Stats> {
   return {
     dancers: dancers.count,
     teams: teams.count,
-    openProjects: projects.count,
+    totalProjects: projects.count,
   };
 }
 
-const cachedStats = unstable_cache(loadStatsStrict, ["landing-stats"], {
+const cachedStats = unstable_cache(loadStatsStrict, ["landing-stats-cumulative-v1"], {
   tags: ["landing-stats"],
   revalidate: 600,
 });
@@ -82,7 +83,7 @@ async function loadStats(): Promise<Stats> {
   try {
     return await cachedStats();
   } catch {
-    return { dancers: null, teams: null, openProjects: null };
+    return { dancers: null, teams: null, totalProjects: null };
   }
 }
 

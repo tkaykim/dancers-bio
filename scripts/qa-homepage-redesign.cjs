@@ -42,7 +42,11 @@ fs.mkdirSync(output, { recursive: true });
         assert.equal(await summary.evaluate(el => el.parentElement.open), true);
         await summary.click();
         const links = await page.locator('main a[href]').evaluateAll(els => els.map(el => el.getAttribute('href')));
-        for (const href of ['/feed', '/dancers', '/projects/new', '/signup', '/guide', '/program']) assert.ok(links.includes(href), `Missing ${href}`);
+        for (const href of ['/feed', '/dancers', '/projects/new', '/signup', '/guide', '/program?lang=en']) assert.ok(links.includes(href), `Missing ${href}`);
+        const program = page.locator('main a[href="/program?lang=en"]');
+        assert.equal(await program.getAttribute('lang'), 'en');
+        assert.ok((await program.innerText()).includes('For international dancers planning to work in Korea'));
+        assert.equal(await page.locator('[data-home-hero] dt').last().innerText(), {ko:'누적 공고',en:'Total casting calls',ja:'累計募集件数'}[lang]);
         const jsonld = await page.locator('script[type="application/ld+json"]').allTextContents();
         assert.ok(jsonld.some(text => JSON.parse(text)['@graph']?.some(item => item['@type'] === 'FAQPage')), 'FAQ structured data preserved');
         // FAQ interaction scrolls new links into view and starts Next.js prefetches.
