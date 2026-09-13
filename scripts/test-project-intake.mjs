@@ -14,6 +14,59 @@ import {
   runOnce,
 } from "./project-intake-worker.mjs";
 import sharp from "sharp";
+import {
+  intakeFormDefaults,
+  koreanDateTimeInput,
+} from "../src/lib/project-intake/prefill.ts";
+import { intakeProgress } from "../src/lib/project-intake/progress.ts";
+test("existing form prefill preserves Korean deadlines, fees, genre and schedules", () => {
+  const draft = {
+    ...sample().project,
+    pay_amount: 150000,
+    genre_slug: "hiphop",
+    schedules: [
+      {
+        label: "촬영",
+        starts_at: "2026-10-03T08:30:00Z",
+        ends_at: "2026-10-03T09:00:00Z",
+        time_tbd: false,
+        location: "서울",
+      },
+    ],
+  };
+  const values = intakeFormDefaults(draft, [
+    { id: "genre-id", slug: "hiphop" },
+  ]);
+  assert.equal(koreanDateTimeInput("2026-09-14T14:00:00Z"), "2026-09-14T23:00");
+  assert.equal(values.genre_id, "genre-id");
+  assert.equal(values.pay_amount, 150000);
+  assert.deepEqual(values.schedules, [
+    {
+      label: "촬영",
+      date: "2026-10-03",
+      start: "17:30",
+      end: "18:00",
+      location: "서울",
+    },
+  ]);
+  const job = {
+    status: "queued",
+    result: null,
+    languages: ["ko", "en"],
+    assets: [],
+  };
+  assert.equal(intakeProgress(job).stage, 0);
+  assert.equal(intakeProgress({ ...job, status: "processing" }).stage, 1);
+  assert.equal(
+    intakeProgress({ ...job, status: "processing", result: {} }).stage,
+    2,
+  );
+  assert.equal(
+    intakeProgress({ ...job, status: "review", result: {} }).stage,
+    3,
+  );
+  assert.equal(intakeProgress({ ...job, status: "failed" }).failed, true);
+});
 test("dates match between UTC SSR and Korean browsers", () => {
   const moduleUrl = new URL(
     "../src/lib/project-intake/date.ts",
@@ -333,6 +386,111 @@ test("database claim recovery, registration idempotency and atomic channel creat
     assert.equal(failed.status, "failed");
     assert.equal(failed.assets.length, 0);
     assert.ok(!failed.error.includes("SDK"));
+    // A reviewed existing-form submission is atomic, including schedules and attachments.
+    await db.exec(`alter table projects add region_id uuid, add is_standing_pool boolean, add selection_rounds integer, add round_labels text[], add round_messages jsonb;
+      create table project_schedules(project_id uuid,label text,starts_at timestamptz,ends_at timestamptz,location text,time_tbd boolean,sort_order integer,created_by uuid);
+      create table project_attachments(project_id uuid,file_name text,storage_path text,mime_type text,size_bytes bigint,sort_order integer,created_by uuid);`);
+    await db.exec(
+      await readFile(
+        new URL(
+          "../db/migrations/20260913093000_intake_project_form.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
+    const formId = crypto.randomUUID();
+    await db.query(
+      "insert into project_intake_jobs(id,created_by,source_raw,languages,status,result) values($1,$2,'edited form source',array['ko'],'processing',$3)",
+      [formId, actor, sample()],
+    );
+    const payload = {
+      ...sample().project,
+      title: "관리자가 수정한 공고",
+      description: "관리자가 검토한 설명입니다.",
+      status: "open",
+      pay_amount: 170000,
+      application_deadline: "2026-09-14T14:00:00Z",
+      selection_rounds: 3,
+      round_labels: ["첫 검토", "이미지 미팅", "최종"],
+      is_standing_pool: false,
+    };
+    const schedules = [
+      {
+        label: "촬영",
+        starts_at: "2026-10-03T17:30:00+09:00",
+        ends_at: "2026-10-03T18:00:00+09:00",
+        time_tbd: false,
+        location: "서울",
+      },
+    ];
+    const args = [formId, 1, actor, payload, schedules, []];
+    const call =
+      "select * from register_project_intake_form($1,$2,$3,$4,$5,$6)";
+    await assert.rejects(
+      db.query(call, [formId, 2, actor, payload, schedules, []]),
+    );
+    await assert.rejects(
+      db.query(call, [formId, 1, crypto.randomUUID(), payload, schedules, []]),
+    );
+    await db.exec(
+      "alter table project_schedules add constraint reject_test check(label <> '촬영') not valid",
+    );
+    const countBefore = (
+      await db.query("select count(*) as count from projects")
+    ).rows[0].count;
+    await assert.rejects(db.query(call, args));
+    assert.equal(
+      (await db.query("select count(*) as count from projects")).rows[0].count,
+      countBefore,
+    );
+    assert.equal(
+      (
+        await db.query(
+          "select project_id from project_intake_jobs where id=$1",
+          [formId],
+        )
+      ).rows[0].project_id,
+      null,
+    );
+    await db.exec("alter table project_schedules drop constraint reject_test");
+    const saved = (await db.query(call, args)).rows[0];
+    assert.equal(saved.created, true);
+    const again = (await db.query(call, args)).rows[0];
+    assert.equal(again.created, false);
+    assert.equal(again.project_id, saved.project_id);
+    const final = (
+      await db.query("select * from projects where id=$1", [saved.project_id])
+    ).rows[0];
+    assert.equal(final.title, payload.title);
+    assert.equal(final.status, "open");
+    assert.equal(final.pay_amount, 170000);
+    assert.equal(final.selection_rounds, 3);
+    assert.equal(
+      (
+        await db.query("select * from project_schedules where project_id=$1", [
+          saved.project_id,
+        ])
+      ).rows.length,
+      1,
+    );
+    assert.equal(
+      (
+        await db.query(
+          "select * from recruitment_channels where project_id=$1",
+          [saved.project_id],
+        )
+      ).rows.length,
+      1,
+    );
+    assert.equal(
+      (
+        await db.query(
+          "select has_function_privilege('anon','register_project_intake_form(uuid,integer,uuid,jsonb,jsonb,jsonb)','execute') as permitted",
+        )
+      ).rows[0].permitted,
+      false,
+    );
   } finally {
     await db.close();
   }

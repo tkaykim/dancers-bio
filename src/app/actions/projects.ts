@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { registerIntakeForm } from "@/lib/project-intake/register-form";
 import { after } from "next/server";
 import { sendProjectMatchNotifications } from "@/lib/notify/project-match";
 import {
@@ -61,8 +62,14 @@ function parseRoundMessages(
 ): Record<string, { body?: string; note?: string }> | null {
   const out: Record<string, { body?: string; note?: string }> = {};
   for (let n = 1; n <= rounds; n++) {
-    const body = (formData.get(`round_body_${n}`) ?? "").toString().trim().slice(0, 1500);
-    const note = (formData.get(`round_note_${n}`) ?? "").toString().trim().slice(0, 1500);
+    const body = (formData.get(`round_body_${n}`) ?? "")
+      .toString()
+      .trim()
+      .slice(0, 1500);
+    const note = (formData.get(`round_note_${n}`) ?? "")
+      .toString()
+      .trim()
+      .slice(0, 1500);
     if (!body && !note) continue;
     out[String(n)] = {
       ...(body ? { body } : {}),
@@ -87,9 +94,7 @@ function parseProjectAttachments(
   actorId: string,
   options: { allowExisting: boolean },
   t: ActionT,
-):
-  | { ok: true; data: ProjectAttachmentDraft[] }
-  | { ok: false; error: string } {
+): { ok: true; data: ProjectAttachmentDraft[] } | { ok: false; error: string } {
   if (!raw) return { ok: true, data: [] };
 
   let value: unknown;
@@ -119,7 +124,11 @@ function parseProjectAttachments(
     const candidate = item as Partial<ProjectAttachmentDraft>;
     const id = typeof candidate.id === "string" ? candidate.id : undefined;
     if (id) {
-      if (!options.allowExisting || !UUID_PATTERN.test(id) || seen.has(`id:${id}`)) {
+      if (
+        !options.allowExisting ||
+        !UUID_PATTERN.test(id) ||
+        seen.has(`id:${id}`)
+      ) {
         return { ok: false, error: t("project.attachment_existing_invalid") };
       }
       seen.add(`id:${id}`);
@@ -134,9 +143,11 @@ function parseProjectAttachments(
     }
 
     const path = typeof candidate.path === "string" ? candidate.path : "";
-    const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
+    const name =
+      typeof candidate.name === "string" ? candidate.name.trim() : "";
     const mime = typeof candidate.mime === "string" ? candidate.mime : "";
-    const size = typeof candidate.size === "number" ? candidate.size : Number.NaN;
+    const size =
+      typeof candidate.size === "number" ? candidate.size : Number.NaN;
     const actorPrefix = `${actorId}/`;
     if (
       !path.startsWith(actorPrefix) ||
@@ -186,7 +197,9 @@ export async function createProjectAction(
     pay_type: strOrNull(formData, "pay_type"),
     recruitment_count: strOrNull(formData, "recruitment_count") ?? "1",
     recruitment_unlimited: formData.get("recruitment_unlimited") === "on",
-    application_deadline: localDateTimeToIso(strOrNull(formData, "application_deadline")),
+    application_deadline: localDateTimeToIso(
+      strOrNull(formData, "application_deadline"),
+    ),
     publish_now:
       formData.get("publish_now") === "on" ||
       formData.get("publish_now") === "true",
@@ -204,7 +217,10 @@ export async function createProjectAction(
     posted_by_label: strOrNull(formData, "posted_by_label"),
   });
   if (!parsed.success) {
-    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
+    return {
+      ok: false,
+      error: localizeZodError(parsed.error, await getLocale()),
+    };
   }
 
   const supabase = await createClient();
@@ -213,38 +229,58 @@ export async function createProjectAction(
   const isStandingPool = parsed.data.is_standing_pool;
   const applicationDeadline = isStandingPool
     ? null
-    : parsed.data.application_deadline ?? null;
+    : (parsed.data.application_deadline ?? null);
 
-  // owner = 생성자 본인. allow_team_apply는 항상 false.
+  const projectValues = {
+    owner_id: creator.id,
+    title: parsed.data.title,
+    description: parsed.data.description,
+    visibility: parsed.data.visibility,
+    status: parsed.data.publish_now ? "open" : "draft",
+    category: parsed.data.category ?? null,
+    genre_id: parsed.data.genre_id ?? null,
+    region_id: parsed.data.region_id ?? null,
+    region_text: parsed.data.region_text ?? null,
+    pay_amount: parsed.data.pay_amount ?? null,
+    pay_type: parsed.data.pay_type ?? null,
+    recruitment_count: parsed.data.recruitment_count,
+    recruitment_unlimited: parsed.data.recruitment_unlimited,
+    allow_team_apply: false,
+    application_deadline: applicationDeadline,
+    is_standing_pool: isStandingPool,
+    collect_applicant_fee: parsed.data.collect_applicant_fee,
+    collect_casting_details: parsed.data.collect_casting_details,
+    selection_rounds: parsed.data.selection_rounds,
+    round_labels: normalizeRoundLabels(
+      parsed.data.round_labels,
+      parsed.data.selection_rounds,
+    ),
+    round_messages: parseRoundMessages(formData, parsed.data.selection_rounds),
+    posted_by_label: parsed.data.posted_by_label ?? null,
+  };
+  if (formData.has("intake_id")) {
+    const result = await registerIntakeForm(
+      formData,
+      projectValues,
+      attachmentInput.data,
+    );
+    if (!result.ok) return result;
+    if (
+      result.created &&
+      parsed.data.publish_now &&
+      parsed.data.visibility === "public"
+    ) {
+      after(() => sendProjectMatchNotifications(result.data.id));
+    }
+    revalidatePath("/admin/projects/intake");
+    revalidatePath("/admin/projects/import");
+    revalidatePath("/feed");
+    revalidatePath("/me");
+    return { ok: true, data: result.data };
+  }
   const { data: project, error } = await supabase
     .from("projects")
-    .insert({
-      owner_id: creator.id,
-      title: parsed.data.title,
-      description: parsed.data.description,
-      visibility: parsed.data.visibility,
-      status: parsed.data.publish_now ? "open" : "draft",
-      category: parsed.data.category ?? null,
-      genre_id: parsed.data.genre_id ?? null,
-      region_id: parsed.data.region_id ?? null,
-      region_text: parsed.data.region_text ?? null,
-      pay_amount: parsed.data.pay_amount ?? null,
-      pay_type: parsed.data.pay_type ?? null,
-      recruitment_count: parsed.data.recruitment_count,
-      recruitment_unlimited: parsed.data.recruitment_unlimited,
-      allow_team_apply: false,
-      application_deadline: applicationDeadline,
-      is_standing_pool: isStandingPool,
-      collect_applicant_fee: parsed.data.collect_applicant_fee,
-      collect_casting_details: parsed.data.collect_casting_details,
-      selection_rounds: parsed.data.selection_rounds,
-      round_labels: normalizeRoundLabels(
-        parsed.data.round_labels,
-        parsed.data.selection_rounds,
-      ),
-      round_messages: parseRoundMessages(formData, parsed.data.selection_rounds),
-      posted_by_label: parsed.data.posted_by_label ?? null,
-    })
+    .insert(projectValues)
     .select("id, short_code")
     .single();
 
@@ -348,7 +384,8 @@ export async function closeProjectAction(
   await requireUser();
   const t = await serverT(i18nActions);
   const id = formData.get("id");
-  if (typeof id !== "string") return { ok: false, error: t("common.invalid_request") };
+  if (typeof id !== "string")
+    return { ok: false, error: t("common.invalid_request") };
   if (!(await canManageProject(id)))
     return { ok: false, error: t("project.manage_forbidden") };
   const supabase = await createClient();
@@ -369,7 +406,8 @@ export async function deleteProjectAction(
   await requireUser();
   const t = await serverT(i18nActions);
   const id = formData.get("id");
-  if (typeof id !== "string") return { ok: false, error: t("common.invalid_request") };
+  if (typeof id !== "string")
+    return { ok: false, error: t("common.invalid_request") };
   // 삭제는 소유자·슈퍼관리자만. 공동관리자는 삭제 불가.
   if (!(await isProjectOwnerOrAdmin(id)))
     return { ok: false, error: t("project.delete_forbidden") };
@@ -429,7 +467,10 @@ export async function updateProjectAction(
     status: strOrNull(formData, "status") ?? undefined,
   });
   if (!parsed.success) {
-    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
+    return {
+      ok: false,
+      error: localizeZodError(parsed.error, await getLocale()),
+    };
   }
 
   // 소유자·슈퍼관리자·공동관리자만 수정 가능.
@@ -593,9 +634,11 @@ export async function updateProjectAction(
 
     if (removedAttachments.length > 0) {
       const admin = createAdminClient();
-      await admin.storage.from(PROJECT_FILES_BUCKET).remove(
-        removedAttachments.map((attachment) => attachment.storage_path),
-      );
+      await admin.storage
+        .from(PROJECT_FILES_BUCKET)
+        .remove(
+          removedAttachments.map((attachment) => attachment.storage_path),
+        );
     }
   }
 
@@ -615,7 +658,10 @@ export async function setAgreedPayAction(
     agreed_pay: strOrNull(formData, "agreed_pay") ?? null,
   });
   if (!parsed.success) {
-    return { ok: false, error: localizeZodError(parsed.error, await getLocale()) };
+    return {
+      ok: false,
+      error: localizeZodError(parsed.error, await getLocale()),
+    };
   }
   const supabase = await createClient();
   const { error } = await supabase

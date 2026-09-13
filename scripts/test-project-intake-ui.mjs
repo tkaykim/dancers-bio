@@ -10,8 +10,8 @@ const initial={id:'11111111-1111-4111-8111-111111111111',revision:1,status:'revi
 let jobs=[initial];window.__intakeCalls=[];window.__initialJobs=structuredClone(jobs);
 export const listProjectIntakes=async()=>({ok:true,jobs:structuredClone(jobs)});
 export const prepareIntakeUpload=async v=>({ok:true,data:{path:'test/'+v.request_id+'.png',token:'local-test'}});
-export const submitProjectIntake=async v=>{window.__intakeCalls.push({action:'submit',...v});return {ok:true,id:v.request_id};};
-export const reviseProjectIntake=async v=>{window.__intakeCalls.push({action:'revise',...v});jobs=jobs.map(j=>({...j,revision:j.revision+1,result:{...j.result,project:v.project}}));return {ok:true};};
+export const submitProjectIntake=async v=>{window.__intakeCalls.push({action:'submit',...v});jobs=[{...initial,id:v.request_id,source_raw:v.source_raw,languages:v.languages,status:'queued',result:null},...jobs];return {ok:true,id:v.request_id};};
+export const reviseProjectIntake=async v=>{window.__intakeCalls.push({action:'revise',...v});jobs=jobs.map(j=>j.id===v.id?({...j,revision:j.revision+1,result:{...j.result,project:v.project}}):j);return {ok:true};};
 export const registerProjectIntake=async v=>{window.__intakeCalls.push({action:'register',...v});jobs=jobs.map(j=>({...j,status:'registered',project_code:'test123'}));return {ok:true};};
 `;
 const bundled = await build({
@@ -83,6 +83,7 @@ try {
   await page
     .getByLabel("원문", { exact: true })
     .fill("캡처와 텍스트에서 공고를 만드는 테스트입니다.");
+  await page.getByText("언어·비공개 설정·작성 지침", { exact: true }).click();
   await page.getByLabel("English", { exact: true }).check();
   await page.getByRole("button", { name: "공고·카드 초안 준비" }).click();
   await page.waitForFunction(() =>
@@ -93,26 +94,33 @@ try {
     ["ko", "en"],
   );
   assert.equal(await page.getByLabel("원문", { exact: true }).inputValue(), "");
-  await page.getByLabel("제목", { exact: true }).fill("수정한 강사 공고");
+  await page
+    .getByRole("status")
+    .getByText("처리기는 약 2분", { exact: false })
+    .waitFor();
+  assert.equal(await page.locator('article [aria-expanded="true"]').count(), 1);
+  await page.getByLabel("준비함 검색").fill("단기 레슨");
+  assert.equal(await page.locator("article").count(), 1);
+  await page.getByRole("button", { name: /단기 레슨 강사 모집/ }).click();
   assert.equal(
     await page
-      .getByRole("button", { name: "검토 완료 · 공고 임시저장 등록" })
-      .isDisabled(),
-    true,
+      .getByRole("link", { name: "공고등록 양식에서 수정·발행 →" })
+      .getAttribute("href"),
+    "/projects/new?intake=11111111-1111-4111-8111-111111111111",
   );
+  await page.getByText("수정 지침으로 다시 준비", { exact: true }).click();
   await page
     .getByLabel("수정 요청", { exact: true })
-    .fill("확인한 내용으로 다시 만들어 주세요.");
+    .fill("마감 조건을 확인해 주세요.");
   await page
     .getByRole("button", { name: "수정 반영 · 카드 다시 만들기" })
     .click();
   await page.waitForFunction(() =>
-    window.__intakeCalls.some((x) => x.action === "revise"),
+    window.__intakeCalls.some((c) => c.action === "revise"),
   );
-  await page
-    .getByRole("button", { name: "검토 완료 · 공고 임시저장 등록" })
-    .click();
-  await page.getByRole("link", { name: "등록된 공고 보기 →" }).waitFor();
+  await page.getByLabel("준비함 검색").fill("");
+  await page.getByLabel("상태 필터").selectOption("busy");
+  assert.equal(await page.locator("article").count(), 1);
   await page.reload();
   await page.getByLabel("원문", { exact: true }).evaluate((el) => {
     const dt = new DataTransfer();
@@ -163,9 +171,9 @@ try {
         checks: [
           "text submission",
           "language order",
-          "dirty edit guard",
+          "compact list and expanded progress",
           "revision regeneration",
-          "draft registration link",
+          "existing registration form link",
           "clipboard image upload",
           "390px no overflow",
           "no page errors",

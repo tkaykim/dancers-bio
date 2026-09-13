@@ -5,11 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 import { DancerProfileForm } from "@/components/portfolio/DancerProfileForm";
 import { CareersNavLink } from "@/components/portfolio/CareersNavLink";
 import { PortfolioFileUploader } from "@/components/portfolio/PortfolioFileUploader";
+import { PortfolioJourney, PortfolioShareStep } from "@/components/portfolio/PortfolioJourney";
+import { PortfolioMediaEditor } from "@/components/portfolio/PortfolioMediaEditor";
+import type { PortfolioMediaItem } from "@/app/actions/portfolio-media";
 import { extractSocialHandle } from "@/lib/utils/social";
 import type { NationalityOption } from "@/lib/nationality";
 import { serverT } from "@/lib/i18n/server";
 import type { Translator } from "@/lib/i18n/t";
 import me from "@/lib/i18n/messages/me";
+import journey from "@/lib/i18n/messages/portfolio-journey";
 
 export default async function MyPortfolioEditPage({
   params,
@@ -19,11 +23,12 @@ export default async function MyPortfolioEditPage({
   const { dancerId } = await params;
   const user = await requireUser();
   const t = await serverT(me);
+  const j = await serverT(journey);
   const supabase = await createClient();
   const { data: dancer } = await supabase
     .from("dancers")
     .select(
-      "id, profile_id, stage_name, korean_name, slug, gender, bio, location, specialties, genres, profile_img, social_links, approval_status, approval_reject_reason, portfolio_file_url, portfolio_file_name, portfolio_file_size_bytes, portfolio_file_mime, portfolio_file_uploaded_at",
+      "id, profile_id, stage_name, korean_name, slug, gender, bio, location, specialties, genres, profile_img, social_links, portfolio, approval_status, approval_reject_reason, portfolio_file_url, portfolio_file_name, portfolio_file_size_bytes, portfolio_file_mime, portfolio_file_uploaded_at",
     )
     .eq("id", dancerId)
     .maybeSingle();
@@ -84,6 +89,12 @@ export default async function MyPortfolioEditPage({
 
       <ApprovalBanner dancer={dancer} t={t} />
 
+      {isOwner && <PortfolioJourney profileId={user.id} dancerId={dancer.id}
+        importEnabled={process.env.PORTFOLIO_IMPORT_ENABLED === "true"} />}
+
+      <details id="portfolio-profile" className="scroll-mt-24 rounded-2xl border border-border p-4" open={!isOwner}>
+      <summary className="cursor-pointer py-2 text-sm font-semibold">{j("edit")}</summary>
+      <div className="pt-5">
       <DancerProfileForm
         userId={user.id}
         dancerId={dancer.id}
@@ -118,6 +129,10 @@ export default async function MyPortfolioEditPage({
           },
         }}
       />
+      </div>
+      </details>
+
+      {isOwner && <PortfolioMediaEditor dancerId={dancer.id} initialItems={Array.isArray(dancer.portfolio) ? dancer.portfolio as PortfolioMediaItem[] : []} />}
 
       {isOwner || isAdmin ? (
         <PortfolioFileUploader
@@ -139,6 +154,7 @@ export default async function MyPortfolioEditPage({
       ) : null}
 
       <CareersNavLink href={`/me/portfolio/${dancer.id}/careers`} />
+      {isOwner && <PortfolioShareStep slug={dancer.slug} approved={dancer.approval_status === "approved"} />}
     </div>
   );
 }

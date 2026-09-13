@@ -1,8 +1,9 @@
 # Text / screenshot project intake
 
 Status (2026-09-12): production migration and web release activated through PR #242; Windows runtime and hub heartbeat enabled.
-The existing live `/admin/projects/import` text-only API-key importer remains unchanged.
-The new subscription-only path is `/admin/projects/intake`.
+The `/admin/projects/import` menu and `/admin/projects/intake` now use the same subscription-only inbox.
+Legacy detail links recover saved source text without displaying provider errors or suspended API keys.
+The existing `/projects/new` ProjectForm is the only editor for extracted notices (`?intake=<job id>`).
 
 ## Operator workflow
 
@@ -10,10 +11,11 @@ The new subscription-only path is `/admin/projects/intake`.
 2. Select languages in display order (Korean, English, Japanese, Chinese, Thai or Indonesian; up to four).
 3. Keep company/group/contact names hidden, optionally add private terms and separate administrator writing instructions.
 4. The local worker extracts visible text and prepares a structured project, missing-information list, supporting excerpts and two existing Studio cards per language.
-5. Review source screenshots, project fields, cards and captions together.
-6. Edit fields or add corrections; regenerate cards before registering so the notice and cards use the same revision.
-7. Register as a **draft**, including the default recruitment channel, via one idempotent transaction.
-8. Open the project through its short-code link; publication and social dispatch remain separate approved operations.
+5. The inbox lists compact, collapsible rows with search, status filters and incremental loading.
+6. Expanded rows show queue/extraction/render/completion stages, elapsed time and actual rendered-card counts; originals, missing facts and cards fold independently.
+7. Open the existing registration form as soon as extraction is available, even while cards render; title, description, pay, genre, headcount, deadline, schedule, attachments and selection fields remain editable.
+8. The administrator explicitly clicks **공고 발행** or unchecks publication and clicks **임시저장**; validated edits, the default channel, schedules and attachments save in an idempotent transaction.
+9. Cards are extraction-time drafts: if the registration form changes, review card/caption copy before separate social dispatch.
 
 Each deck has two 1080×1350 light-theme PNGs and a caption of at most 500 characters suitable for Instagram/Threads preparation.
 Captions include `@deetz.kr` and `link in bio` application guidance.
@@ -25,6 +27,8 @@ Source language is not guessed: the first selected language is used for the proj
 - `src/lib/project-intake/schema.ts`: strict JSON/input contract, private-term/HTML checks and exact card/language counts.
 - `src/app/actions/project-intake.ts`: every action calls `requireAdmin`; signed source uploads and batched private preview URLs; revision-aware review and registration.
 - `db/migrations/20260912110952_project_intake_studio.sql`: admin-service-only inbox, private storage bucket, serial lease/claim and transactional draft registration.
+- `db/migrations/20260913093000_intake_project_form.sql`: service-only reviewed-form registration, atomic default channel/schedules/attachments, no duplicate project on retry.
+- `src/components/project/ProjectForm.tsx` and `src/lib/project-intake/{prefill,register-form,progress}.ts`: shared form defaults, KST conversion, reviewed submission and evidence-based progress stages.
 - `scripts/project-intake-worker.mjs`: local Claude subscription auth check, tool-less vision/OCR, source deduplication, result validation, render checkpoints and private asset storage.
 - `scripts/intake-studio.mjs`: existing Studio API and renderer only; safe-area/title verification; no new template or image-generation provider.
 - `scripts/project-intake-scheduled.cjs`: optional 2-minute runtime, self-registration and 60-second heartbeat in the existing hub registry.
@@ -81,7 +85,8 @@ To pause after activation, disable the Windows task and the matching hub automat
 ## Validation
 
 - `npm run test:project-intake`: input/privacy/OAuth/image checks; PGlite migration, lease recovery, stale-token rejection, admin/revision checks, real worker state transitions with mocked AI/Studio, storage-failure containment, transactional/idempotent registration and UTC/KST timestamp parity.
-- `node scripts/test-project-intake-ui.mjs`: real React component with mocked server actions, text submit, language order, dirty-edit guard, revision flow, registration link, clipboard upload, 390px overflow and page-error checks.
+- `node scripts/test-project-intake-ui.mjs`: real React component with mocked server actions, text submit, language order, collapsed list, live progress, search/filter, revision flow, existing form link, clipboard upload, 390px overflow and page-error checks.
+- `node scripts/test-project-prefill-ui.mjs`: actual existing ProjectForm with prefilled fields, edited values, Korean deadline/schedule submission, retained edits on rejection, explicit publish/draft controls and 390px layout.
 - `npm run typecheck` and targeted ESLint.
 - `npm run build -- --webpack`: production build.
 - `node scripts/verify-intake-ocr.mjs <screenshot paths...> --render`: opt-in real subscription OCR plus actual Studio rendering, without database writes or social dispatch.

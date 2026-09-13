@@ -27,13 +27,15 @@ export async function uploadDancerPortfolioFileFromBrowser(
   if (!valid.ok) return valid;
 
   // 파일명 정리: 한글/공백/특수문자 제거하여 storage path 안전화.
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
-  const path = `${dancerId}/portfolio-file/${Date.now()}-${safeName}`;
+  const extension = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png", "video/mp4": "mp4" }[file.type] ?? "bin";
+  const stem = file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64) || "portfolio";
+  const safeName = `${stem}.${extension}`;
+  const path = `${dancerId}/portfolio-file/${crypto.randomUUID()}-${safeName}`;
 
   const supabase = createClient();
   const { error } = await supabase.storage
     .from(DANCER_PORTFOLIO_BUCKET)
-    .upload(path, file, { upsert: true, contentType: file.type });
+    .upload(path, file, { upsert: false, contentType: file.type });
   if (error) {
     return { ok: false, error: `업로드 실패: ${error.message}` };
   }

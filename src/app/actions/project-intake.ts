@@ -63,18 +63,16 @@ export async function submitProjectIntake(input: unknown) {
   )
     return failed();
   const db = intakeDb();
-  const { error } = await db
-    .from("project_intake_jobs")
-    .insert({
-      id: v.request_id,
-      created_by: actor.id,
-      source_raw: v.source_raw,
-      source_paths: v.source_paths,
-      languages: v.languages,
-      private_terms: v.private_terms,
-      hide_names: v.hide_names,
-      operator_notes: v.operator_notes,
-    });
+  const { error } = await db.from("project_intake_jobs").insert({
+    id: v.request_id,
+    created_by: actor.id,
+    source_raw: v.source_raw,
+    source_paths: v.source_paths,
+    languages: v.languages,
+    private_terms: v.private_terms,
+    hide_names: v.hide_names,
+    operator_notes: v.operator_notes,
+  });
   if (error && error.code !== "23505") return failed();
   if (error) {
     const { data } = await db
@@ -89,14 +87,16 @@ export async function submitProjectIntake(input: unknown) {
   return { ok: true as const, id: v.request_id };
 }
 
-export async function listProjectIntakes() {
+export async function listProjectIntakes(offset = 0) {
   await requireAdmin();
+  if (!Number.isInteger(offset) || offset < 0 || offset > 100000)
+    return failed();
   const db = intakeDb();
   const { data, error } = await db
     .from("project_intake_jobs")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(30);
+    .range(offset, offset + 29);
   if (error)
     return { ok: false as const, error: "공고 준비함을 불러오지 못했습니다." };
   const jobs = (data || []) as IntakeJob[];
