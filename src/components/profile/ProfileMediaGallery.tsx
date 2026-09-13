@@ -63,6 +63,12 @@ export function ProfileMediaGallery({
       >
         {items.map((item, index) => {
           const imageItem = isImage(item);
+          const nativeVideo = item.type === "video" && /^https?:\/\//i.test(item.url) && /\.mp4(\?|$)/i.test(item.url);
+          if (nativeVideo) return (
+            <video key={`${item.url}-${index}`} src={item.url} controls playsInline preload="metadata"
+              aria-label={t("media.open_video", { name, index: index + 1 })}
+              className="aspect-video w-[84vw] max-w-[620px] shrink-0 snap-start rounded-xl bg-black sm:w-full" />
+          );
           const video = imageItem ? null : parseVideoUrl(item.url);
           const thumbnail = imageItem
             ? item.url

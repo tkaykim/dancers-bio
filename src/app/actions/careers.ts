@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -176,6 +177,21 @@ export async function addCareerAction(
   }
 
   const details = buildCareerDetails(parsed.data);
+
+  const importKey = formData.get("import_key")?.toString();
+  if (importKey && !z.uuid().safeParse(importKey).success) return { ok: false, error: t("common.invalid_request") };
+  if (importKey) {
+    const payload = { dancer_id: target.dancer.id, type: parsed.data.type, title: parsed.data.title,
+      date: parsed.data.date, details, is_public: true, is_representative: parsed.data.is_representative,
+      sort_order: parsed.data.sort_order, import_key: importKey };
+    const saved = await supabase.from("careers").upsert(payload, { onConflict: "dancer_id,import_key", ignoreDuplicates: true });
+    if (saved.error) return { ok: false, error: saved.error.message };
+    const existing = await supabase.from("careers").select("id").eq("dancer_id", target.dancer.id).eq("import_key", importKey).single();
+    if (existing.error || !existing.data) return { ok: false, error: t("common.invalid_request") };
+    await recomputeDancerScoreSafe(target.dancer.id);
+    revalidateForDancer(target.dancer);
+    return { ok: true, data: { id: existing.data.id as number } };
+  }
 
   const { data, error } = await supabase
     .from("careers")

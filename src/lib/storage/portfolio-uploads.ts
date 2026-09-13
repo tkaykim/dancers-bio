@@ -26,9 +26,9 @@ export function isValidPortfolioStoragePath(
   ownerId: string,
 ): boolean {
   if (!path || !ownerId) return false;
-  // path must start with "<ownerId>/"
-  if (!path.startsWith(`${ownerId}/`)) return false;
-  // No traversal, reasonable length
-  if (path.includes("..") || path.length > 256) return false;
-  return true;
+  // Accept only paths produced by our uploader. Reject percent-encoded traversal,
+  // nested paths and URL delimiters before a privileged Storage download.
+  const [owner, filename, ...rest] = path.split("/");
+  return owner === ownerId && rest.length === 0 && path.length <= 256 &&
+    /^portfolio_[A-Za-z0-9_-]+\.pdf$/i.test(filename ?? "");
 }
