@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- standalone CJS script loads the configured global Playwright runtime */
 const { chromium, webkit } = require(process.env.QA_PLAYWRIGHT_MODULE || 'playwright');
 const fs = require('node:fs');
 const path = require('node:path');
