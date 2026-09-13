@@ -26,6 +26,20 @@ export const projectDraftSchema = z
     visibility: z.enum(["public", "private"]),
     collect_applicant_fee: z.boolean(),
     collect_casting_details: z.boolean(),
+    schedules: z
+      .array(
+        z
+          .object({
+            label: z.string().trim().min(1).max(120),
+            starts_at: z.string().datetime(),
+            ends_at: z.string().datetime().nullable(),
+            time_tbd: z.boolean(),
+            location: z.string().max(120).nullable(),
+          })
+          .strict(),
+      )
+      .max(30)
+      .default([]),
   })
   .strict();
 const pair = z.tuple([z.string().min(1).max(40), z.string().min(1).max(120)]);

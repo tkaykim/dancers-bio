@@ -9,6 +9,10 @@ import { Label } from "@/components/ui/label";
 import { SelectionRoundsField } from "@/components/project/SelectionRoundsField";
 import { ProjectAttachmentsField } from "@/components/project/ProjectAttachmentsField";
 import {
+  koreanDateTimeInput,
+  type ProjectFormDefaults,
+} from "@/lib/project-intake/prefill";
+import {
   PROJECT_CATEGORY_LABELS,
   PROJECT_CATEGORY_ORDER,
   type ProjectCategory,
@@ -35,20 +39,39 @@ const emptyScheduleDraft: ScheduleDraft = {
 
 export function ProjectForm({
   genres,
+  initialValues = {},
+  intake,
 }: {
   genres: Lookup;
+  initialValues?: ProjectFormDefaults;
+  intake?: { id: string; revision: number };
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [schedules, setSchedules] = useState<ScheduleDraft[]>([]);
-  const [payDisplay, setPayDisplay] = useState<string>("");
-  const [category, setCategory] = useState<ProjectCategory | "">("");
-  const [isStandingPool, setIsStandingPool] = useState(false);
-  const [collectFee, setCollectFee] = useState(false);
-  const [collectCastingDetails, setCollectCastingDetails] = useState(false);
+  const [schedules, setSchedules] = useState<ScheduleDraft[]>(
+    initialValues.schedules ?? [],
+  );
+  const [payDisplay, setPayDisplay] = useState<string>(
+    initialValues.pay_amount?.toLocaleString("ko-KR") ?? "",
+  );
+  const [category, setCategory] = useState<ProjectCategory | "">(
+    initialValues.category ?? "",
+  );
+  const [isStandingPool, setIsStandingPool] = useState(
+    initialValues.is_standing_pool ?? false,
+  );
+  const [collectFee, setCollectFee] = useState(
+    initialValues.collect_applicant_fee ?? false,
+  );
+  const [collectCastingDetails, setCollectCastingDetails] = useState(
+    initialValues.collect_casting_details ?? false,
+  );
   const [attachmentsUploading, setAttachmentsUploading] = useState(false);
-  const [recruitmentUnlimited, setRecruitmentUnlimited] = useState(false);
+  const [recruitmentUnlimited, setRecruitmentUnlimited] = useState(
+    initialValues.recruitment_unlimited ?? false,
+  );
+  const [publishNow, setPublishNow] = useState(true);
 
   function onPayChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/[^\d]/g, "");
@@ -63,7 +86,9 @@ export function ProjectForm({
   }
 
   function updateSchedule(i: number, patch: Partial<ScheduleDraft>) {
-    setSchedules((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+    setSchedules((prev) =>
+      prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)),
+    );
   }
 
   function addSchedule() {
@@ -76,15 +101,27 @@ export function ProjectForm({
 
   return (
     <form
-      action={(formData) => {
+      onSubmit={(event) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
         setError(null);
+        if (intake) {
+          formData.set("intake_id", intake.id);
+          formData.set("intake_revision", String(intake.revision));
+        }
+        // datetime-local has no zone; all project dates in this form are Korean time.
+        const deadline = String(formData.get("application_deadline") || "");
+        if (deadline)
+          formData.set("application_deadline", `${deadline}:00+09:00`);
         // strip thousand separators from pay before submit
         const payRaw = (formData.get("pay_amount") ?? "").toString();
         formData.set("pay_amount", payRaw.replace(/[^\d]/g, ""));
         // attach category (chip-based state, not a native input)
         formData.set("category", category);
         // attach schedules (모든 일정 = 가능여부 조사 대상). 시간 비우면 time_tbd(날짜만).
-        const validSchedules = schedules.filter((s) => s.label.trim() && s.date);
+        const validSchedules = schedules.filter(
+          (s) => s.label.trim() && s.date,
+        );
         formData.set("schedules_count", String(validSchedules.length));
         validSchedules.forEach((s, i) => {
           const tbd = !s.start;
@@ -119,6 +156,7 @@ export function ProjectForm({
           name="title"
           required
           maxLength={120}
+          defaultValue={initialValues.title ?? ""}
           placeholder="예: NewJeans Hyein 솔로 무대 댄서 4인 구인"
         />
       </div>
@@ -132,6 +170,7 @@ export function ProjectForm({
           required
           minLength={10}
           maxLength={2000}
+          defaultValue={initialValues.description ?? ""}
           placeholder="역할, 컨셉, 의상, 자격 요건 등을 자세히 적어주세요. (10자 이상)"
           className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
         />
@@ -164,7 +203,9 @@ export function ProjectForm({
             );
           })}
         </div>
-        <p className="text-xs text-muted-foreground">하나만 선택 (다시 누르면 해제)</p>
+        <p className="text-xs text-muted-foreground">
+          하나만 선택 (다시 누르면 해제)
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -173,6 +214,7 @@ export function ProjectForm({
           <select
             id="genre_id"
             name="genre_id"
+            defaultValue={initialValues.genre_id ?? ""}
             className="h-10 rounded-md border border-input bg-background px-3 text-sm"
           >
             <option value="">선택 안 함</option>
@@ -188,6 +230,7 @@ export function ProjectForm({
           <Input
             id="region_text"
             name="region_text"
+            defaultValue={initialValues.region_text ?? ""}
             type="text"
             maxLength={100}
             placeholder="예: 서울 강남구"
@@ -215,6 +258,7 @@ export function ProjectForm({
           <select
             id="pay_type"
             name="pay_type"
+            defaultValue={initialValues.pay_type ?? ""}
             className="h-10 rounded-md border border-input bg-background px-3 text-sm"
           >
             <option value="">선택 안 함</option>
@@ -255,18 +299,23 @@ export function ProjectForm({
           상세 캐스팅 정보 필수로 받기
         </span>
         <span className="ml-6 text-xs text-muted-foreground">
-          이름·출생연도·키·주 장르·춤 영상·백업댄서 이력을 필수로 받고,
-          개인 프로필은 보유한 경우 함께 받습니다.
+          이름·출생연도·키·주 장르·춤 영상·백업댄서 이력을 필수로 받고, 개인
+          프로필은 보유한 경우 함께 받습니다.
         </span>
       </label>
 
       <SelectionRoundsField />
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="recruitment_count">모집 인원</Label>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="recruitment_unlimited" checked={recruitmentUnlimited} onChange={(e) => setRecruitmentUnlimited(e.target.checked)} />
+            <input
+              type="checkbox"
+              name="recruitment_unlimited"
+              checked={recruitmentUnlimited}
+              onChange={(e) => setRecruitmentUnlimited(e.target.checked)}
+            />
             인원 제한 없음
           </label>
           <Input
@@ -276,7 +325,7 @@ export function ProjectForm({
             type="number"
             min={1}
             max={999}
-            defaultValue={1}
+            defaultValue={initialValues.recruitment_count ?? 1}
             required
           />
           <p className="text-xs text-muted-foreground">
@@ -288,6 +337,9 @@ export function ProjectForm({
           <Input
             id="application_deadline"
             name="application_deadline"
+            defaultValue={koreanDateTimeInput(
+              initialValues.application_deadline,
+            )}
             type="datetime-local"
             disabled={isStandingPool}
             className={isStandingPool ? "opacity-50" : undefined}
@@ -312,7 +364,8 @@ export function ProjectForm({
           상시 섭외풀로 등록 (마감 없음 · 지원자는 풀에 적재)
         </span>
         <span className="ml-6 text-xs text-muted-foreground">
-          특정 일정 없이 상시로 지원을 받아 인재 풀을 쌓습니다. 마감일은 무시됩니다.
+          특정 일정 없이 상시로 지원을 받아 인재 풀을 쌓습니다. 마감일은
+          무시됩니다.
         </span>
       </label>
 
@@ -321,13 +374,15 @@ export function ProjectForm({
         <Input
           id="posted_by_label"
           name="posted_by_label"
+          defaultValue={initialValues.posted_by_label ?? ""}
           type="text"
           maxLength={80}
           placeholder="예: ABC 엔터테인먼트 / 김OO 안무가"
           autoComplete="off"
         />
         <p className="text-xs text-muted-foreground">
-          공고 카드·상세에 노출되는 등록자 이름입니다. 비워두면 관리자 표시명으로 노출됩니다.
+          공고 카드·상세에 노출되는 등록자 이름입니다. 비워두면 관리자
+          표시명으로 노출됩니다.
         </p>
       </div>
 
@@ -336,7 +391,7 @@ export function ProjectForm({
         <select
           id="visibility"
           name="visibility"
-          defaultValue="public"
+          defaultValue={initialValues.visibility ?? "public"}
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
         >
           <option value="public">공개 — 누구나 지원 가능</option>
@@ -344,7 +399,7 @@ export function ProjectForm({
         </select>
       </div>
 
-      <fieldset className="flex flex-col gap-3 rounded-xl border border-border p-4">
+      <fieldset className="flex min-w-0 flex-col gap-3 rounded-xl border border-border p-4">
         <div className="flex items-center justify-between">
           <legend className="text-sm font-semibold">일정 (선택)</legend>
           <button
@@ -360,65 +415,74 @@ export function ProjectForm({
           물어볼 수 있어요. 시간을 비우면 &apos;시간 미정&apos;(날짜만)으로
           등록되고, 장소는 지원자에게 비공개입니다.
         </p>
-        {schedules.length === 0 ? null : (
-          schedules.map((s, i) => (
-            <div
-              key={i}
-              className="flex flex-col gap-2 rounded-md border border-border bg-secondary/40 p-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-ink-2">#{i + 1}</span>
-                <button
-                  type="button"
-                  onClick={() => removeSchedule(i)}
-                  className="text-xs text-destructive hover:underline"
-                >
-                  제거
-                </button>
+        {schedules.length === 0
+          ? null
+          : schedules.map((s, i) => (
+              <div
+                key={i}
+                className="flex flex-col gap-2 rounded-md border border-border bg-secondary/40 p-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-ink-2">
+                    #{i + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeSchedule(i)}
+                    className="text-xs text-destructive hover:underline"
+                  >
+                    제거
+                  </button>
+                </div>
+                <Input
+                  placeholder="일정 제목 (예: 1차 오디션 겸 연습)"
+                  value={s.label}
+                  onChange={(e) => updateSchedule(i, { label: e.target.value })}
+                  maxLength={120}
+                />
+                <div className="grid grid-cols-[1fr_auto_1fr] gap-2">
+                  <Input
+                    type="date"
+                    value={s.date}
+                    onChange={(e) =>
+                      updateSchedule(i, { date: e.target.value })
+                    }
+                    className="col-span-3 min-w-0"
+                  />
+                  <Input
+                    type="time"
+                    value={s.start}
+                    onChange={(e) =>
+                      updateSchedule(i, { start: e.target.value })
+                    }
+                    className="min-w-0"
+                  />
+                  <span className="self-center text-ink-3">~</span>
+                  <Input
+                    type="time"
+                    value={s.end}
+                    onChange={(e) => updateSchedule(i, { end: e.target.value })}
+                    className="min-w-0"
+                  />
+                </div>
+                <Input
+                  placeholder="장소 (선택)"
+                  value={s.location}
+                  onChange={(e) =>
+                    updateSchedule(i, { location: e.target.value })
+                  }
+                  maxLength={120}
+                />
               </div>
-              <Input
-                placeholder="일정 제목 (예: 1차 오디션 겸 연습)"
-                value={s.label}
-                onChange={(e) => updateSchedule(i, { label: e.target.value })}
-                maxLength={120}
-              />
-              <div className="flex gap-2">
-                <Input
-                  type="date"
-                  value={s.date}
-                  onChange={(e) => updateSchedule(i, { date: e.target.value })}
-                  className="flex-1"
-                />
-                <Input
-                  type="time"
-                  value={s.start}
-                  onChange={(e) => updateSchedule(i, { start: e.target.value })}
-                  className="w-24"
-                />
-                <span className="self-center text-ink-3">~</span>
-                <Input
-                  type="time"
-                  value={s.end}
-                  onChange={(e) => updateSchedule(i, { end: e.target.value })}
-                  className="w-24"
-                />
-              </div>
-              <Input
-                placeholder="장소 (선택)"
-                value={s.location}
-                onChange={(e) => updateSchedule(i, { location: e.target.value })}
-                maxLength={120}
-              />
-            </div>
-          ))
-        )}
+            ))}
       </fieldset>
 
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"
           name="publish_now"
-          defaultChecked
+          checked={publishNow}
+          onChange={(e) => setPublishNow(e.target.checked)}
           className="h-4 w-4"
         />
         지금 바로 공개하기 (체크 해제 시 임시저장)
@@ -430,12 +494,20 @@ export function ProjectForm({
         </p>
       ) : null}
 
-      <Button type="submit" disabled={pending || attachmentsUploading} size="lg">
+      <Button
+        type="submit"
+        disabled={pending || attachmentsUploading}
+        size="lg"
+      >
         {attachmentsUploading
           ? "파일 업로드 중..."
           : pending
             ? "개설 중..."
-            : "프로젝트 개설하기"}
+            : intake
+              ? publishNow
+                ? "공고 발행"
+                : "임시저장"
+              : "프로젝트 개설하기"}
       </Button>
     </form>
   );

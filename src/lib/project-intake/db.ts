@@ -16,6 +16,7 @@ export type IntakeJob = {
   error: string | null;
   source_urls?: Array<{ path: string; url?: string }>;
   created_at: string;
+  updated_at?: string;
   result: IntakeResult | null;
   operator_notes: string;
   project_id: string | null;
