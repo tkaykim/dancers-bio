@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Loader2,
   Search,
+  SlidersHorizontal,
   Trash2,
 } from "lucide-react";
 import {
@@ -35,6 +36,7 @@ import {
   type VisaCaseTone,
 } from "@/lib/visa/case-state";
 import { cn } from "@/lib/utils";
+import styles from "./visa-admin-mobile.module.css";
 
 export type VisaAdminRow = {
   id: string;
@@ -177,7 +179,7 @@ const LANGS: { v: string; l: string }[] = [
 ];
 
 const SELECT_CLASS =
-  "min-h-9 rounded-xl border border-border bg-background px-2.5 text-[13px] text-foreground focus:border-primary focus:outline-none";
+  "min-h-11 min-w-0 rounded-xl border border-border bg-background px-3 text-base text-foreground focus:border-primary focus:outline-none sm:text-sm";
 
 function searchHaystack(r: VisaAdminRow) {
   return [r.stage_name, r.korean_name, r.email, r.nationality, r.next_action]
@@ -246,6 +248,7 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
   const [source, setSource] = useState("all");
   const [lang, setLang] = useState("all");
   const [hideParked, setHideParked] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const selected = rows.find((r) => r.id === selectedId) ?? null;
 
   if (rows.length === 0) {
@@ -285,10 +288,11 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
 
   const narrowed = visible.length !== rows.length;
   const filterActive = Boolean(queue) || hideParked || source !== "all" || lang !== "all" || q.trim() !== "";
+  const extraFilterCount = [source !== "all", lang !== "all", hideParked].filter(Boolean).length;
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
+      <div aria-label="처리할 일" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         {counts.map((q) => (
           <button
             key={q.key}
@@ -296,7 +300,7 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
             onClick={() => setQueue(queue === q.key ? null : q.key)}
             aria-pressed={queue === q.key}
             className={cn(
-              "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors",
+              "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-2 text-xs font-medium transition-colors sm:rounded-full sm:px-3 sm:text-[13px]",
               queue === q.key
                 ? "border-foreground bg-foreground text-background"
                 : "border-hairline-2 bg-card hover:bg-secondary",
@@ -317,17 +321,20 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex min-w-[200px] flex-1 items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
+      <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex min-h-11 min-w-0 items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
           <Search size={15} className="shrink-0 text-ink-3" aria-hidden />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="이름·이메일·국적 검색"
-            className="w-full bg-transparent text-sm outline-none placeholder:text-ink-3"
+            aria-label="이름·이메일·국적 검색"
+            type="search"
+            className="min-w-0 w-full bg-transparent text-base outline-none placeholder:text-ink-3 sm:text-sm"
           />
         </div>
 
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 sm:flex sm:flex-wrap">
         <select
           value={sortKey}
           onChange={(e) => {
@@ -351,12 +358,24 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
           disabled={sortKey === "default"}
           aria-label={sortDir === "asc" ? "오름차순 (누르면 내림차순)" : "내림차순 (누르면 오름차순)"}
           title={sortKey === "default" ? "처리 우선순위는 방향을 바꾸지 않습니다" : sortDir === "asc" ? "오름차순" : "내림차순"}
-          className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-border bg-background px-2.5 text-[13px] font-medium hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-border bg-background px-3 text-[13px] font-medium hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
         >
           {sortDir === "asc" ? <ArrowUpAZ className="size-4" /> : <ArrowDownAZ className="size-4" />}
-          {sortDir === "asc" ? "오름차순" : "내림차순"}
+          <span className="hidden sm:inline">{sortDir === "asc" ? "오름차순" : "내림차순"}</span>
         </button>
+        <button
+          type="button"
+          aria-expanded={filtersOpen}
+          aria-controls="visa-list-filters"
+          onClick={() => setFiltersOpen(!filtersOpen)}
+          className={cn("inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-medium", source !== "all" || lang !== "all" || hideParked ? "border-primary bg-primary/10 text-primary" : "border-border bg-background")}
+        >
+          <SlidersHorizontal className="size-4" />
+          필터{extraFilterCount > 0 ? ` ${extraFilterCount}` : ""}
+        </button>
+        </div>
 
+        <div id="visa-list-filters" hidden={!filtersOpen} className={filtersOpen ? "grid grid-cols-1 gap-2 rounded-xl border border-border bg-secondary/30 p-3 min-[360px]:grid-cols-2 sm:flex sm:flex-wrap" : undefined}>
         <select
           value={source}
           onChange={(e) => setSource(e.target.value)}
@@ -382,7 +401,7 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
           ))}
         </select>
 
-        <label className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 text-[13px] text-ink-2 hover:bg-secondary">
+        <label className="col-span-full inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-border bg-background px-3 text-[13px] text-ink-2 hover:bg-secondary">
           <input
             type="checkbox"
             checked={hideParked}
@@ -391,9 +410,10 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
           />
           테스트·대상 아님 숨기기
         </label>
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 text-[13px] text-ink-3">
+      <div aria-live="polite" className="flex min-h-6 flex-wrap items-center justify-between gap-2 text-[13px] text-ink-3">
         <span>
           {narrowed ? `${visible.length}건 표시 (전체 ${rows.length}건)` : `${rows.length}건`}
         </span>
@@ -407,7 +427,7 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
               setLang("all");
               setHideParked(false);
             }}
-            className="font-medium text-foreground underline underline-offset-2"
+            className="min-h-11 font-medium text-foreground underline underline-offset-2"
           >
             필터 초기화
           </button>
@@ -419,27 +439,27 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
           조건에 맞는 신청이 없습니다.
         </p>
       ) : (
-      <ul className="divide-y divide-hairline-2 overflow-hidden rounded-xl border border-border bg-card">
+      <ul aria-label="비자 신청자 명단" className="space-y-3 sm:space-y-0 sm:divide-y sm:divide-hairline-2 sm:overflow-hidden sm:rounded-xl sm:border sm:border-border sm:bg-card">
         {visible.map((r) => (
           <li key={r.id}>
             <button
               type="button"
               onClick={() => setSelectedId(r.id)}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/60"
+              className="relative flex w-full min-w-0 flex-col items-stretch gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-secondary/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:flex-row sm:items-center sm:rounded-none sm:border-0"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span className="truncate font-semibold text-foreground">
+                  <span className="w-full break-words pr-5 text-base font-semibold text-foreground [overflow-wrap:anywhere] sm:w-auto sm:pr-0">
                     {displayName(r)}
                   </span>
                   <span className="text-xs text-ink-3">{r.nationality ?? "국적 미상"}</span>
                   {r.source === "program" ? (
-                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
                       프로그램
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-0.5 truncate text-xs text-ink-3">
+                <p className="mt-1 break-words text-[13px] leading-relaxed text-ink-3 [overflow-wrap:anywhere]">
                   {r.email} ·{" "}
                   {new Date(r.created_at).toLocaleDateString("ko-KR", {
                     timeZone: "Asia/Seoul",
@@ -448,7 +468,7 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
                   })}
                 </p>
                 <div className="mt-1 flex flex-wrap items-center gap-1">
-                  <span className="text-[11px] font-medium text-ink-2">
+                  <span className="text-xs font-medium text-ink-2">
                     {CASE_STAGE[r.case_stage] ?? r.case_stage}
                   </span>
                   {r.derived.manualStatusChip ? (
@@ -466,10 +486,10 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
                   ))}
                 </div>
                 {r.next_action ? (
-                  <p className="mt-1 truncate text-[11px] text-ink-3">다음: {r.next_action}</p>
+                  <p className="mt-2 whitespace-normal break-words text-[13px] leading-relaxed text-ink-2 [overflow-wrap:anywhere]">다음: {r.next_action}</p>
                 ) : null}
                 {trackingState(r) ? (
-                  <p className="mt-1 text-[11px] font-medium text-primary">
+                  <p className="mt-1 text-xs font-medium text-primary">
                     {trackingState(r)}
                     {r.tracking?.lastEventAt ? ` · 마지막 ${formatKstShort(r.tracking.lastEventAt)}` : ""}
                   </p>
@@ -477,14 +497,14 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
               </div>
               <span
                 className={cn(
-                  "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                  "inline-flex max-w-full shrink-0 self-start items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold sm:self-center",
                   DERIVED_TONE,
                 )}
               >
                 <StatusLed tone={r.derived.tone} />
                 {r.derived.label}
               </span>
-              <ChevronRight className="size-4 shrink-0 text-ink-4" />
+              <ChevronRight className="absolute right-4 top-5 size-4 shrink-0 text-ink-4 sm:static" />
             </button>
           </li>
         ))}
@@ -497,6 +517,8 @@ export function VisaAdminList({ rows }: { rows: VisaAdminRow[] }) {
           if (!o) setSelectedId(null);
         }}
         title={selected ? displayName(selected) : undefined}
+        className="max-h-[94dvh] sm:w-[560px]"
+        contentClassName="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6"
       >
         {selected ? (
           <VisaDetail
@@ -559,7 +581,7 @@ function VisaDetail({
   };
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className={cn("flex min-w-0 flex-col gap-5", styles.detail)}>
       {/* 헤더 요약 */}
       <div className="flex flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2">
@@ -751,9 +773,10 @@ function VisaDetail({
 
       {/* 상태·메모 편집 */}
       <div className="flex flex-col gap-2 border-t border-hairline-2 pt-4">
-        <label className="text-xs font-medium text-ink-3">진행 상태</label>
+        <label htmlFor="visa-progress-status" className="text-xs font-medium text-ink-3">진행 상태</label>
         <div className="flex flex-wrap items-center gap-2">
           <select
+            id="visa-progress-status"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
             className="rounded-lg border border-hairline-2 bg-surface-2 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
@@ -779,6 +802,7 @@ function VisaDetail({
           </button>
         </div>
         <textarea
+          aria-label="담당자 메모"
           value={memo}
           onChange={(e) => {
             setMemo(e.target.value);
@@ -846,7 +870,7 @@ function Field({
   full?: boolean;
 }) {
   return (
-    <div className={cn("flex flex-col gap-0.5", full && "col-span-2")}>
+    <div className={cn("flex min-w-0 flex-col gap-0.5", full && "col-span-2")}>
       <span className="text-[11px] text-ink-3">{label}</span>
       <span className="text-foreground">{children}</span>
     </div>

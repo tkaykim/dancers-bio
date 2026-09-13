@@ -14,6 +14,7 @@ type DrawerProps = {
   title?: string;
   children: React.ReactNode;
   className?: string;
+  contentClassName?: string;
 };
 
 // 모바일: 바텀시트 / 데스크톱(sm+): 우측 사이드 드로어.
@@ -23,6 +24,7 @@ export function Drawer({
   title,
   children,
   className,
+  contentClassName,
 }: DrawerProps) {
   const t = useT(ui);
   return (
@@ -48,9 +50,9 @@ export function Drawer({
             className,
           )}
         >
-          <div className="flex items-center justify-between gap-3 border-b border-hairline-2 px-6 py-4">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-hairline-2 px-4 py-3 sm:px-6 sm:py-4">
             {title ? (
-              <DialogPrimitive.Title className="text-base font-bold text-foreground">
+              <DialogPrimitive.Title className="min-w-0 break-words text-base font-bold text-foreground [overflow-wrap:anywhere]">
                 {title}
               </DialogPrimitive.Title>
             ) : (
@@ -58,12 +60,12 @@ export function Drawer({
             )}
             <DialogPrimitive.Close
               aria-label={t("drawer.close")}
-              className="-mr-2 rounded-full p-2 text-ink-3 transition-colors hover:bg-secondary hover:text-foreground"
+              className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-secondary hover:text-foreground"
             >
               <XIcon className="size-4" />
             </DialogPrimitive.Close>
           </div>
-          <div className="flex-1 overflow-y-auto p-6">{children}</div>
+          <div className={cn("min-h-0 min-w-0 flex-1 overflow-y-auto p-6", contentClassName)}>{children}</div>
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

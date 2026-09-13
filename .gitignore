@@ -68,3 +68,6 @@ scripts/.profile-nudge-sent.json
 e2e/screenshots/
 e2e/results/
 e2e/report/
+
+# Private applicant screenshots from local administrator QA
+qa-artifacts/visa-admin-mobile/

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarPlus, Check, CircleAlert, Eye, Loader2, Send, Users } from "lucide-react";
+import styles from "./visa-admin-mobile.module.css";
 
 import {
   listAuditionInviteCandidatesAction,
@@ -111,7 +112,7 @@ export function VisaAuditionInvitePanel() {
   const selectedCount = selected.size;
 
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4">
+    <section className={`min-w-0 rounded-xl border border-zinc-200 bg-white p-4 ${styles.bulk}`}>
       <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
         <CalendarPlus className="h-4 w-4" />
         오디션 회차 일괄 초대
