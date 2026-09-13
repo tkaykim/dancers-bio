@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
+import { PortfolioNickname } from "./PortfolioNickname";
 import { ImportEntryButton } from "./import/ImportEntryButton";
 import { ProfileLinkCard } from "./ProfileLinkCard";
 import { useT } from "@/lib/i18n/provider";
@@ -23,11 +25,13 @@ export function PortfolioJourney({ profileId, dancerId, importEnabled }: {
   </section>;
 }
 
-export function PortfolioShareStep({ slug, approved }: { slug: string | null; approved: boolean }) {
+export function PortfolioShareStep({ slug, approved, dancerId, stageName }: { slug: string | null; approved: boolean; dancerId: string; stageName: string }) {
   const t = useT(messages);
+  const [savedSlug, setSavedSlug] = useState(slug);
   return <section id="portfolio-share" className="flex scroll-mt-24 flex-col gap-4">
     <h3 className="font-semibold">{t("share")}</h3>
-    {approved && slug ? <ProfileLinkCard slug={slug} approved /> :
+    <PortfolioNickname dancerId={dancerId} slug={savedSlug} stageName={stageName} onSaved={setSavedSlug} />
+    {approved && savedSlug ? <ProfileLinkCard slug={savedSlug} approved /> :
       <p className="whitespace-pre-line text-sm text-ink-2">{t(approved ? "noSlug" : "pending")}</p>}
   </section>;
 }

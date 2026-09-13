@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getBrandFromHost } from "@/lib/brand";
+import { RESERVED_VANITY_SEGMENTS } from "@/lib/utils/vanity-nickname";
 import {
   LOCALE_COOKIE,
   REQUESTED_LOCALE_HEADER,
@@ -26,13 +27,7 @@ const BRAND_ORIGIN = (
 
 // First path segments that are real app routes, NOT dancer slugs. A single bare
 // segment outside this set is treated as a dancer slug and rewritten to /d/<slug>.
-const RESERVED_FIRST_SEGMENTS = new Set([
-  "admin", "applications", "me", "proposals", "verify-instagram",
-  "claim", "forgot-password", "login", "signup",
-  "d", "dancers", "feed", "t", "u",
-  "api", "h", "onboarding", "projects", "reset-password", "s", "sr", "fr", "fit", "sz", "welcome",
-  "workshops", "messages",
-]);
+const RESERVED_FIRST_SEGMENTS = RESERVED_VANITY_SEGMENTS;
 
 // 원클릭 수신거부(RFC 8058)는 List-Unsubscribe 헤더의 URL 로 **POST** 가 온다.
 // 그 URL 은 사람이 열 때 확인 페이지를 보여줘야 해서 page.tsx 가 차지하고 있고,

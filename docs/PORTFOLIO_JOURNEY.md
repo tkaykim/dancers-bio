@@ -1,7 +1,7 @@
 # Portfolio intake → editable profile → dancers.bio sharing
 
 Implementation: `codex/portfolio-journey-20260913`.
-Status: local implementation and verification; production deployment, migration and worker activation require approval.
+Status: initial release deployed through PR #247; nickname usability follow-up described below.
 
 ## Existing gaps
 
@@ -12,6 +12,20 @@ The public page already rendered `dancers.portfolio` galleries, but owners had n
 Partial import saves retried already successful rows and could duplicate careers.
 
 ## User journey
+
+### Nickname follow-up, 2026-09-13
+
+The sharing step now includes an editable `dancers.bio/` nickname field and a stage-name suggestion.
+Names are saved exactly after trimming/lowercasing; no random or numeric suffix is silently appended.
+An occupied automatic stage-name address stays unset until the member chooses an available nickname.
+Explicit duplicates are rejected, including addresses held by profiles hidden by RLS.
+Application route names are blocked using the same reserved segment set as the vanity middleware.
+Existing member addresses are unchanged until explicitly edited; after changing an address, members are prompted to update previously shared links.
+The profile form is remounted after nickname saves so a later profile edit cannot restore a stale address.
+The previous screenshot's `portfolio-qa-...` suffix belonged only to the synthetic test account.
+
+Verification: nickname rule tests, TypeScript, focused ESLint and authenticated browser checks passed for exact save, stage-name selection, duplicate/reserved rejection, reload persistence and 320/390/1280px layouts.
+Evidence: `Desktop/deliverables/deetz-portfolio-20260913/nickname/`.
 
 1. Existing owners enter `/me/portfolio/[dancerId]` from My portfolio.
    New profile creation returns to this page, preserving an explicit casting/application `returnTo`.

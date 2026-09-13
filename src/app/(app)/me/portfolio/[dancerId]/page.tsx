@@ -96,6 +96,7 @@ export default async function MyPortfolioEditPage({
       <summary className="cursor-pointer py-2 text-sm font-semibold">{j("edit")}</summary>
       <div className="pt-5">
       <DancerProfileForm
+        key={dancer.slug}
         userId={user.id}
         dancerId={dancer.id}
         currentProfileImg={dancer.profile_img ?? null}
@@ -154,7 +155,7 @@ export default async function MyPortfolioEditPage({
       ) : null}
 
       <CareersNavLink href={`/me/portfolio/${dancer.id}/careers`} />
-      {isOwner && <PortfolioShareStep slug={dancer.slug} approved={dancer.approval_status === "approved"} />}
+      {isOwner && <PortfolioShareStep key={dancer.slug} dancerId={dancer.id} stageName={dancer.stage_name} slug={dancer.slug} approved={dancer.approval_status === "approved"} />}
     </div>
   );
 }
