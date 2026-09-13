@@ -30,8 +30,8 @@ WebKit passed all 12 layout cases and interaction assertions over local HTTPS, b
 An isolated WebKit language-switch/reload and primary-navigation run passed without page errors.
 The remaining combined-run proxy/browser error is a validation limitation; do not describe the full WebKit suite as passing.
 
-This homepage change requires separate production approval after review.
-The administrator mobile fix was already deployed separately through PR #244.
+The homepage change required separate production approval after review; the user authorized the production deployment on 2026-09-13.
+The administrator mobile fix was already deployed separately through PR #244; the homepage deploy is handled through PR #245.
 
 Copy review update: the user rejected “사람이 만드는 다음 무대” as translation-like, generic AI copy and requested headline candidates before choosing a replacement.
 Keep media in its original colors; the neutral interface palette does not require grayscale media.
