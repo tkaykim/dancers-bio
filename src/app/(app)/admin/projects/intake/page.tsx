@@ -30,12 +30,13 @@ export default async function ProjectIntakePage({
     <div className="flex flex-col gap-6">
       <header>
         <p className="text-sm text-ink-3">공고 준비</p>
-        <h1 className="text-2xl font-bold">텍스트·캡처로 공고 만들기</h1>
+        <h1 className="text-2xl font-bold">공고 접수·처리 목록</h1>
         <p className="mt-2 text-sm text-ink-2">
           원문을 넣으면 공고 초안과 언어별 카드 2장을 준비합니다.
           <br />
           기존 공고등록 양식에 내용이 채워지면 수정하고 직접 발행할 수 있습니다.
         </p>
+        <Link href="/projects/new?mode=auto" className="mt-3 inline-block text-sm underline">새 공고 등록 →</Link>
       </header>
       <IntakeConsole
         initialJobs={result.ok ? result.jobs : []}

@@ -84,6 +84,11 @@ To pause after activation, disable the Windows task and the matching hub automat
 
 ## Validation
 
+The main registration entry is `/projects/new`: administrators switch between direct entry and text/screenshot-assisted entry without losing mounted form values.
+`?mode=auto` opens assisted entry; `?intake=<id>` opens the existing form with extracted values for review.
+Ordinary creators keep their existing direct-entry permission and receive no administrator queue data.
+The sidebar has one registration entry and one processing-history entry; old import URLs remain compatible.
+
 - `npm run test:project-intake`: input/privacy/OAuth/image checks; PGlite migration, lease recovery, stale-token rejection, admin/revision checks, real worker state transitions with mocked AI/Studio, storage-failure containment, transactional/idempotent registration and UTC/KST timestamp parity.
 - `node scripts/test-project-intake-ui.mjs`: real React component with mocked server actions, text submit, language order, collapsed list, live progress, search/filter, revision flow, existing form link, clipboard upload, 390px overflow and page-error checks.
 - `node scripts/test-project-prefill-ui.mjs`: actual existing ProjectForm with prefilled fields, edited values, Korean deadline/schedule submission, retained edits on rejection, explicit publish/draft controls and 390px layout.

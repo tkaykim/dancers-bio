@@ -28,7 +28,7 @@ const defaults = {
 };
 const bundled = await build({
   stdin: {
-    contents: `import React from 'react';import {createRoot} from 'react-dom/client';import {ProjectForm} from './src/components/project/ProjectForm.tsx';window.__submissions=[];createRoot(document.getElementById('root')).render(<ProjectForm genres={[{id:'11111111-1111-4111-8111-111111111111',label_ko:'힙합'}]} initialValues={${JSON.stringify(defaults)}} intake={{id:'22222222-2222-4222-8222-222222222222',revision:3}} />);`,
+    contents: `import React from 'react';import {createRoot} from 'react-dom/client';import {ProjectForm} from './src/components/project/ProjectForm.tsx';import {ProjectRegistrationModes} from './src/components/project/ProjectRegistrationModes.tsx';window.__submissions=[];createRoot(document.getElementById('root')).render(<ProjectRegistrationModes automatic={<textarea aria-label="원문" />} manual={<ProjectForm genres={[{id:'11111111-1111-4111-8111-111111111111',label_ko:'힙합'}]} initialValues={${JSON.stringify(defaults)}} intake={{id:'22222222-2222-4222-8222-222222222222',revision:3}} />} />);`,
     resolveDir: process.cwd(),
     loader: "tsx",
   },
@@ -101,6 +101,14 @@ try {
     defaults.genre_id,
   );
   await page.getByLabel("제목", { exact: true }).fill("수정된 공고 제목");
+  await page.getByRole('button', {name:'텍스트·캡처로 자동 입력', exact:true}).click();
+  assert.equal(await page.getByLabel('제목', {exact:true}).isVisible(), false);
+  await page.getByLabel('원문', {exact:true}).fill('보존할 원문');
+  await page.getByRole('button', {name:'직접 입력', exact:true}).click();
+  assert.equal(await page.getByLabel('제목', {exact:true}).inputValue(), '수정된 공고 제목');
+  await page.getByRole('button', {name:'텍스트·캡처로 자동 입력', exact:true}).click();
+  assert.equal(await page.getByLabel('원문', {exact:true}).inputValue(), '보존할 원문');
+  await page.getByRole('button', {name:'직접 입력', exact:true}).click();
   await page.getByLabel("페이 (KRW)").fill("170000");
   await page
     .getByLabel("지원 마감 (선택)", { exact: true })
@@ -148,6 +156,7 @@ try {
         passed: true,
         checks: [
           "prefill",
+          "mode switching preserves both panels",
           "edited values",
           "KST deadline",
           "schedule",
