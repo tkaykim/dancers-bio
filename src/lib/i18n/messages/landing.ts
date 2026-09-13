@@ -51,9 +51,9 @@ const ko = {
   "nav.feed": "공고 보기",
 
   "hero.badge": "댄서 · 안무가 · 댄스팀",
-  "hero.title": "사람이 만드는\n다음 무대.",
+  "hero.title": "댄서 섭외부터\n안무 제작까지.",
   "hero.lede":
-    "함께할 댄서를 찾고, 새로운 무대를 만나세요.\n영상과 경력으로 연결되는 캐스팅 플랫폼, deetz.",
+    "뮤직비디오, 광고, 공연에 필요한 댄서와 안무가들의\n프로필을 보고 작업에 맞는 사람을 찾으세요.",
   "hero.cta_feed": "공고 보기",
   "hero.cta_portfolio": "댄서 찾기",
   "hero.image_alt": "스튜디오에서 함께 안무를 연습하는 댄서들",
@@ -151,9 +151,9 @@ const en: Record<Key, string> = {
   "nav.feed": "Casting calls",
 
   "hero.badge": "Dancers, choreographers & dance teams",
-  "hero.title": "Your next stage\nstarts here.",
+  "hero.title": "Dancer casting\nand choreography.",
   "hero.lede":
-    "Discover dancers through their videos and credits.\nFind casting calls for your next project.",
+    "Browse dancer and choreographer profiles to find the right people for your music video, ad, or performance.",
   "hero.cta_feed": "Explore casting calls",
   "hero.cta_portfolio": "Find dancers",
   "hero.image_alt": "Dancers rehearsing choreography together in a studio",
@@ -249,9 +249,9 @@ const ja: Record<Key, string> = {
   "nav.feed": "募集一覧",
 
   "hero.badge": "ダンサー・振付師・ダンスチーム",
-  "hero.title": "次のステージを、\nともにつくる。",
+  "hero.title": "ダンサーの手配から\n振付制作まで。",
   "hero.lede":
-    "ともにつくるダンサーを探し、新しい舞台と出会う。\n映像と経歴でつながるキャスティングプラットフォーム、deetz。",
+    "ミュージックビデオ、広告、公演に出演するダンサーや振付師のプロフィールを見て、依頼内容に合う人を探しましょう。",
   "hero.cta_feed": "募集を見る",
   "hero.cta_portfolio": "ダンサーを探す",
   "hero.image_alt": "スタジオで一緒に振付を練習するダンサーたち",

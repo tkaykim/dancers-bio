@@ -31,7 +31,7 @@ fs.mkdirSync(output, { recursive: true });
       if (!before) {
         assert.ok(overflow <= 1, `Overflow ${lang}/${width}: ${overflow}`);
         assert.equal(await page.locator('h1').count(), 1);
-        assert.equal(await page.locator('h1').innerText(), { ko: '사람이 만드는\n다음 무대.', en: 'Your next stage\nstarts here.', ja: '次のステージを、\nともにつくる。' }[lang]);
+        assert.equal(await page.locator('h1').innerText(), { ko: '댄서 섭외부터\n안무 제작까지.', en: 'Dancer casting\nand choreography.', ja: 'ダンサーの手配から\n振付制作まで。' }[lang]);
         assert.equal(await page.locator('html').getAttribute('lang'), lang);
         const languageTops = await page.locator('header button[lang]').evaluateAll(els => els.map(el => el.getBoundingClientRect().top));
         assert.ok(Math.max(...languageTops) - Math.min(...languageTops) < 2, `Language switcher stays on one row: ${lang}/${width}`);

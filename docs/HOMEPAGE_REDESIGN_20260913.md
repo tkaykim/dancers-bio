@@ -3,7 +3,7 @@
 Scope: the public `/` landing page.
 The user rejected the beige/orange palette, decorative hero icons and repeated card styling.
 
-The replacement uses white, neutral gray and black; the official DeetzLogo; a wide monochrome treatment of the existing performance image; and larger sans-serif headings.
+The replacement uses white, neutral gray and black for the interface; the official DeetzLogo; a wide crop of the existing performance image in its original colors; and larger sans-serif headings.
 The hero separates its headline from a short introduction and two direct destinations: dancer discovery and casting calls.
 The image links to its existing source video.
 No generated image or invented endorsement is introduced.
@@ -32,3 +32,10 @@ The remaining combined-run proxy/browser error is a validation limitation; do no
 
 This homepage change requires separate production approval after review.
 The administrator mobile fix was already deployed separately through PR #244.
+
+Copy review update: the user rejected “사람이 만드는 다음 무대” as translation-like, generic AI copy and requested headline candidates before choosing a replacement.
+Keep media in its original colors; the neutral interface palette does not require grayscale media.
+The user selected “댄서 섭외부터 안무 제작까지.” with the supporting sentence “뮤직비디오, 광고, 공연에 필요한 댄서와 안무가들의 프로필을 보고 작업에 맞는 사람을 찾으세요.”
+The Korean copy now matches that selection, with English and Japanese conveying the same service scope.
+The copy/color update passed all seven i18n tests, changed-file ESLint and the Chromium browser script's 12 viewport/language cases and navigation checks on the local dev server, with no overflow or page errors.
+Updated screenshots are in `Desktop/deliverables/deetz-homepage-redesign/selected-copy`.
