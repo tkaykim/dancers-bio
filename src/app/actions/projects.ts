@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { registerIntakeForm } from "@/lib/project-intake/register-form";
+import { hasPayDisclosure } from "@/lib/project-intake/schema";
 import { after } from "next/server";
 import { sendProjectMatchNotifications } from "@/lib/notify/project-match";
 import {
@@ -185,6 +186,20 @@ export async function createProjectAction(
   );
   if (!attachmentInput.ok) return attachmentInput;
 
+  const publishPay = formData.get("publish_pay") === "on";
+  if (
+    !publishPay &&
+    hasPayDisclosure(
+      `${formData.get("title") ?? ""}\n${formData.get("description") ?? ""}`,
+    )
+  ) {
+    return {
+      ok: false,
+      error:
+        "제목 또는 본문에 페이·금액이 포함되어 있습니다. 삭제하거나 페이 공개를 직접 켜 주세요.",
+    };
+  }
+
   const parsed = projectSchema.safeParse({
     title: formData.get("title"),
     description: formData.get("description"),
@@ -193,8 +208,8 @@ export async function createProjectAction(
     genre_id: strOrNull(formData, "genre_id"),
     region_id: strOrNull(formData, "region_id"),
     region_text: strOrNull(formData, "region_text"),
-    pay_amount: strOrNull(formData, "pay_amount"),
-    pay_type: strOrNull(formData, "pay_type"),
+    pay_amount: publishPay ? strOrNull(formData, "pay_amount") : null,
+    pay_type: publishPay ? strOrNull(formData, "pay_type") : null,
     recruitment_count: strOrNull(formData, "recruitment_count") ?? "1",
     recruitment_unlimited: formData.get("recruitment_unlimited") === "on",
     application_deadline: localDateTimeToIso(

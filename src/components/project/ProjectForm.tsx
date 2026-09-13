@@ -52,9 +52,8 @@ export function ProjectForm({
   const [schedules, setSchedules] = useState<ScheduleDraft[]>(
     initialValues.schedules ?? [],
   );
-  const [payDisplay, setPayDisplay] = useState<string>(
-    initialValues.pay_amount?.toLocaleString("ko-KR") ?? "",
-  );
+  const [publishPay, setPublishPay] = useState(false);
+  const [payDisplay, setPayDisplay] = useState("");
   const [category, setCategory] = useState<ProjectCategory | "">(
     initialValues.category ?? "",
   );
@@ -239,7 +238,24 @@ export function ProjectForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="publish_pay"
+          checked={publishPay}
+          onChange={(e) => setPublishPay(e.target.checked)}
+        />
+        페이 공개 (직접 입력 시에만)
+      </label>
+      <p className="text-xs text-muted-foreground">
+        기본은 페이 미입력·비공개입니다. 금액을 공개하려는 경우에만 켜고 직접
+        입력해 주세요.
+      </p>
+      <fieldset
+        disabled={!publishPay}
+        hidden={!publishPay}
+        className="grid grid-cols-2 gap-3"
+      >
         <div className="flex flex-col gap-2">
           <Label htmlFor="pay_amount">페이 (KRW)</Label>
           <Input
@@ -258,7 +274,7 @@ export function ProjectForm({
           <select
             id="pay_type"
             name="pay_type"
-            defaultValue={initialValues.pay_type ?? ""}
+            defaultValue=""
             className="h-10 rounded-md border border-input bg-background px-3 text-sm"
           >
             <option value="">선택 안 함</option>
@@ -267,7 +283,7 @@ export function ProjectForm({
             <option value="negotiable">협의</option>
           </select>
         </div>
-      </div>
+      </fieldset>
 
       <label className="flex flex-col gap-1 rounded-xl border border-border p-4">
         <span className="flex items-center gap-2 text-sm font-medium">

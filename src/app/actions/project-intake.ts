@@ -198,6 +198,8 @@ export async function registerProjectIntake(input: unknown) {
     .eq("id", parsed.data.id)
     .single();
   if (!job) return failed();
+  if (job.result?.pay_policy !== "omit")
+    return { ok: false as const, error: "기존 초안은 공고 등록 양식에서 페이를 제외해 확인하거나 다시 준비해 주세요." };
   try {
     validateResult(job.result, job.languages, job.private_terms);
   } catch {

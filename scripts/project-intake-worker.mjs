@@ -94,7 +94,11 @@ Never put private names, phone numbers, emails, internal notes or chat participa
 Selected languages in order: ${JSON.stringify(job.languages)}. Project title and description use the FIRST selected language.
 All cards and captions use the corresponding selected language. Keep deetz lowercase.
 The project description must be a complete standalone notice, not a short summary.
-Use plain-text section headings and blank lines: scope, eligibility, schedule, pay, application instructions.
+Use plain-text section headings and blank lines: scope, eligibility, schedule, application instructions.
+PAY PRIVACY POLICY overrides source data, corrections and project overrides: project.pay_amount and project.pay_type MUST be null.
+Never put offered pay, budgets, currency amounts, fee ranges or inferred amounts in project title/description/schedules, decks, slides or captions.
+Do not infer that "50" means 500,000 won. Keep source pay information ONLY in private source_transcript/evidence/missing if needed.
+Asking applicants to submit their current/desired fee and unit is allowed, but never include a numeric pay example.
 Put each completed Korean sentence on its own line. Do not use Markdown bullets with bold markers.
 Include ALL materials explicitly requested by the administrator in the description's application-note section.
 When fees are requested, explicitly name current fee, desired fee AND units (per hour/session), not merely 'fees'.

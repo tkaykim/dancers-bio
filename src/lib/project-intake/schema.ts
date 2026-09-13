@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { hasPayDisclosure, stripPayDisclosure } from "./pay-policy.mjs";
+export { hasPayDisclosure, stripPayDisclosure } from "./pay-policy.mjs";
 
 export const LANGUAGES = ["ko", "en", "ja", "zh", "th", "id"] as const;
 export const languageSchema = z.enum(LANGUAGES);
@@ -55,6 +57,7 @@ export const slideSchema = z
   .strict();
 export const intakeResultSchema = z
   .object({
+    pay_policy: z.literal("omit").optional(),
     project: projectDraftSchema,
     source_transcript: z.string().max(30000),
     missing: z.array(z.string().max(200)).max(30),
@@ -104,6 +107,31 @@ export function validateResult(
   terms: string[],
 ) {
   const value = intakeResultSchema.parse(raw);
+  value.project.pay_amount = null;
+  value.project.pay_type = null;
+  value.project.title = stripPayDisclosure(value.project.title);
+  value.project.description = stripPayDisclosure(value.project.description);
+  for (const schedule of value.project.schedules) {
+    schedule.label = stripPayDisclosure(schedule.label);
+    if (schedule.location)
+      schedule.location = stripPayDisclosure(schedule.location);
+  }
+  for (const deck of value.decks) {
+    deck.title = stripPayDisclosure(deck.title);
+    deck.caption = stripPayDisclosure(deck.caption);
+    for (const slide of deck.slides) {
+      slide.eyebrow = stripPayDisclosure(slide.eyebrow);
+      slide.title = slide.title.map(stripPayDisclosure).filter(Boolean);
+      slide.copy = stripPayDisclosure(slide.copy);
+      slide.chip = stripPayDisclosure(slide.chip);
+      slide.items = slide.items.filter(
+        (pair) => !hasPayDisclosure(pair.join(" ")),
+      );
+    }
+  }
+  value.pay_policy = "omit";
+  // Fail closed if removing a payment line leaves an invalid notice/card.
+  intakeResultSchema.parse(value);
   if (value.decks.map((d) => d.language).join(",") !== languages.join(","))
     throw new Error("카드 언어와 순서가 요청과 다릅니다.");
   const publicText = JSON.stringify({
