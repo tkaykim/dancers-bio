@@ -5,10 +5,43 @@ import type { Messages } from "../t";
  * 랜딩 전용 OG 설명·검색 키워드·본문만 둔다 (docs/design-i18n-ui.md §3.3).
  *
  * `meta.keywords` 는 쉼표로 구분한 목록이며 페이지가 split 해서 쓴다.
- * `Dancers`·`Teams`·`Calls`·`FAQ`·`Contact`·`deetz magazine` 같은 영문 장식 라벨은
- * 세 언어 공통 디자인 요소라 사전에 두지 않았다.
+ * 화면 문구와 접근성 이름은 세 언어 사전에서 함께 관리한다.
  */
 const ko = {
+  "home.skip": "본문으로 이동",
+  "home.home_label": "deetz 홈",
+  "home.nav_label": "주요 메뉴",
+  "home.how": "이용 방법",
+  "home.login": "로그인",
+  "home.stat_dancers": "등록 댄서",
+  "home.stat_teams": "활동 중인 팀",
+  "home.stat_calls": "누적 공고",
+  "home.image_caption": "영상으로 만나는 퍼포먼스",
+  "home.watch": "영상 보기",
+  "home.client_label": "댄서를 찾고 있다면",
+  "home.client_title": "우리 프로젝트에\n맞는 댄서.",
+  "home.client_body": "영상과 경력을 살펴보고 필요한 댄서에게 제안하세요.\n공고를 올려 일정과 조건에 맞는 지원자를 모을 수도 있습니다.",
+  "home.post_call": "공고 등록하기",
+  "home.dancer_label": "새로운 작업을 찾고 있다면",
+  "home.dancer_title": "다음 작업으로\n이어지는 프로필.",
+  "home.dancer_body": "경력과 작업 영상을 한 페이지에 담으세요.\n촬영·공연 공고에 지원하고 새로운 캐스팅 제안을 받아보세요.",
+  "home.create_profile": "프로필 만들기",
+  "home.service_label": "함께 만드는 작업",
+  "home.service_title": "카메라 앞에서도.\n무대 위에서도.",
+  "home.service_body": "솔로 퍼포먼스부터 팀 단위 공연, 안무 제작까지.\n프로젝트에 필요한 경험과 장르를 찾아보세요.",
+  "home.service_film": "뮤직비디오 · 광고",
+  "home.service_stage": "무대 · 방송",
+  "home.service_choreography": "안무 제작 · 디렉팅",
+  "home.service_team": "공연 · 행사",
+  "home.program_label": "한국 활동을 준비하는 해외 댄서에게",
+  "home.program_title": "비자·댄스 프로그램 알아보기",
+  "home.faq_label": "자주 묻는 질문",
+  "home.guide": "이용 가이드 보기",
+  "home.contact_label": "섭외·캐스팅 문의",
+  "home.footer_note": "댄서, 안무가, 그리고 다음 무대.",
+  "home.terms": "이용약관",
+  "home.privacy": "개인정보처리방침",
+
   "meta.og_description":
     "MV·광고·무대·방송 댄서 섭외와 안무 제작을 포트폴리오로 연결하는 댄서 캐스팅 플랫폼, 디츠(deetz).",
   "meta.keywords":
@@ -17,13 +50,13 @@ const ko = {
   "nav.dancers": "댄서 보기",
   "nav.feed": "공고 보기",
 
-  "hero.badge": "Dancer casting & Curation · 캐스팅, 큐레이션",
-  "hero.title": "댄서 섭외와\n안무 제작을\n한 곳에서.",
+  "hero.badge": "댄서 · 안무가 · 댄스팀",
+  "hero.title": "댄서 섭외부터\n안무 제작까지.",
   "hero.lede":
-    "디츠(deetz)는 댄서, 안무가, 댄스팀의 포트폴리오와 경력을 기반으로 MV, 광고, 방송, 댄스 공연 섭외를 연결하는 댄서 섭외·캐스팅 플랫폼입니다.",
-  "hero.cta_feed": "섭외 공고 보기",
-  "hero.cta_portfolio": "포트폴리오 둘러보기",
-  "hero.image_alt": "deetz 댄서 캐스팅 레퍼런스 영상",
+    "뮤직비디오, 광고, 공연에 필요한 댄서와 안무가들의\n프로필을 보고 작업에 맞는 사람을 찾으세요.",
+  "hero.cta_feed": "공고 보기",
+  "hero.cta_portfolio": "댄서 찾기",
+  "hero.image_alt": "스튜디오에서 함께 안무를 연습하는 댄서들",
 
   "stats.calls_fallback": "공개",
 
@@ -39,7 +72,7 @@ const ko = {
   "usecase.team": "댄스 공연 섭외와 댄스팀 포트폴리오 확인",
   "usecase.portfolio": "안무가, 디렉터, 인스트럭터, 댄스팀 포트폴리오 확인",
 
-  "faq.title": "댄서 캐스팅을 찾는 사람이 바로 이해할 수 있게 정리했습니다.",
+  "faq.title": "궁금한 점을\n먼저 확인하세요.",
   "faq.q_service": "deetz는 어떤 서비스인가요?",
   "faq.a_service":
     "deetz(디츠)는 MV, 광고, 무대, 방송, 행사에 필요한 댄서와 안무가를 연결하는 댄서 캐스팅 플랫폼입니다. 검증된 댄서·댄스팀의 경력과 영상 포트폴리오를 직접 보고 섭외할 수 있습니다.",
@@ -61,11 +94,11 @@ const ko = {
   "faq.more": "더 자세한 내용은 {link}에서 확인하세요.",
   "faq.more_link": "댄서 섭외·안무 제작 가이드",
 
-  "contact.title": "섭외·캐스팅 문의는 편한 채널로 보내주세요.",
+  "contact.title": "어떤 무대를\n준비하고 있나요?",
   "contact.body":
     "프로젝트 유형, 일정, 예산, 필요한 장르를 함께 적어주시면 더 빠르게 도와드릴 수 있습니다.",
-  "contact.kakao": "카카오톡 채널 문의",
-  "contact.instagram": "인스타그램 DM (@deetz.kr)",
+  "contact.kakao": "카카오톡으로 문의",
+  "contact.instagram": "인스타그램 DM",
 
   "jsonld.service_name": "deetz 댄서 섭외 및 안무 제작",
   "jsonld.service_description":
@@ -75,6 +108,40 @@ const ko = {
 type Key = keyof typeof ko;
 
 const en: Record<Key, string> = {
+  "home.skip": "Skip to content",
+  "home.home_label": "deetz home",
+  "home.nav_label": "Main navigation",
+  "home.how": "How it works",
+  "home.login": "Log in",
+  "home.stat_dancers": "Registered dancers",
+  "home.stat_teams": "Active teams",
+  "home.stat_calls": "Total casting calls",
+  "home.image_caption": "Performance, on film",
+  "home.watch": "Watch the film",
+  "home.client_label": "Looking for dancers?",
+  "home.client_title": "Find the people\nfor your project.",
+  "home.client_body": "Explore their work and credits, then send an offer.\nOr post a casting call to find applicants who fit your schedule and brief.",
+  "home.post_call": "Post a casting call",
+  "home.dancer_label": "Looking for your next project?",
+  "home.dancer_title": "Your work.\nYour next opportunity.",
+  "home.dancer_body": "Bring your credits and videos together in one profile.\nApply for shoots and performances, and receive casting offers.",
+  "home.create_profile": "Create a profile",
+  "home.service_label": "What we work on",
+  "home.service_title": "On camera.\nOn stage.",
+  "home.service_body": "From solo performances to full dance teams and choreography.\nFind the experience and styles your project needs.",
+  "home.service_film": "Music videos & commercials",
+  "home.service_stage": "Stage & broadcast",
+  "home.service_choreography": "Choreography & direction",
+  "home.service_team": "Performances & events",
+  "home.program_label": "For international dancers planning to work in Korea",
+  "home.program_title": "Explore the visa & dance program",
+  "home.faq_label": "Questions & answers",
+  "home.guide": "Read the guide",
+  "home.contact_label": "Casting inquiries",
+  "home.footer_note": "Dancers, choreographers, and what comes next.",
+  "home.terms": "Terms",
+  "home.privacy": "Privacy",
+
   "meta.og_description":
     "deetz is a dancer casting platform that connects music videos, ads, stages and broadcasts with dancers and choreography through portfolios.",
   "meta.keywords":
@@ -83,13 +150,13 @@ const en: Record<Key, string> = {
   "nav.dancers": "Dancers",
   "nav.feed": "Casting calls",
 
-  "hero.badge": "Dancer casting & Curation",
-  "hero.title": "Dancer casting\nand choreography\nin one place.",
+  "hero.badge": "Dancers, choreographers & dance teams",
+  "hero.title": "Dancer casting\nand choreography.",
   "hero.lede":
-    "deetz is a dancer casting platform that connects music videos, ads, broadcasts and dance performances with dancers, choreographers and dance teams, based on their portfolios and credits.",
-  "hero.cta_feed": "See casting calls",
-  "hero.cta_portfolio": "Browse portfolios",
-  "hero.image_alt": "deetz dancer casting reference video",
+    "Browse dancer and choreographer profiles to find the right people for your music video, ad, or performance.",
+  "hero.cta_feed": "Explore casting calls",
+  "hero.cta_portfolio": "Find dancers",
+  "hero.image_alt": "Dancers rehearsing choreography together in a studio",
 
   "stats.calls_fallback": "Open",
 
@@ -105,7 +172,7 @@ const en: Record<Key, string> = {
   "usecase.team": "Book dance performances and review dance team portfolios",
   "usecase.portfolio": "Review portfolios of choreographers, directors, instructors and dance teams",
 
-  "faq.title": "Written so anyone looking for dancer casting gets it right away.",
+  "faq.title": "A few things\nto know first.",
   "faq.q_service": "What is deetz?",
   "faq.a_service":
     "deetz is a dancer casting platform that connects music videos, ads, stages, broadcasts and events with dancers and choreographers. You can see the credits and video portfolios of verified dancers and dance teams and book them directly.",
@@ -127,11 +194,11 @@ const en: Record<Key, string> = {
   "faq.more": "For more, see the {link}.",
   "faq.more_link": "guide to dancer casting and choreography",
 
-  "contact.title": "Send your casting inquiry through whichever channel you prefer.",
+  "contact.title": "What are you\nworking on?",
   "contact.body":
     "Tell us the project type, schedule, budget and the genres you need, and we can help you faster.",
-  "contact.kakao": "Ask on the KakaoTalk channel",
-  "contact.instagram": "Instagram DM (@deetz.kr)",
+  "contact.kakao": "Talk on KakaoTalk",
+  "contact.instagram": "Instagram DM",
 
   "jsonld.service_name": "deetz dancer casting and choreography production",
   "jsonld.service_description":
@@ -139,6 +206,40 @@ const en: Record<Key, string> = {
 };
 
 const ja: Record<Key, string> = {
+  "home.skip": "本文へ移動",
+  "home.home_label": "deetz ホーム",
+  "home.nav_label": "メインナビゲーション",
+  "home.how": "利用方法",
+  "home.login": "ログイン",
+  "home.stat_dancers": "登録ダンサー",
+  "home.stat_teams": "活動中のチーム",
+  "home.stat_calls": "累計募集件数",
+  "home.image_caption": "映像で出会うパフォーマンス",
+  "home.watch": "映像を見る",
+  "home.client_label": "ダンサーを探している方へ",
+  "home.client_title": "プロジェクトに合う\nダンサーと出会う。",
+  "home.client_body": "映像と経歴を見て、気になるダンサーにオファー。\n募集を掲載して、日程や条件に合う応募者を集めることもできます。",
+  "home.post_call": "募集を掲載する",
+  "home.dancer_label": "新しい仕事を探している方へ",
+  "home.dancer_title": "次の仕事につながる\nプロフィール。",
+  "home.dancer_body": "経歴と作品映像をひとつのページに。\n撮影・公演の募集に応募し、キャスティングのオファーを受け取りましょう。",
+  "home.create_profile": "プロフィールを作る",
+  "home.service_label": "一緒につくる仕事",
+  "home.service_title": "カメラの前でも。\nステージの上でも。",
+  "home.service_body": "ソロからチーム公演、振付制作まで。\nプロジェクトに必要な経験とジャンルを探せます。",
+  "home.service_film": "MV・広告",
+  "home.service_stage": "ステージ・放送",
+  "home.service_choreography": "振付制作・ディレクション",
+  "home.service_team": "公演・イベント",
+  "home.program_label": "韓国での活動を準備する海外ダンサーへ",
+  "home.program_title": "ビザ・ダンスプログラムを見る",
+  "home.faq_label": "よくある質問",
+  "home.guide": "利用ガイドを見る",
+  "home.contact_label": "キャスティングのお問い合わせ",
+  "home.footer_note": "ダンサー、振付師、そして次のステージへ。",
+  "home.terms": "利用規約",
+  "home.privacy": "プライバシーポリシー",
+
   "meta.og_description":
     "deetzは、MV・広告・ステージ・放送のダンサーキャスティングと振付制作をポートフォリオでつなぐプラットフォームです。",
   "meta.keywords":
@@ -147,13 +248,13 @@ const ja: Record<Key, string> = {
   "nav.dancers": "ダンサー一覧",
   "nav.feed": "募集一覧",
 
-  "hero.badge": "Dancer casting & Curation · キャスティング、キュレーション",
-  "hero.title": "ダンサー手配と\n振付制作を\n一つの場所で。",
+  "hero.badge": "ダンサー・振付師・ダンスチーム",
+  "hero.title": "ダンサーの手配から\n振付制作まで。",
   "hero.lede":
-    "deetzは、ダンサー・振付師・ダンスチームのポートフォリオと経歴をもとに、MV・広告・放送・ダンス公演のキャスティングをつなぐプラットフォームです。",
+    "ミュージックビデオ、広告、公演に出演するダンサーや振付師のプロフィールを見て、依頼内容に合う人を探しましょう。",
   "hero.cta_feed": "募集を見る",
-  "hero.cta_portfolio": "ポートフォリオを見る",
-  "hero.image_alt": "deetzダンサーキャスティングのリファレンス映像",
+  "hero.cta_portfolio": "ダンサーを探す",
+  "hero.image_alt": "スタジオで一緒に振付を練習するダンサーたち",
 
   "stats.calls_fallback": "公開",
 
@@ -169,7 +270,7 @@ const ja: Record<Key, string> = {
   "usecase.team": "ダンス公演の手配とダンスチームのポートフォリオ確認",
   "usecase.portfolio": "振付師・ディレクター・インストラクター・ダンスチームのポートフォリオ確認",
 
-  "faq.title": "ダンサーキャスティングをお探しの方にすぐ分かるようまとめました。",
+  "faq.title": "はじめに\n知っておきたいこと。",
   "faq.q_service": "deetzはどんなサービスですか？",
   "faq.a_service":
     "deetzは、MV・広告・ステージ・放送・イベントに必要なダンサーと振付師をつなぐキャスティングプラットフォームです。審査を通過したダンサー・ダンスチームの経歴と映像ポートフォリオを直接見て手配できます。",
@@ -191,11 +292,11 @@ const ja: Record<Key, string> = {
   "faq.more": "詳しくは{link}をご覧ください。",
   "faq.more_link": "ダンサー手配・振付制作ガイド",
 
-  "contact.title": "キャスティングのお問い合わせは、お好きなチャネルからお送りください。",
+  "contact.title": "どんなステージを\n準備していますか？",
   "contact.body":
     "案件の種類・日程・予算・必要なジャンルを併せてご記入いただくと、より早くご案内できます。",
-  "contact.kakao": "KakaoTalkチャンネルで問い合わせ",
-  "contact.instagram": "InstagramのDM（@deetz.kr）",
+  "contact.kakao": "KakaoTalkで相談",
+  "contact.instagram": "InstagramのDM",
 
   "jsonld.service_name": "deetz ダンサーキャスティング・振付制作",
   "jsonld.service_description":
