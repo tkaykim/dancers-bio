@@ -21,10 +21,11 @@ function SettingsFields({ settings, onChange }: { settings: ReportSettings; onCh
       <p className="text-xs text-ink-3">승인된 업로드만 집계하며, 아래에 지정한 예정자만 보고서에 표시합니다.<br/>예정자는 실적 합계에서 제외됩니다.</p>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={settings.approximateViews === true} onChange={e => onChange({ ...settings, approximateViews: e.target.checked })}/>공개 화면의 반올림 조회수 · 합계에 ‘약’ 표시</label>
       <fieldset className="space-y-2"><legend className="mb-2 text-sm font-medium">보고서에 표시할 예정자</legend>
-      {(settings.upcoming ?? []).map((p,i) => <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_140px_auto]" key={i}>
+      {(settings.upcoming ?? []).map((p,i) => <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_140px_120px_auto]" key={i}>
         <Input aria-label={`예정자 ${i+1} 이름`} placeholder="이름" value={p.name} onChange={e => onChange({ ...settings, upcoming: settings.upcoming?.map((x,j) => j === i ? { ...x, name: e.target.value } : x) })}/>
         <Input aria-label={`예정자 ${i+1} 계정`} placeholder="계정 (선택)" value={p.handle ?? ""} onChange={e => onChange({ ...settings, upcoming: settings.upcoming?.map((x,j) => j === i ? { ...x, handle: e.target.value.replace(/^@/,"") || null } : x) })}/>
         <Input aria-label={`예정자 ${i+1} 날짜`} type="date" value={p.date ?? ""} onChange={e => onChange({ ...settings, upcoming: settings.upcoming?.map((x,j) => j === i ? { ...x, date: e.target.value || null } : x) })}/>
+        <Input aria-label={`예정자 ${i+1} 상태`} placeholder="상태 (예: 업로드 대기)" value={p.status ?? ""} onChange={e => onChange({ ...settings, upcoming: settings.upcoming?.map((x,j) => j === i ? { ...x, status: e.target.value || null } : x) })}/>
         <Button type="button" variant="ghost" onClick={() => onChange({ ...settings, upcoming: settings.upcoming?.filter((_,j) => j !== i) })}>제외</Button>
       </div>)}
       <Button type="button" variant="outline" onClick={() => onChange({ ...settings, upcoming: [...(settings.upcoming ?? []), { name: "", handle: null, date: null }] })}>예정자 추가</Button></fieldset>

@@ -56,6 +56,8 @@ test("not-proceeding names are published separately and never override a complet
   assert.deepEqual(r.delivery?.notProceeding?.map(p => [p.name, p.reason]), [["Dropped", "기간 내 미업로드"]]);
   assert.deepEqual(r.delivery?.upcoming.map(p => p.name), ["Guest"]);
   assert.equal(r.delivery?.participants, 3);
+  const withStatus = normalizeReportSettings({ layout: "delivery", upcoming: [{ name: "Hold", handle: "hold", status: "보류" }] });
+  assert.equal(buildDeliveryReport(data, submissions, { title: "Report", client_label: null, settings: withStatus }, snapshotId).delivery?.upcoming[0].status, "보류");
 });
 test("unknown views stay null, actual zero remains zero, and publication is a detached snapshot", () => {
   const { data, submissions } = fixture();
