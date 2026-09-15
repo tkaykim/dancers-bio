@@ -78,7 +78,7 @@ function ReportCard({ report, snapshots }: { report: Report; snapshots: Snapshot
     <div className="flex flex-wrap gap-2 border-t border-border pt-4">
       <Button disabled={action.pending || !snapshot} onClick={() => action.run(() => publishReportAction(report.id, snapshot, trendIds), () => setPreview(null))}>{report.published_at ? "재발행" : "발행"}</Button>
       <Button variant="outline" disabled={action.pending || !snapshot} onClick={() => action.run(() => previewReportAction(report.id, snapshot, trendIds), setPreview)}>미리보기</Button>
-      <Button variant="ghost" onClick={async () => { try { await navigator.clipboard.writeText(`${location.origin}/results/${report.share_code}`); setCopyMessage("링크를 복사했습니다."); } catch { setCopyMessage("링크를 복사하지 못했습니다. 브라우저 권한을 확인해 주세요."); } }}><Copy aria-hidden />링크 복사</Button>
+      <Button variant="ghost" onClick={async () => { const url = `${location.origin}/results/${report.share_code}`; const { copyText } = await import("@/lib/clipboard"); setCopyMessage(await copyText(url) ? "링크를 복사했습니다." : url); }}><Copy aria-hidden />링크 복사</Button>
       {report.published_at && <Link href={`/results/${report.share_code}`} target="_blank" className="inline-flex items-center gap-1 text-xs text-ink-2">발행본 <ExternalLink className="size-3" aria-hidden /></Link>}
     </div>
     {copyMessage && <p role="status" className="text-xs text-ink-3">{copyMessage}</p>}
