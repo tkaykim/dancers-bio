@@ -28,6 +28,14 @@ function SettingsFields({ settings, onChange }: { settings: ReportSettings; onCh
         <Button type="button" variant="ghost" onClick={() => onChange({ ...settings, upcoming: settings.upcoming?.filter((_,j) => j !== i) })}>제외</Button>
       </div>)}
       <Button type="button" variant="outline" onClick={() => onChange({ ...settings, upcoming: [...(settings.upcoming ?? []), { name: "", handle: null, date: null }] })}>예정자 추가</Button></fieldset>
+      <fieldset className="space-y-2"><legend className="mb-2 text-sm font-medium">보고서에 표시할 진행 불가 인원</legend>
+      {(settings.notProceeding ?? []).map((p,i) => <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_160px_auto]" key={i}>
+        <Input aria-label={`진행 불가 ${i+1} 이름`} placeholder="이름" value={p.name} onChange={e => onChange({ ...settings, notProceeding: settings.notProceeding?.map((x,j) => j === i ? { ...x, name: e.target.value } : x) })}/>
+        <Input aria-label={`진행 불가 ${i+1} 계정`} placeholder="계정 (선택)" value={p.handle ?? ""} onChange={e => onChange({ ...settings, notProceeding: settings.notProceeding?.map((x,j) => j === i ? { ...x, handle: e.target.value.replace(/^@/,"") || null } : x) })}/>
+        <Input aria-label={`진행 불가 ${i+1} 사유`} placeholder="표시 사유 (선택)" value={p.reason ?? ""} onChange={e => onChange({ ...settings, notProceeding: settings.notProceeding?.map((x,j) => j === i ? { ...x, reason: e.target.value || null } : x) })}/>
+        <Button type="button" variant="ghost" onClick={() => onChange({ ...settings, notProceeding: settings.notProceeding?.filter((_,j) => j !== i) })}>제외</Button>
+      </div>)}
+      <Button type="button" variant="outline" onClick={() => onChange({ ...settings, notProceeding: [...(settings.notProceeding ?? []), { name: "", handle: null, reason: null }] })}>진행 불가 추가</Button></fieldset>
       <details><summary className="cursor-pointer text-sm">보고용 팔로워 확인값 ({settings.followerObservations?.length ?? 0}계정)</summary>
         <p className="my-2 text-xs text-ink-3">공개 계정에서 확인한 수치를 입력합니다.<br/>수치를 수정하면 확인 시각도 갱신됩니다.</p>
         {(settings.followerObservations ?? []).map((f,i) => <label key={f.handle} className="my-2 flex items-center gap-3 text-xs"><span className="min-w-0 flex-1 truncate">@{f.handle}</span><Input type="number" min={0} step={1} className="w-32" aria-label={`@${f.handle} 팔로워 수`} value={f.count} onChange={e => onChange({ ...settings, followerObservations: settings.followerObservations?.map((x,j) => j === i ? { ...x, count: Number(e.target.value), checkedAt: new Date().toISOString() } : x) })}/></label>)}

@@ -41,11 +41,17 @@ export function buildDeliveryReport(data: CampaignData, submissions: SubmissionD
     if (seen.has(key) || (p.handle && completedHandles.has(p.handle)) || completedNames.has(p.name.toLowerCase())) return false;
     seen.add(key); return true;
   }).map(p => ({ ...p, followers: p.handle ? followerChecks.get(p.handle)?.count ?? null : null }));
-  const visibleHandles = new Set([...items.map(p => p.handle), ...upcoming.map(p => p.handle)]);
+  // A creator with an approved delivery is never listed as not proceeding.
+  const notProceeding = (settings.notProceeding ?? []).filter(p => {
+    const key = p.handle ?? p.name.toLowerCase();
+    if (seen.has(key) || (p.handle && completedHandles.has(p.handle)) || completedNames.has(p.name.toLowerCase())) return false;
+    seen.add(key); return true;
+  }).map(p => ({ ...p, followers: p.handle ? followerChecks.get(p.handle)?.count ?? null : null }));
+  const visibleHandles = new Set([...items.map(p => p.handle), ...upcoming.map(p => p.handle), ...notProceeding.map(p => p.handle)]);
   const visibleChecks = [...followerChecks.values()].filter(f => visibleHandles.has(f.handle));
   result.delivery = { participants: people.size, posts: items.length, measured: known.length,
     views: known.length ? known.reduce((sum,p) => sum + p.views!, 0) : null,
-    approximate: settings.approximateViews === true, items, upcoming,
+    approximate: settings.approximateViews === true, items, upcoming, notProceeding,
     followersCheckedAt: visibleChecks.map(f => f.checkedAt).sort().at(-1) ?? null };
   // Keep only the delivery projection in this layout, including the serialized payload.
   delete result.uploads;
@@ -59,6 +65,7 @@ export function buildDeliveryReport(data: CampaignData, submissions: SubmissionD
   result.allPosts = undefined;
   result.topPosts = [];
   result.settings.upcoming = upcoming;
+  result.settings.notProceeding = notProceeding.map(({ name, handle, reason }) => ({ name, handle, reason }));
   result.settings.followerObservations = visibleChecks;
   return JSON.parse(JSON.stringify(result)) as PublicReport;
 }

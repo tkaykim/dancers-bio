@@ -91,6 +91,7 @@ export type ReportSettings = {
   layout?: "analysis" | "delivery";
   approximateViews?: boolean;
   upcoming?: { name: string; handle: string | null; date: string | null }[];
+  notProceeding?: { name: string; handle: string | null; reason: string | null }[];
   followerObservations?: { handle: string; count: number; checkedAt: string }[];
   showFollowers: boolean;
   showDisplayNames: boolean;
@@ -213,6 +214,7 @@ export type PublicReport = {
     approximate: boolean;
     items: { url: string; names: string[]; handle: string | null; views: number | null; followers?: number | null }[];
     upcoming: { name: string; handle: string | null; date: string | null; followers?: number | null }[];
+    notProceeding?: { name: string; handle: string | null; reason: string | null; followers?: number | null }[];
     followersCheckedAt?: string | null;
   };
   uploads?: import("./submissions").PublicUploads;
