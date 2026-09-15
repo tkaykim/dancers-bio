@@ -5,6 +5,7 @@ import type { PublicReport } from "@/lib/campaign/types";
 import styles from "./DeliveryReport.module.css";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
 import { compactFollowers } from "@/lib/campaign/format-count";
+import { copyText } from "@/lib/clipboard";
 
 const num = (n: number) => n.toLocaleString("ko-KR");
 const stamp = (date: string) => new Date(Date.parse(date) + 9 * 3600000).toISOString().slice(0, 16).replace("T", " ");
@@ -17,7 +18,12 @@ export function DeliveryReport({ report }: { report: PublicReport }) {
   return <article className={styles.report}>
     <div className={styles.toolbar}>
       <span>광고주 공유용</span>
-      <div><button onClick={async () => { try { await navigator.clipboard.writeText(location.href); setCopied("링크를 복사했습니다."); } catch { setCopied("주소창의 링크를 복사해 주세요."); } }}><Copy size={15} />링크 복사</button>
+      <div><button onClick={async () => {
+          const url = `${location.origin}${location.pathname}`;
+          if (await copyText(url)) { setCopied("링크를 복사했습니다."); return; }
+          if (navigator.share) { try { await navigator.share({ title: report.title, url }); setCopied(""); return; } catch { /* 공유 취소 */ } }
+          setCopied(url);
+        }}><Copy size={15} />링크 복사</button>
         <button onClick={() => window.print()}><Printer size={15} />인쇄 · PDF</button></div>
       {copied && <span role="status">{copied}</span>}
     </div>
@@ -29,8 +35,7 @@ export function DeliveryReport({ report }: { report: PublicReport }) {
           <p className={styles.subtitle}>공개 업로드가 확인된 콘텐츠의 참여 현황과 누적 조회수입니다.</p>
         </div>
         <div className={styles.observed}>
-          <div className={styles.timestamp}><strong>조회수 기준</strong><span>{stamp(report.snapshot.takenAt)} · 한국 시간</span></div>
-          {d.followersCheckedAt && <div className={styles.followerTime}><strong>팔로워 확인</strong><span>{stamp(d.followersCheckedAt)} · 한국 시간</span></div>}
+          <div className={styles.timestamp}><strong>기준일시</strong><span>{stamp(report.snapshot.takenAt)} · 한국 시간</span></div>
         </div>
       </div>
     </header>

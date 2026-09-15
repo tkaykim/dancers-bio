@@ -619,7 +619,11 @@ test("public page renders only published payload and maps missing publication to
     params: Promise.resolve({ code: "abc1234" }),
   });
   assert.equal(result.props.report, payload);
-  assert.equal(page.metadata.robots.index, false);
+  const metadata = await page.generateMetadata({ params: Promise.resolve({ code: "abc1234" }) });
+  assert.equal((metadata.robots as { index: boolean }).index, false);
+  const title = (metadata.title as { absolute: string }).absolute;
+  assert.match(title, / · deetz$/);
+  assert.ok(!title.includes("deetz · deetz"));
   payload = null;
   await assert.rejects(
     page.default({ params: Promise.resolve({ code: "missing" }) }),
