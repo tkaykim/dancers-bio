@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { ArrowUpRight, CalendarDays, Check, Copy, Printer, Search } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Check, CircleSlash, Copy, Printer, Search } from "lucide-react";
 import type { PublicReport } from "@/lib/campaign/types";
 import styles from "./DeliveryReport.module.css";
 import { DeetzLogo } from "@/components/brand/DeetzLogo";
@@ -53,6 +53,11 @@ export function DeliveryReport({ report }: { report: PublicReport }) {
         <div className={styles.sectionHead}><div><h2>참여 예정 <span>{d.upcoming.length}</span></h2></div><CalendarDays size={22}/></div>
         <p className={styles.caption}>예정 인원은 완료 실적에 포함하지 않았습니다.</p>
         <div className={styles.people}>{d.upcoming.map(p => <div key={p.handle ?? p.name}><strong>{p.name}</strong>{p.handle && <a className={styles.handle} href={`https://www.instagram.com/${p.handle}/`} target="_blank" rel="noreferrer">@{p.handle}</a>}<span className={styles.followers}>팔로워 {compactFollowers(p.followers)}</span><span className={styles.schedule}>{p.date ? p.date.slice(5).replace("-", "/") + " 참여 예정" : "제출 예정"}</span></div>)}</div>
+      </section>}
+      {(d.notProceeding?.length ?? 0) > 0 && <section className={`${styles.upcoming} ${styles.notProceeding}`}>
+        <div className={styles.sectionHead}><div><h2>진행 불가 <span>{d.notProceeding!.length}</span></h2></div><CircleSlash size={22}/></div>
+        <p className={styles.caption}>일정·조건 사유로 업로드하지 않아 실적에서 제외했습니다.</p>
+        <div className={styles.people}>{d.notProceeding!.map(p => <div key={p.handle ?? p.name}><strong>{p.name}</strong>{p.handle && <a className={styles.handle} href={`https://www.instagram.com/${p.handle}/`} target="_blank" rel="noreferrer">@{p.handle}</a>}<span className={styles.followers}>팔로워 {compactFollowers(p.followers)}</span><span className={styles.schedule}>{p.reason ?? "진행 불가"}</span></div>)}</div>
       </section>}
     </div>
     <footer className={styles.footer}><strong>집계 기준</strong><p>{report.notice}</p><span>deetz · 캠페인 운영</span></footer>

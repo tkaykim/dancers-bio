@@ -47,6 +47,16 @@ test("only explicitly listed upcoming names are published and completed names ar
   for (const secret of ["private-unsubmitted","private manager","secret fee","private feedback","secret-run","Guest duplicate"]) assert.ok(!serialized.includes(secret), secret);
   assert.ok(!r.uploads);
 });
+test("not-proceeding names are published separately and never override a completed delivery", () => {
+  const { data, submissions } = fixture();
+  const settings = normalizeReportSettings({ layout: "delivery",
+    upcoming: [{ name: "Guest", handle: "guest" }],
+    notProceeding: [{ name: "one", handle: "one" }, { name: "Guest again", handle: "guest" }, { name: "Dropped", handle: "dropped", reason: "기간 내 미업로드" }] });
+  const r = buildDeliveryReport(data, submissions, { title: "Report", client_label: null, settings }, snapshotId);
+  assert.deepEqual(r.delivery?.notProceeding?.map(p => [p.name, p.reason]), [["Dropped", "기간 내 미업로드"]]);
+  assert.deepEqual(r.delivery?.upcoming.map(p => p.name), ["Guest"]);
+  assert.equal(r.delivery?.participants, 3);
+});
 test("unknown views stay null, actual zero remains zero, and publication is a detached snapshot", () => {
   const { data, submissions } = fixture();
   data.metrics = [];
