@@ -4,6 +4,7 @@ import { ChevronRight, Globe2, LogOut } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { requireUser } from "@/lib/auth/guard";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ProfileCard } from "@/components/profile/ProfileCard";
 import { ProfileShareCard } from "@/components/share/ProfileShareCard";
 import { PushPrompt } from "@/components/layout/PushPrompt";
@@ -32,7 +33,9 @@ export default async function MePage() {
   const tNav = await serverT(nav);
   const locale = await getLocale();
   const supabase = await createClient();
-  const { data: profile } = await supabase
+  // 보안(2026-09-21): profiles.phone 은 anon/authenticated 에게 컬럼 SELECT 권한이 없다(전화번호 덤프 차단).
+  // 본인 프로필의 전화번호는 requireUser 로 인증된 user.id 에 한해 service-role 로 읽는다.
+  const { data: profile } = await createAdminClient()
     .from("profiles")
     .select("id, display_name, avatar_url, bio, is_admin, phone")
     .eq("id", user.id)
