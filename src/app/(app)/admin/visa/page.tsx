@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { defaultProgramAmount, hasPaidAuditionFee, issuedProgramAmount } from "@/lib/visa/program-amount";
 import { visaLabel } from "@/lib/data/korea-visas";
 import { VisaAdminList, type VisaAdminRow } from "@/components/admin/VisaAdminList";
 import { VisaAuditionInvitePanel } from "@/components/admin/VisaAuditionInvitePanel";
@@ -62,6 +63,7 @@ type AppRow = {
   payment_order_no?: string | null;
   payment_provider?: string | null;
   payment_amount_krw?: number | null;
+  payment_meta?: unknown;
   paid_at?: string | null;
   payment_refunded_at?: string | null;
 };
@@ -320,6 +322,13 @@ export default async function AdminVisaPage() {
       payment_amount_krw: a.payment_amount_krw ?? null,
       paid_at: a.paid_at ?? null,
       payment_refunded_at: a.payment_refunded_at ?? null,
+      payment_issued_product_slug:
+        typeof (a.payment_meta as Record<string, unknown> | null)?.issued_product_slug === "string"
+          ? ((a.payment_meta as Record<string, unknown>).issued_product_slug as string)
+          : null,
+      audition_fee_paid: hasPaidAuditionFee(a),
+      program_amount_issued: issuedProgramAmount(a),
+      program_amount_default: defaultProgramAmount(a),
       document_intake_status: intakeMap.get(a.id)?.status ?? null,
       document_intake_last_saved_at: intakeMap.get(a.id)?.last_saved_at ?? null,
       document_intake_submitted_at: intakeMap.get(a.id)?.submitted_at ?? null,

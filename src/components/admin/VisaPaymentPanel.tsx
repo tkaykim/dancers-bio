@@ -9,10 +9,13 @@ import { issueVisaPaymentLinkAction } from "@/app/actions/visa-payment";
 //
 // 결제 정본은 grigoent(별도 시스템)이고 여기 표시되는 값은 결제 콜백으로 넘어온 사본이다.
 // 그래서 이 패널은 "링크 발급"만 하고, 결제 완료 여부는 직접 수정하지 못하게 둔다.
+//
+// 트레이닝 패키지 링크는 관리자가 금액을 정해 발급한다. 오디션 참가비를 이미 낸 지원자는
+// 기본값이 3,900,000원이다. 같은 상품 링크는 주소가 그대로라, 금액만 바꿔 다시 발급해도 된다.
 
 const PRODUCTS = [
-  { slug: "audition-fee", label: "오디션 참석 확정비", amount: "100,000원" },
-  { slug: "training-and-placement", label: "트레이닝 패키지", amount: "4,000,000원" },
+  { slug: "audition-fee", label: "오디션 참석 확정비" },
+  { slug: "training-and-placement", label: "트레이닝 패키지" },
 ] as const;
 
 type ProductSlug = (typeof PRODUCTS)[number]["slug"];
@@ -26,7 +29,18 @@ export type VisaPaymentState = {
   paymentAmountKrw: number | null;
   paidAt: string | null;
   paymentRefundedAt: string | null;
+  /** 마지막으로 발급한 링크의 상품. null 이면 옛 오디션비 링크다. */
+  issuedProductSlug: string | null;
+  auditionFeePaid: boolean;
+  /** 지금 발급돼 있는 트레이닝 패키지 링크 금액 */
+  programAmountIssued: number | null;
+  /** 금액 입력칸 기본값 (오디션비 결제자 3,900,000 / 그 외 4,000,000) */
+  programAmountDefault: number;
 };
+
+function formatWon(value: number): string {
+  return `${value.toLocaleString("ko-KR")}원`;
+}
 
 function formatKst(value: string | null): string {
   if (!value) return "-";
@@ -46,21 +60,36 @@ const PROVIDER_LABEL: Record<string, string> = { toss: "토스페이먼츠", pay
 export function VisaPaymentPanel({ state }: { state: VisaPaymentState }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [product, setProduct] = useState<ProductSlug>("audition-fee");
-  const [link, setLink] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
   const paid = state.paymentStatus === "paid";
   const refunded = state.paymentStatus === "refunded";
+  // 오디션비만 결제된 상태면 다음 결제(트레이닝 패키지) 링크를 발급할 수 있다.
+  const auditionOnlyPaid = paid && (state.issuedProductSlug ?? "audition-fee") === "audition-fee";
+  const canIssue = !paid || auditionOnlyPaid;
+  const products = auditionOnlyPaid ? PRODUCTS.filter((item) => item.slug !== "audition-fee") : PRODUCTS;
+
+  const [product, setProduct] = useState<ProductSlug>(
+    auditionOnlyPaid || state.issuedProductSlug === "training-and-placement" ? "training-and-placement" : "audition-fee",
+  );
+  const [amountInput, setAmountInput] = useState(state.programAmountDefault.toLocaleString("ko-KR"));
+  const amount = Number(amountInput.replace(/[^0-9]/g, ""));
+  const amountValid = Number.isInteger(amount) && amount >= 10_000 && amount <= 20_000_000;
+  const [link, setLink] = useState<string | null>(null);
+  const [issuedAmount, setIssuedAmount] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const issue = () => {
     setError(null);
     setLink(null);
+    if (product === "training-and-placement" && !amountValid) {
+      setError("결제 금액은 10,000원 이상 20,000,000원 이하로 입력해 주세요.");
+      return;
+    }
     startTransition(async () => {
       const result = await issueVisaPaymentLinkAction({
         applicationId: state.applicationId,
         productSlug: product,
+        ...(product === "training-and-placement" ? { amountKrw: amount } : {}),
       });
       if (!result.ok) {
         setError(result.error);
@@ -72,6 +101,7 @@ export function VisaPaymentPanel({ state }: { state: VisaPaymentState }) {
         return;
       }
       setLink(result.data.url);
+      setIssuedAmount(result.data.amountKrw ?? null);
       router.refresh();
     });
   };
@@ -97,7 +127,7 @@ export function VisaPaymentPanel({ state }: { state: VisaPaymentState }) {
         {paid ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
             <BadgeCheck className="h-3.5 w-3.5" />
-            결제 완료
+            {auditionOnlyPaid ? "오디션비 결제 완료" : "결제 완료"}
           </span>
         ) : refunded ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
@@ -142,10 +172,10 @@ export function VisaPaymentPanel({ state }: { state: VisaPaymentState }) {
         </dl>
       ) : null}
 
-      {!paid ? (
+      {canIssue ? (
         <div className="mt-3 space-y-3">
           <div className="flex flex-wrap gap-2">
-            {PRODUCTS.map((item) => (
+            {products.map((item) => (
               <button
                 key={item.slug}
                 type="button"
@@ -157,10 +187,44 @@ export function VisaPaymentPanel({ state }: { state: VisaPaymentState }) {
                 }`}
               >
                 <span className="block font-semibold">{item.label}</span>
-                <span className="block opacity-80">{item.amount}</span>
+                <span className="block opacity-80">
+                  {item.slug === "audition-fee" ? "100,000원" : "금액 직접 입력"}
+                </span>
               </button>
             ))}
           </div>
+
+          {product === "training-and-placement" ? (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-zinc-700" htmlFor={`program-amount-${state.applicationId}`}>
+                결제 금액
+              </label>
+              <div className="flex max-w-xs items-center gap-2">
+                <input
+                  id={`program-amount-${state.applicationId}`}
+                  inputMode="numeric"
+                  value={amountInput}
+                  onChange={(event) => {
+                    const digits = event.target.value.replace(/[^0-9]/g, "").slice(0, 9);
+                    setAmountInput(digits ? Number(digits).toLocaleString("ko-KR") : "");
+                  }}
+                  className="admin-input w-full text-right font-semibold"
+                />
+                <span className="shrink-0 text-xs text-zinc-600">원</span>
+              </div>
+              <p className="text-xs text-zinc-500">
+                {state.auditionFeePaid
+                  ? "오디션 참가비 100,000원 결제가 확인돼 3,900,000원이 기본으로 들어가 있습니다."
+                  : "오디션 참가비 결제 기록이 없어 4,000,000원이 기본으로 들어가 있습니다."}
+              </p>
+              {state.programAmountIssued !== null ? (
+                <p className="text-xs text-sky-700">
+                  지금 보낸 링크의 금액은 {formatWon(state.programAmountIssued)}입니다. 금액을 바꿔 다시 발급하면 같은
+                  링크에서 새 금액으로 결제됩니다.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <button
             type="button"
@@ -169,7 +233,7 @@ export function VisaPaymentPanel({ state }: { state: VisaPaymentState }) {
             className="inline-flex items-center gap-2 rounded-md bg-zinc-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-50"
           >
             {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
-            결제 링크 발급
+            {product === "training-and-placement" && amountValid ? `${formatWon(amount)} 결제 링크 발급` : "결제 링크 발급"}
           </button>
 
           {state.paymentLinkSentAt ? (
@@ -183,7 +247,8 @@ export function VisaPaymentPanel({ state }: { state: VisaPaymentState }) {
       {link ? (
         <div className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 p-3">
           <p className="mb-2 text-xs text-zinc-600">
-            이 링크로 결제하면 결제 완료가 이 케이스에 자동으로 표시됩니다. 30일간 유효합니다.
+            {issuedAmount !== null ? `결제 금액 ${formatWon(issuedAmount)} · ` : ""}이 링크로 결제하면 결제 완료가 이 케이스에
+            자동으로 표시됩니다. 링크에는 유효기간이 없습니다.
           </p>
           <div className="flex items-start gap-2">
             <code className="min-w-0 flex-1 break-all text-[11px] text-zinc-800">{link}</code>
