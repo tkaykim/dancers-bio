@@ -5,6 +5,11 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { makeVisaPaymentUrl } from "@/lib/visa/payment-link";
+import {
+  PROGRAM_AMOUNT_MAX_KRW,
+  PROGRAM_AMOUNT_MIN_KRW,
+  defaultProgramAmount,
+} from "@/lib/visa/program-amount";
 import type { ActionResult } from "./auth";
 
 // 오디션까지 마친 지원자에게 보낼 결제 링크를 발급한다.
@@ -16,11 +21,18 @@ import type { ActionResult } from "./auth";
 const issueSchema = z.object({
   applicationId: z.string().uuid(),
   productSlug: z.enum(["audition-fee", "training-and-placement"]),
+  // 프로그램 결제 금액(원). 생략하면 기본값(오디션비 결제자 3,900,000 / 그 외 4,000,000).
+  amountKrw: z
+    .number()
+    .int("금액은 원 단위 정수로 입력해 주세요.")
+    .min(PROGRAM_AMOUNT_MIN_KRW, "결제 금액은 10,000원 이상이어야 합니다.")
+    .max(PROGRAM_AMOUNT_MAX_KRW, "결제 금액은 20,000,000원 이하여야 합니다.")
+    .optional(),
 });
 
 export async function issueVisaPaymentLinkAction(
   input: z.input<typeof issueSchema>,
-): Promise<ActionResult<{ url: string }>> {
+): Promise<ActionResult<{ url: string; amountKrw: number | null }>> {
   // 권한 없으면 내부에서 redirect 한다.
   await requireAdmin();
 
@@ -29,7 +41,7 @@ export async function issueVisaPaymentLinkAction(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요." };
   }
 
-  const { applicationId, productSlug } = parsed.data;
+  const { applicationId, productSlug, amountKrw } = parsed.data;
   const supabase = createAdminClient();
 
   const { data: application } = await supabase
@@ -53,6 +65,11 @@ export async function issueVisaPaymentLinkAction(
   if (application.payment_status === "link_sent" && previousProduct !== productSlug) {
     return { ok: false, error: "기존 결제 링크가 아직 대기 중입니다. 기존 결제 상태를 먼저 확인해 주세요." };
   }
+
+  // 프로그램 링크는 금액을 함께 기록한다. 같은 상품 링크를 다시 발급하면 금액만 바뀐다.
+  const programAmount = productSlug === "training-and-placement"
+    ? amountKrw ?? defaultProgramAmount(application)
+    : null;
 
   let url: string;
   try {
@@ -91,8 +108,9 @@ export async function issueVisaPaymentLinkAction(
       paid_at: movingFromPaidAuditionToProgram ? null : application.paid_at,
       payment_refunded_at: null,
       payment_meta: {
-        ...prevMeta,
+        ...Object.fromEntries(Object.entries(prevMeta).filter(([key]) => key !== "issued_amount_krw")),
         issued_product_slug: productSlug,
+        ...(programAmount !== null ? { issued_amount_krw: programAmount } : {}),
         ...(archivedPayments.length > 0 ? { completed_payments: archivedPayments } : {}),
       },
       ...(productSlug === "training-and-placement"
@@ -108,5 +126,5 @@ export async function issueVisaPaymentLinkAction(
   }
 
   revalidatePath("/admin/visa");
-  return { ok: true, data: { url } };
+  return { ok: true, data: { url, amountKrw: programAmount } };
 }

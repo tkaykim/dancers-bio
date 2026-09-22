@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyVisaPaymentRef } from "@/lib/visa/payment-link";
+import { issuedProgramAmount } from "@/lib/visa/program-amount";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
   const admin = createAdminClient();
   const { data: application, error: applicationError } = await admin
     .from("dancer_visa_applications")
-    .select("id, dancer_id, email, preferred_lang, payment_status")
+    .select("id, dancer_id, email, preferred_lang, payment_status, payment_meta")
     .eq("id", paymentRef.applicationId)
     .maybeSingle();
 
@@ -108,6 +109,8 @@ export async function GET(request: NextRequest) {
     masked: !full,
     applicationId: paymentRef.applicationId,
     productSlug: paymentRef.productSlug,
+    // 관리자가 링크 발급 때 정한 프로그램 결제 금액. 개인정보가 아니라 가려진 응답에도 싣는다.
+    amountKrw: paymentRef.productSlug === "training-and-placement" ? issuedProgramAmount(application) : null,
     customer: full
       ? {
           name,

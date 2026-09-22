@@ -105,6 +105,10 @@ export type VisaAdminRow = {
   payment_amount_krw: number | null;
   paid_at: string | null;
   payment_refunded_at: string | null;
+  payment_issued_product_slug: string | null;
+  audition_fee_paid: boolean;
+  program_amount_issued: number | null;
+  program_amount_default: number;
   document_intake_status: string | null;
   document_intake_last_saved_at: string | null;
   document_intake_submitted_at: string | null;
@@ -750,6 +754,10 @@ function VisaDetail({
           paymentAmountKrw: row.payment_amount_krw,
           paidAt: row.paid_at,
           paymentRefundedAt: row.payment_refunded_at,
+          issuedProductSlug: row.payment_issued_product_slug,
+          auditionFeePaid: row.audition_fee_paid,
+          programAmountIssued: row.program_amount_issued,
+          programAmountDefault: row.program_amount_default,
         }}
       />
 
