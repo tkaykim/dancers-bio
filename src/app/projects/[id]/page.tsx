@@ -704,6 +704,16 @@ export default async function ProjectDetailPage({
               {t("manage.edit")}
             </Button>
           </Link>
+          {/* 그리고엔터 공통 거래 서류(사업자등록증·통장사본). deetz 캐스팅 대금은 엔터 계좌. */}
+          <a
+            href={`https://www.grigoent.co.kr/paperwork/share?${new URLSearchParams({ project: p.title, from: "deetz" }).toString()}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button variant="outline" className="w-full" size="lg">
+              {t("manage.paperwork")}
+            </Button>
+          </a>
           {isOwner || isAdmin ? (
             <DeleteProjectButton projectId={p.id} variant="ghost" />
           ) : null}
