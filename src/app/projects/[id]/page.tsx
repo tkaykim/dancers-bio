@@ -704,9 +704,9 @@ export default async function ProjectDetailPage({
               {t("manage.edit")}
             </Button>
           </Link>
-          {/* 그리고엔터 공통 거래 서류(사업자등록증·통장사본). deetz 캐스팅 대금은 엔터 계좌. */}
+          {/* 그리고엔터 공통 거래 서류(사업자등록증·통장사본·견적서·거래명세서). 서버가 권한 확인 후 서명해 넘긴다. */}
           <a
-            href={`https://www.grigoent.co.kr/paperwork/share?${new URLSearchParams({ project: p.title, from: "deetz" }).toString()}`}
+            href={`/api/paperwork/handoff?project=${encodeURIComponent(p.short_code ?? p.id)}`}
             target="_blank"
             rel="noopener noreferrer"
           >
