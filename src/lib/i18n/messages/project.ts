@@ -47,7 +47,7 @@ const ko = {
 
   "manage.applicants": "지원자 보기 →",
   "manage.edit": "공고 수정",
-  "manage.paperwork": "거래 서류 보내기 (사업자등록증·통장사본)",
+  "manage.paperwork": "거래 서류 보내기 (견적서·사업자등록증·통장사본)",
 
   "closed.expired": "지원 마감일이 지났습니다.",
   "closed.closed": "현재 모집이 닫혀 있습니다.",
@@ -194,7 +194,7 @@ const en: Record<Key, string> = {
 
   "manage.applicants": "View applicants →",
   "manage.edit": "Edit casting call",
-  "manage.paperwork": "Send company documents (registration, bank account)",
+  "manage.paperwork": "Send business documents (quote, registration, bank account)",
 
   "closed.expired": "The application deadline has passed.",
   "closed.closed": "This casting call is closed right now.",
@@ -345,7 +345,7 @@ const ja: Record<Key, string> = {
 
   "manage.applicants": "応募者を見る →",
   "manage.edit": "募集を編集",
-  "manage.paperwork": "取引書類を送る（事業者登録証・通帳写し）",
+  "manage.paperwork": "取引書類を送る（見積書・事業者登録証・通帳写し）",
 
   "closed.expired": "応募の締切日が過ぎました。",
   "closed.closed": "現在この募集は締め切っています。",
